@@ -1,0 +1,109 @@
+#ifndef __CM_COMMON_H
+#define __CM_COMMON_H
+
+#include <sys/times.h>
+#include <stdbool.h>
+#include "mpfrcx.h"
+
+
+#define CM_MODPOL_J           'j'
+#define CM_MODPOL_DOUBLEETA   'd'
+#define CM_MODPOL_SIMPLEETA   's'
+#define CM_MODPOL_WEBER       'w'
+#define CM_MODPOL_WEBERSQUARE '2'
+#define CM_MODPOL_U           'u'
+#define CM_MODPOL_ATKIN       'a'
+#define CM_MODPOL_W35         '5'
+#define CM_MODPOL_W39         '9'
+#define CM_MODPOL_GAMMA2      'g'
+
+
+typedef struct {
+   struct tms time_old, time_new;
+   double     elapsed;
+} __cm_timer_struct;
+typedef __cm_timer_struct cm_timer [1];
+
+typedef struct {
+   long int **chain;
+      /* data structure for holding addition chains                          */
+      /* entry 0: the value of the exponent; chain [0][0] must be 0 and      */
+      /*                                     chain [1][0] must be 1          */
+      /* entry 1: the rule for obtaining this exponent, with the following   */
+      /*          meaning:                                                   */
+      /*          1: 2*i1                                                    */
+      /*          2: i1 + i2                                                 */
+      /*          3: 4*i1                                                    */
+      /*          4: 2*(i1 + i2)                                             */
+      /*          5: 2*i1 + i2                                               */
+      /*          6: i1 + i2 + i3                                            */
+      /* entries 2 to 4: the indices i1, i2, i3 yielding this exponent       */
+      /* entry 5: the coefficient with which the term contributes to the     */
+      /*          function (0 if it is only used as an auxiliary term)       */
+   int length;
+      /* the number of terms actually computed for the addition chain */
+} cm_qdev_t;
+
+typedef struct {
+   mp_prec_t prec;
+   mpc_t zeta48inv;
+   mpfr_t pi;
+   mpc_t log_zeta24;
+   mpc_t twopii;
+   mpc_t zeta24 [24];
+   mpfr_t sqrt2;
+   cm_qdev_t eta;
+} cm_modular_t;
+
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+/* functions for measuring the passing time */
+extern void cm_timer_start (cm_timer clock);
+extern void cm_timer_run (cm_timer clock);
+extern void cm_timer_stop (cm_timer clock);
+extern double cm_timer_get (cm_timer clock);
+
+/* generic functions for opening files */
+extern bool cm_file_open_write (FILE **f, char *filename);
+extern bool cm_file_open_read (FILE **f, char *filename);
+extern void cm_file_close (FILE *f);
+extern void cm_file_gzopen_write (FILE **f, char *filename);
+extern void cm_file_gzopen_read (FILE **f, char *filename);
+extern void cm_file_gzclose (FILE *f);
+
+/* functions missing in mpc */
+extern void mpc_pow_ui (mpc_t rop, mpc_t op1, unsigned long int op2);
+
+/* different functions for number theoretic computations */
+extern int cm_nt_is_prime (mpz_t a);
+extern unsigned long int cm_nt_next_prime (const unsigned long int n);
+
+extern void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p, mpz_t q);
+
+extern void cm_nt_elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
+   mpz_t m, mpz_t a, mpz_t p);
+extern void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
+   mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p);
+
+extern bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in);
+
+/* functions for evaluating modular functions */
+extern void cm_modular_init (cm_modular_t *m, mp_prec_t prec);
+extern void cm_modular_clear (cm_modular_t *m);
+extern void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z,
+   long int Ma, long int Mb, long int Mc,
+   long int Md);
+extern void cm_modular_eta_series (cm_modular_t m, mpc_t rop, mpc_t q_24);
+extern void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
+
+/* functions reading modular polynomials */
+extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,
+   mpz_t p, mpz_t x, const char * datadir);
+
+#if defined (__cplusplus)
+}
+#endif
+#endif /* ifndef __CM_COMMON_H */
