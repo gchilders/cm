@@ -809,6 +809,8 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       printf ("Estimated precision: %.1f\n", precision);
    if (c.invariant == CM_INVARIANT_WEBER)
       precision += (precision > 100 ? precision / 3 : 30);
+   else if (c.invariant == CM_INVARIANT_GAMMA3)
+      precision += (precision > 2000 ? precision / 3 : 30);
    else
       precision += (precision > 2000 ? precision / 100 : 20);
    if (verbose)
