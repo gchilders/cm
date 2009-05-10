@@ -111,7 +111,7 @@ AC_DEFUN([CM_PROG_CC_WARNINGCFLAGS], [
       AX_C_CHECK_FLAG(-pedantic,,,$1="$$1 -pedantic",)
       AX_C_CHECK_FLAG(-Wall,,,$1="$$1 -Wall",)
       AX_C_CHECK_FLAG(-Wextra,,,$1="$$1 -Wextra",)
-      AX_C_CHECK_FLAG(-Werror,,,$1="$$1 -Werror",)
+#      AX_C_CHECK_FLAG(-Werror,,,$1="$$1 -Werror",)
       AX_C_CHECK_FLAG(-D_FORTIFY_SOURCE=2,,,$1="$$1 -D_FORTIFY_SOURCE=2",)
       AC_SUBST($1)
     fi

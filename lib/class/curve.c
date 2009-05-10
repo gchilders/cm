@@ -1,13 +1,13 @@
 #include "cm_class-impl.h"
 
-static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, long long int d,
+static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
    mpz_t p, bool verbose);
 static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
-      long long int d, bool verbose);
+      int_cl_t d, bool verbose);
 
 /*****************************************************************************/
 
-static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, long long int d,
+static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
    mpz_t p, bool verbose)
    /* checks whether n might be a cryptographically secure cardinality for a */
    /* curve over F_p with discriminant d                                     */
