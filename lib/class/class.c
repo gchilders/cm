@@ -931,6 +931,10 @@ static void compute_conjugates (mpc_t *conjugate, int_cl_t **nsystem,
          printf (".");
          fflush (stdout);
       }
+/*
+      mpc_out_str (stdout, 10, 0, conjugate[i], MPC_RNDNN);
+      printf ("\n");
+*/
    }
    if (verbose)
       printf ("\n");
@@ -1077,6 +1081,16 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding
       mpfrx_clear (factors [i]);
    free (factors);
 
+/*
+   printf ("x^%i", c.minpoly_deg);
+   for (i = c.minpoly_deg - 1; i >= 0; i--) {
+      printf (" + (");
+      mpfr_out_str (stdout, 10, 0, mpol->coeff [i], GMP_RNDN);
+      printf (") * x^%i", i);
+   }
+   printf ("\n");
+*/
+
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
    for (i = 0; i < c.minpoly_deg; i++)
       if (!cm_nt_mpfr_get_z (c.minpoly [i], mpol->coeff [i])) {
@@ -1086,7 +1100,6 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding
          exit (1);
       }
 
-/*
       printf ("x^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
@@ -1094,7 +1107,6 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding
          printf (") * x^%i", i);
       }
       printf ("\n");
-*/
 
    mpfrx_clear (mpol);
 }

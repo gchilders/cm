@@ -139,6 +139,70 @@ mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type, mpz_t p,
 
 /*****************************************************************************/
 
+void cm_modpol_print_pari (int level, char type, const char* datadir)
+      /* prints the modular polynomial of the given type and level in the    */
+      /* pari seadata format                                                 */
+
+{
+   char filename [255];
+   FILE* f;
+   int lev, i_old, i, k;
+   char c;
+   mpz_t tmp;
+
+   if (type != 'a') {
+      printf ("*** Trying to read modular polynomial of type %c ", type);
+      printf ("instead of 'a'!\n");
+      exit (1);
+   }
+   sprintf (filename, "%s/%cf/%cf_%.4i.dat.gz", datadir,
+            type, type, level);
+   cm_file_gzopen_read (&f, filename);
+
+   lev = read_gz_ui (f);
+   if (lev != level) {
+      printf ("*** Trying to read modular polynomial of level %i ", level);
+      printf ("in a file for the level %i!\n", lev);
+      exit (1);
+   }
+   c = gzgetc (f);
+   if (c != type) {
+      printf ("*** Trying to read modular polynomial of type '%c' ", type);
+      printf ("in a file for the type %c!\n", c);
+      exit (1);
+   }
+
+   /* skip N and n */
+   read_gz_ui (f);
+   read_gz_ui (f);
+   mpz_init (tmp);
+
+   printf ("[%i, \"A\", [", level);
+   i_old = level + 2;
+   do {
+      i = read_gz_ui (f);
+      k = read_gz_ui (f);
+      read_gz_mpz (tmp, f);
+      if (i != i_old && k != 0)
+         printf ("[");
+      mpz_out_str (stdout, 10, tmp);
+      if (k != 0)
+         printf (", ");
+      else {
+         if (i == i_old)
+            printf ("]");
+         if (i != 0)
+            printf (", ");
+      }
+      i_old = i;
+   } while (k != 0 || i != 0);
+   /* we assume that the last entry in the file is the constant one */
+   printf ("]]");
+
+   cm_file_gzclose (f);
+}
+/*****************************************************************************/
+
 #if 0
 void cm_modpol_print_magma (int level, char type, const char* datadir)
       /* prints the modular polynomial of the given type and level in magma  */

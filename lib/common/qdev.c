@@ -4,8 +4,6 @@
 
 static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no);
 static long int lognormmax (mpc_t op);
-static int qdev_atkin_coeff (int i, int l);
-static int qdev_atkinhecke_coeff (int i, int l, int r);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -66,77 +64,6 @@ static long int lognormmax (mpc_t op)
 }
 
 /*****************************************************************************/
-
-static int qdev_atkin_coeff (int i, int l)
-   /* returns the coefficient in front of (q^(1/24))^i of the Atkin function */
-   /* eta (z) * (eta (l z)                                                   */
-
-{
-   long int n;
-   long int m;
-   int      k, c;
-
-   if (i < l+1 || (i - (l+1)) % 24 != 0)
-      return 0;
-
-   c = 0;
-   k = (i - (l+1)) / 24;
-
-   for (n = 0; l*n*(3*n-1) <= 2*k; n++)
-   {
-      /* Let m be the integral solution of m (3m-1)/2 = k - l n (3n-1) / 2,  */
-      /* if it exists.                                                       */
-      m = cm_nt_sqrt (1 + 24*k - 12*l*n*(3*n-1));
-      if (m != -1)
-      {
-         if ((m - 1) % 6 == 0)
-            m = (1 - m) / 6;
-         else
-            m = (1 + m) / 6;
-         if ((m + n) % 2 == 0)
-            c += 1;
-         else
-            c -= 1;
-      }
-   }
-   for (n = 1; l*n*(3*n+1) <= 2*k; n++)
-   {
-      m = cm_nt_sqrt (1 + 24*k - 12*l*n*(3*n+1));
-      if (m != -1)
-      {
-         if ((m - 1) % 6 == 0)
-            m = (1 - m) / 6;
-         else
-            m = (1 + m) / 6;
-         if ((m + n) % 2 == 0)
-            c += 1;
-         else
-            c -= 1;
-      }
-   }
-
-   return c;
-}
-
-/*****************************************************************************/
-
-static int qdev_atkinhecke_coeff (int i, int l, int r)
-   /* Let the r-th Hecke operator applied to the Atkin function evaluated in */
-   /* q^24 (that is, eta (24 z) * eta (24 l z)) result in a q-series         */
-   /* q^(l+1) \sum c_i q^(24 i). Then T_r applied to eta (z) * eta (lz)      */
-   /* is q^((l+1)/24) \sum c_i q^i.                                          */
-   /* The function returns c_i.                                              */
-
-
-{
-   int I = 24*i + l+1;
-   if (I % r != 0)
-      return qdev_atkin_coeff (I*r, l);
-   else
-      return qdev_atkin_coeff (I*r, l) + qdev_atkin_coeff (I/r, l);
-}
-
-/*****************************************************************************/
 /*                                                                           */
 /* external functions                                                        */
 /*                                                                           */
@@ -147,6 +74,7 @@ void cm_qdev_init (cm_qdev_t *f)
 
 {
    int n, i, j, k;
+//    int n1 = 0, n2 = 0, n3 = 0, n4 = 0, n5 = 0, n6 = 0;
 
    f->length = 321;
    /* must be odd                                                        */
@@ -186,6 +114,7 @@ void cm_qdev_init (cm_qdev_t *f)
             {
                (*f).chain [n][1] = 1;
                (*f).chain [n][2] = i;
+//                n1++;
             }
       /* try to express the exponent as the sum of two previous ones */
       for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
@@ -194,6 +123,7 @@ void cm_qdev_init (cm_qdev_t *f)
                (*f).chain [n][1] = 2;
                (*f).chain [n][2] = i;
                (*f).chain [n][3] = j;
+//                n2++;
             }
       /* try to express an exponent as four times a previous one      */
       if ((*f).chain [n][0] % 4 == 0)
@@ -201,6 +131,7 @@ void cm_qdev_init (cm_qdev_t *f)
             {
                (*f).chain [n][1] = 3;
                (*f).chain [n][2] = i;
+//                n3++;
             }
       /* try to express an even exponent as twice the sum of two previous */
       /* ones */
@@ -211,6 +142,7 @@ void cm_qdev_init (cm_qdev_t *f)
          (*f).chain [n][1] = 4;
          (*f).chain [n][2] = i;
          (*f).chain [n][3] = j;
+//          n4++;
       }
       if ((*f).chain [n][0] % 2 == 0)
          for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
@@ -219,6 +151,7 @@ void cm_qdev_init (cm_qdev_t *f)
                   (*f).chain [n][1] = 5;
                   (*f).chain [n][2] = i;
                   (*f).chain [n][3] = j;
+//                   n5++;
                }
       /* try to express the exponent as the sum of three previous ones */
       for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
@@ -230,6 +163,7 @@ void cm_qdev_init (cm_qdev_t *f)
                (*f).chain [n][2] = i;
                (*f).chain [n][3] = j;
                (*f).chain [n][4] = k;
+//                n6++;
             }
       if ((*f).chain [n][1] == 0)
       {
@@ -240,6 +174,14 @@ void cm_qdev_init (cm_qdev_t *f)
          exit (1);
       }
    }
+/*
+   printf ("n1 %i\n", n1);
+   printf ("n2 %i\n", n2);
+   printf ("n3 %i\n", n3);
+   printf ("n4 %i\n", n4);
+   printf ("n5 %i\n", n5);
+   printf ("n6 %i\n", n6);
+*/
 }
 
 /*****************************************************************************/
@@ -416,20 +358,3 @@ void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1)
 }
 
 /*****************************************************************************/
-/*****************************************************************************/
-
-int cm_qdev_atkinhecke_order (int l, int r)
-   /* In the notation of the previous function, returns the first i such     */
-   /* c_i is different from 0. This is also the order at infinity of         */
-   /* T_r (f) / f for f (z) = eta (z) * eta (l z).                           */
-   /* Returns 0 if T_r (f) / f = 1.                                          */
-
-{
-   int i;
-   for (i = (-(l+1)) / 24; i < 0 && qdev_atkinhecke_coeff (i, l, r) == 0; i++);
-
-   return i;
-}
-
-/*****************************************************************************/
-

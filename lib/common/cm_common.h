@@ -79,7 +79,11 @@ extern void mpc_pow_ui (mpc_t rop, mpc_t op1, unsigned long int op2);
 
 /* different functions for number theoretic computations */
 extern int cm_nt_is_prime (mpz_t a);
+extern int cm_nt_is_prime_l (const unsigned long int prime);
 extern unsigned long int cm_nt_next_prime (const unsigned long int n);
+extern long int cm_nt_gcd (long int a, long int b);
+extern int cm_nt_kronecker (long int a, long int b);
+extern long int cm_nt_sqrt (const unsigned long int n);
 
 extern void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p, mpz_t q);
 
@@ -98,10 +102,12 @@ extern void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z,
    long int Md);
 extern void cm_modular_eta_series (cm_modular_t m, mpc_t rop, mpc_t q_24);
 extern void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
+extern void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op);
 
 /* functions reading modular polynomials */
 extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,
    mpz_t p, mpz_t x, const char * datadir);
+extern void cm_modpol_print_pari (int level, char type, const char* datadir);
 
 #if defined (__cplusplus)
 }
