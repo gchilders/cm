@@ -1100,6 +1100,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding
          exit (1);
       }
 
+#if 0
       printf ("x^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
@@ -1107,6 +1108,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding
          printf (") * x^%i", i);
       }
       printf ("\n");
+#endif
 
    mpfrx_clear (mpol);
 }
