@@ -201,9 +201,9 @@ void cm_modpol_print_pari (int level, char type, const char* datadir)
 
    cm_file_gzclose (f);
 }
+
 /*****************************************************************************/
 
-#if 0
 void cm_modpol_print_magma (int level, char type, const char* datadir)
       /* prints the modular polynomial of the given type and level in magma  */
       /* format                                                              */
@@ -244,13 +244,12 @@ void cm_modpol_print_magma (int level, char type, const char* datadir)
       read_gz_mpz (tmp, f);
       printf (" +(");
       mpz_out_str (stdout, 10, tmp);
-      printf (")*u^%i*v^%i", i, k);
+      printf (")*F^%i*J^%i", i, k);
    } while (k != 0 || i != 0);
    /* we assume that the last entry in the file is the constant one */
    printf (";\n");
 
    cm_file_gzclose (f);
 }
-#endif
 
 /*****************************************************************************/

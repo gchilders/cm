@@ -108,6 +108,7 @@ extern void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op);
 extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,
    mpz_t p, mpz_t x, const char * datadir);
 extern void cm_modpol_print_pari (int level, char type, const char* datadir);
+extern void cm_modpol_print_magma (int level, char type, const char* datadir);
 
 #if defined (__cplusplus)
 }
