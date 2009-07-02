@@ -28,8 +28,8 @@ static bool read_conjugates (cm_class_t c, mpc_t *conjugates);
 static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d);
 
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
-static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t P, int *no,
-   const char* modpoldir, bool verbose);
+static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t root, mpz_t P,
+   int *no, const char* modpoldir);
    /* computes the possible j-values as roots of the modular polynomial      */
    /* specified by f                                                         */
 
@@ -38,10 +38,10 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    cm_form_t *nsystem);
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate);
 static int doubleeta_compute_parameter (int_cl_t disc, bool verbose);
-static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
-   bool verbose);
-static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
-   bool verbose);
+static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
+   int *no, bool verbose);
+static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
+   int *no);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -1173,94 +1173,6 @@ static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate)
 /*                                                                           */
 /*****************************************************************************/
 
-mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
-   const char* modpoldir, bool read, bool verbose)
-   /* If read is true, tries to read the polynomial from a file. */
-
-{
-   cm_class_t c;
-   mpz_t *j;
-   mpz_t root, d_mpz, tmp, tmp2;
-   cm_timer clock;
-   int i;
-
-   cm_class_init (&c, d, inv, verbose);
-   if (!read || !cm_class_read (c))
-      cm_class_compute_minpoly (c, false, false, verbose);
-   cm_timer_start (clock);
-   switch (inv)
-   {
-      case CM_INVARIANT_J:
-         j = (mpz_t*) malloc (sizeof (mpz_t));
-         mpz_init (j [0]);
-         get_root_mod_P (c, j [0], P, verbose);
-         *no = 1;
-         break;
-      case CM_INVARIANT_GAMMA2:
-         j = (mpz_t*) malloc (sizeof (mpz_t));
-         mpz_init (j [0]);
-         get_root_mod_P (c, j [0], P, verbose);
-         mpz_powm_ui (j [0], j [0], 3, P);
-         *no = 1;
-         break;
-      case CM_INVARIANT_GAMMA3:
-         j = (mpz_t*) malloc (sizeof (mpz_t));
-         mpz_init (j [0]);
-
-         mpz_init (root);
-         mpz_init_set_si (d_mpz, d);
-         mpz_init (tmp);
-         mpz_init (tmp2);
-
-         get_root_mod_P (c, root, P, verbose);
-         mpz_powm_ui (tmp, root, 2, P);
-         mpz_invert (tmp2, d_mpz, P);
-         mpz_mul (root, tmp, tmp2);
-         mpz_add_ui (root, root, 1728);
-         mpz_mod (j [0], root, P);
-
-         *no = 1;
-
-         mpz_clear (root);
-         mpz_clear (d_mpz);
-         mpz_clear (tmp);
-         mpz_clear (tmp2);
-         break;
-      case CM_INVARIANT_WEBER:
-         j = weber_cm_get_j_mod_P (c, P, no, verbose);
-         break;
-      case CM_INVARIANT_DOUBLEETA:
-#if 0
-      case CM_INVARIANT_RAMIFIED:
-#endif
-         j = cm_get_j_mod_P_from_modular (c, P, no, modpoldir, verbose);
-         break;
-      case CM_INVARIANT_SIMPLEETA:
-         j = simpleeta_cm_get_j_mod_P (c, P, no, verbose);
-         break;
-         default: /* should not occur */
-            printf ("class_cm_get_j_mod_P called for unknown class ");
-            printf ("invariant\n");
-            exit (1);
-   }
-   cm_timer_stop (clock);
-   if (verbose) {
-      printf ("j:");
-      for (i = 0; i < *no; i++) {
-         printf (" ");
-         mpz_out_str (stdout, 10, j [i]);
-      }
-      printf ("\n");
-      printf ("--- Time for j: %.1f\n", cm_timer_get (clock));
-   }
-
-   cm_class_clear (&c);
-
-   return j;
-}
-
-/*****************************************************************************/
-
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
    /* returns a root of the minimal polynomial modulo P                      */
    /* root is changed                                                        */
@@ -1325,25 +1237,109 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
 
 /*****************************************************************************/
 
-static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t P, int *no,
-   const char* modpoldir, bool verbose)
+mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
+   const char* modpoldir, bool read, bool verbose)
+   /* If read is true, tries to read the polynomial from a file. */
+
+{
+   cm_class_t c;
+   mpz_t *j;
+   mpz_t root, d_mpz, tmp, tmp2;
+   cm_timer clock;
+   int i;
+
+   cm_class_init (&c, d, inv, verbose);
+   if (!read || !cm_class_read (c))
+      cm_class_compute_minpoly (c, false, false, verbose);
+   cm_timer_start (clock);
+   mpz_init (root);
+   if (inv != CM_INVARIANT_WEBER || c.p != 15)
+      /* avoid special case of Weber polynomial factoring over extension */
+      /* of degree 3; handled in weber_cm_get_j_mod_P                    */
+      get_root_mod_P (c, root, P, verbose);
+   switch (inv)
+   {
+      case CM_INVARIANT_J:
+         j = (mpz_t*) malloc (sizeof (mpz_t));
+         mpz_init_set (j [0], root);
+         *no = 1;
+         break;
+      case CM_INVARIANT_GAMMA2:
+         j = (mpz_t*) malloc (sizeof (mpz_t));
+         mpz_init_set (j [0], root);
+         mpz_powm_ui (j [0], j [0], 3, P);
+         *no = 1;
+         break;
+      case CM_INVARIANT_GAMMA3:
+         j = (mpz_t*) malloc (sizeof (mpz_t));
+         mpz_init (j [0]);
+
+         mpz_init_set_si (d_mpz, d);
+         mpz_init (tmp);
+         mpz_init (tmp2);
+
+         mpz_powm_ui (tmp, root, 2, P);
+         mpz_invert (tmp2, d_mpz, P);
+         mpz_mul (root, tmp, tmp2);
+         mpz_add_ui (root, root, 1728);
+         mpz_mod (j [0], root, P);
+
+         *no = 1;
+
+         mpz_clear (d_mpz);
+         mpz_clear (tmp);
+         mpz_clear (tmp2);
+         break;
+      case CM_INVARIANT_WEBER:
+         j = weber_cm_get_j_mod_P (c, root, P, no, verbose);
+         break;
+      case CM_INVARIANT_DOUBLEETA:
+#if 0
+      case CM_INVARIANT_RAMIFIED:
+#endif
+         j = cm_get_j_mod_P_from_modular (c, root, P, no, modpoldir);
+         break;
+      case CM_INVARIANT_SIMPLEETA:
+         j = simpleeta_cm_get_j_mod_P (c, root, P, no);
+         break;
+         default: /* should not occur */
+            printf ("class_cm_get_j_mod_P called for unknown class ");
+            printf ("invariant\n");
+            exit (1);
+   }
+   mpz_clear (root);
+   cm_timer_stop (clock);
+   if (verbose) {
+      printf ("j:");
+      for (i = 0; i < *no; i++) {
+         printf (" ");
+         mpz_out_str (stdout, 10, j [i]);
+      }
+      printf ("\n");
+      printf ("--- Time for j: %.1f\n", cm_timer_get (clock));
+   }
+
+   cm_class_clear (&c);
+
+   return j;
+}
+
+/*****************************************************************************/
+
+static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t root, mpz_t P,
+   int *no, const char* modpoldir)
    /* computes the possible j-values as roots of the modular polynomial      */
    /* specified by f                                                         */
 
 {
    mpz_t  *j;
-   mpz_t  omega;
-      /* root of the class polynomial */
    mpz_t* poly_j;
       /* a polynomial one of whose roots is j mod P */
    int    n, i;
 
-   mpz_init (omega);
-   get_root_mod_P (c, omega, P, verbose);
    poly_j = cm_modpol_read_specialised_mod (&n, (c.p / 100) * (c.p % 100),
-      CM_MODPOL_DOUBLEETA, P, omega, modpoldir);
+      CM_MODPOL_DOUBLEETA, P, root, modpoldir);
    j = cm_ntl_find_roots (poly_j, n, P, no);
-   mpz_clear (omega);
    for (i = 0; i <= n; i++)
       mpz_clear (poly_j [i]);
    free (poly_j);
@@ -1353,12 +1349,12 @@ static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t P, int *no,
 
 /*****************************************************************************/
 
-static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
+static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
    bool verbose)
 
 {
    mpz_t* j = (mpz_t*) malloc (sizeof (mpz_t));
-   mpz_t   root, f24, tmp;
+   mpz_t f24, tmp;
    /* The following variables are only needed if the discriminant is 5 mod 8.*/
    mpz_t factor [4];
    int   i;
@@ -1368,13 +1364,10 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
    mpfp_t one;
 
    mpz_init (j [0]);
-   mpz_init (root);
    mpz_init (f24);
    mpz_init (tmp);
 
    if (c.p != 15) {
-      get_root_mod_P (c, root, P, verbose);
-
       if (c.d % 3 == 0)
          mpz_powm_ui (f24, root, 2ul, P);
       else
@@ -1500,7 +1493,6 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
 
    *no = 1;
 
-   mpz_clear (root);
    mpz_clear (f24);
    mpz_clear (tmp);
 
@@ -1509,20 +1501,18 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
 
 /*****************************************************************************/
 
-static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
-   bool verbose)
+static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
+   int *no)
 
 {
    mpz_t* j = (mpz_t*) malloc (sizeof (mpz_t));
-   mpz_t   root, f3, tmp;
+   mpz_t f3, tmp;
    int l = c.p / 10000;
 
    mpz_init (j [0]);
-   mpz_init (root);
    mpz_init (f3);
    mpz_init (tmp);
 
-   get_root_mod_P (c, root, P, verbose);
    /* raise to the power s/e */
    mpz_powm_ui (root, root,
       (unsigned long int) ((c.p % 100) / ((c.p / 100) % 100)), P);
@@ -1659,7 +1649,6 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
 
    *no = 1;
 
-   mpz_clear (root);
    mpz_clear (f3);
    mpz_clear (tmp);
 
