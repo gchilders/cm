@@ -60,7 +60,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
                      /* we have a primitive reduced form */
                      cl->form [k].a = a;
                      cl->form [k].b = b;
-                     if (b == 0 || b == a || b == c)
+                     if (b == 0 || b == a || a == c)
                         cl->form [k].emb = real;
                      else
                         cl->form [k].emb = complex;
