@@ -63,11 +63,15 @@ void cm_class_init (cm_class_t *c, int_cl_t disc, char inv, bool verbose)
       exit (1);
    }
    else {
-      c->d = disc;
       c->invariant = inv;
       c->p = cm_class_compute_parameter (disc, inv, verbose);
       if (!(c->p))
          exit (1);
+      if (inv != CM_INVARIANT_WEBER || c->p != 15)
+         c->d = disc;
+      else
+         /* special case Weber with d=5 (8): compute ring class field for 4d */
+         c->d = 4 * disc;
    }
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %i, parameter %i\n",
@@ -78,7 +82,7 @@ void cm_class_init (cm_class_t *c, int_cl_t disc, char inv, bool verbose)
    else
       c->field = CM_FIELD_REAL;
 
-   c->h = cm_classgroup_h (NULL, NULL, disc);
+   c->h = cm_classgroup_h (NULL, NULL, c->d);
 #if 0
    if (inv == CM_INVARIANT_RAMIFIED)
       c->minpoly_deg = c->h / 2;
