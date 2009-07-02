@@ -18,7 +18,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    bool verbose);
 
-static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_t b);
+static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q);
 static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose);
    /* computes and returns the h12 conjugates                                */
@@ -792,7 +792,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
 
 /*****************************************************************************/
 
-static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_t b)
+static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
 
 {
    mpc_t tmp, tmp2;
@@ -800,13 +800,13 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_
 
    switch (c.invariant) {
    case CM_INVARIANT_J:
-      cm_modclass_j_eval_quad (mc, rop, a, b);
+      cm_modclass_j_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_GAMMA2:
-      cm_modclass_gamma2_eval_quad (mc, rop, a, b);
+      cm_modclass_gamma2_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_GAMMA3:
-      cm_modclass_gamma3_eval_quad (mc, rop, a, b);
+      cm_modclass_gamma3_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_DOUBLEETA:
 #if 0
@@ -819,16 +819,16 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_
       mpc_init2 (tmp2, mc.m.prec);
 
       if (p1 == p2) {
-         cm_modclass_eta_eval_quad (mc, rop, a * p1, b);
+         cm_modclass_eta_eval_quad (mc, rop, Q.a * p1, Q.b);
          mpc_sqr (rop, rop, MPC_RNDNN);
       }
       else {
-         cm_modclass_eta_eval_quad (mc, rop, a * p1, b);
-         cm_modclass_eta_eval_quad (mc, tmp, a * p2, b);
+         cm_modclass_eta_eval_quad (mc, rop, Q.a * p1, Q.b);
+         cm_modclass_eta_eval_quad (mc, tmp, Q.a * p2, Q.b);
          mpc_mul (rop, rop, tmp, MPC_RNDNN);
       }
-      cm_modclass_eta_eval_quad (mc, tmp, a, b);
-      cm_modclass_eta_eval_quad (mc, tmp2, a * p1 * p2, b);
+      cm_modclass_eta_eval_quad (mc, tmp, Q.a, Q.b);
+      cm_modclass_eta_eval_quad (mc, tmp2, Q.a * p1 * p2, Q.b);
       mpc_mul (tmp, tmp, tmp2, MPC_RNDNN);
       mpc_div (rop, rop, tmp, MPC_RNDNN);
 
@@ -838,8 +838,8 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_
    case CM_INVARIANT_SIMPLEETA:
       mpc_init2 (tmp, mc.m.prec);
 
-      cm_modclass_eta_eval_quad (mc, rop, a * (c.p / 10000), b);
-      cm_modclass_eta_eval_quad (mc, tmp, a, b);
+      cm_modclass_eta_eval_quad (mc, rop, Q.a * (c.p / 10000), Q.b);
+      cm_modclass_eta_eval_quad (mc, tmp, Q.a, Q.b);
       mpc_div (rop, rop, tmp, MPC_RNDNN);
       mpc_pow_ui (rop, rop, (unsigned long int) (c.p % 100));
 
@@ -847,28 +847,28 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_
       break;
    case CM_INVARIANT_WEBER:
       if (c.p == 1 || c.p == 11) {
-         cm_modclass_f_eval_quad (mc, rop, a, b);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
       else if (c.p == 2 || c.p == 6) {
-         cm_modclass_f1_eval_quad (mc, rop, a, b);
+         cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
          mpc_sqr (rop, rop, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
       else if (c.p == 3) {
-         cm_modclass_f_eval_quad (mc, rop, a, b);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_pow_ui (rop, rop, 4ul);
          mpc_div_ui (rop, rop, 2ul, MPC_RNDNN);
       }
       else if (c.p == 4) {
-         cm_modclass_f1_eval_quad (mc, rop, a, b);
+         cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
          mpc_pow_ui (rop, rop, 4ul);
          mpc_mul_fr (rop, rop, mc.sqrt2_over4, MPC_RNDNN);
       }
       else if (c.p == 5 || c.p == 15)
-         cm_modclass_f_eval_quad (mc, rop, a, b);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
       else {
-         cm_modclass_f_eval_quad (mc, rop, a, b);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_sqr (rop, rop, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
@@ -877,7 +877,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_
          mpc_pow_ui (rop, rop, 3ul);
 
       if (c.p != 3 && c.p != 5 && c.p != 15)
-         if (cm_classgroup_kronecker ((int_cl_t) 2, a) == -1)
+         if (cm_classgroup_kronecker ((int_cl_t) 2, Q.a) == -1)
             mpc_neg (rop, rop, MPC_RNDNN);
 
       break;
@@ -897,7 +897,7 @@ static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
    int i;
 
    for (i = 0; i < c.h12; i++) {
-      eval (c, mc, conjugate [i], nsystem [i].a, nsystem [i].b);
+      eval (c, mc, conjugate [i], nsystem [i]);
       if (verbose && i % 200 == 0) {
          printf (".");
          fflush (stdout);
