@@ -1,5 +1,17 @@
 #include "cm_class-impl.h"
 
+typedef enum {real, complex, conj}
+   embedding_t;
+   /* "real" and "complex" indicate a real or complex conjugate. "conj" is   */
+   /* used only in the case of a real class polynomial; it means that the    */
+   /* conjugate is the complex conjugate of another one and can thus be      */
+   /* dropped.                                                               */
+
+typedef struct {
+   int_cl_t a, b, c;
+   embedding_t emb;
+} form_t;
+
 static double class_get_valuation (cm_class_t c);
    /* return some value related to heights and depending on the function     */
 static int class_get_height (cm_class_t c);
@@ -129,9 +141,9 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
       /* We let p = 10000*l + 100*e + s                                      */
       long int l, s, e;
 
-      l = 28;
-      s = 8;
-      e = 2;
+      l = 25;
+      s = 1;
+      e = 1;
 
       if (cm_classgroup_kronecker (disc, (int_cl_t) l) == -1) {
          if (verbose)
@@ -744,7 +756,7 @@ static void compute_nsystem_and_embedding (int_cl_t **nsystem, int *embedding,
       embedding [c->h12] = correct_nsystem_entry (&(nsystem [c->h12][0]),
          &(nsystem [c->h12][1]), &(nsystem [c->h12][2]),
          N, b0, neutral_class_a, neutral_class_b, *c);
-#if 0
+#if 1
       if (embedding [c->h12] != 0)
          printf ("[%"PRIicl" %"PRIicl" %"PRIicl"]: %i\n", nsystem [c->h12][0],
             nsystem [c->h12][1], nsystem [c->h12][2], embedding [c->h12]);
@@ -766,7 +778,7 @@ static void compute_nsystem_and_embedding (int_cl_t **nsystem, int *embedding,
          embedding [c->h12] = correct_nsystem_entry (&(nsystem [c->h12][0]),
             &(nsystem [c->h12][1]), &(nsystem [c->h12][2]),
             N, b0, neutral_class_a, neutral_class_b, *c);
-#if 0
+#if 1
          if (embedding [c->h12] != 0)
             printf ("[%"PRIicl" %"PRIicl" %"PRIicl"]: %i\n",
                nsystem [c->h12][0], nsystem [c->h12][1],

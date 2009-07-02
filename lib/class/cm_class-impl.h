@@ -57,10 +57,10 @@ typedef struct {
    mpz_t *minpoly;
       /* real part of the minimal polynomial of the function over Q             */
    mpz_t *minpoly_complex;
-      /* Only meaningful in the complex case; then                              */
-      /* the minimal polynomial is decomposed into two parts over the integral  */
-      /* basis [1, sqrt (D)] resp. [1, (1 + sqrt (D))/2]; the first part is in  */
-      /* minpoly from "classinvariant", the second one in this variable.        */
+      /* Only meaningful in the complex case; then the minimal polynomial is    */
+      /* decomposed into two parts over the integral basis                      */
+      /* [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in      */
+      /* minpoly, the second one in this variable.                              */
 } cm_class_t;
 
 
