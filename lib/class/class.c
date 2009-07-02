@@ -1109,7 +1109,7 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
 /*****************************************************************************/
 
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate)
-   /* computes the minimal polynomial of the function over Q                 */
+   /* computes the minimal polynomial of the function over Q (sqrt D)        */
    /* frees conjugates                                                       */
 
 {
