@@ -189,20 +189,20 @@ static void compute_q24 (cm_modclass_t mc, mpc_t *q24, bool verbose)
       /* if so, take the previous one which is closest.              */
       /* Notice that the A's are in increasing order.                */
       for (j = i+1;
-           j < mc.cl.h12 && mc.cl.form [j][0] % mc.cl.form [i][0] != 0; j++);
+           j < mc.cl.h12 && mc.cl.form [j].a % mc.cl.form [i].a != 0; j++);
       if (j < mc.cl.h12) {
-         if (mc.cl.form [i][0] == mc.cl.form [j][0])
+         if (mc.cl.form [i].a == mc.cl.form [j].a)
             mpfr_set (q_real [i], q_real [j], GMP_RNDN);
          else {
             counter1++;
             mpfr_pow_ui (q_real [i], q_real [j],
-                         mc.cl.form [j][0] / mc.cl.form [i][0], GMP_RNDN);
+                         mc.cl.form [j].a / mc.cl.form [i].a, GMP_RNDN);
          }
       }
       else {
          counter1++;
          counter2++;
-         mpfr_div_ui (q_real [i], Pi24_root, mc.cl.form [i][0], GMP_RNDN);
+         mpfr_div_ui (q_real [i], Pi24_root, mc.cl.form [i].a, GMP_RNDN);
          mpfr_neg (q_real [i], q_real [i], GMP_RNDN);
          mpfr_exp (q_real [i], q_real [i], GMP_RNDN);
       }
@@ -227,9 +227,9 @@ static void compute_q24 (cm_modclass_t mc, mpc_t *q24, bool verbose)
    counter1 = 0;
    counter2 = 0;
    for (i = 0; i < mc.cl.h12; i++) {
-      tmp_int = cm_classgroup_gcd (mc.cl.form [i][0], mc.cl.form [i][1]);
-      A_red [i] = mc.cl.form [i][0] / tmp_int;
-      B_red [i] = mc.cl.form [i][1] / tmp_int;
+      tmp_int = cm_classgroup_gcd (mc.cl.form [i].a, mc.cl.form [i].b);
+      A_red [i] = mc.cl.form [i].a / tmp_int;
+      B_red [i] = mc.cl.form [i].b / tmp_int;
       order [i] = i;
    }
 
@@ -479,7 +479,7 @@ void cm_modclass_eta_eval_quad (cm_modclass_t mc, mpc_t rop,
    else
       sign = 1;
    while ((i < mc.cl.h12)
-     && (mc.cl.form [i][0] != a_local || mc.cl.form [i][1] != b_local))
+     && (mc.cl.form [i].a != a_local || mc.cl.form [i].b != b_local))
       i++;
    if (i == mc.cl.h12)
    {

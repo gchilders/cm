@@ -1,17 +1,5 @@
 #include "cm_class-impl.h"
 
-typedef enum {real, complex, conj}
-   embedding_t;
-   /* "real" and "complex" indicate a real or complex conjugate. "conj" is   */
-   /* used only in the case of a real class polynomial; it means that the    */
-   /* conjugate is the complex conjugate of another one and can thus be      */
-   /* dropped.                                                               */
-
-typedef struct {
-   int_cl_t a, b;
-   embedding_t emb;
-} form_t;
-
 static double class_get_valuation (cm_class_t c);
    /* return some value related to heights and depending on the function     */
 static int class_get_height (cm_class_t c);
@@ -20,12 +8,12 @@ static int class_get_height (cm_class_t c);
    /* in the complex case, returns the binary length of the largest          */
    /* coefficient with respect to the decomposition over an integral basis   */
 
-static void correct_nsystem_entry (form_t *Q,
+static void correct_nsystem_entry (cm_form_t *Q,
    int_cl_t N, int_cl_t b0,
    int_cl_t neutral_class_a, int_cl_t neutral_class_b, cm_class_t cl);
    /* changes (a, b, c) to obtain an N-system and returns the embedding      */
    /* number (1 or 2) corresponding to the form                              */
-static void compute_nsystem (form_t *nsystem, cm_class_t *c,
+static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    cm_classgroup_t cl, bool verbose);
    /* computes and returns an N-system of forms, including the embeddings    */
    /* (real or complex) of the conjugates                                    */
@@ -33,7 +21,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    bool verbose);
 
 static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_t b);
-static void compute_conjugates (mpc_t *conjugate, form_t *nsystem,
+static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose);
    /* computes and returns the h12 conjugates                                */
 static void write_conjugates (cm_class_t c, mpc_t *conjugates);
@@ -49,7 +37,7 @@ static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t P, int *no,
 
 /* the remaining functions are put separately as their code is quite long    */
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   form_t *nsystem);
+   cm_form_t *nsystem);
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate);
 static int doubleeta_compute_parameter (int_cl_t disc, bool verbose);
 static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
@@ -563,7 +551,7 @@ static int class_get_height (cm_class_t c)
 /*                                                                           */
 /*****************************************************************************/
 
-static void correct_nsystem_entry (form_t *Q,
+static void correct_nsystem_entry (cm_form_t *Q,
    int_cl_t N, int_cl_t b0,
    int_cl_t neutral_class_a, int_cl_t neutral_class_b, cm_class_t cl)
    /* changes the form Q by a unimodular transformation so that Q.b is       */
@@ -636,7 +624,7 @@ static void correct_nsystem_entry (form_t *Q,
 
 /*****************************************************************************/
 
-static void compute_nsystem (form_t *nsystem, cm_class_t *c,
+static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    cm_classgroup_t cl, bool verbose)
    /* computes an N-system, or to be more precise, some part of an N-system  */
    /* that yields all different conjugates up to complex conjugation, as     */
@@ -732,8 +720,7 @@ static void compute_nsystem (form_t *nsystem, cm_class_t *c,
    }
 
    for (i = 0; i < cl.h12; i++) {
-      nsystem [c->h12].a = cl.form [i][0];
-      nsystem [c->h12].b = cl.form [i][1];
+      nsystem [c->h12] = cl.form [i];
       correct_nsystem_entry (&(nsystem [c->h12]),
          N, b0, neutral_class_a, neutral_class_b, *c);
 #if 1
@@ -750,10 +737,9 @@ static void compute_nsystem (form_t *nsystem, cm_class_t *c,
          c->h12++;
       }
       /* possibly include the inverse form */
-      if (cl.form [i][1] > 0 && cl.form [i][1] < cl.form [i][0]
-          && cl.form [i][0] < cl.form [i][2]) {
-         nsystem [c->h12].a = cl.form [i][0];
-         nsystem [c->h12].b = -cl.form [i][1];
+      if (cl.form [i].emb != real) {
+         nsystem [c->h12].a = cl.form [i].a;
+         nsystem [c->h12].b = -cl.form [i].b;
          correct_nsystem_entry (&(nsystem [c->h12]),
             N, b0, neutral_class_a, neutral_class_b, *c);
 #if 1
@@ -786,11 +772,10 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    int i;
 
    for (i = 0; i < cl.h12; i++)
-      if (   cl.form [i][1] == 0 || cl.form [i][0] == cl.form [i][1]
-          || cl.form [i][0] == cl.form [i][2])
-         precision += 1.0 / cl.form [i][0];
+      if (cl.form [i].emb == real)
+         precision += 1.0 / cl.form [i].a;
       else
-         precision += 2.0 / cl.form [i][0];
+         precision += 2.0 / cl.form [i].a;
 
    /* the constant is pi / log (2)    */
    precision *= 4.5323601418
@@ -908,7 +893,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_
 
 /*****************************************************************************/
 
-static void compute_conjugates (mpc_t *conjugate, form_t *nsystem,
+static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose)
    /* computes the conjugates of the singular value over Q */
 
@@ -939,7 +924,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    /* write indicates whether the result should be written to disk.          */
 {
    cm_classgroup_t cl;
-   form_t *nsystem;
+   cm_form_t *nsystem;
    mp_prec_t prec;
    cm_modclass_t mc;
    mpc_t *conjugate;
@@ -953,13 +938,13 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    if (verbose)
       printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
 
-   nsystem = (form_t *) malloc (c.h * sizeof (form_t));
+   nsystem = (cm_form_t *) malloc (c.h * sizeof (cm_form_t));
    cm_timer_start (clock_local);
    compute_nsystem (nsystem, &c, cl, verbose);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
-   nsystem = (form_t *) realloc (nsystem, c.h12 * sizeof (form_t));
+   nsystem = (cm_form_t *) realloc (nsystem, c.h12 * sizeof (cm_form_t));
    prec = compute_precision (c, cl, verbose);
 
    conjugate = (mpc_t *) malloc (c.h12 * sizeof (mpc_t));
@@ -1008,7 +993,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
 /*****************************************************************************/
 
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   form_t *nsystem)
+   cm_form_t *nsystem)
    /* computes the minimal polynomial of the function over Q                 */
    /* frees conjugates                                                       */
 

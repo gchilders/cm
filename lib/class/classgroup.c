@@ -27,8 +27,8 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
    /* class group from a file and writes the result to a file             */
 
 {
-   int i, k;
-   int_cl_t a, b, c, tmp_gcd;
+   int k;
+   int_cl_t a, b, c;
 
    if (disc >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -43,9 +43,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
 
    cl->h = cm_classgroup_h (&(cl->h1), &(cl->h2), cl->d);
    cl->h12 = cl->h1 + cl->h2;
-   cl->form = (int_cl_t **) malloc (cl->h12 * sizeof (int_cl_t *));
-   for (i = 0; i < cl->h12; i++)
-      cl->form [i] = (int_cl_t *) malloc (3 * sizeof (int_cl_t));
+   cl->form = (cm_form_t *) malloc (cl->h12 * sizeof (cm_form_t));
 
    if (!checkpoints || !classgroup_read (*cl)) {
       k = 0;
@@ -60,9 +58,12 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
                if (c >= a) {
                   if (cm_classgroup_gcd (cm_classgroup_gcd (a, b), c) == 1) {
                      /* we have a primitive reduced form */
-                     cl->form [k][0] = a;
-                     cl->form [k][1] = b;
-                     cl->form [k][2] = c;
+                     cl->form [k].a = a;
+                     cl->form [k].b = b;
+                     if (b == 0 || b == a || b == c)
+                        cl->form [k].emb = real;
+                     else
+                        cl->form [k].emb = complex;
                      k++;
                   }
                }
@@ -84,10 +85,6 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
 void cm_classgroup_clear (cm_classgroup_t *cl)
 
 {
-   int i;
-
-   for (i = 0; i < cl->h12; i++)
-      free (cl->form [i]);
    free (cl->form);
 }
 
@@ -117,8 +114,8 @@ static void classgroup_write (cm_classgroup_t cl)
    fprintf (f, "%i\n", cl.h2);
 
    for (i = 0; i < cl.h12; i++)
-      fprintf (f, "%"PRIicl" %"PRIicl" %"PRIicl"\n",
-         cl.form [i][0], cl.form [i][1], cl.form [i][2]);
+      fprintf (f, "%"PRIicl" %"PRIicl"\n",
+         cl.form [i].a, cl.form [i].b);
 
    cm_file_close (f);
 }
@@ -175,8 +172,8 @@ bool classgroup_read (cm_classgroup_t cl)
    }
 
    for (i = 0; i < cl.h12; i++)
-      if (!fscanf (f, "%"SCNicl" %"SCNicl" %"SCNicl,
-           &(cl.form [i][0]), &(cl.form [i][1]), &(cl.form [i][2])))
+      if (!fscanf (f, "%"SCNicl" %"SCNicl,
+           &(cl.form [i].a), &(cl.form [i].b)))
          return false;
 
    cm_file_close (f);
