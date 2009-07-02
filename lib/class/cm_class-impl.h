@@ -20,7 +20,7 @@ typedef struct {
    int_cl_t **form;
       /* contains a set of representatives of quadratic forms of             */
       /* discriminant d. Each row corresponds to one quadratic form; the     */
-      /* entries in column 0 and 1 correspond to A and B, respectively.      */
+      /* entries in column 0, 1 and 2 correspond to A, B and C, respectively.*/
       /* Only forms with B >= 0 are stored, since the others simply yield    */
       /* complex conjugate eta values.                                       */
    int h1, h2, h12, h;

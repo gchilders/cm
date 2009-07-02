@@ -20,21 +20,20 @@ static int class_get_height (cm_class_t c);
    /* in the complex case, returns the binary length of the largest          */
    /* coefficient with respect to the decomposition over an integral basis   */
 
-static int correct_nsystem_entry (int_cl_t *a, int_cl_t *b, int_cl_t *c,
+static void correct_nsystem_entry (form_t *Q,
    int_cl_t N, int_cl_t b0,
    int_cl_t neutral_class_a, int_cl_t neutral_class_b, cm_class_t cl);
    /* changes (a, b, c) to obtain an N-system and returns the embedding      */
    /* number (1 or 2) corresponding to the form                              */
-static void compute_nsystem_and_embedding (int_cl_t **nsystem, int *embedding,
-   cm_class_t *c, cm_classgroup_t cl, bool verbose);
-   /* computes and returns an N-system and whether they lead to real or      */
-   /* complex conjugates: embedding[i]==2 indicates a pair of complex        */
-   /* conjugates, embedding[i]==1 a real conjugate or a single complex one.  */
+static void compute_nsystem (form_t *nsystem, cm_class_t *c,
+   cm_classgroup_t cl, bool verbose);
+   /* computes and returns an N-system of forms, including the embeddings    */
+   /* (real or complex) of the conjugates                                    */
 static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    bool verbose);
 
 static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_t b);
-static void compute_conjugates (mpc_t *conjugate, int_cl_t **nsystem,
+static void compute_conjugates (mpc_t *conjugate, form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose);
    /* computes and returns the h12 conjugates                                */
 static void write_conjugates (cm_class_t c, mpc_t *conjugates);
@@ -49,7 +48,8 @@ static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t P, int *no,
    /* specified by f                                                         */
 
 /* the remaining functions are put separately as their code is quite long    */
-static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding);
+static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
+   form_t *nsystem);
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate);
 static int doubleeta_compute_parameter (int_cl_t disc, bool verbose);
 static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
@@ -563,27 +563,23 @@ static int class_get_height (cm_class_t c)
 /*                                                                           */
 /*****************************************************************************/
 
-static int correct_nsystem_entry (int_cl_t *a, int_cl_t *b, int_cl_t *c,
+static void correct_nsystem_entry (form_t *Q,
    int_cl_t N, int_cl_t b0,
    int_cl_t neutral_class_a, int_cl_t neutral_class_b, cm_class_t cl)
-   /* changes the form by a unimodular transformation so that b is           */
+   /* changes the form Q by a unimodular transformation so that Q.b is       */
    /* congruent to b0 modulo 2*N                                             */
-   /* Furthermore, determines and returns via type how many conjugates (real */
-   /* or complex conjugate ones) correspond to the form.                     */
+   /* Furthermore, determines and returns via Q.emb how many conjugates      */
+   /* real or complex conjugate ones) correspond to the form.                */
    /* In the real case, forms whose product is equivalent to neutral_class   */
    /* correspond to conjugate complex values. The lexicographically smaller  */
-   /* of two such forms gets the return value 2 to indicate that it          */
-   /* corresponds to two conjugates; the other form gets return value 0,     */
-   /* is in fact not corrected to the N-system condition and may be dropped. */
-   /* If the square of a form equals the neutral class, then the conjugate   */
-   /* is real and the return value becomes 1.                                */
-   /* In the complex case, the return value is always 1.                     */
-   /* For the double eta quotients in the ramified case, the rule is more    */
-   /* complex and explained in detail in the code.                           */
+   /* one of two such forms gets Q.emb = "complex"; the other one gets       */
+   /* Q.emb = "conj", is in fact not corrected to the N-system condition and */
+   /* will be dropped. If the square of a form equals the neutral class,     */
+   /* then the conjugate is real and Q.emb="real".                           */
+   /* In the complex case, Q.emb="complex".                                  */
 
 {
    int_cl_t inverse_a, inverse_b, mu, tmp;
-   int type;
 
 #if 0
    if (cl.invariant == CM_INVARIANT_RAMIFIED)
@@ -596,56 +592,51 @@ static int correct_nsystem_entry (int_cl_t *a, int_cl_t *b, int_cl_t *c,
       /* check for the inverse of the form with respect  to */
       /* neutral_class                                      */
       cm_classgroup_compose (&inverse_a, &inverse_b,
-         neutral_class_a, neutral_class_b, *a, -(*b), cl.d);
-      if (*a == inverse_a && *b == inverse_b)
+         neutral_class_a, neutral_class_b, Q->a, -Q->b, cl.d);
+      if (Q->a == inverse_a && Q->b == inverse_b)
       /* the conjugate is real */
-         type = 1;
+         Q->emb = real;
       /* the conjugate is complex, test whether its form is the */
       /* lexicographically smaller one                          */
-      else if (*a < inverse_a || (*a == inverse_a && *b < inverse_b))
-         type = 2;
+      else if (Q->a < inverse_a || (Q->a == inverse_a && Q->b < inverse_b))
+         Q->emb = complex;
       else
-         type = 0;
+         Q->emb = conj;
    }
    else
-      type = 1;
+      Q->emb = complex;
 
-   if (type != 0)
+   if (Q->emb != conj)
    {
       /* modify a, b and c by unimodular transformations    */
       /* such that gcd (a, bN) = 1 and b \equiv b0 mod 2*bN */
-      while (cm_classgroup_gcd (*a, N) != 1)
-      {
+      while (cm_classgroup_gcd (Q->a, N) != 1) {
          mu = 0;
-         tmp = *c;
-         while (cm_classgroup_gcd (tmp, N) != 1 && mu < 10)
-         {
+         tmp = Q->c;
+         while (cm_classgroup_gcd (tmp, N) != 1 && mu < 10) {
             mu++;
-            tmp = *c + mu*(mu*(*a) - (*b));
+            tmp = Q->c + mu*(mu*(Q->a) - (Q->b));
          }
-         if (mu == 10)
-         {
+         if (mu == 10) {
             mu = 1;
-            tmp = *c + mu*(mu*(*a) - (*b));
+            tmp = Q->c + mu*(mu*(Q->a) - (Q->b));
          }
-         *b = 2*mu*(*a) - (*b);
-         *c = *a;
-         *a = tmp;
+         Q->b = 2*mu*(Q->a) - (Q->b);
+         Q->c = Q->a;
+         Q->a = tmp;
       }
       mu = 0;
-      while ((*b - 2*mu*(*a) - b0) % (2*N) != 0)
+      while ((Q->b - 2*mu*(Q->a) - b0) % (2*N) != 0)
          mu++;
-      *c += mu*(mu*(*a) - (*b));
-      *b -= 2*mu*(*a);
+      Q->c += mu*(mu*(Q->a) - (Q->b));
+      Q->b -= 2*mu*(Q->a);
    }
-
-   return type;
 }
 
 /*****************************************************************************/
 
-static void compute_nsystem_and_embedding (int_cl_t **nsystem, int *embedding,
-   cm_class_t *c, cm_classgroup_t cl, bool verbose)
+static void compute_nsystem (form_t *nsystem, cm_class_t *c,
+   cm_classgroup_t cl, bool verbose)
    /* computes an N-system, or to be more precise, some part of an N-system  */
    /* that yields all different conjugates up to complex conjugation, as     */
    /* well as the nature (real/complex) of the corresponding conjugates      */
@@ -654,7 +645,6 @@ static void compute_nsystem_and_embedding (int_cl_t **nsystem, int *embedding,
    int_cl_t b0, N;
    int_cl_t neutral_class_a, neutral_class_b;
    int i;
-//   int rem;
 
    c->h12 = 0;
    c->h1 = 0;
@@ -684,15 +674,6 @@ static void compute_nsystem_and_embedding (int_cl_t **nsystem, int *embedding,
          }
       }
       else {
-#if 0
-         rem  = (int) cm_classgroup_mod (c->d, (uint_cl_t) 16ul);
-         if (rem == 4)
-            b0 = (int_cl_t) 2;
-         else if (rem == 1)
-            b0 = (int_cl_t) 1;
-         else /* rem == 9 */
-            b0 = (int_cl_t) 3;
-#endif
         b0 = (int_cl_t) -7;
       }
       if (verbose)
@@ -750,45 +731,43 @@ static void compute_nsystem_and_embedding (int_cl_t **nsystem, int *embedding,
    }
 
    for (i = 0; i < cl.h12; i++) {
-      nsystem [c->h12][0] = cl.form [i][0];
-      nsystem [c->h12][1] = cl.form [i][1];
-      nsystem [c->h12][2] = cl.form [i][2];
-      embedding [c->h12] = correct_nsystem_entry (&(nsystem [c->h12][0]),
-         &(nsystem [c->h12][1]), &(nsystem [c->h12][2]),
+      nsystem [c->h12].a = cl.form [i][0];
+      nsystem [c->h12].b = cl.form [i][1];
+      nsystem [c->h12].c = cl.form [i][2];
+      correct_nsystem_entry (&(nsystem [c->h12]),
          N, b0, neutral_class_a, neutral_class_b, *c);
 #if 1
-      if (embedding [c->h12] != 0)
-         printf ("[%"PRIicl" %"PRIicl" %"PRIicl"]: %i\n", nsystem [c->h12][0],
-            nsystem [c->h12][1], nsystem [c->h12][2], embedding [c->h12]);
+      if (nsystem [c->h12].emb != conj)
+         printf ("[%"PRIicl" %"PRIicl" %"PRIicl"]: %i\n", nsystem [c->h12].a,
+            nsystem [c->h12].b, nsystem [c->h12].c, nsystem [c->h12].emb);
 #endif
-      if (embedding [c->h12] == 1) {
+      if (nsystem [c->h12].emb == real) {
          c->h1++;
          c->h12++;
       }
-      else if (embedding [c->h12] == 2) {
+      else if (nsystem [c->h12].emb == complex) {
          c->h2++;
          c->h12++;
       }
       /* possibly include the inverse form */
       if (cl.form [i][1] > 0 && cl.form [i][1] < cl.form [i][0]
           && cl.form [i][0] < cl.form [i][2]) {
-         nsystem [c->h12][0] = cl.form [i][0];
-         nsystem [c->h12][1] = -cl.form [i][1];
-         nsystem [c->h12][2] = cl.form [i][2];
-         embedding [c->h12] = correct_nsystem_entry (&(nsystem [c->h12][0]),
-            &(nsystem [c->h12][1]), &(nsystem [c->h12][2]),
+         nsystem [c->h12].a = cl.form [i][0];
+         nsystem [c->h12].b = -cl.form [i][1];
+         nsystem [c->h12].c = cl.form [i][2];
+         correct_nsystem_entry (&(nsystem [c->h12]),
             N, b0, neutral_class_a, neutral_class_b, *c);
 #if 1
-         if (embedding [c->h12] != 0)
+         if (nsystem [c->h12].emb != conj)
             printf ("[%"PRIicl" %"PRIicl" %"PRIicl"]: %i\n",
-               nsystem [c->h12][0], nsystem [c->h12][1],
-               nsystem [c->h12][2], embedding [c->h12]);
+               nsystem [c->h12].a, nsystem [c->h12].b,
+               nsystem [c->h12].c, nsystem [c->h12].emb);
 #endif
-         if (embedding [c->h12] == 1) {
+         if (nsystem [c->h12].emb == real) {
             c->h1++;
             c->h12++;
          }
-         else if (embedding [c->h12] == 2) {
+         else if (nsystem [c->h12].emb == complex) {
             c->h2++;
             c->h12++;
          }
@@ -930,7 +909,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, int_cl_t a, int_cl_
 
 /*****************************************************************************/
 
-static void compute_conjugates (mpc_t *conjugate, int_cl_t **nsystem,
+static void compute_conjugates (mpc_t *conjugate, form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose)
    /* computes the conjugates of the singular value over Q */
 
@@ -938,15 +917,15 @@ static void compute_conjugates (mpc_t *conjugate, int_cl_t **nsystem,
    int i;
 
    for (i = 0; i < c.h12; i++) {
-      eval (c, mc, conjugate [i], nsystem [i][0], nsystem [i][1]);
+      eval (c, mc, conjugate [i], nsystem [i].a, nsystem [i].b);
       if (verbose && i % 200 == 0) {
          printf (".");
          fflush (stdout);
       }
-/*
+#if 0
       mpc_out_str (stdout, 10, 0, conjugate[i], MPC_RNDNN);
       printf ("\n");
-*/
+#endif
    }
    if (verbose)
       printf ("\n");
@@ -961,13 +940,11 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    /* write indicates whether the result should be written to disk.          */
 {
    cm_classgroup_t cl;
-   int_cl_t **nsystem;
-   int *embedding;
+   form_t *nsystem;
    mp_prec_t prec;
    cm_modclass_t mc;
    mpc_t *conjugate;
    cm_timer  clock_global, clock_local;
-   int i;
 
    cm_timer_start (clock_global);
 
@@ -977,17 +954,13 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    if (verbose)
       printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
 
-   nsystem = (int_cl_t **) malloc (c.h * sizeof (int_cl_t *));
-   for (i = 0; i < c.h; i++)
-      nsystem [i] = (int_cl_t *) malloc (3 * sizeof (int_cl_t));
-   embedding = (int*) malloc (c.h * sizeof (int));
+   nsystem = (form_t *) malloc (c.h * sizeof (form_t));
    cm_timer_start (clock_local);
-   compute_nsystem_and_embedding (nsystem, embedding, &c, cl, verbose);
+   compute_nsystem (nsystem, &c, cl, verbose);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
-   nsystem = (int_cl_t **) realloc (nsystem, c.h12 * sizeof (int_cl_t *));
-   embedding = (int *) realloc (embedding, c.h12 * sizeof (int));
+   nsystem = (form_t *) realloc (nsystem, c.h12 * sizeof (form_t));
    prec = compute_precision (c, cl, verbose);
 
    conjugate = (mpc_t *) malloc (c.h12 * sizeof (mpc_t));
@@ -1005,13 +978,9 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    if (verbose)
       printf ("--- Time for conjugates: %.1f\n", cm_timer_get (clock_local));
 
-   for (i = 0; i < c.h12; i++)
-      free (nsystem [i]);
-   free (nsystem);
-
    cm_timer_start (clock_local);
    if (c.field == CM_FIELD_REAL)
-      real_compute_minpoly (c, conjugate, embedding);
+      real_compute_minpoly (c, conjugate, nsystem);
    else
       complex_compute_minpoly (c, conjugate);
    cm_timer_stop (clock_local);
@@ -1025,7 +994,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
       mpc_clear (conjugate [i]);
    free (conjugate);
    */
-   free (embedding);
+   free (nsystem);
 
    cm_timer_stop (clock_global);
    if (verbose) {
@@ -1039,7 +1008,8 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
 
 /*****************************************************************************/
 
-static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding)
+static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
+   form_t *nsystem)
    /* computes the minimal polynomial of the function over Q                 */
    /* frees conjugates                                                       */
 
@@ -1059,7 +1029,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding
    /* To save memory, free the conjugates at the same time.                  */
    factors = (mpfrx_t*) malloc (c.h12 * sizeof (mpfrx_t));
    for (i = 0; i < c.h12; i++) {
-      if (embedding [i] == 1) {
+      if (nsystem [i].emb == real) {
          mpfrx_init (factors [right], 2, mpfr_get_prec (conjugate [i]->re));
          factors [right]->deg = 1;
          mpfr_set_ui (factors [right]->coeff [1], 1ul, GMP_RNDN);

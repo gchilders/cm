@@ -58,9 +58,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
             if ((b*b - cl->d) % (4*a) == 0) {
                c = ((b*b - cl->d) / (4*a));
                if (c >= a) {
-                  tmp_gcd = cm_classgroup_gcd (a, b);
-                  tmp_gcd = cm_classgroup_gcd (tmp_gcd ,c);
-                  if (tmp_gcd == 1) {
+                  if (cm_classgroup_gcd (cm_classgroup_gcd (a, b), c) == 1) {
                      /* we have a primitive reduced form */
                      cl->form [k][0] = a;
                      cl->form [k][1] = b;
