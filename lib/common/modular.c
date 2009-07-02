@@ -1,9 +1,7 @@
 #include "cm_common-impl.h"
 
-static void modular_fundamental_matrix (mpc_srcptr z, long int *Ma,
-   long int *Mb, long int *Mc, long int *Md);
-static void modular_fundamental_domain (mpc_t z, long int *Ma, long int *Mb,
-          long int *Mc, long int *Md);
+static void modular_fundamental_matrix (mpc_srcptr z,cm_matrix_t *M);
+static void modular_fundamental_domain (mpc_t z, cm_matrix_t *M);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -11,10 +9,9 @@ static void modular_fundamental_domain (mpc_t z, long int *Ma, long int *Mb,
 /*                                                                           */
 /*****************************************************************************/
 
-static void modular_fundamental_matrix (mpc_srcptr z, long int *Ma,
-   long int *Mb, long int *Mc, long int *Md)
-   /* returns the transformation matrix M = (Ma Mb \\ Mc Md) such that Mz is */
-   /* in the fundamental domain                                              */
+static void modular_fundamental_matrix (mpc_srcptr z,cm_matrix_t *M)
+   /* computes the transformation matrix M such that Mz is in the            */
+   /* fundamental domain                                                     */
 
 {
    bool ok = false;
@@ -25,47 +22,44 @@ static void modular_fundamental_matrix (mpc_srcptr z, long int *Ma,
    mpfr_init2 (tmp_fr, (mp_exp_t) 100);
    mpc_init2 (local_z, (mp_exp_t) 100);
 
-   *Ma = 1;
-   *Mb = 0;
-   *Mc = 0;
-   *Md = 1;
+   M->a = 1;
+   M->b = 0;
+   M->c = 0;
+   M->d = 1;
 
    /* determine the matrix from a low precision approximation of z */
    mpc_set (local_z, z, MPC_RNDNN);
-   while (!ok)
-   {
+   while (!ok) {
       ok = true;
       /* obtain -0.5 <= real part <= 0.5 */
       mpfr_round (tmp_fr, local_z->re);
       tmp_int = -mpfr_get_si (tmp_fr, GMP_RNDN);
       mpc_add_si (local_z, local_z, tmp_int, MPC_RNDNN);
       /* multiply M from the left by T^tmp_int */
-      *Ma += *Mc * tmp_int;
-      *Mb += *Md * tmp_int;
+      M->a += M->c * tmp_int;
+      M->b += M->d * tmp_int;
 
       mpc_norm (tmp_fr, local_z, MPC_RNDNN);
-      if (mpfr_cmp_d (tmp_fr, 0.999) < 0)
-      {
+      if (mpfr_cmp_d (tmp_fr, 0.999) < 0) {
          /* apply S */
          mpc_neg (local_z, local_z, MPC_RNDNN);
          mpc_ui_div (local_z, 1ul, local_z, MPC_RNDNN);
-         tmp_int = *Ma;
-         *Ma = -(*Mc);
-         *Mc = tmp_int;
-         tmp_int = *Mb;
-         *Mb = -(*Md);
-         *Md = tmp_int;
+         tmp_int = M->a;
+         M->a = -M->c;
+         M->c = tmp_int;
+         tmp_int = M->b;
+         M->b = -M->d;
+         M->d = tmp_int;
          ok = false;
       }
    }
 
    /* normalise the matrix */
-   if (*Mc < 0 || (*Mc == 0 && *Md < 0))
-   {
-      *Ma = -*Ma;
-      *Mb = -*Mb;
-      *Mc = -*Mc;
-      *Md = -*Md;
+   if (M->c < 0 || (M->c == 0 && M->d < 0)) {
+      M->a = -M->a;
+      M->b = -M->b;
+      M->c = -M->c;
+      M->d = -M->d;
    }
 
    mpfr_clear (tmp_fr);
@@ -74,10 +68,9 @@ static void modular_fundamental_matrix (mpc_srcptr z, long int *Ma,
 
 /*****************************************************************************/
 
-static void modular_fundamental_domain (mpc_t z, long int *Ma, long int *Mb,
-          long int *Mc, long int *Md)
+static void modular_fundamental_domain (mpc_t z, cm_matrix_t *M)
    /* transforms z into the fundamental domain and returns the inverse       */
-   /* transformation matrix M = (Ma Mb \\ Mc Md)                             */
+   /* transformation matrix M                                                */
 
 {
    long int tmp_int;
@@ -85,27 +78,26 @@ static void modular_fundamental_domain (mpc_t z, long int *Ma, long int *Mb,
 
    mpc_init2 (tmp_c1, mpfr_get_prec (z->re));
 
-   modular_fundamental_matrix (z, Ma, Mb, Mc, Md);
+   modular_fundamental_matrix (z, M);
 
    /* apply the matrix to z */
-   mpc_mul_si (tmp_c1, z, *Ma, MPC_RNDNN);
-   mpc_add_si (tmp_c1, tmp_c1, *Mb, MPC_RNDNN);
-   mpc_mul_si (z, z, *Mc, MPC_RNDNN);
-   mpc_add_si (z, z, *Md, MPC_RNDNN);
+   mpc_mul_si (tmp_c1, z, M->a, MPC_RNDNN);
+   mpc_add_si (tmp_c1, tmp_c1, M->b, MPC_RNDNN);
+   mpc_mul_si (z, z, M->c, MPC_RNDNN);
+   mpc_add_si (z, z, M->d, MPC_RNDNN);
    mpc_div (z, tmp_c1, z, MPC_RNDNN);
 
    /* invert and normalize the matrix */
-   tmp_int = *Ma;
-   *Ma = *Md;
-   *Md = tmp_int;
-   *Mb = -(*Mb);
-   *Mc = -(*Mc);
-   if (*Mc < 0 || (*Mc == 0 && *Md < 0))
-   {
-      *Ma = -*Ma;
-      *Mb = -*Mb;
-      *Mc = -*Mc;
-      *Md = -*Md;
+   tmp_int = M->a;
+   M->a = M->d;
+   M->d = tmp_int;
+   M->b = -M->b;
+   M->c = -M->c;
+   if (M->c < 0 || (M->c == 0 && M->d < 0)) {
+      M->a = -M->a;
+      M->b = -M->b;
+      M->c = -M->c;
+      M->d = -M->d;
    }
 
    mpc_clear (tmp_c1);
@@ -177,24 +169,24 @@ void cm_modular_clear (cm_modular_t *m)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z, long int Ma,
-     long int Mb, long int Mc, long int Md)
-   /* computes the value of eta (M z) / eta (z), where M = (Ma Mb \\ Mc Md)) */
-   /* is assumed to be normalised                                            */
+void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z,
+     cm_matrix_t M)
+   /* computes the value of eta (M z) / eta (z), where M is assumed to be    */
+   /* normalised                                                             */
 
 {
    long int c1, zeta_exp, lambda;
-   int a = Ma % 48, b = Mb % 24, c = Mc % 24, d = Md % 24;
+   int a = M.a % 48, b = M.b % 24, c = M.c % 24, d = M.d % 24;
       /* If we do not reduce, then there might be an overflow in zeta_exp.  */
-      /* Ma is reduced modulo 48 since the formula contains (Ma*Ma-1)/2.    */
+      /* M.a is reduced modulo 48 since the formula contains (M.a*M.a-1)/2. */
 
    /* eta (M z) = epsilon (M) sqrt (Mc z + Md) eta (z). */
-   if (Mc == 0) {
+   if (M.c == 0) {
       c1 = 1;
       lambda = 1;
    }
    else {
-      c1 = Mc;
+      c1 = M.c;
       lambda = 0;
       while (c1 % 2 == 0) {
          c1 /= 2;
@@ -203,15 +195,15 @@ void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z, long int Ma,
    }
    zeta_exp = a * b + c * (d * (1 - a*a) - a) + 3 * (c1 % 8) * (a - 1)
          + (3 * lambda * (a*a - 1)) / 2;
-   if (cm_nt_kronecker (Ma, c1) == -1)
+   if (cm_nt_kronecker (M.a, c1) == -1)
       zeta_exp += 12;
    zeta_exp %= 24;
    if (zeta_exp < 0)
       zeta_exp += 24;
 
-   /* compute sqrt (Mc * z + Md) */
-   mpc_mul_si (rop, z, Mc, MPC_RNDNN);
-   mpc_add_si (rop, rop, Md, MPC_RNDNN);
+   /* compute sqrt (M.c * z + M.d) */
+   mpc_mul_si (rop, z, M.c, MPC_RNDNN);
+   mpc_add_si (rop, rop, M.d, MPC_RNDNN);
    mpc_sqrt (rop, rop, MPC_RNDNN);
 
    mpc_mul (rop, rop, m.zeta24 [zeta_exp], MPC_RNDNN);
@@ -262,7 +254,7 @@ void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op)
    /* evaluates the eta function at op */
 
 {
-   long int Ma, Mb, Mc, Md;
+   cm_matrix_t M;
 
    mpc_t q24, op_local;
    /* Trick: The transformation into the fundamental domain is carried out   */
@@ -273,8 +265,8 @@ void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op)
    mpc_init2 (op_local, mpfr_get_prec (op->re));
 
    mpc_set (op_local, op, MPC_RNDNN);
-   modular_fundamental_domain (op_local, &Ma, &Mb, &Mc, &Md);
-   cm_modular_eta_transform (m, rop, op_local, Ma, Mb, Mc, Md);
+   modular_fundamental_domain (op_local, &M);
+   cm_modular_eta_transform (m, rop, op_local, M);
    /* workaround to efficiently handle almost real arguments; here, mpc_exp  */
    /* cannot be improved, since the almost zero imaginary part does have an  */
    /* influence on the imaginary part of the result.                         */

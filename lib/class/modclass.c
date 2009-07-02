@@ -363,12 +363,12 @@ static void cm_modclass_mpc_set_quadratic (cm_modclass_t mc, mpc_t rop,
 /*****************************************************************************/
 
 static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
-                                              int_cl_t *b, long int *Ma, long int *Mb, long int *Mc, long int *Md)
-      /* transforms (b + sqrt (d)) / (2a) into the fundamental domain and       */
-      /* returns the inverse transformation matrix M = (Ma Mb \\ Mc Md)         */
-      /* Unfortunately we have to compute internally with multiprecision;       */
-      /* although the final result fits into a long, intermediate results       */
-      /* can be quite large.                                                    */
+   int_cl_t *b, cm_matrix_t *M)
+      /* transforms (b + sqrt (d)) / (2a) into the fundamental domain and   */
+      /* returns the inverse transformation matrix M                        */
+      /* Unfortunately we have to compute internally with multiprecision;   */
+      /* although the final result fits into a long, intermediate results   */
+      /* can be quite large.                                                */
 {
    bool reduced = false;
    static mpz_t a_local, b_local, b_minus_a, two_a, offset, c;
@@ -386,15 +386,14 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
       first_time = false;
    }
 
-   *Ma = 1;
-   *Mb = 0;
-   *Mc = 0;
-   *Md = 1;
+   M->a = 1;
+   M->b = 0;
+   M->c = 0;
+   M->d = 1;
    mpz_set_si (a_local, *a);
    mpz_set_si (b_local, *b);
 
-   while (!reduced)
-   {
+   while (!reduced) {
       /* obtain -a < b <= a                                                   */
       /* basically, compute offset as b / (2a) rounded towards the closest    */
       /* integer. If the quotient is exactly between two integers, round down */
@@ -404,8 +403,8 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
 
       tmp_int = mpz_get_si (offset);
       /* multiply M from the right by T^{tmp_int} */
-      *Mb += *Ma * tmp_int;
-      *Md += *Mc * tmp_int;
+      M->b += M->a * tmp_int;
+      M->d += M->c * tmp_int;
 
       mpz_mul (offset, offset, two_a);
       mpz_sub (b_local, b_local, offset);
@@ -419,16 +418,15 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
       if (mpz_cmp (a_local, c) < 0 ||
           (mpz_cmp (a_local, c) == 0 && mpz_sgn (b_local) > 0))
          reduced = true;
-      else
-      {
+      else {
          mpz_set (a_local, c);
          mpz_neg (b_local, b_local);
-         tmp_int = *Ma;
-         *Ma = *Mb;
-         *Mb = - tmp_int;
-         tmp_int = *Mc;
-         *Mc = *Md;
-         *Md = -tmp_int;
+         tmp_int = M->a;
+         M->a = M->b;
+         M->b = -tmp_int;
+         tmp_int = M->c;
+         M->c = M->d;
+         M->d = -tmp_int;
          reduced = false;
       }
    }
@@ -436,12 +434,11 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
    *a = mpz_get_si (a_local);
    *b = mpz_get_si (b_local);
    /* normalise the matrix */
-   if (*Mc < 0 || (*Mc == 0 && *Md < 0))
-   {
-      *Ma = -*Ma;
-      *Mb = -*Mb;
-      *Mc = -*Mc;
-      *Md = -*Md;
+   if (M->c < 0 || (M->c == 0 && M->d < 0)) {
+      M->a = -M->a;
+      M->b = -M->b;
+      M->c = -M->c;
+      M->d = -M->d;
    }
 }
 
@@ -459,15 +456,14 @@ void cm_modclass_eta_eval_quad (cm_modclass_t mc, mpc_t rop,
 {
    int_cl_t a_local, b_local;
    int      i, sign;
-   long int Ma, Mb, Mc, Md;
+   cm_matrix_t M;
    mpc_t    tmp;
 
    a_local = a;
    b_local = b;
-   cm_modclass_fundamental_domain_quad (mc.cl.d, &a_local, &b_local,
-      &Ma, &Mb, &Mc, &Md);
+   cm_modclass_fundamental_domain_quad (mc.cl.d, &a_local, &b_local, &M);
    cm_modclass_mpc_set_quadratic (mc, rop, a_local, b_local);
-   cm_modular_eta_transform (mc.m, rop, rop, Ma, Mb, Mc, Md);
+   cm_modular_eta_transform (mc.m, rop, rop, M);
 
    /* look up the eta value */
    i = 0;

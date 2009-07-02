@@ -25,6 +25,10 @@ typedef struct {
 typedef __cm_timer_struct cm_timer [1];
 
 typedef struct {
+   long int a, b, c, d;
+} cm_matrix_t;
+
+typedef struct {
    long int **chain;
       /* data structure for holding addition chains                          */
       /* entry 0: the value of the exponent; chain [0][0] must be 0 and      */
@@ -98,8 +102,7 @@ extern bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in);
 extern void cm_modular_init (cm_modular_t *m, mp_prec_t prec);
 extern void cm_modular_clear (cm_modular_t *m);
 extern void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z,
-   long int Ma, long int Mb, long int Mc,
-   long int Md);
+   cm_matrix_t M);
 extern void cm_modular_eta_series (cm_modular_t m, mpc_t rop, mpc_t q_24);
 extern void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 extern void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op);
