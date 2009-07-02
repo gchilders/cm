@@ -1202,18 +1202,18 @@ static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate)
 
    mpcx_clear (mpol);
 
-   printf ("Minimal polynomial real part:\n1");
+#if 1
+   printf ("Minimal polynomial:\nx^%i", c.minpoly_deg);
    for (i = c.minpoly_deg - 1; i >= 0; i--) {
-      printf (" ");
+      printf (" + (");
       mpz_out_str (stdout, 10, c.minpoly [i]);
-   }
-   printf ("\n");
-   printf ("Minimal polynomial part in the second element of the canonical integral basis:\n0");
-   for (i = c.minpoly_deg - 1; i >= 0; i--) {
-      printf (" ");
+      if (mpz_cmp_ui (c.minpoly_complex [i], 0) >= 0)
+         printf ("+");
       mpz_out_str (stdout, 10, c.minpoly_complex [i]);
+      printf ("*omega) * x^%i", i);
    }
    printf ("\n");
+#endif
 }
 
 /*****************************************************************************/
