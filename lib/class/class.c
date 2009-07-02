@@ -1100,7 +1100,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate, int *embedding
          exit (1);
       }
 
-#if 0
+#if 1
       printf ("x^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
@@ -1703,7 +1703,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t P, int *no,
       mpz_mod (tmp, tmp, P);
       mpz_invert (j [0], tmp, P);
       mpz_mul (j [0], j [0], f3);
-      mpz_mod (j [0], P, P);
+      mpz_mod (j [0], j [0], P);
    }
 
    *no = 1;
