@@ -625,24 +625,24 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_classgroup_reduce (int_cl_t *a, int_cl_t *b, int_cl_t d)
-   /* reduces the quadratic form given by a and b without checking if it    */
-   /* belongs indeed to the discriminant d                                  */
+void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
+   /* reduces the quadratic form Q without checking if it belongs indeed to */
+   /* the discriminant d and without computing Q.emb.                       */
    /* The function is of rather limited use, since it can only be used      */
-   /* when b is noticeably smaller than 2^32; otherwise there is an         */
-   /* overflow in the computation of b^2 - d.                               */
+   /* when Q.b is noticeably smaller than 2^32; otherwise there is an       */
+   /* overflow in the computation of Q.b^2 - d.                             */
 
 {
    int_cl_t c, a_minus_b, two_a, offset;
    bool reduced;
 
-   assert (*a < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2));
+   assert (Q->b < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2));
       /* prevent overflow in the computation of c = b^2 - d */
    reduced = false;
    while (!reduced){
       /* first step: obtain |b| <= a */
-      a_minus_b = (*a) - (*b);
-      two_a = 2*(*a);
+      a_minus_b = Q->a - Q->b;
+      two_a = 2 * Q->a;
       if (a_minus_b < 0) {
          a_minus_b++;
          /* a trick to obtain the correct rounding */
@@ -652,53 +652,52 @@ void cm_classgroup_reduce (int_cl_t *a, int_cl_t *b, int_cl_t d)
          offset--;
          /* offset is (a-b) / (2a) floored */
          offset *= two_a;
-         *b += offset;
+         Q->b += offset;
       }
       else if (a_minus_b >= two_a) {
          offset = a_minus_b / two_a;
          offset *= two_a;
-         *b += offset;
+         Q->b += offset;
       }
 
       /* compute c */
-      c = ((*b) * (*b) - d) / 4 / *a;
+      c = (Q->b * Q->b - d) / (4 * Q->a);
       /* if not reduced, invert */
-      if (*a < c || (*a == c && *b >= 0))
+      if (Q->a < c || (Q->a == c && Q->b >= 0))
             reduced = true;
       else {
-         *a = c;
-         *b = -(*b);
+         Q->a = c;
+         Q->b = -Q->b;
       }
    }
 }
 
 /*****************************************************************************/
 
-void cm_classgroup_compose (int_cl_t *a, int_cl_t *b,  int_cl_t a1, int_cl_t b1,
-                         int_cl_t a2,  int_cl_t b2, int_cl_t d)
-   /* computes the reduced form (a, b) corresponding to the composition of   */
-   /* (a1, b1) and (a2, b2)                                                  */
+void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1, cm_form_t Q2,
+   int_cl_t d)
+   /* computes the reduced form Q corresponding to the composition of Q1 and */
+   /* without computing Q.emb                                                */
 
 {
    int_cl_t s, t, v1, v, w, a2t;
 
-   t = classgroup_gcdext (&v1, NULL, a2, a1);
+   t = classgroup_gcdext (&v1, NULL, Q2.a, Q1.a);
 
    if (t == 1) {
-      *a = a1 * a2;
-      *b = b2 + a2 * v1 * (b1 - b2);
+      Q->a = Q1.a * Q2.a;
+      Q->b = Q2.b + Q2.a * v1 * (Q1.b - Q2.b);
    }
-   else
-   {
-      s = (b1 + b2) / 2;
+   else {
+      s = (Q1.b + Q2.b) / 2;
       t = classgroup_gcdext (&w, &v, s, t);
       v *= v1;
-      a2t = a2 / t;
-      *a = (a1 / t) * a2t;
-      *b = (s - b2) * v - w * ((b2 * b2 - d) / 4 / a2);
-      *b = b2 + 2 * (*b) * a2t;
+      a2t = Q2.a / t;
+      Q->a = (Q1.a / t) * a2t;
+      Q->b = (s - Q2.b) * v - w * (Q2.b * Q2.b - d) / (4 * Q2.a);
+      Q->b = Q2.b + 2 * Q->b * a2t;
    }
-   cm_classgroup_reduce (a, b, d);
+   cm_classgroup_reduce (Q, d);
 }
 
 /*****************************************************************************/

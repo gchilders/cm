@@ -8,11 +8,9 @@ static int class_get_height (cm_class_t c);
    /* in the complex case, returns the binary length of the largest          */
    /* coefficient with respect to the decomposition over an integral basis   */
 
-static void correct_nsystem_entry (cm_form_t *Q,
-   int_cl_t N, int_cl_t b0,
-   int_cl_t neutral_class_a, int_cl_t neutral_class_b, cm_class_t cl);
-   /* changes (a, b, c) to obtain an N-system and returns the embedding      */
-   /* number (1 or 2) corresponding to the form                              */
+static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
+   cm_form_t neutral_class, cm_class_t cl);
+   /* changes Q to obtain an N-system                                        */
 static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    cm_classgroup_t cl, bool verbose);
    /* computes and returns an N-system of forms, including the embeddings    */
@@ -551,9 +549,8 @@ static int class_get_height (cm_class_t c)
 /*                                                                           */
 /*****************************************************************************/
 
-static void correct_nsystem_entry (cm_form_t *Q,
-   int_cl_t N, int_cl_t b0,
-   int_cl_t neutral_class_a, int_cl_t neutral_class_b, cm_class_t cl)
+static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
+   cm_form_t neutral, cm_class_t cl)
    /* changes the form Q by a unimodular transformation so that Q.b is       */
    /* congruent to b0 modulo 2*N                                             */
    /* Furthermore, determines and returns via Q.emb how many conjugates      */
@@ -567,7 +564,8 @@ static void correct_nsystem_entry (cm_form_t *Q,
    /* In the complex case, Q.emb="complex".                                  */
 
 {
-   int_cl_t c, inverse_a, inverse_b, mu, tmp;
+   int_cl_t c, mu, tmp;
+   cm_form_t inverse;
 
 #if 0
    if (cl.invariant == CM_INVARIANT_RAMIFIED)
@@ -575,18 +573,18 @@ static void correct_nsystem_entry (cm_form_t *Q,
    }
    else
 #endif
-   if (cl.field == CM_FIELD_REAL)
-   {
+   if (cl.field == CM_FIELD_REAL) {
       /* check for the inverse of the form with respect  to */
       /* neutral_class                                      */
-      cm_classgroup_compose (&inverse_a, &inverse_b,
-         neutral_class_a, neutral_class_b, Q->a, -Q->b, cl.d);
-      if (Q->a == inverse_a && Q->b == inverse_b)
+      Q->b = -Q->b;
+      cm_classgroup_compose (&inverse, neutral, *Q, cl.d);
+      Q->b = -Q->b;
+      if (Q->a == inverse.a && Q->b == inverse.b)
       /* the conjugate is real */
          Q->emb = real;
       /* the conjugate is complex, test whether its form is the */
       /* lexicographically smaller one                          */
-      else if (Q->a < inverse_a || (Q->a == inverse_a && Q->b < inverse_b))
+      else if (Q->a < inverse.a || (Q->a == inverse.a && Q->b < inverse.b))
          Q->emb = complex;
       else
          Q->emb = conj;
@@ -632,7 +630,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 
 {
    int_cl_t b0, N;
-   int_cl_t neutral_class_a, neutral_class_b;
+   cm_form_t neutral;
    int i;
 
    c->h12 = 0;
@@ -670,11 +668,11 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    }
 
    else {
-      neutral_class_a = 1;
+      neutral.a = 1;
       if (c->d % 2 == 0)
-         neutral_class_b = 0;
+         neutral.b = 0;
       else
-         neutral_class_b = 1;
+         neutral.b = 1;
 
       switch (c->invariant) {
          case CM_INVARIANT_J:
@@ -692,8 +690,8 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
          case CM_INVARIANT_WEBER:
             if (c->d % 4 != 0)
                c->d <<= 2;
-            neutral_class_a = 1;
-            neutral_class_b = 0;
+            neutral.a = 1;
+            neutral.b = 0;
             b0 = 0;
             N = 48;
             break;
@@ -708,9 +706,9 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
                b0 = 1;
             while ((b0*b0 - c->d) % N != 0)
                b0 += 2;
-            neutral_class_a = N;
-            neutral_class_b = -b0;
-            cm_classgroup_reduce (&neutral_class_a, &neutral_class_b, c->d);
+            neutral.a = N;
+            neutral.b = -b0;
+            cm_classgroup_reduce (&neutral, c->d);
             break;
          default: /* should not occur */
             printf ("compute_nsystem_and_embedding called for ");
@@ -721,8 +719,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 
    for (i = 0; i < cl.h12; i++) {
       nsystem [c->h12] = cl.form [i];
-      correct_nsystem_entry (&(nsystem [c->h12]),
-         N, b0, neutral_class_a, neutral_class_b, *c);
+      correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, *c);
 #if 1
       if (nsystem [c->h12].emb != conj)
          printf ("[%"PRIicl" %"PRIicl"]: %i\n", nsystem [c->h12].a,
@@ -740,8 +737,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
       if (cl.form [i].emb != real) {
          nsystem [c->h12].a = cl.form [i].a;
          nsystem [c->h12].b = -cl.form [i].b;
-         correct_nsystem_entry (&(nsystem [c->h12]),
-            N, b0, neutral_class_a, neutral_class_b, *c);
+         correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, *c);
 #if 1
          if (nsystem [c->h12].emb != conj)
             printf ("[%"PRIicl" %"PRIicl"]: %i\n",

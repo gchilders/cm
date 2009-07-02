@@ -107,9 +107,9 @@ extern void cm_classgroup_factor (int_cl_t d,
 extern int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d);
 extern int cm_classgroup_h (int *h1, int *h2, int_cl_t d);
 
-extern void cm_classgroup_reduce (int_cl_t *a, int_cl_t *b, int_cl_t d);
-extern void cm_classgroup_compose (int_cl_t *a, int_cl_t *b,
-   int_cl_t a1, int_cl_t b1, int_cl_t a2, int_cl_t b2, int_cl_t d);
+extern void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d);
+extern void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1,
+   cm_form_t Q2, int_cl_t d);
 
 
 /* functions for evaluating modular functions at quadratic integers via
