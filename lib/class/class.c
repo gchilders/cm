@@ -720,7 +720,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    for (i = 0; i < cl.h12; i++) {
       nsystem [c->h12] = cl.form [i];
       correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, *c);
-#if 1
+#if 0
       if (nsystem [c->h12].emb != conj)
          printf ("[%"PRIicl" %"PRIicl"]: %i\n", nsystem [c->h12].a,
             nsystem [c->h12].b, nsystem [c->h12].emb);
@@ -738,7 +738,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
          nsystem [c->h12].a = cl.form [i].a;
          nsystem [c->h12].b = -cl.form [i].b;
          correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, *c);
-#if 1
+#if 0
          if (nsystem [c->h12].emb != conj)
             printf ("[%"PRIicl" %"PRIicl"]: %i\n",
                nsystem [c->h12].a, nsystem [c->h12].b,
