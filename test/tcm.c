@@ -30,6 +30,7 @@ int main ()
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_WEBER, false);
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_GAMMA2, false);
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_GAMMA3, false);
+//   test_curve ((int_cl_t) (-108704), CM_INVARIANT_SIMPLEETA, false);
 //   test_curve ((int_cl_t) (-6961631), CM_INVARIANT_DOUBLEETA, true);
 
    return 0;

@@ -8,7 +8,7 @@ typedef enum {real, complex, conj}
    /* dropped.                                                               */
 
 typedef struct {
-   int_cl_t a, b, c;
+   int_cl_t a, b;
    embedding_t emb;
 } form_t;
 
@@ -579,7 +579,7 @@ static void correct_nsystem_entry (form_t *Q,
    /* In the complex case, Q.emb="complex".                                  */
 
 {
-   int_cl_t inverse_a, inverse_b, mu, tmp;
+   int_cl_t c, inverse_a, inverse_b, mu, tmp;
 
 #if 0
    if (cl.invariant == CM_INVARIANT_RAMIFIED)
@@ -610,25 +610,26 @@ static void correct_nsystem_entry (form_t *Q,
    {
       /* modify a, b and c by unimodular transformations    */
       /* such that gcd (a, bN) = 1 and b \equiv b0 mod 2*bN */
+      c = (Q->b * Q->b - cl.d) / (4 * Q->a) ;
       while (cm_classgroup_gcd (Q->a, N) != 1) {
          mu = 0;
-         tmp = Q->c;
+         tmp = c;
          while (cm_classgroup_gcd (tmp, N) != 1 && mu < 10) {
             mu++;
-            tmp = Q->c + mu*(mu*(Q->a) - (Q->b));
+            tmp = c + mu*(mu*(Q->a) - (Q->b));
          }
          if (mu == 10) {
             mu = 1;
-            tmp = Q->c + mu*(mu*(Q->a) - (Q->b));
+            tmp = c + mu*(mu*(Q->a) - (Q->b));
          }
          Q->b = 2*mu*(Q->a) - (Q->b);
-         Q->c = Q->a;
+         c = Q->a;
          Q->a = tmp;
       }
       mu = 0;
       while ((Q->b - 2*mu*(Q->a) - b0) % (2*N) != 0)
          mu++;
-      Q->c += mu*(mu*(Q->a) - (Q->b));
+      c += mu*(mu*(Q->a) - (Q->b));
       Q->b -= 2*mu*(Q->a);
    }
 }
@@ -733,13 +734,12 @@ static void compute_nsystem (form_t *nsystem, cm_class_t *c,
    for (i = 0; i < cl.h12; i++) {
       nsystem [c->h12].a = cl.form [i][0];
       nsystem [c->h12].b = cl.form [i][1];
-      nsystem [c->h12].c = cl.form [i][2];
       correct_nsystem_entry (&(nsystem [c->h12]),
          N, b0, neutral_class_a, neutral_class_b, *c);
 #if 1
       if (nsystem [c->h12].emb != conj)
-         printf ("[%"PRIicl" %"PRIicl" %"PRIicl"]: %i\n", nsystem [c->h12].a,
-            nsystem [c->h12].b, nsystem [c->h12].c, nsystem [c->h12].emb);
+         printf ("[%"PRIicl" %"PRIicl"]: %i\n", nsystem [c->h12].a,
+            nsystem [c->h12].b, nsystem [c->h12].emb);
 #endif
       if (nsystem [c->h12].emb == real) {
          c->h1++;
@@ -754,14 +754,13 @@ static void compute_nsystem (form_t *nsystem, cm_class_t *c,
           && cl.form [i][0] < cl.form [i][2]) {
          nsystem [c->h12].a = cl.form [i][0];
          nsystem [c->h12].b = -cl.form [i][1];
-         nsystem [c->h12].c = cl.form [i][2];
          correct_nsystem_entry (&(nsystem [c->h12]),
             N, b0, neutral_class_a, neutral_class_b, *c);
 #if 1
          if (nsystem [c->h12].emb != conj)
-            printf ("[%"PRIicl" %"PRIicl" %"PRIicl"]: %i\n",
+            printf ("[%"PRIicl" %"PRIicl"]: %i\n",
                nsystem [c->h12].a, nsystem [c->h12].b,
-               nsystem [c->h12].c, nsystem [c->h12].emb);
+               nsystem [c->h12].emb);
 #endif
          if (nsystem [c->h12].emb == real) {
             c->h1++;
@@ -1063,16 +1062,6 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
       mpfrx_clear (factors [i]);
    free (factors);
 
-/*
-   printf ("x^%i", c.minpoly_deg);
-   for (i = c.minpoly_deg - 1; i >= 0; i--) {
-      printf (" + (");
-      mpfr_out_str (stdout, 10, 0, mpol->coeff [i], GMP_RNDN);
-      printf (") * x^%i", i);
-   }
-   printf ("\n");
-*/
-
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
    for (i = 0; i < c.minpoly_deg; i++)
       if (!cm_nt_mpfr_get_z (c.minpoly [i], mpol->coeff [i])) {
@@ -1082,7 +1071,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
          exit (1);
       }
 
-#if 1
+#if 0
       printf ("x^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
@@ -1111,7 +1100,6 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
    mpfr_init2 (omega_i, mpc_get_prec (in));
    mpfr_init2 (tmp, mpc_get_prec (in));
 
-//   printf ("Fund %"PRIicl"\n", d);
    div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
    mpfr_sqrt_ui (omega_i, -d, GMP_RNDN);
    mpfr_div_2ui (omega_i, omega_i, 1ul, GMP_RNDN);
@@ -1184,7 +1172,7 @@ static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate)
 
    mpcx_clear (mpol);
 
-#if 1
+#if 0
    printf ("Minimal polynomial:\nx^%i", c.minpoly_deg);
    for (i = c.minpoly_deg - 1; i >= 0; i--) {
       printf (" + (");
