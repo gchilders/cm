@@ -16,6 +16,7 @@
 #define CM_MODPOL_W35         '5'
 #define CM_MODPOL_W39         '9'
 #define CM_MODPOL_GAMMA2      'g'
+#define CM_MODPOL_ATKIN71     '7'
 
 
 typedef struct {
@@ -86,8 +87,12 @@ extern int cm_nt_is_prime (mpz_t a);
 extern int cm_nt_is_prime_l (const unsigned long int prime);
 extern unsigned long int cm_nt_next_prime (const unsigned long int n);
 extern long int cm_nt_gcd (long int a, long int b);
+extern long int cm_nt_gcdext (long int *u, long int *v, long int a,
+   long int b);
 extern int cm_nt_kronecker (long int a, long int b);
 extern long int cm_nt_sqrt (const unsigned long int n);
+extern void cm_nt_factor (long int d, unsigned long int *factors,
+   unsigned int *exponents);
 
 extern void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p, mpz_t q);
 
@@ -99,6 +104,7 @@ extern void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
 extern bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in);
 
 /* functions for evaluating modular functions */
+extern void cm_modular_fundamental_domain (mpc_ptr z);
 extern void cm_modular_init (cm_modular_t *m, mp_prec_t prec);
 extern void cm_modular_clear (cm_modular_t *m);
 extern void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z,
