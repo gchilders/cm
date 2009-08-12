@@ -68,6 +68,55 @@ long int cm_nt_gcd (long int a, long int b)
 
 /*****************************************************************************/
 
+long int cm_nt_gcdext (long int *u, long int *v, long int a, long int b)
+   /* returns the positive gcd d of a and b and u, v such that u a + v b = d */
+
+{
+   long int r0, r1, r2, u0, u1, u2, v0, v1, v2, q;
+   int sgn_a, sgn_b;
+
+   if (a < 0) {
+      sgn_a = -1;
+      r0 = -a;
+   }
+   else {
+      sgn_a = 1;
+      r0 = a;
+   }
+   if (b < 0) {
+      sgn_b = -1;
+      r1 = -b;
+   }
+   else {
+      sgn_b = 1;
+      r1 = b;
+   }
+   u0 = 1;
+   u1 = 0;
+   v0 = 0;
+   v1 = 1;
+
+   while (r1 != 0) {
+      q = r0 / r1;
+      r2 = r0 % r1;
+      r0 = r1;
+      r1 = r2;
+      u2 = u0 - q * u1;
+      u0 = u1;
+      u1 = u2;
+      v2 = v0 - q * v1;
+      v0 = v1;
+      v1 = v2;
+   }
+
+   *u = sgn_a * u0;
+   *v = sgn_b * v0;
+
+   return r0;
+}
+
+/*****************************************************************************/
+
 long int cm_nt_invert (long int a, const long int p)
    /* returns a^(-1) mod p */
 
@@ -223,6 +272,69 @@ unsigned long int cm_nt_next_prime (const unsigned long int n)
    mpz_clear (a);
 
    return res;
+}
+
+/*****************************************************************************/
+
+void cm_nt_factor (long int d, unsigned long int *factors,
+   unsigned int *exponents)
+   /* factors the absolute value of d by trial division. The prime factors   */
+   /* are stored in "factors", their multiplicities in "exponents", which    */
+   /* must provide sufficiently much space. The list of prime factors is     */
+   /* terminated by 0, so that 12 entries suffice for a number of 32 bits,   */
+   /* and 17 entries for a number of 64 bits.                                */
+
+{
+   unsigned long int no, trial, trial2;
+   int i, j;
+
+   if (d < 0)
+      no = -d;
+   else
+      no = d;
+
+   i = 0;
+   j = 0;
+   trial = 0;
+   trial2 = 0;
+   while (trial2 <= no)
+   {
+      if (trial == 0)
+      {
+         trial = 2;
+         trial2 = 4;
+      }
+      else if (trial == 2)
+      {
+         trial = 3;
+         trial2 = 9;
+      }
+      else
+      {
+         trial += 2;
+         trial2 += 4 * (trial - 1);
+      }
+      if (no % trial == 0)
+      {
+         factors [j] = trial;
+         exponents [j] = 1;
+         no /= trial;
+         while (no % trial == 0)
+         {
+            no /= trial;
+            exponents [j]++;
+         }
+         j++;
+      }
+      i++;
+   }
+   if (no != 1)
+   {
+     factors [j] = no;
+     exponents [j] = 1;
+     j++;
+   }
+   factors [j] = 0;
 }
 
 /*****************************************************************************/
