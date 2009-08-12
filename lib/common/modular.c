@@ -1,7 +1,7 @@
 #include "cm_common-impl.h"
 
 static void modular_fundamental_matrix (mpc_srcptr z,cm_matrix_t *M);
-static void modular_fundamental_domain (mpc_t z, cm_matrix_t *M);
+static void modular_fundamental_domain_matrix (mpc_t z, cm_matrix_t *M);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -68,7 +68,7 @@ static void modular_fundamental_matrix (mpc_srcptr z,cm_matrix_t *M)
 
 /*****************************************************************************/
 
-static void modular_fundamental_domain (mpc_t z, cm_matrix_t *M)
+static void modular_fundamental_domain_matrix (mpc_t z, cm_matrix_t *M)
    /* transforms z into the fundamental domain and returns the inverse       */
    /* transformation matrix M                                                */
 
@@ -99,6 +99,29 @@ static void modular_fundamental_domain (mpc_t z, cm_matrix_t *M)
       M->c = -M->c;
       M->d = -M->d;
    }
+
+   mpc_clear (tmp_c1);
+}
+
+/*****************************************************************************/
+
+extern void cm_modular_fundamental_domain (mpc_t z)
+   /* transforms z into the fundamental domain                               */
+
+{
+   mpc_t tmp_c1;
+   cm_matrix_t M;
+
+   mpc_init2 (tmp_c1, mpfr_get_prec (z->re));
+
+   modular_fundamental_matrix (z, &M);
+
+   /* apply the matrix to z */
+   mpc_mul_si (tmp_c1, z, M.a, MPC_RNDNN);
+   mpc_add_si (tmp_c1, tmp_c1, M.b, MPC_RNDNN);
+   mpc_mul_si (z, z, M.c, MPC_RNDNN);
+   mpc_add_si (z, z, M.d, MPC_RNDNN);
+   mpc_div (z, tmp_c1, z, MPC_RNDNN);
 
    mpc_clear (tmp_c1);
 }
@@ -265,7 +288,7 @@ void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op)
    mpc_init2 (op_local, mpfr_get_prec (op->re));
 
    mpc_set (op_local, op, MPC_RNDNN);
-   modular_fundamental_domain (op_local, &M);
+   modular_fundamental_domain_matrix (op_local, &M);
    cm_modular_eta_transform (m, rop, op_local, M);
    /* workaround to efficiently handle almost real arguments; here, mpc_exp  */
    /* cannot be improved, since the almost zero imaginary part does have an  */
