@@ -122,5 +122,5 @@ AC_LINK_IFELSE(
         ])
 AC_LANG_POP([C++])
 
-AC_CONFIG_FILES([Makefile lib/Makefile lib/mpfp/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/df/Makefile src/Makefile test/Makefile])
+AC_CONFIG_FILES([Makefile lib/Makefile lib/mpfp/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile src/Makefile test/Makefile])
 AC_OUTPUT

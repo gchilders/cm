@@ -28,10 +28,8 @@ static bool read_conjugates (cm_class_t c, mpc_t *conjugates);
 static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d);
 
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
-static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t root, mpz_t P,
-   int *no, const char* modpoldir);
-   /* computes the possible j-values as roots of the modular polynomial      */
-   /* specified by f                                                         */
+static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
+   char type, int level, mpz_t root, mpz_t P);
 
 /* the remaining functions are put separately as their code is quite long    */
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
@@ -74,7 +72,7 @@ void cm_class_init (cm_class_t *c, int_cl_t disc, char inv, bool verbose)
          c->d = 4 * disc;
    }
    if (verbose)
-      printf ("\nDiscriminant %"PRIicl", invariant %i, parameter %i\n",
+      printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %i\n",
                disc, inv, c->p);
 
    if (inv == CM_INVARIANT_SIMPLEETA)
@@ -191,6 +189,16 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
                return ((disc/4) % 8 + 8);
             else
                return ((disc/4) % 8);
+         case CM_INVARIANT_ATKIN:
+            if (cm_classgroup_kronecker (disc, (int_cl_t) 71) == -1) {
+               if (verbose) {
+                  printf ("\n*** 71 is inert for %"PRIicl", so that atkin71 ",
+                          disc);
+                  printf ("cannot be used.\n");
+               }
+               return 0;
+            }
+            return 1;
          case CM_INVARIANT_DOUBLEETA:
             return doubleeta_compute_parameter (disc, verbose);
 #if 0
@@ -490,6 +498,8 @@ static double class_get_valuation (cm_class_t c)
    case CM_INVARIANT_GAMMA3:
       result = 0.5;
       break;
+   case CM_INVARIANT_ATKIN:
+      result = 1 / (double) 36;
    case CM_INVARIANT_WEBER:
       result = 1 / (double) 72;
       if (c.p == 2 || c.p == 6 || c.p == 7)
@@ -578,8 +588,8 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    else
 #endif
    if (cl.field == CM_FIELD_REAL) {
-      /* check for the inverse of the form with respect  to */
-      /* neutral_class                                      */
+      /* check for the inverse of the form with respect to */
+      /* neutral_class                                     */
       Q->b = -Q->b;
       cm_classgroup_compose (&inverse, neutral, *Q, cl.d);
       Q->b = -Q->b;
@@ -691,6 +701,18 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             b0 = 1;
             N = 2;
             break;
+         case CM_INVARIANT_ATKIN:
+            N = 71;
+            if (c->d % 2 == 0)
+               b0 = 0;
+            else
+               b0 = 1;
+            while ((b0*b0 - c->d) % N != 0)
+               b0 += 2;
+            neutral.a = N;
+            neutral.b = -b0;
+            cm_classgroup_reduce (&neutral, c->d);
+            break;
          case CM_INVARIANT_WEBER:
             if (c->d % 4 != 0)
                c->d <<= 2;
@@ -780,12 +802,15 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    /* the constant is pi / log (2)    */
    precision *= 4.5323601418
          * sqrt ((double) (-c.d)) * class_get_valuation (c);
+
    if (verbose)
       printf ("Estimated precision: %.1f\n", precision);
    if (c.invariant == CM_INVARIANT_WEBER)
       precision += (precision > 100 ? precision / 3 : 30);
    else if (c.invariant == CM_INVARIANT_GAMMA3)
       precision += (precision > 2000 ? precision / 3 : 30);
+   else if (c.invariant == CM_INVARIANT_ATKIN)
+      precision += (precision > 2000 ? precision / 100 : 30);
    else
       precision += (precision > 2000 ? precision / 100 : 20);
    if (verbose)
@@ -811,6 +836,9 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       break;
    case CM_INVARIANT_GAMMA3:
       cm_modclass_gamma3_eval_quad (mc, rop, Q.a, Q.b);
+      break;
+   case CM_INVARIANT_ATKIN:
+      cm_modclass_atkinhecke71_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_DOUBLEETA:
 #if 0
@@ -1206,7 +1234,8 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
       fund = cm_classgroup_fundamental_discriminant (c.d);
       cm_nt_mpz_tonelli (omega, fund, P, P);
       cm_timer_stop (clock);
-      printf ("--- Time for square root: %.1f\n", cm_timer_get (clock));
+      if (verbose)
+         printf ("--- Time for square root: %.1f\n", cm_timer_get (clock));
       if (fund % 4 != 0)
          mpz_add_ui (omega, omega, 1ul);
       mpz_set_ui (tmp, 2ul);
@@ -1301,15 +1330,20 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 #if 0
       case CM_INVARIANT_RAMIFIED:
 #endif
-         j = cm_get_j_mod_P_from_modular (c, root, P, no, modpoldir);
+         j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
+            (c.p / 100) * (c.p % 100), root, P);
+         break;
+      case CM_INVARIANT_ATKIN:
+         j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
+            71, root, P);
          break;
       case CM_INVARIANT_SIMPLEETA:
          j = simpleeta_cm_get_j_mod_P (c, root, P, no);
          break;
-         default: /* should not occur */
-            printf ("class_cm_get_j_mod_P called for unknown class ");
-            printf ("invariant\n");
-            exit (1);
+      default: /* should not occur */
+         printf ("class_cm_get_j_mod_P called for unknown class ");
+         printf ("invariant\n");
+         exit (1);
    }
    mpz_clear (root);
    cm_timer_stop (clock);
@@ -1330,10 +1364,10 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 
 /*****************************************************************************/
 
-static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t root, mpz_t P,
-   int *no, const char* modpoldir)
+static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
+   char type, int level, mpz_t root, mpz_t P)
    /* computes the possible j-values as roots of the modular polynomial      */
-   /* specified by f                                                         */
+   /* specified by type and level                                            */
 
 {
    mpz_t  *j;
@@ -1341,8 +1375,8 @@ static mpz_t* cm_get_j_mod_P_from_modular (cm_class_t c, mpz_t root, mpz_t P,
       /* a polynomial one of whose roots is j mod P */
    int    n, i;
 
-   poly_j = cm_modpol_read_specialised_mod (&n, (c.p / 100) * (c.p % 100),
-      CM_MODPOL_DOUBLEETA, P, root, modpoldir);
+   poly_j = cm_modpol_read_specialised_mod (&n, level, type, P, root,
+      modpoldir);
    j = cm_ntl_find_roots (poly_j, n, P, no);
    for (i = 0; i <= n; i++)
       mpz_clear (poly_j [i]);

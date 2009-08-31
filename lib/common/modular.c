@@ -2,6 +2,8 @@
 
 static void modular_fundamental_matrix (mpc_srcptr z,cm_matrix_t *M);
 static void modular_fundamental_domain_matrix (mpc_t z, cm_matrix_t *M);
+static void atkin_eval (cm_modular_t m, mpc_t rop, mpc_t op,
+   unsigned long int l);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -329,6 +331,92 @@ void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op)
    cm_modular_eta_series_fr (m, rop, q24);
 
    mpfr_clear (q24);
+}
+
+/*****************************************************************************/
+
+static void atkin_eval (cm_modular_t m, mpc_t rop, mpc_t op,
+   unsigned long int l)
+   /* evaluates eta (z)*eta (lz) */
+
+{
+   mpc_t tmp, rop_local, op_local;
+
+   mpc_init2 (tmp, mpc_get_prec (rop));
+   mpc_init2 (rop_local, mpc_get_prec (rop));
+   mpc_init2 (op_local, mpc_get_prec (op));
+
+   mpc_mul_ui (op_local, op, l, MPC_RNDNN);
+   cm_modular_eta_eval (m, rop_local, op_local);
+   cm_modular_eta_eval (m, tmp, op);
+   mpc_mul (rop, rop_local, tmp, MPC_RNDNN);
+
+   mpc_clear (tmp);
+   mpc_clear (rop_local);
+   mpc_clear (op_local);
+}
+
+/*****************************************************************************/
+
+void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
+   unsigned long int l, unsigned long int r)
+   /* evaluates the quotient of the r-th Hecke operator (for r prime),       */
+   /* applied to eta (z)*eta (lz), and the function itself, in the argument  */
+   /* -1/z (to obtain a function for Gamma^0 (l) instead of Gamma_0 (l))     */
+   /* Expresses the numerator as a in transformed arguments.                 */
+
+{
+   mpc_t Mz, tmp, op_local;
+   mpc_t rop_local;
+   unsigned long int i;
+
+   mpc_init2 (op_local, mpc_get_prec (op));
+   mpc_init2 (Mz, mpc_get_prec (op));
+   mpc_init2 (tmp, mpc_get_prec (rop));
+   mpc_init2 (rop_local, mpc_get_prec (rop));
+
+   mpc_ui_div (op_local, 1ul, op, MPC_RNDNN);
+   mpc_neg (op_local, op_local, MPC_RNDNN);
+   mpc_set_ui_ui (rop_local, 0ul, 0ul, MPC_RNDNN);
+   for (i = 0; i < r; i++) {
+      mpc_add_ui (Mz, op_local, 24*i, MPC_RNDNN);
+      mpc_div_ui (Mz, Mz, r, GMP_RNDN);
+      atkin_eval (m, tmp, Mz, l);
+      mpc_add (rop_local, rop_local, tmp, MPC_RNDNN);
+   }
+   mpc_div_ui (rop_local, rop_local, r, MPC_RNDNN);
+   mpc_mul_ui (Mz, op_local, r, GMP_RNDN);
+   atkin_eval (m, tmp, Mz, l);
+   mpc_add (rop_local, rop_local, tmp, MPC_RNDNN);
+
+   atkin_eval (m, tmp, op_local, l);
+   mpc_div (rop, rop_local, tmp, MPC_RNDNN);
+
+   mpc_clear (op_local);
+   mpc_clear (Mz);
+   mpc_clear (tmp);
+   mpc_clear (rop_local);
+}
+
+/*****************************************************************************/
+
+void cm_modular_atkinhecke71_eval (cm_modular_t m, mpc_t rop, mpc_t op)
+   /* evaluates Atkin's optimised function for Gamma^0^* (71) */
+
+{
+   mpc_t z, tmp;
+
+   mpc_init2 (z, mpc_get_prec (op));
+   mpc_init2 (tmp, mpc_get_prec (rop));
+
+   mpc_set (z, op, MPC_RNDNN);
+   cm_modular_atkinhecke_eval (m, rop, z, 71, 5);
+   cm_modular_atkinhecke_eval (m, tmp, z, 71, 29);
+   mpc_add (rop, rop, tmp, MPC_RNDNN);
+   mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
+
+   mpc_clear (z);
+   mpc_clear (tmp);
 }
 
 /*****************************************************************************/

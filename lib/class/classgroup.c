@@ -694,8 +694,9 @@ void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1, cm_form_t Q2,
       v *= v1;
       a2t = Q2.a / t;
       Q->a = (Q1.a / t) * a2t;
-      Q->b = (s - Q2.b) * v - w * (Q2.b * Q2.b - d) / (4 * Q2.a);
-      Q->b = Q2.b + 2 * Q->b * a2t;
+      Q->b = ((s - Q2.b) * v - w * (Q2.b * Q2.b - d) / (4 * Q2.a))
+             % (2 * Q->a); /* intermediate reduction to avoid overflow */
+      Q->b = (Q2.b + 2 * Q->b * a2t) % (2 * Q->a);
    }
    cm_classgroup_reduce (Q, d);
 }

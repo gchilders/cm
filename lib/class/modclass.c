@@ -562,26 +562,6 @@ void cm_modclass_f1_eval_quad (cm_modclass_t mc, mpc_t rop,
 
 /*****************************************************************************/
 
-void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b)
-
-{
-   mpc_t f;
-
-   mpc_init2 (f, mpc_get_prec (rop));
-
-   cm_modclass_f1_eval_quad (mc, f, a, b);
-   mpc_pow_ui (f, f, 8ul);
-   mpc_sqr (rop, f, MPC_RNDNN);
-   mpc_ui_div (f, 16ul, f, MPC_RNDNN);
-   mpc_add (rop, rop, f, MPC_RNDNN);
-   mpc_pow_ui (rop, rop, 3ul);
-
-   mpc_clear (f);
-}
-
-/*****************************************************************************/
-
 void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b)
 
@@ -632,6 +612,32 @@ void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, mpc_t rop,
 
    mpc_clear (f);
    mpc_clear (tmp);
+}
+
+/*****************************************************************************/
+
+void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b)
+
+{
+   cm_modclass_gamma2_eval_quad (mc, rop, a, b);
+   mpc_pow_ui (rop, rop, 3ul);
+}
+
+/*****************************************************************************/
+
+void cm_modclass_atkinhecke71_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b)
+
+{
+   mpc_t z;
+
+   mpc_init2 (z, mpc_get_prec (rop));
+
+   cm_modclass_mpc_set_quadratic (mc, z, a, b);
+   cm_modular_atkinhecke71_eval (mc.m, rop, z);
+
+   mpc_clear (z);
 }
 
 /*****************************************************************************/

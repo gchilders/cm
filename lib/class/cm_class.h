@@ -11,6 +11,7 @@
 #define CM_INVARIANT_WEBER     'w'
 #define CM_INVARIANT_DOUBLEETA 'd'
 #define CM_INVARIANT_SIMPLEETA 's'
+#define CM_INVARIANT_ATKIN     'a'
 
 
 typedef int_fast64_t int_cl_t;
