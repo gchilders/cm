@@ -171,10 +171,16 @@ bool classgroup_read (cm_classgroup_t cl)
       exit (1);
    }
 
-   for (i = 0; i < cl.h12; i++)
+   for (i = 0; i < cl.h12; i++) {
       if (!fscanf (f, "%"SCNicl" %"SCNicl,
            &(cl.form [i].a), &(cl.form [i].b)))
          return false;
+      if (cl.form [i].b == 0 || cl.form [i].b == cl.form [i].a
+          || cl.form [i].a == ((cl.form [i].b*cl.form [i].b - cl.d) / (4*cl.form [i].a)))
+         cl.form [i].emb = real;
+      else
+         cl.form [i].emb = complex;
+   }
 
    cm_file_close (f);
 
