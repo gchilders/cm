@@ -565,20 +565,20 @@ static int class_get_height (cm_class_t c)
 
 static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    cm_form_t neutral, cm_class_t cl)
-   /* changes the form Q by a unimodular transformation so that Q.b is       */
-   /* congruent to b0 modulo 2*N                                             */
+   /* Changes the form Q by a unimodular transformation so that Q.a is       */
+   /* coprime to N and Q.b is congruent to b0 modulo 2*N                     */
    /* Furthermore, determines and returns via Q.emb how many conjugates      */
    /* real or complex conjugate ones) correspond to the form.                */
    /* In the real case, forms whose product is equivalent to neutral_class   */
    /* correspond to conjugate complex values. The lexicographically smaller  */
    /* one of two such forms gets Q.emb = "complex"; the other one gets       */
    /* Q.emb = "conj", is in fact not corrected to the N-system condition and */
-   /* will be dropped. If the square of a form equals the neutral class,     */
+   /* shall be dropped. If the square of a form equals the neutral class,    */
    /* then the conjugate is real and Q.emb="real".                           */
    /* In the complex case, Q.emb="complex".                                  */
 
 {
-   int_cl_t c, mu, tmp;
+   int_cl_t c, tmp;
    cm_form_t inverse;
 
 #if 0
@@ -608,29 +608,27 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
 
    if (Q->emb != conj)
    {
-      /* modify a, b and c by unimodular transformations    */
-      /* such that gcd (a, bN) = 1 and b \equiv b0 mod 2*bN */
+      /* First achieve gcd (Q->a, N) = 1, which is likely to hold already.   */
       c = (Q->b * Q->b - cl.d) / (4 * Q->a) ;
-      while (cm_classgroup_gcd (Q->a, N) != 1) {
-         mu = 0;
-         tmp = c;
-         while (cm_classgroup_gcd (tmp, N) != 1 && mu < 10) {
-            mu++;
-            tmp = c + mu*(mu*(Q->a) - (Q->b));
+      if (cm_classgroup_gcd (Q->a, N) != 1) {
+         /* Translation by k yields C' = A k^2 + B k + C; since the form     */
+         /* represents infinitely many primes, we may achive C' prime to N.  */
+         while (cm_classgroup_gcd (c, N) != 1) {
+            /* Translate by 1 */
+            c += Q->a + Q->b;
+            Q->b += 2 * Q->a;
          }
-         if (mu == 10) {
-            mu = 1;
-            tmp = c + mu*(mu*(Q->a) - (Q->b));
-         }
-         Q->b = 2*mu*(Q->a) - (Q->b);
-         c = Q->a;
-         Q->a = tmp;
+         /* Apply S */
+         tmp = Q->a;
+         Q->a = c;
+         c = tmp;
+         Q->b = -Q->b;
       }
-      mu = 0;
-      while ((Q->b - 2*mu*(Q->a) - b0) % (2*N) != 0)
-         mu++;
-      c += mu*(mu*(Q->a) - (Q->b));
-      Q->b -= 2*mu*(Q->a);
+      /* Translate so that Q->b = b0 mod (2 N).                              */
+      while ((Q->b - b0) % (2*N) != 0) {
+         c += Q->a + Q->b;
+         Q->b += 2 * Q->a;
+      }
    }
 }
 
