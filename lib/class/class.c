@@ -35,7 +35,7 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    cm_form_t *nsystem);
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate);
-static int doubleeta_compute_parameter (int_cl_t disc, bool verbose);
+static int doubleeta_compute_parameter (int_cl_t disc);
 static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
    int *no, bool verbose);
 static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
@@ -195,7 +195,7 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
             }
             return 1;
          case CM_INVARIANT_DOUBLEETA:
-            return doubleeta_compute_parameter (disc, verbose);
+            return doubleeta_compute_parameter (disc);
          default: /* should not occur */
             printf ("class_compute_parameter called for "
                     "unknown class invariant %d\n", inv);
@@ -208,7 +208,7 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
 
 /*****************************************************************************/
 
-static int doubleeta_compute_parameter (int_cl_t disc, bool verbose)
+static int doubleeta_compute_parameter (int_cl_t disc)
    /* Compute p1 <= p2 prime following Cor. 3.1 of [EnSc04], that is,        */
    /* - 24 | (p1-1)(p2-1).                                                   */
    /* - p1, p2 are not inert;                                                */
@@ -218,8 +218,7 @@ static int doubleeta_compute_parameter (int_cl_t disc, bool verbose)
    /* Minimise with respect to the height factor gained, which is            */
    /* 12 psi (p1*p2) / (p1-1)(p2-1);                                         */
    /* then p1, p2 <= the smallest split prime which is 1 (mod 24).           */
-   /* Return p = 100*p2 + p1, or 0 if the modular polynomial has not yet     */
-   /* been computed.                                                         */
+   /* Return p = 100*p2 + p1.                                                */
 
 {
   int_cl_t cond2 = disc / cm_classgroup_fundamental_discriminant (disc);
@@ -266,17 +265,6 @@ static int doubleeta_compute_parameter (int_cl_t disc, bool verbose)
                opt = quality;
             }
          }
-
-   if (verbose)
-      printf ("p1 = %lu, p2 = %lu, factor %.2f\n", p1opt, p2opt, 12 * opt);
-
-   if (p1opt * p2opt > 2000) {
-      if (verbose) {
-         printf ("\n*** The modular polynomial for this parameter combination ");
-         printf ("does not exist yet.\n");
-      }
-      return 0;
-   }
 
    return (int) (100*p2opt + p1opt);
 }
