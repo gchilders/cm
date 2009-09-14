@@ -754,17 +754,18 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    /* the constant is pi / log (2)    */
    precision *= 4.5323601418
          * sqrt ((double) (-c.d)) * class_get_valuation (c);
+   if (c.invariant == CM_INVARIANT_GAMMA3)
+      /* increase height estimate by bit size of sqrt (|D|)^h in constant    */
+      /* coefficient                                                         */
+      precision += (int) (log ((double) (-cl.d)) / log (2.0) / 2.0 * cl.h);
 
    if (verbose)
       printf ("Estimated precision: %.1f\n", precision);
-   if (c.invariant == CM_INVARIANT_WEBER)
-      precision += (precision > 100 ? precision / 3 : 30);
-   else if (c.invariant == CM_INVARIANT_GAMMA3)
-      precision += (precision > 2000 ? precision / 3 : 30);
-   else if (c.invariant == CM_INVARIANT_ATKIN)
+
+   if (c.invariant == CM_INVARIANT_ATKIN)
       precision += (precision * 2) / 5;
    else
-      precision += (precision > 2000 ? precision / 100 : 20);
+      precision += (precision > 2500 ? precision / 100 : 25);
    if (verbose)
       printf ("Final precision: %d\n", (int) precision);
 
@@ -793,9 +794,6 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       cm_modclass_atkinhecke71_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_DOUBLEETA:
-#if 0
-   case CM_INVARIANT_RAMIFIED:
-#endif
       p1 = c.p % 100;
       p2 = c.p / 100;
 
@@ -1030,7 +1028,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
    for (i = 0; i < c.minpoly_deg; i++)
       if (!cm_nt_mpfr_get_z (c.minpoly [i], mpol->coeff [i])) {
-         printf ("*** accuracy not sufficient for coefficient of X^%d = ", i);
+         printf ("*** Accuracy not sufficient for coefficient of X^%d = ", i);
          mpfr_out_str (stdout, 10, 0ul, mpol->coeff [i], GMP_RNDN);
          printf ("\n");
          exit (1);
