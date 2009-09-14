@@ -957,6 +957,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    free (conjugate);
    */
    free (nsystem);
+   cm_classgroup_clear (&cl);
 
    cm_timer_stop (clock_global);
    if (verbose) {

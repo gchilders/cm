@@ -379,50 +379,41 @@ void cm_classgroup_factor (int_cl_t d, uint_cl_t *factors,
 
 {
    uint_cl_t no, trial, trial2;
-   int i, j;
+   int j;
 
    if (d < 0)
       no = -d;
    else
       no = d;
 
-   i = 0;
    j = 0;
    trial = 0;
    trial2 = 0;
-   while (trial2 <= no)
-   {
-      if (trial == 0)
-      {
+   while (trial2 <= no) {
+      if (trial == 0) {
          trial = 2;
          trial2 = 4;
       }
-      else if (trial == 2)
-      {
+      else if (trial == 2) {
          trial = 3;
          trial2 = 9;
       }
-      else
-      {
+      else {
          trial += 2;
          trial2 += 4 * (trial - 1);
       }
-      if (no % trial == 0)
-      {
+      if (no % trial == 0) {
          factors [j] = trial;
-         exponents [j] = 1;
          no /= trial;
-         while (no % trial == 0)
-         {
+         exponents [j] = 1;
+         while (no % trial == 0) {
             no /= trial;
             exponents [j]++;
          }
          j++;
       }
-      i++;
    }
-   if (no != 1)
-   {
+   if (no != 1) {
      factors [j] = no;
      exponents [j] = 1;
      j++;
@@ -610,12 +601,14 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
             *h1 = 2;
       }
 
-      cm_classgroup_factor (fund, factors, cond_exp);
-      for (i = 1; factors [i] != 0; i++)
-         *h1 *= 2;
-      /* For D=-16, 64, h1 is twice too big.                                 */
-      if (d == -16 || d == -64)
+      if (fund != -1) {
+         cm_classgroup_factor (fund, factors, cond_exp);
+         for (i = 1; factors [i] != 0; i++)
+            *h1 *= 2;
+      }
+      else
          *h1 /= 2;
+
       *h2 = (h - *h1) / 2;
    }
 

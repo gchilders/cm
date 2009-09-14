@@ -88,7 +88,6 @@ void cm_modclass_clear (cm_modclass_t *mc)
       mpc_clear (mc->eta_value [i]);
    free (mc->eta_value);
 
-   cm_classgroup_clear (&(mc->cl));
    cm_modular_clear (&(mc->m));
 }
 
