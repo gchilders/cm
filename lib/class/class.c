@@ -81,12 +81,7 @@ void cm_class_init (cm_class_t *c, int_cl_t disc, char inv, bool verbose)
       c->field = CM_FIELD_REAL;
 
    c->h = cm_classgroup_h (NULL, NULL, c->d);
-#if 0
-   if (inv == CM_INVARIANT_RAMIFIED)
-      c->minpoly_deg = c->h / 2;
-   else
-#endif
-      c->minpoly_deg = c->h;
+   c->minpoly_deg = c->h;
    c->minpoly = (mpz_t *) malloc (c->minpoly_deg * sizeof (mpz_t));
    for (i = 0; i < c->minpoly_deg; i++)
       mpz_init (c->minpoly [i]);
@@ -201,10 +196,6 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
             return 1;
          case CM_INVARIANT_DOUBLEETA:
             return doubleeta_compute_parameter (disc, verbose);
-#if 0
-         case CM_INVARIANT_RAMIFIED:
-            return ramified_compute_parameter (disc, verbose);
-#endif
          default: /* should not occur */
             printf ("class_compute_parameter called for "
                     "unknown class invariant %d\n", inv);
@@ -218,87 +209,68 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
 /*****************************************************************************/
 
 static int doubleeta_compute_parameter (int_cl_t disc, bool verbose)
-   /* we compute                                                             */
-   /* eta (alpha/p1)*eta(alpha/p2) / eta(alpha)*eta(alpha/(p1*p2))           */
-   /* p1, p2 >= 3 are determined such that they are splitting or ramified,   */
-   /* not dividing the conductor and 24 | (p1-1)(p1-1), i. e. either         */
-   /* p1 \equiv 1 mod 3 and p2 \equiv 1 mod 4,                               */
-   /* or p1 \equiv 1 mod 12 and p2 arbitrary.                                */
-   /* We let p2 >= p1 and put p = 100*p2 + p1.                               */
-   /* The return value is 0 when the product p1*p2 is larger than 2000,      */
-   /* for which the modular polynomials have not been computed yet.          */
+   /* Compute p1 <= p2 prime following Cor. 3.1 of [EnSc04], that is,        */
+   /* - 24 | (p1-1)(p2-1).                                                   */
+   /* - p1, p2 are not inert;                                                */
+   /* - if p1!=p2, then p1, p2 do not divide the conductor;                  */
+   /* - if p1=p2=p, then either p splits or divides the conductor.           */
+   /* The case p1=p2=2 of Cor. 3.1 is excluded by divisibility by 24.        */
+   /* Minimise with respect to the height factor gained, which is            */
+   /* 12 psi (p1*p2) / (p1-1)(p2-1);                                         */
+   /* then p1, p2 <= the smallest split prime which is 1 (mod 24).           */
+   /* Return p = 100*p2 + p1, or 0 if the modular polynomial has not yet     */
+   /* been computed.                                                         */
 
 {
-   unsigned long int prime = 2;
-   int mod1 = 0, mod3 = 0, mod4 = 0, mod12 = 0, mod1_2 = 0;
-   /* the smallest suitable primes congruent to 1 mod 1, 3, 4 or 12;      */
-   /* 0 if no such prime was found so far. The strategy is to choose      */
-   /* the better of mod1*mod12 and mod3*mod4 for p1*p2.                   */
-   /* mod1_2 is the second smallest such prime. It is needed if the first */
-   /* non-inert prime is 1 modulo 12 and divides the discriminant. Then   */
-   /* mod1 = mod12 = mod3 = mod4, and we would choose this ramified prime */
-   /* twice. Thus, we have to use mod12*mod1_2.                           */
-   int p1, p2, tmp;
+  int_cl_t cond2 = disc / cm_classgroup_fundamental_discriminant (disc);
+      /* square of conductor */
+   const unsigned long int maxprime = 997;
+   unsigned long int primelist [169];
+      /* list of suitable primes, terminated by 0; big enough to hold all    */
+      /* primes <= maxprime                                                  */
+   unsigned long int p1, p2, p1opt = 0, p2opt = 0;
+   double quality, opt;
+   bool ok;
+   int i, j;
 
-   while (mod1 == 0 || mod3 == 0 || mod4 == 0 || mod12 == 0 || mod1_2 == 0)
-   {
-      prime = cm_nt_next_prime (prime);
-      while (cm_classgroup_kronecker (disc, (int_cl_t) prime) == -1
-             || disc % ((int_cl_t) (prime*prime)) == 0)
-         prime = cm_nt_next_prime (prime);
-
-      if (mod1 == 0)
-         mod1 = prime;
-      else if (mod1_2 == 0)
-         mod1_2 = prime;
-      if ((prime - 1) % 3 == 0 && mod3 == 0)
-         mod3 = prime;
-      if ((prime - 1) % 4 == 0 && mod4 == 0)
-         mod4 = prime;
-      if ((prime - 1) % 12 == 0 && mod12 == 0)
-         mod12 = prime;
-   }
-
-   if (mod12 == mod1 && cm_classgroup_kronecker (disc, (int_cl_t) mod1) == 0) {
-      if (verbose) {
-         printf ("Possible value for (p1,p2) for d = %"PRIicl": ", disc);
-         printf ("(%d, %d)\n", mod1_2, mod12);
+   /* determine all non-inert primes */
+   i = 0;
+   p1 = 2;
+   ok = false;
+   do {
+      int kro = cm_classgroup_kronecker (disc, (int_cl_t) p1);
+      if (kro != -1) {
+         primelist [i] = p1;
+         i++;
       }
-      p1 = mod1_2;
-      p2 = mod12;
-   }
-   else {
-      if (verbose) {
-         printf ("Possible values for (p1,p2) for d = %"PRIicl": ", disc);
-         printf ("(%d, %d) and (%d, %d)\n", mod1, mod12, mod3, mod4);
-      }
-      if ( (mod1-1) * (mod12-1) / (double) ((mod1+1) * (mod12+1))
-            <(mod3-1) * (mod4-1) / (double) ((mod3+1) * (mod4+1)))
-      {
-         p1 = mod1;
-         p2 = mod12;
-      }
+      if (kro == 1 && (p1 - 1) % 24 == 0)
+         ok = true;
       else
-      {
-         p1 = mod3;
-         p2 = mod4;
-      }
+         p1 = cm_nt_next_prime (p1);
    }
+   while (p1 <= maxprime && !ok);
+   primelist [i] = 0;
 
-   if (p1 > p2)
-   {
-      tmp = p1;
-      p1 = p2;
-      p2 = tmp;
-   }
+   /* search for the best tuple */
+   opt = 0.0;
+   for (j = 0, p2 = primelist [j]; p2 != 0; j++, p2 = primelist [j])
+      for (i = 0, p1 = primelist [i]; i <= j; i++, p1 = primelist [i])
+         if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
+             && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
+                 || (p1 == p2 && (disc % p1 != 0 || cond2 % p1 == 0)))) {
+            quality = (p1 == p2 ? p1 : p1 + 1) * (p2 + 1) / (double) (p1 - 1)
+               / (double) (p2 - 1);
+            if (quality > opt) {
+               p1opt = p1;
+               p2opt = p2;
+               opt = quality;
+            }
+         }
 
-   if (verbose) {
-      printf ("p1 = %d\n", p1);
-      printf ("p2 = %d\n", p2);
-   }
+   if (verbose)
+      printf ("p1 = %lu, p2 = %lu, factor %.2f\n", p1opt, p2opt, 12 * opt);
 
-   if (p1*p2 > 2000)
-   {
+   if (p1opt * p2opt > 2000) {
       if (verbose) {
          printf ("\n*** The modular polynomial for this parameter combination ");
          printf ("does not exist yet.\n");
@@ -306,7 +278,7 @@ static int doubleeta_compute_parameter (int_cl_t disc, bool verbose)
       return 0;
    }
 
-   return 100*p2 + p1;
+   return (int) (100*p2opt + p1opt);
 }
 
 /*****************************************************************************/
@@ -495,11 +467,13 @@ static double class_get_valuation (cm_class_t c)
       break;
    case CM_INVARIANT_GAMMA2:
       result = 1 / (double) 3;
+      break;
    case CM_INVARIANT_GAMMA3:
       result = 0.5;
       break;
    case CM_INVARIANT_ATKIN:
       result = 1 / (double) 36;
+      break;
    case CM_INVARIANT_WEBER:
       result = 1 / (double) 72;
       if (c.p == 2 || c.p == 6 || c.p == 7)
@@ -514,14 +488,6 @@ static double class_get_valuation (cm_class_t c)
       p2 = c.p / 100;
       result = ((p1-1)*(p2-1) / (double) (12 * (p1+1) * (p2+1)));
       break;
-#if 0
-   case CM_INVARIANT_RAMIFIED:
-      /* first guess: half the precision as CM_INVARIANT_DOUBLEETA */
-      p1 = c.p % 100;
-      p2 = c.p / 100;
-      result = ((p1-1)*(p2-1) / (double) (24 * (p1+1) * (p2+1)));
-      break;
-#endif
    case CM_INVARIANT_SIMPLEETA:
       l = c.p / 10000;
       e = (c.p / 100) % 100;
@@ -581,12 +547,6 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    int_cl_t c, tmp;
    cm_form_t inverse;
 
-#if 0
-   if (cl.invariant == CM_INVARIANT_RAMIFIED)
-   {
-   }
-   else
-#endif
    if (cl.field == CM_FIELD_REAL) {
       /* check for the inverse of the form with respect to */
       /* neutral_class                                     */
@@ -611,8 +571,17 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
       /* First achieve gcd (Q->a, N) = 1, which is likely to hold already.   */
       c = (Q->b * Q->b - cl.d) / (4 * Q->a) ;
       if (cm_classgroup_gcd (Q->a, N) != 1) {
-         /* Translation by k yields C' = A k^2 + B k + C; since the form     */
-         /* represents infinitely many primes, we may achive C' prime to N.  */
+         /* Translation by k yields C' = A k^2 + B k + C; we wish to reach   */
+         /* gcd (C', N) = 1, so for each prime p dividing N, this excludes   */
+         /* at most two values modulo p. For p = 2, A and B odd and C even,  */
+         /* there is no solution; in this case, we first apply S to exchange */
+         /* A and C.                                                         */
+         if (N % 2 == 0 && Q->a % 2 != 0 && Q->b % 2 != 0 && c % 2 == 0) {
+            tmp = Q->a;
+            Q->a = c;
+            c = tmp;
+            Q->b = -Q->b;
+         }
          while (cm_classgroup_gcd (c, N) != 1) {
             /* Translate by 1 */
             c += Q->a + Q->b;
@@ -720,15 +689,12 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             N = 48;
             break;
          case CM_INVARIANT_DOUBLEETA:
-#if 0
-         case CM_INVARIANT_RAMIFIED:
-#endif
             N = (c->p/100)*(c->p%100);
             if (c->d % 2 == 0)
                b0 = 2;
             else
                b0 = 1;
-            while ((b0*b0 - c->d) % N != 0)
+            while ((b0*b0 - c->d) % (4 * N) != 0)
                b0 += 2;
             neutral.a = N;
             neutral.b = -b0;
@@ -808,7 +774,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    else if (c.invariant == CM_INVARIANT_GAMMA3)
       precision += (precision > 2000 ? precision / 3 : 30);
    else if (c.invariant == CM_INVARIANT_ATKIN)
-      precision += (precision > 2000 ? precision / 100 : 30);
+      precision += (precision * 2) / 5;
    else
       precision += (precision > 2000 ? precision / 100 : 20);
    if (verbose)
