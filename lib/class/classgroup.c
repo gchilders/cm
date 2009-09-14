@@ -580,20 +580,16 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
          h /= 2;
    }
 
-   if (h1 != NULL)
-   {
+   if (h1 != NULL) {
       /* compute the number of ambiguous forms; factors the discriminant     */
       /* again, which is not very elegant, but fast enough                   */
-      /* For D=-16, 64, h1 is twice too big.                                 */
       m = 0;
       fund = d;
-      while (fund % 4 == 0)
-      {
+      while (fund % 4 == 0) {
          fund /= 4;
          m++;
       }
-      if ((fund - 1) % 4 == 0)
-      {
+      if ((fund - 1) % 4 == 0) {
          if (m <= 1)
             *h1 = 1;
          else if (m == 2)
@@ -601,15 +597,13 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
          else
             *h1 = 4;
       }
-      else if ((fund - 3) % 4 == 0)
-      {
+      else if ((fund - 3) % 4 == 0) {
          if (m <= 2)
             *h1 = 2;
          else
             *h1 = 4;
       }
-      else
-      {
+      else {
          if (m <= 1)
             *h1 = 1;
          else
@@ -619,6 +613,9 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
       cm_classgroup_factor (fund, factors, cond_exp);
       for (i = 1; factors [i] != 0; i++)
          *h1 *= 2;
+      /* For D=-16, 64, h1 is twice too big.                                 */
+      if (d == -16 || d == -64)
+         *h1 /= 2;
       *h2 = (h - *h1) / 2;
    }
 
