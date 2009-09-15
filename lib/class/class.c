@@ -221,7 +221,7 @@ static int doubleeta_compute_parameter (int_cl_t disc)
    /* Return p = 100*p2 + p1.                                                */
 
 {
-  int_cl_t cond2 = disc / cm_classgroup_fundamental_discriminant (disc);
+   int_cl_t cond2 = disc / cm_classgroup_fundamental_discriminant (disc);
       /* square of conductor */
    const unsigned long int maxprime = 997;
    unsigned long int primelist [169];
@@ -765,7 +765,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    if (c.invariant == CM_INVARIANT_ATKIN)
       precision += (precision * 2) / 5;
    else
-      precision += (precision > 2500 ? precision / 100 : 25);
+      precision += (precision > 3000 ? precision / 100 : 30);
    if (verbose)
       printf ("Final precision: %d\n", (int) precision);
 
