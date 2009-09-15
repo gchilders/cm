@@ -776,6 +776,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       precision += (precision * 2) / 5 + 30;
    else
       precision += (precision > 3000 ? precision / 100 : 30);
+
    if (verbose)
       printf ("Final precision: %d\n", (int) precision);
 

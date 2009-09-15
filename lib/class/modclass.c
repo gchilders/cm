@@ -389,8 +389,8 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
    M->b = 0;
    M->c = 0;
    M->d = 1;
-   mpz_set_si (a_local, *a);
-   mpz_set_si (b_local, *b);
+   cm_classgroup_mpz_set_icl (a_local, *a);
+   cm_classgroup_mpz_set_icl (b_local, *b);
 
    while (!reduced) {
       /* obtain -a < b <= a                                                   */

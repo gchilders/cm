@@ -193,6 +193,18 @@ bool classgroup_read (cm_classgroup_t cl)
 /*                                                                           */
 /*****************************************************************************/
 
+void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op)
+
+{
+   char op_str [22];
+      /* 64 bits = 20 decimal digits, plus sign, plus '\0' */
+
+   sprintf (op_str, "%"PRIicl, op);
+   mpz_set_str (rop, op_str, 10);
+}
+
+/*****************************************************************************/
+
 uint_cl_t cm_classgroup_mod (int_cl_t a, uint_cl_t p)
       /* returns a representative of a % p in [0, p-1[ */
 
@@ -632,8 +644,6 @@ void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
    int_cl_t c, a_minus_b, two_a, offset;
    bool reduced;
 
-   assert (Q->b < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2));
-      /* prevent overflow in the computation of c = b^2 - d */
    reduced = false;
    while (!reduced){
       /* first step: obtain |b| <= a */
@@ -656,6 +666,8 @@ void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
          Q->b += offset;
       }
 
+      assert (Q->b < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2));
+         /* prevent overflow in the computation of c = b^2 - d */
       /* compute c */
       c = (Q->b * Q->b - d) / (4 * Q->a);
       /* if not reduced, invert */

@@ -98,6 +98,7 @@ extern void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc,
    bool checkpoints, bool verbose);
 extern void cm_classgroup_clear (cm_classgroup_t *cl);
 
+extern void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op);
 extern uint_cl_t cm_classgroup_mod (int_cl_t a, uint_cl_t p);
 extern int_cl_t cm_classgroup_gcd (int_cl_t a, int_cl_t b);
 extern int cm_classgroup_kronecker (int_cl_t a, int_cl_t b);
