@@ -14,8 +14,10 @@
 #define CM_MODPOL_U           'u'
 #define CM_MODPOL_ATKIN       'a'
 #define CM_MODPOL_W35         '5'
-#define CM_MODPOL_W39         '9'
+#define CM_MODPOL_W39         '3'
 #define CM_MODPOL_GAMMA2      'g'
+#define CM_MODPOL_ATKIN47     '4'
+#define CM_MODPOL_ATKIN59     'A'
 #define CM_MODPOL_ATKIN71     '7'
 #define CM_MODPOL_RAMANUJAN   'r'
 
@@ -115,6 +117,7 @@ extern void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 extern void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op);
 extern void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
    unsigned long int l, unsigned long int r);
+extern void cm_modular_atkinhecke59_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 extern void cm_modular_atkinhecke71_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 
 /* functions reading modular polynomials */
