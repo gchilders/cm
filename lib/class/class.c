@@ -185,15 +185,20 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
             else
                return ((disc/4) % 8);
          case CM_INVARIANT_ATKIN:
-            if (cm_classgroup_kronecker (disc, (int_cl_t) 71) == -1) {
+            if (cm_classgroup_kronecker (disc, (int_cl_t) 47) != -1)
+               return 47;
+            else if (cm_classgroup_kronecker (disc, (int_cl_t) 59) != -1)
+               return 59;
+            else if (cm_classgroup_kronecker (disc, (int_cl_t) 71) != -1)
+               return 71;
+            else {
                if (verbose) {
-                  printf ("\n*** 71 is inert for %"PRIicl", so that atkin71 ",
+                  printf ("\n*** 47, 59 and 71 are inert for %"PRIicl", so that ",
                           disc);
-                  printf ("cannot be used.\n");
+                  printf ("atkin cannot be used.\n");
                }
                return 0;
             }
-            return 1;
          case CM_INVARIANT_DOUBLEETA:
             return doubleeta_compute_parameter (disc);
          default: /* should not occur */
@@ -460,7 +465,12 @@ static double class_get_valuation (cm_class_t c)
       result = 0.5;
       break;
    case CM_INVARIANT_ATKIN:
-      result = 1 / (double) 36;
+      if (c.p == 47)
+         result = 1 / (double) 24;
+      else if (c.p == 59)
+         result = 1 / (double) 30;
+      else /* 71 */
+         result = 1 / (double) 36;
       break;
    case CM_INVARIANT_WEBER:
       result = 1 / (double) 72;
@@ -657,7 +667,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             N = 2;
             break;
          case CM_INVARIANT_ATKIN:
-            N = 71;
+            N = c->p;
             if (c->d % 2 == 0)
                b0 = 0;
             else
@@ -763,7 +773,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       printf ("Estimated precision: %.1f\n", precision);
 
    if (c.invariant == CM_INVARIANT_ATKIN)
-      precision += (precision * 2) / 5;
+      precision += (precision * 2) / 5 + 30;
    else
       precision += (precision > 3000 ? precision / 100 : 30);
    if (verbose)
@@ -791,7 +801,12 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       cm_modclass_gamma3_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_ATKIN:
-      cm_modclass_atkinhecke71_eval_quad (mc, rop, Q.a, Q.b);
+      if (c.p == 47)
+         cm_modclass_atkinhecke47_eval_quad (mc, rop, Q.a, Q.b);
+      else if (c.p == 59)
+         cm_modclass_atkinhecke59_eval_quad (mc, rop, Q.a, Q.b);
+      else
+         cm_modclass_atkinhecke71_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_DOUBLEETA:
       p1 = c.p % 100;
@@ -1286,7 +1301,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
          break;
       case CM_INVARIANT_ATKIN:
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
-            71, root, P);
+            c.p, root, P);
          break;
       case CM_INVARIANT_SIMPLEETA:
          j = simpleeta_cm_get_j_mod_P (c, root, P, no);

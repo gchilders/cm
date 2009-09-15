@@ -625,6 +625,39 @@ void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
 
 /*****************************************************************************/
 
+void cm_modclass_atkinhecke47_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b)
+
+{
+   mpc_t z;
+
+   mpc_init2 (z, mpc_get_prec (rop));
+
+   cm_modclass_mpc_set_quadratic (mc, z, a, b);
+   cm_modular_atkinhecke_eval (mc.m, rop, z, 47, 17);
+   mpc_neg (rop, rop, MPC_RNDNN);
+
+   mpc_clear (z);
+}
+
+/*****************************************************************************/
+
+void cm_modclass_atkinhecke59_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b)
+
+{
+   mpc_t z;
+
+   mpc_init2 (z, mpc_get_prec (rop));
+
+   cm_modclass_mpc_set_quadratic (mc, z, a, b);
+   cm_modular_atkinhecke59_eval (mc.m, rop, z);
+
+   mpc_clear (z);
+}
+
+/*****************************************************************************/
+
 void cm_modclass_atkinhecke71_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b)
 

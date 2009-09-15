@@ -74,14 +74,14 @@ static bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
                *invariant = CM_INVARIANT_DOUBLEETA;
             else if (!strcmp (invariant_string, "simpleeta"))
                *invariant = CM_INVARIANT_SIMPLEETA;
-            else if (!strcmp (invariant_string, "atkin71"))
+            else if (!strcmp (invariant_string, "atkin"))
                *invariant = CM_INVARIANT_ATKIN;
             else
             {
                printf ("You specified the option '-i' follow by '%s', ", invariant_string);
                printf ("which is not a recognised\n");
                printf ("class invariant. It should be followed by 'j', 'gamma2', 'gamma3', 'weber',\n");
-               printf ("'doubleeta', 'simpleeta' or 'atkin71'\n");
+               printf ("'doubleeta', 'simpleeta' or 'atkin'\n");
                ok = false;
             }
             index++;
@@ -93,7 +93,7 @@ static bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
          printf ("which does not exist. You may use the options\n");
          printf ("'-d' followed by the absolute value of the discriminant or\n");
          printf ("'-i' followed by 'j', 'gamma2', 'gamma3', 'weber', 'doubleeta',\n");
-         printf ("     'simpleeta' or 'atkin71', depending on which type of class\n");
+         printf ("     'simpleeta' or 'atkin', depending on which type of class\n");
          printf ("     invariant you would like to use for the computations.\n");
          ok = false;
       }
@@ -148,6 +148,9 @@ int main (int argc, char* argv [])
          break;
       case CM_INVARIANT_SIMPLEETA:
          printf ("a simple eta quotient");
+         break;
+      case CM_INVARIANT_ATKIN:
+         printf ("an Atkin function");
          break;
       }
       printf (" as class invariant.\n");
