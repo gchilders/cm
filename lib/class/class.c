@@ -185,12 +185,12 @@ int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
             else
                return ((disc/4) % 8);
          case CM_INVARIANT_ATKIN:
-            if (cm_classgroup_kronecker (disc, (int_cl_t) 47) != -1)
-               return 47;
+            if (cm_classgroup_kronecker (disc, (int_cl_t) 71) != -1)
+               return 71;
             else if (cm_classgroup_kronecker (disc, (int_cl_t) 59) != -1)
                return 59;
-            else if (cm_classgroup_kronecker (disc, (int_cl_t) 71) != -1)
-               return 71;
+            else if (cm_classgroup_kronecker (disc, (int_cl_t) 47) != -1)
+               return 47;
             else {
                if (verbose) {
                   printf ("\n*** 47, 59 and 71 are inert for %"PRIicl", so that ",
