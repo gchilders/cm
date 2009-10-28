@@ -1,9 +1,32 @@
+/*
+
+curve.c - code for computing cm curves
+
+Copyright (C) 2009 Andreas Enge
+
+This file is part of CM.
+
+CM is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2 of the license, or (at your
+option) any later version.
+
+CM is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with CM; see the file COPYING. If not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
 #include "cm_class-impl.h"
 
 static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
    mpz_t p, bool verbose);
 static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
-      int_cl_t d, bool verbose);
+      int_cl_t d, int fieldsize, bool verbose);
 
 /*****************************************************************************/
 
@@ -97,7 +120,7 @@ static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
 /*****************************************************************************/
 
 static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
-      int_cl_t d, bool verbose)
+      int_cl_t d, int fieldsize, bool verbose)
    /* computes the curve parameters p (size of prime field), n (cardinality  */
    /* of curve), l (prime order of point) and c (n/l)                        */
    /* Try u and v until u^2 - v^2 d is 4 times a prime. Congruences of u and */
@@ -119,16 +142,18 @@ static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
    long unsigned int v_start;
    bool found = false;
    int deltav = 1000;
-   const int keylength = 200; /* must be even */
+
+   if (fieldsize % 2 != 0)
+      fieldsize++;
 
    mpz_init (u);
    mpz_init (v);
    mpz_init (tmp);
 
    mpz_set_ui (u, 1);
-   mpz_mul_2exp (u, u, (keylength + 2) / 4);
+   mpz_mul_2exp (u, u, (fieldsize + 2) / 4);
    mpz_sub_ui (u, u, 2);
-   mpz_mul_2exp (u, u, (keylength + 4) / 4);
+   mpz_mul_2exp (u, u, (fieldsize + 4) / 4);
    v_start = 1;
 
    /* so far, u is divisible by 4; update */
@@ -194,8 +219,8 @@ static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
 
 /*****************************************************************************/
 
-void cm_curve_compute_curve (int_cl_t d, char inv, const char* modpoldir,
-   bool verbose)
+void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
+   const char* modpoldir, bool verbose)
    /* computes a curve with the good number of points, using the given       */
    /* invariant                                                              */
 {
@@ -234,7 +259,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, const char* modpoldir,
    mpz_init_set_ui (nonsquare, 2);
 
    cm_timer_start (clock);
-   curve_compute_param (p, n, l, c, d, verbose);
+   curve_compute_param (p, n, l, c, d, fieldsize, verbose);
    cm_timer_stop (clock);
    while (mpz_jacobi (nonsquare, p) != -1)
       mpz_add_ui (nonsquare, nonsquare, 1);
@@ -246,11 +271,6 @@ void cm_curve_compute_curve (int_cl_t d, char inv, const char* modpoldir,
    cm_timer_start (clock);
    for (i = 0; i < no_j && !ok; i++)
    {
-      if (verbose) {
-         printf ("j = ");
-         mpz_out_str (stdout, 10, j [i]);
-         printf ("\n");
-      }
       /* construct one curve with the given j-invariant */
       if (mpz_cmp_ui (j [i], 1728) == 0)
       /* may occur with spurious roots of modular polynomials */
@@ -278,10 +298,6 @@ void cm_curve_compute_curve (int_cl_t d, char inv, const char* modpoldir,
          mpz_add (a, b, k);
          mpz_mod (a, a, p);
       }
-      if (verbose) {
-         printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
-         printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
-      }
 
       cm_nt_elliptic_curve_random (P_x, P_y, c, a, b, p);
       mpz_set (x, P_x);
@@ -289,14 +305,10 @@ void cm_curve_compute_curve (int_cl_t d, char inv, const char* modpoldir,
       P_infty = false;
       cm_nt_elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
       if (P_infty) {
-         if (verbose)
-            printf ("OK\n");
          ok = true;
          count++;
       }
       else {
-         if (verbose)
-            printf ("---\n");
          /* consider the quadratic twist */
          mpz_pow_ui (tmp, nonsquare, 2);
          mpz_mul (a, a, tmp);
@@ -304,24 +316,15 @@ void cm_curve_compute_curve (int_cl_t d, char inv, const char* modpoldir,
          mpz_mul (b, b, tmp);
          mpz_mul (b, b, nonsquare);
          mpz_mod (b, b, p);
-         if (verbose) {
-            printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
-            printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
-         }
          cm_nt_elliptic_curve_random (P_x, P_y, c, a, b, p);
          mpz_set (x, P_x);
          mpz_set (y, P_y);
          P_infty = false;
          cm_nt_elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
          if (P_infty) {
-            if (verbose)
-               printf ("OK\n");
             ok = true;
             count++;
          }
-         else
-            if (verbose)
-               printf ("---\n");
       }
    }
 
@@ -331,8 +334,12 @@ void cm_curve_compute_curve (int_cl_t d, char inv, const char* modpoldir,
    }
 
    cm_timer_stop (clock);
-   if (verbose)
+   if (verbose) {
+      printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
+      printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
+      printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
       printf ("--- Time for curve: %.1f\n", cm_timer_get (clock));
+   }
 
    for (i = 0; i < no_j; i++)
       mpz_clear (j [i]);

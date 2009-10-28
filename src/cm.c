@@ -1,3 +1,26 @@
+/*
+
+cm.c - example executable computing a cryptographically suitable cm curve
+
+Copyright (C) 2009 Andreas Enge
+
+This file is part of CM.
+
+CM is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2 of the license, or (at your
+option) any later version.
+
+CM is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with CM; see the file COPYING. If not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
 #include "cm.h"
 
 /*****************************************************************************/
@@ -6,13 +29,12 @@ static bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
       char *invariant)
 
    /* The function determines the parameter values and consequently sets the */
-   /* discriminant d, the precision and the type of class invariant. If an   */
-   /* error occurs which forces the programme to break the return value is   */
-   /* false.                                                                 */
+   /* discriminant d and the type of class invariant. If an error occurs     */
+   /* which forces the program to break the return value is false.           */
 
 {  int  index = 1;
       /* points to the currently considered entry of the parameter list */
-   bool ok = true;
+   bool ok = true, paramd = false;
    char *invariant_string = NULL;
 
    *d = 0;
@@ -41,6 +63,7 @@ static bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
          else
          {
             *d = - atoll (argv [index] + 2);
+            paramd = true;
             index ++;
          }
       }
@@ -49,9 +72,9 @@ static bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
       {
          if (strlen (argv [index]) == 2)
          {  printf ("You specified the option '-i' without anything following; it should be\n");
-            printf ("followed by 'j', 'gamma2', 'gamma3', 'weber', 'doubleeta'\n");
-            printf ("or 'simpleeta', depending on which type of class invariant you would\n");
-            printf ("like to use for the computations.\n");
+            printf ("followed by 'j', 'gamma2', 'gamma3', 'weber', 'doubleeta', 'simpleeta'\n");
+            printf ("or 'atkin', depending on which type of class invariant you would like\n");
+            printf ("to use for the computations.\n");
             ok = false;
          }
          else if (*invariant != CM_INVARIANT_NONE)
@@ -100,7 +123,11 @@ static bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
 
    }
 
-   if (*d >= 0 || (*d % 4 != 0 && (*d - 1) % 4 != 0)) {
+   if (!paramd) {
+      printf ("Please specify '-d', followed by the absolute value of the discriminant.\n");
+      ok = false;
+   }
+   else if (*d >= 0 || (*d % 4 != 0 && (*d - 1) % 4 != 0)) {
       printf ("d = %"PRIicl" is not a quadratic discriminant\n", *d);
       ok = false;
    }
@@ -126,7 +153,7 @@ int main (int argc, char* argv [])
       exit (1);
 
    if (invariant == CM_INVARIANT_NONE)
-      invariant = CM_INVARIANT_DOUBLEETA;
+      invariant = CM_INVARIANT_J;
    if (VERBOSE) {
       printf ("Using ");
       switch (invariant)
@@ -170,7 +197,7 @@ int main (int argc, char* argv [])
       printf ("\n");
    }
 
-   cm_curve_compute_curve (d, invariant, CM_MODPOLDIR, VERBOSE);
+   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, VERBOSE);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
 

@@ -1,0 +1,7 @@
+In the simplest case, CM is installed by the commands
+   ./configure; make; make install
+   
+For more details, in particular concerning required libraries, please see
+the texinfo documentation provided with the software or available at the
+website http://cm.multiprecision.org/.
+

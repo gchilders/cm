@@ -1,1 +1,1 @@
-SUBDIRS = data lib src test
+SUBDIRS = data doc lib src test
