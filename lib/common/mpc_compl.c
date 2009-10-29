@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /*****************************************************************************/
 
-void mpc_pow_ui (mpc_t rop, mpc_t op1, unsigned long int op2)
+void mpc_pow_ui_binary (mpc_t rop, mpc_t op1, unsigned long int op2)
 
 {
    mpc_t tmp_op1;

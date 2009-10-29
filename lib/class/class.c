@@ -862,7 +862,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       cm_modclass_eta_eval_quad (mc, rop, Q.a * (c.p / 10000), Q.b);
       cm_modclass_eta_eval_quad (mc, tmp, Q.a, Q.b);
       mpc_div (rop, rop, tmp, MPC_RNDNN);
-      mpc_pow_ui (rop, rop, (unsigned long int) (c.p % 100));
+      mpc_pow_ui_binary (rop, rop, (unsigned long int) (c.p % 100));
 
       mpc_clear (tmp);
       break;
@@ -878,12 +878,12 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       }
       else if (c.p == 3) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-         mpc_pow_ui (rop, rop, 4ul);
+         mpc_pow_ui_binary (rop, rop, 4ul);
          mpc_div_ui (rop, rop, 2ul, MPC_RNDNN);
       }
       else if (c.p == 4) {
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
-         mpc_pow_ui (rop, rop, 4ul);
+         mpc_pow_ui_binary (rop, rop, 4ul);
          mpc_mul_fr (rop, rop, mc.sqrt2_over4, MPC_RNDNN);
       }
       else if (c.p == 5 || c.p == 15)
@@ -895,7 +895,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       }
 
       if (c.d % 3 == 0)
-         mpc_pow_ui (rop, rop, 3ul);
+         mpc_pow_ui_binary (rop, rop, 3ul);
 
       if (c.p != 3 && c.p != 5 && c.p != 15)
          if (cm_classgroup_kronecker ((int_cl_t) 2, Q.a) == -1)
