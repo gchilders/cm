@@ -27,12 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <stdio.h>
 #include "gmp.h"
 
-#define MPFPX_MAX_DEG 40
-#define MPFPX_INFTY   MPFPX_MAX_DEG
-
-#define MPFPX_NAIVE     0
-#define MPFPX_KARATSUBA 1
-
 typedef mpz_t mpfp_t;
 
 #if defined (__cplusplus)

@@ -75,7 +75,7 @@ extern "C" {
 #endif
 
 /* functions for class polynomials */
-extern void cm_class_init (cm_class_t *c, int_cl_t disc, char inv,
+extern void cm_class_init (cm_class_t *c, int_cl_t d, char inv,
    bool verbose);
 extern void cm_class_clear (cm_class_t *c);
 extern void cm_class_compute_minpoly (cm_class_t c, bool checkpoints,

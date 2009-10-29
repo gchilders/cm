@@ -71,33 +71,33 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_class_init (cm_class_t *c, int_cl_t disc, char inv, bool verbose)
+void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
 
 {
    int i;
 
-   if (disc >= 0) {
+   if (d >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
       exit (1);
    }
-   else if (disc % 4 != 0 && (disc - 1) % 4 != 0) {
-      printf ("\n*** %"PRIicl" is not a quadratic discriminant.\n", disc);
+   else if (d % 4 != 0 && (d - 1) % 4 != 0) {
+      printf ("\n*** %"PRIicl" is not a quadratic discriminant.\n", d);
       exit (1);
    }
    else {
       c->invariant = inv;
-      c->p = cm_class_compute_parameter (disc, inv, verbose);
+      c->p = cm_class_compute_parameter (d, inv, verbose);
       if (!(c->p))
          exit (1);
       if (inv != CM_INVARIANT_WEBER || c->p != 15)
-         c->d = disc;
+         c->d = d;
       else
          /* special case Weber with d=5 (8): compute ring class field for 4d */
-         c->d = 4 * disc;
+         c->d = 4 * d;
    }
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %i\n",
-               disc, inv, c->p);
+               c->d, c->invariant, c->p);
 
    if (inv == CM_INVARIANT_SIMPLEETA)
       c->field = CM_FIELD_COMPLEX;
