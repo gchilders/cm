@@ -45,15 +45,45 @@ typedef uint_fast64_t uint_cl_t;
 #define PRIucl PRIuFAST64
 #define SCNicl SCNiFAST64
 
+typedef struct {
+   char invariant;
+      /* a constant describing which invariant is actually used                 */
+   int field;
+      /* a constant describing whether we are working over the real or the      */
+      /* complex numbers                                                        */
+   int p;
+      /* some parameter of the class invariant                                  */
+   int_cl_t d;
+      /* the discriminant                                                       */
+   int h, h1, h2, h12;
+      /* the class number, the number of forms leading to one or two            */
+      /* conjugates, and h1+h2                                                  */
+   int minpoly_deg;
+      /* the degree of the minimal polynomial; usually h, always h1 + 2 * h2    */
+   mpz_t *minpoly;
+      /* real part of the minimal polynomial of the function over Q             */
+   mpz_t *minpoly_complex;
+      /* Only meaningful in the complex case; then the minimal polynomial is    */
+      /* decomposed into two parts over the integral basis                      */
+      /* [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in      */
+      /* minpoly, the second one in this variable.                              */
+} cm_class_t;
+
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+/* functions for class polynomials */
+extern void cm_class_init (cm_class_t *c, int_cl_t disc, char inv,
+   bool verbose);
+extern void cm_class_clear (cm_class_t *c);
+extern void cm_class_compute_minpoly (cm_class_t c, bool checkpoints,
+   bool write, bool print, bool verbose);
+
 /* functions for computing parameters of a complex multiplication curve      */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool verbose);
-
+   const char* modpoldir, bool print, bool verbose);
 #if defined (__cplusplus)
 }
 #endif

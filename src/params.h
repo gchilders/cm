@@ -1,6 +1,6 @@
 /*
 
-cm.h - header file for cm.c
+params.h - header file for params.c
 
 Copyright (C) 2009 Andreas Enge
 
@@ -21,7 +21,20 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_class.h"
-#include "string.h"
+#ifndef __PARAMS_H
+#define __PARAMS_H
 
-#define VERBOSE true
+#include "cm_class.h"
+#include <string.h>
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+extern bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
+   char *invariant, bool *verbose);
+
+#if defined (__cplusplus)
+}
+#endif
+#endif /* ifndef __PARAMS_H */

@@ -78,30 +78,6 @@ typedef struct {
       /* cl.form with the same row index. So only cl.h12 values are stored.  */
 } cm_modclass_t;
 
-typedef struct {
-   char invariant;
-      /* a constant describing which invariant is actually used                 */
-   int field;
-      /* a constant describing whether we are working over the real or the      */
-      /* complex numbers                                                        */
-   int p;
-      /* some parameter of the class invariant                                  */
-   int_cl_t d;
-      /* the discriminant                                                       */
-   int h, h1, h2, h12;
-      /* the class number, the number of forms leading to one or two            */
-      /* conjugates, and h1+h2                                                  */
-   int minpoly_deg;
-      /* the degree of the minimal polynomial; usually h, always h1 + 2 * h2    */
-   mpz_t *minpoly;
-      /* real part of the minimal polynomial of the function over Q             */
-   mpz_t *minpoly_complex;
-      /* Only meaningful in the complex case; then the minimal polynomial is    */
-      /* decomposed into two parts over the integral basis                      */
-      /* [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in      */
-      /* minpoly, the second one in this variable.                              */
-} cm_class_t;
-
 
 #if defined (__cplusplus)
 extern "C" {
@@ -164,16 +140,9 @@ extern void cm_modclass_atkinhecke71_eval_quad (cm_modclass_t mc, mpc_t rop,
 
 
 /* functions for class polynomials */
-extern void cm_class_init (cm_class_t *c, int_cl_t disc, char inv,
-   bool verbose);
-extern void cm_class_clear (cm_class_t *c);
-int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose);
-
 extern void cm_class_write (cm_class_t c);
 extern bool cm_class_read (cm_class_t c);
 
-extern void cm_class_compute_minpoly (cm_class_t c, bool checkpoints,
-   bool write, bool verbose);
 extern mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    const char* modpoldir, bool read, bool verbose);
 

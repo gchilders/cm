@@ -31,6 +31,7 @@ static int class_get_height (cm_class_t c);
    /* in the complex case, returns the binary length of the largest          */
    /* coefficient with respect to the decomposition over an integral basis   */
 
+static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose);
 static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    cm_form_t neutral_class, cm_class_t cl);
    /* changes Q to obtain an N-system                                        */
@@ -56,8 +57,8 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
 
 /* the remaining functions are put separately as their code is quite long    */
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   cm_form_t *nsystem);
-static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate);
+   cm_form_t *nsystem, bool print);
+static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate, bool print);
 static int doubleeta_compute_parameter (int_cl_t disc);
 static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
    int *no, bool verbose);
@@ -134,7 +135,7 @@ void cm_class_clear (cm_class_t *c)
 
 /*****************************************************************************/
 
-int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
+static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
       /* tests whether the discriminant is suited for the chosen invariant and  */
       /* in this case computes and returns the parameter p                      */
       /* otherwise, returns 0                                                   */
@@ -935,10 +936,11 @@ static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
 /*****************************************************************************/
 
 void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
-   bool verbose)
+   bool print, bool verbose)
    /* checkpoints indicates whether intermediate results are to be kept in   */
    /* and potentially read from files.                                       */
    /* write indicates whether the result should be written to disk.          */
+   /* print indicates whether the result should be printed on screen.        */
 {
    cm_classgroup_t cl;
    cm_form_t *nsystem;
@@ -981,9 +983,9 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
 
    cm_timer_start (clock_local);
    if (c.field == CM_FIELD_REAL)
-      real_compute_minpoly (c, conjugate, nsystem);
+      real_compute_minpoly (c, conjugate, nsystem, print);
    else
-      complex_compute_minpoly (c, conjugate);
+      complex_compute_minpoly (c, conjugate, print);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for polynomial reconstruction: %.1f\n",
@@ -1011,7 +1013,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
 /*****************************************************************************/
 
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   cm_form_t *nsystem)
+   cm_form_t *nsystem, bool print)
    /* computes the minimal polynomial of the function over Q                 */
    /* frees conjugates                                                       */
 
@@ -1074,7 +1076,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
          exit (1);
       }
 
-#if 0
+   if (print) {
       printf ("x^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
@@ -1082,7 +1084,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
          printf (") * x^%i", i);
       }
       printf ("\n");
-#endif
+   }
 
    mpfrx_clear (mpol);
 }
@@ -1130,7 +1132,8 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
 
 /*****************************************************************************/
 
-static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate)
+static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
+   bool print)
    /* computes the minimal polynomial of the function over Q (sqrt D)        */
    /* frees conjugates                                                       */
 
@@ -1175,18 +1178,18 @@ static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate)
 
    mpcx_clear (mpol);
 
-#if 0
-   printf ("Minimal polynomial:\nx^%i", c.minpoly_deg);
-   for (i = c.minpoly_deg - 1; i >= 0; i--) {
-      printf (" + (");
-      mpz_out_str (stdout, 10, c.minpoly [i]);
-      if (mpz_cmp_ui (c.minpoly_complex [i], 0) >= 0)
-         printf ("+");
-      mpz_out_str (stdout, 10, c.minpoly_complex [i]);
-      printf ("*omega) * x^%i", i);
+   if (print) {
+      printf ("Minimal polynomial:\nx^%i", c.minpoly_deg);
+      for (i = c.minpoly_deg - 1; i >= 0; i--) {
+         printf (" + (");
+         mpz_out_str (stdout, 10, c.minpoly [i]);
+         if (mpz_cmp_ui (c.minpoly_complex [i], 0) >= 0)
+            printf ("+");
+         mpz_out_str (stdout, 10, c.minpoly_complex [i]);
+         printf ("*omega) * x^%i", i);
+      }
+      printf ("\n");
    }
-   printf ("\n");
-#endif
 }
 
 /*****************************************************************************/
@@ -1273,7 +1276,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 
    cm_class_init (&c, d, inv, verbose);
    if (!read || !cm_class_read (c))
-      cm_class_compute_minpoly (c, false, false, verbose);
+      cm_class_compute_minpoly (c, false, false, false, verbose);
    cm_timer_start (clock);
    mpz_init (root);
    if (inv != CM_INVARIANT_WEBER || c.p != 15)

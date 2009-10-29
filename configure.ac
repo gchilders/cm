@@ -3,6 +3,7 @@ AC_INIT(cm, 0.1-dev, enge@lix.polytechnique.fr)
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/common/cm_common.h])
 AC_CONFIG_HEADER([config.h])
+AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([1.9])
 AM_MAINTAINER_MODE

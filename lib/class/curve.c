@@ -220,9 +220,11 @@ static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
 /*****************************************************************************/
 
 void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool verbose)
+   const char* modpoldir, bool print, bool verbose)
    /* computes a curve with the good number of points, using the given       */
    /* invariant                                                              */
+   /* print indicates whether the curve parameters shall be displayed on     */
+   /* screen                                                                 */
 {
    mpz_t  p;
       /* the size of the base field */
@@ -334,12 +336,13 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    }
 
    cm_timer_stop (clock);
-   if (verbose) {
+   if (print) {
       printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
       printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
       printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
-      printf ("--- Time for curve: %.1f\n", cm_timer_get (clock));
    }
+   if (verbose)
+      printf ("--- Time for curve: %.1f\n", cm_timer_get (clock));
 
    for (i = 0; i < no_j; i++)
       mpz_clear (j [i]);

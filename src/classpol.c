@@ -1,6 +1,6 @@
 /*
 
-cm.c - executable computing a cryptographically suitable cm curve
+classpol.c - executable computing a ring class polynomial
 
 Copyright (C) 2009 Andreas Enge
 
@@ -25,9 +25,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 int main (int argc, char* argv [])
 {
-   int_cl_t d;
-   char     invariant;
-   bool     verbose;
+   int_cl_t   d;
+   char       invariant;
+   bool       verbose;
+   cm_class_t c;
    cm_timer clock;
 
    cm_timer_start (clock);
@@ -37,9 +38,9 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, true, verbose);
-      /* CM_MODPOLDIR is a preprocessor variable defined by the -D
-         parameter of gcc */
+   cm_class_init (&c, d, invariant, verbose);
+   cm_class_compute_minpoly (c, false, false, true, verbose);
+   cm_class_clear (&c);
 
    cm_timer_stop (clock);
    if (verbose)
