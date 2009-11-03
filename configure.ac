@@ -1,5 +1,5 @@
 AC_PREREQ(2.61)
-AC_INIT(cm, 0.1, enge@lix.polytechnique.fr)
+AC_INIT(cm, 0.2-dev, enge@lix.polytechnique.fr)
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/common/cm_common.h])
 AC_CONFIG_HEADER([config.h])
