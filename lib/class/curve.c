@@ -204,7 +204,7 @@ static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
    }
 
    if (verbose) {
-      printf ("\np   = "); mpz_out_str (stdout, 10, p); printf ("\n");
+      printf ("p   = "); mpz_out_str (stdout, 10, p); printf ("\n");
       printf ("u   = "); mpz_out_str (stdout, 10, u); printf ("\n");
       printf ("v   = "); mpz_out_str (stdout, 10, v); printf ("\n");
       printf ("n   = "); mpz_out_str (stdout, 10, n); printf ("\n");
@@ -337,6 +337,10 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
 
    cm_timer_stop (clock);
    if (print) {
+      printf ("p = "); mpz_out_str (stdout, 10, p); printf ("\n");
+      printf ("n = "); mpz_out_str (stdout, 10, n); printf ("\n");
+      printf ("  = "); mpz_out_str (stdout, 10, c);
+      printf (" * "); mpz_out_str (stdout, 10, l); printf ("\n");
       printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
       printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
       printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
