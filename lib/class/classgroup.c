@@ -67,6 +67,9 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
    cl->h = cm_classgroup_h (&(cl->h1), &(cl->h2), cl->d);
    cl->h12 = cl->h1 + cl->h2;
    cl->form = (cm_form_t *) malloc (cl->h12 * sizeof (cm_form_t));
+   if (verbose)
+      printf ("Class numbers: h = %d, h1 = %d, h2 = %d\n",
+         cl->h, cl->h1, cl->h2);
 
    if (!checkpoints || !classgroup_read (*cl)) {
       k = 0;
@@ -97,10 +100,6 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
    if (checkpoints)
       classgroup_write (*cl);
    }
-
-   if (verbose)
-      printf ("Class numbers: h = %d, h1 = %d, h2 = %d\n",
-         cl->h, cl->h1, cl->h2);
 }
 
 /*****************************************************************************/
