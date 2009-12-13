@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
    (b >= 0) ? mpz_sub_ui (c, a, b) \
             : mpz_add_ui (c, a, (unsigned long int) (-b))
 
+static void mpz_set_cl (mpz_t rop, int_cl_t op);
+static int_cl_t mpz_get_cl (mpz_t op);
 
 static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
    int_cl_t b);
@@ -37,6 +39,62 @@ static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
    uint_cl_t *cond_primes, unsigned int *cond_exp);
 static void classgroup_write (cm_classgroup_t cl);
 static bool classgroup_read (cm_classgroup_t cl);
+
+/*****************************************************************************/
+/*                                                                           */
+/* functions transforming between int_cl_t and mpz_t                         */
+/*                                                                           */
+/*****************************************************************************/
+
+static void mpz_set_cl (mpz_t rop, int_cl_t op)
+   /* relies on the fact that int_cl_t has 64 bits */
+
+{
+   int_cl_t mask = (((int_cl_t) 1) << 32) - 1;
+   int_cl_t abs = (op > 0 ? op : -op);
+
+   /* copy 32 high bits */
+   mpz_set_ui (rop, (unsigned long int) (abs >> 32));
+   /* add 32 low bits */
+   mpz_mul_2exp (rop, rop, 32);
+   mpz_add_ui (rop, rop, (unsigned long int) (abs & mask));
+
+   if (op < 0)
+      mpz_neg (rop, rop);
+}
+
+/*****************************************************************************/
+
+static int_cl_t mpz_get_cl (mpz_t op)
+
+{
+   int_cl_t rop;
+   int sign = (mpz_cmp_ui (op, 0) < 0 ? -1 : 1);
+   mpz_t tmp;
+
+   mpz_init (tmp);
+
+   /* switch to absolute value */
+   if (sign < 0)
+      mpz_neg (op, op);
+
+   /* extract 32 high bits */
+   mpz_tdiv_q_2exp (tmp, op, 32);
+   rop = ((int_cl_t) (mpz_get_ui (tmp))) << 32;
+   /* extract 32 low bits */
+   mpz_tdiv_r_2exp (tmp, op, 32);
+   rop += mpz_get_ui (tmp);
+
+   if (sign < 0) {
+      rop = -rop;
+      mpz_neg (op, op);
+   }
+
+   mpz_clear (tmp);
+
+   return rop;
+}
+
 
 /*****************************************************************************/
 /*                                                                           */
@@ -658,12 +716,10 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
 void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
    /* reduces the quadratic form Q without checking if it belongs indeed to */
    /* the discriminant d and without computing Q.emb.                       */
-   /* The function is of rather limited use, since it can only be used      */
-   /* when Q.b is noticeably smaller than 2^32; otherwise there is an       */
-   /* overflow in the computation of Q.b^2 - d.                             */
 
 {
    int_cl_t c, a_minus_b, two_a, offset;
+   mpz_t a_z, c_z, d_z;
    bool reduced;
 
    reduced = false;
@@ -688,10 +744,28 @@ void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
          Q->b += offset;
       }
 
-      assert (Q->b < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2));
-         /* prevent overflow in the computation of c = b^2 - d */
-      /* compute c */
-      c = (Q->b * Q->b - d) / (4 * Q->a);
+      if ((Q->b > 0 ? Q->b : -Q->b)
+          < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2))
+         c = (Q->b * Q->b - d) / Q->a / 4;
+      else {
+         /* Compute c in multiprecision to avoid intermediate overflow;    */
+         /* should happen only rarely, so we initialise and free variables */
+         /* here instead of in all cases.                                  */
+         mpz_init (a_z);
+         mpz_init (c_z);
+         mpz_init (d_z);
+         mpz_set_cl (d_z, d);
+         mpz_set_cl (a_z, Q->a);
+         mpz_set_cl (c_z, Q->b);
+         mpz_mul (c_z, c_z, c_z);
+         mpz_sub (c_z, c_z, d_z);
+         mpz_div (c_z, c_z, a_z);
+         mpz_div_2exp (c_z, c_z, 2);
+         c = mpz_get_cl (c_z);
+         mpz_clear (a_z);
+         mpz_clear (c_z);
+         mpz_clear (d_z);
+      }
       /* if not reduced, invert */
       if (Q->a < c || (Q->a == c && Q->b >= 0))
             reduced = true;
