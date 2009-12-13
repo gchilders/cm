@@ -247,7 +247,7 @@ static int doubleeta_compute_parameter (int_cl_t disc)
    /* Minimise with respect to the height factor gained, which is            */
    /* 12 psi (p1*p2) / (p1-1)(p2-1);                                         */
    /* then p1, p2 <= the smallest split prime which is 1 (mod 24).           */
-   /* Return p = 100*p2 + p1.                                                */
+   /* Return p = 1000*p2 + p1.                                                */
 
 {
    int_cl_t cond2 = disc / cm_classgroup_fundamental_discriminant (disc);
@@ -295,7 +295,7 @@ static int doubleeta_compute_parameter (int_cl_t disc)
             }
          }
 
-   return (int) (100*p2opt + p1opt);
+   return (int) (1000*p2opt + p1opt);
 }
 
 /*****************************************************************************/
@@ -506,8 +506,8 @@ static double class_get_valuation (cm_class_t c)
          result *= 3;
       break;
    case CM_INVARIANT_DOUBLEETA:
-      p1 = c.p % 100;
-      p2 = c.p / 100;
+      p1 = c.p % 1000;
+      p2 = c.p / 1000;
       result = ((p1-1)*(p2-1) / (double) (12 * (p1+1) * (p2+1)));
       break;
    case CM_INVARIANT_SIMPLEETA:
@@ -711,7 +711,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             N = 48;
             break;
          case CM_INVARIANT_DOUBLEETA:
-            N = (c->p/100)*(c->p%100);
+            N = (c->p/1000)*(c->p%1000);
             if (c->d % 2 == 0)
                b0 = 2;
             else
@@ -834,8 +834,8 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
          cm_modclass_atkinhecke71_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_DOUBLEETA:
-      p1 = c.p % 100;
-      p2 = c.p / 100;
+      p1 = c.p % 1000;
+      p2 = c.p / 1000;
 
       mpc_init2 (tmp, mc.m.prec);
       mpc_init2 (tmp2, mc.m.prec);
@@ -1324,7 +1324,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       case CM_INVARIANT_RAMIFIED:
 #endif
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
-            (c.p / 100) * (c.p % 100), root, P);
+            (c.p / 1000) * (c.p % 1000), root, P);
          break;
       case CM_INVARIANT_ATKIN:
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
