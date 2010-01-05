@@ -89,10 +89,13 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       c->p = cm_class_compute_parameter (d, inv, verbose);
       if (!(c->p))
          exit (1);
-      if (inv != CM_INVARIANT_WEBER || c->p != 15)
+      if (inv != CM_INVARIANT_WEBER || (c->p != 15 && c->p != 11))
          c->d = d;
       else
-         /* special case Weber with d=5 (8): compute ring class field for 4d */
+         /* special case Weber with d=1 (4): compute ring class field for 4d */
+         /* If d=1 (8), this is the same as the Hilbert class field;         */
+         /* if d=5 (8), it is a degree 3 relative extension, which will be   */
+         /* corrected when computing a CM curve by applying a 2-isogeny/     */
          c->d = 4 * d;
    }
    if (verbose)
@@ -703,8 +706,6 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             cm_classgroup_reduce (&neutral, c->d);
             break;
          case CM_INVARIANT_WEBER:
-            if (c->d % 4 != 0)
-               c->d <<= 2;
             neutral.a = 1;
             neutral.b = 0;
             b0 = 0;
