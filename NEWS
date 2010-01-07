@@ -1,2 +1,12 @@
+Recent changes:
+  - Features
+    * double eta quotients with both primes >100
+    * new parameter choice for double eta quotients yielding smaller class polynomials
+    * static linking of the binaries
+    * slightly lower height bounds for double eta quotients
+  - Bug fixes
+    * printing of field and curve cardinality even without parameter "-v"
+    * Weber polynomials work again (activated by "-iweber")
+     
 Version 0.1 ("Apfelkraut"):
-   - initial release
+  - initial release

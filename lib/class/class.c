@@ -294,7 +294,7 @@ static int doubleeta_compute_parameter (int_cl_t disc)
       for (i = 0, p1 = primelist [i]; i <= j; i++, p1 = primelist [i])
          if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
              && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
-                 || (p1 == p2 && (disc % p1 != 0 || cond2 % p1 == 0)))) {
+                 || (p1 == p2 && ((-disc) % p1 != 0 || cond2 % p1 == 0)))) {
             quality = (p1 == p2 ? p1 : p1 + 1) * (p2 + 1) / (double) (p1 - 1)
                / (double) (p2 - 1);
             if (quality > opt) {
