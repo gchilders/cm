@@ -533,13 +533,6 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b)
    /* evaluates the Weber f-function at the quadratic integer                */
    /* (b + sqrt (d)) / (2*a)                                                 */
-   /* We get into trouble since the numerator sometimes belongs to a         */
-   /* non-primitive form, i.e. a form corresponding to d/4.                  */
-   /* Even worse, things become completely mixed up when d/4 is not a        */
-   /* discriminant; there, one might have to use forms with half-integral    */
-   /* a and b.                                                               */
-   /* We obtain the denominator from the precomputed eta values and          */
-   /* recompute the numerator.                                               */
 
 {
    mpc_t z, tmp;
@@ -548,10 +541,11 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, mpc_t rop,
    mpc_init2 (tmp, mpc_get_prec (rop));
 
    cm_modclass_eta_eval_quad (mc, tmp, a, b);
-   cm_modclass_mpc_set_quadratic (mc, z, a, b);
-   mpc_add_ui (z, z, 1ul, MPC_RNDNN);
-   mpc_div_ui (z, z, 2ul, MPC_RNDNN);
-   cm_modular_eta_eval (mc.m, rop, z);
+   /* Evaluate in form corresponding to (z+1)/2; the corresponding c can be   */
+   /* half-integral, and the form can be non-primitive with a gcd of 2. In    */
+   /* these cases, looking up the form fails in cm_modclass_eta_eval_quad,    */
+   /* and the value is recomputed from scratch.                               */
+   cm_modclass_eta_eval_quad (mc, rop, 2*a, b + 2*a);
    mpc_div (rop, rop, tmp, MPC_RNDNN);
    mpc_mul (rop, rop, mc.m.zeta48inv, MPC_RNDNN);
 
@@ -572,11 +566,10 @@ void cm_modclass_f1_eval_quad (cm_modclass_t mc, mpc_t rop,
    mpc_init2 (z, mpc_get_prec (rop));
    mpc_init2 (tmp, mpc_get_prec (rop));
 
-   cm_modclass_eta_eval_quad (mc, rop, a, b);
-   cm_modclass_mpc_set_quadratic (mc, z, a, b);
-   mpc_div_ui (tmp, z, 2ul, MPC_RNDNN);
-   cm_modular_eta_eval (mc.m, tmp, tmp);
-   mpc_div (rop, tmp, rop, MPC_RNDNN);
+   cm_modclass_eta_eval_quad (mc, tmp, a, b);
+   /* see comment in cm_modclass_f_eval_quad */
+   cm_modclass_eta_eval_quad (mc, rop, 2*a, b);
+   mpc_div (rop, rop, tmp, MPC_RNDNN);
 
    mpc_clear (z);
    mpc_clear (tmp);
