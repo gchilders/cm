@@ -718,17 +718,24 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             N = 48;
             break;
          case CM_INVARIANT_DOUBLEETA:
+         {
+            int_cl_t C;
             N = (c->p/1000)*(c->p%1000);
             if (c->d % 2 == 0)
                b0 = 2;
             else
                b0 = 1;
-            while ((b0*b0 - c->d) % (4 * N) != 0)
+            while (true) {
+               C = (b0*b0 - c->d) / 4;
+               if (C % N == 0 && cm_nt_gcd (C / N, N) == 1)
+                  break;
                b0 += 2;
+            }
             neutral.a = N;
             neutral.b = -b0;
             cm_classgroup_reduce (&neutral, c->d);
             break;
+         }
          default: /* should not occur */
             printf ("compute_nsystem_and_embedding called for ");
             printf ("unknown class invariant\n");
