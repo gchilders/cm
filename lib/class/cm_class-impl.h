@@ -98,6 +98,7 @@ extern void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc,
 extern void cm_classgroup_clear (cm_classgroup_t *cl);
 
 extern void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op);
+extern int_cl_t cm_classgroup_mpz_get_icl (mpz_t op);
 extern uint_cl_t cm_classgroup_mod (int_cl_t a, uint_cl_t p);
 extern int_cl_t cm_classgroup_gcd (int_cl_t a, int_cl_t b);
 extern int cm_classgroup_kronecker (int_cl_t a, int_cl_t b);
@@ -107,6 +108,7 @@ extern void cm_classgroup_factor (int_cl_t d,
 extern int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d);
 extern int cm_classgroup_h (int *h1, int *h2, int_cl_t d);
 
+extern int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d);
 extern void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d);
 extern void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1,
    cm_form_t Q2, int_cl_t d);

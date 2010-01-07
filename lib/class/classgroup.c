@@ -23,16 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm_class-impl.h"
 
-#define mpz_add_si(c, a, b) \
-   (b >= 0) ? mpz_add_ui (c, a, b) \
-            : mpz_sub_ui (c, a, (unsigned long int) (-b))
-#define mpz_sub_si(c, a, b) \
-   (b >= 0) ? mpz_sub_ui (c, a, b) \
-            : mpz_add_ui (c, a, (unsigned long int) (-b))
-
-static void mpz_set_cl (mpz_t rop, int_cl_t op);
-static int_cl_t mpz_get_cl (mpz_t op);
-
 static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
    int_cl_t b);
 static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
@@ -46,7 +36,7 @@ static bool classgroup_read (cm_classgroup_t cl);
 /*                                                                           */
 /*****************************************************************************/
 
-static void mpz_set_cl (mpz_t rop, int_cl_t op)
+void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op)
    /* relies on the fact that int_cl_t has 64 bits */
 
 {
@@ -65,7 +55,7 @@ static void mpz_set_cl (mpz_t rop, int_cl_t op)
 
 /*****************************************************************************/
 
-static int_cl_t mpz_get_cl (mpz_t op)
+int_cl_t cm_classgroup_mpz_get_icl (mpz_t op)
 
 {
    int_cl_t rop;
@@ -271,18 +261,6 @@ bool classgroup_read (cm_classgroup_t cl)
 /*                                                                           */
 /* elementary number theory with int_cl_t                                    */
 /*                                                                           */
-/*****************************************************************************/
-
-void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op)
-
-{
-   char op_str [22];
-      /* 64 bits = 20 decimal digits, plus sign, plus '\0' */
-
-   sprintf (op_str, "%"PRIicl, op);
-   mpz_set_str (rop, op_str, 10);
-}
-
 /*****************************************************************************/
 
 uint_cl_t cm_classgroup_mod (int_cl_t a, uint_cl_t p)
@@ -713,13 +691,46 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
 /*                                                                           */
 /*****************************************************************************/
 
+int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d)
+   /* computes c = (b^2 - d) / (4*a), potentially switching to multi-        */
+   /* precision to avoid intermediate overflow                               */
+
+{
+   int_cl_t c;
+
+   if ((b > 0 ? b : -b)
+         < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2))
+      c = (b * b - d) / a / 4;
+   else {
+      /* should happen only rarely */
+      mpz_t az, dz, cz;
+      mpz_init (az);
+      mpz_init (cz);
+      mpz_init (dz);
+      cm_classgroup_mpz_set_icl (dz, d);
+      cm_classgroup_mpz_set_icl (az, a);
+      cm_classgroup_mpz_set_icl (cz, b);
+      mpz_mul (cz, cz, cz);
+      mpz_sub (cz, cz, dz);
+      mpz_div (cz, cz, az);
+      mpz_div_2exp (cz, cz, 2);
+      c = cm_classgroup_mpz_get_icl (cz);
+      mpz_clear (az);
+      mpz_clear (cz);
+      mpz_clear (dz);
+   }
+
+   return c;
+}
+
+/*****************************************************************************/
+
 void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
    /* reduces the quadratic form Q without checking if it belongs indeed to */
    /* the discriminant d and without computing Q.emb.                       */
 
 {
    int_cl_t c, a_minus_b, two_a, offset;
-   mpz_t a_z, c_z, d_z;
    bool reduced;
 
    reduced = false;
@@ -744,28 +755,8 @@ void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
          Q->b += offset;
       }
 
-      if ((Q->b > 0 ? Q->b : -Q->b)
-          < ((int_cl_t) 1) << (4 * sizeof (int_cl_t) - 2))
-         c = (Q->b * Q->b - d) / Q->a / 4;
-      else {
-         /* Compute c in multiprecision to avoid intermediate overflow;    */
-         /* should happen only rarely, so we initialise and free variables */
-         /* here instead of in all cases.                                  */
-         mpz_init (a_z);
-         mpz_init (c_z);
-         mpz_init (d_z);
-         mpz_set_cl (d_z, d);
-         mpz_set_cl (a_z, Q->a);
-         mpz_set_cl (c_z, Q->b);
-         mpz_mul (c_z, c_z, c_z);
-         mpz_sub (c_z, c_z, d_z);
-         mpz_div (c_z, c_z, a_z);
-         mpz_div_2exp (c_z, c_z, 2);
-         c = mpz_get_cl (c_z);
-         mpz_clear (a_z);
-         mpz_clear (c_z);
-         mpz_clear (d_z);
-      }
+      c = cm_classgroup_compute_c (Q->a, Q->b, d);
+
       /* if not reduced, invert */
       if (Q->a < c || (Q->a == c && Q->b >= 0))
             reduced = true;
