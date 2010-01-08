@@ -813,7 +813,8 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    if (c.invariant == CM_INVARIANT_ATKIN)
       precision += (precision * 2) / 5 + 30;
    else if (c.invariant == CM_INVARIANT_DOUBLEETA)
-      precision += 30;
+      /* works for |D|<10^6; less is not enough for -994260 */
+      precision += 47;
    else
       precision += (precision > 3000 ? precision / 100 : 30);
 
