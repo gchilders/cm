@@ -806,7 +806,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       /* increase height estimate by bit size of sqrt (|D|)^h in constant    */
       /* coefficient                                                         */
       precision += (int) (log ((double) (-cl.d)) / log (2.0) / 2.0 * cl.h);
-
+precision *= 2;
    if (verbose)
       printf ("Estimated precision: %.1f\n", precision);
 
@@ -858,16 +858,21 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       mpc_init2 (tmp2, mc.m.prec);
 
       if (p1 == p2) {
-         cm_modclass_eta_eval_quad (mc, rop, Q.a * p1, Q.b);
+         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta,
+                                    Q.a * p1, Q.b, mc.root);
          mpc_sqr (rop, rop, MPC_RNDNN);
       }
       else {
-         cm_modclass_eta_eval_quad (mc, rop, Q.a * p1, Q.b);
-         cm_modclass_eta_eval_quad (mc, tmp, Q.a * p2, Q.b);
+         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta,
+                                    Q.a * p1, Q.b, mc.root);
+         cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta,
+                                    Q.a * p2, Q.b, mc.root);
          mpc_mul (rop, rop, tmp, MPC_RNDNN);
       }
-      cm_modclass_eta_eval_quad (mc, tmp, Q.a, Q.b);
-      cm_modclass_eta_eval_quad (mc, tmp2, Q.a * p1 * p2, Q.b);
+      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta,
+                                 Q.a, Q.b, mc.root);
+      cm_modclass_eta_eval_quad (tmp2, mc.m, mc.cl, mc.eta,
+                                 Q.a * p1 * p2, Q.b, mc.root);
       mpc_mul (tmp, tmp, tmp2, MPC_RNDNN);
       mpc_div (rop, rop, tmp, MPC_RNDNN);
 
@@ -877,8 +882,10 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
    case CM_INVARIANT_SIMPLEETA:
       mpc_init2 (tmp, mc.m.prec);
 
-      cm_modclass_eta_eval_quad (mc, rop, Q.a * (c.p / 10000), Q.b);
-      cm_modclass_eta_eval_quad (mc, tmp, Q.a, Q.b);
+      cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta,
+                                 Q.a * (c.p / 10000), Q.b, mc.root);
+      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta,
+                                 Q.a, Q.b, mc.root);
       mpc_div (rop, rop, tmp, MPC_RNDNN);
       mpc_pow_ui_binary (rop, rop, (unsigned long int) (c.p % 100));
 
@@ -960,7 +967,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    /* write indicates whether the result should be written to disk.          */
    /* print indicates whether the result should be printed on screen.        */
 {
-   cm_classgroup_t cl;
+   cm_classgroup_t cl, cl2;
    cm_form_t *nsystem;
    mp_prec_t prec;
    cm_modclass_t mc;
@@ -974,6 +981,22 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
+
+   if (   (c.invariant == CM_INVARIANT_WEBER
+           && (   (c.p / 10) % 10 == 1
+               || c.p % 10 == 3 || c.p % 10 == 4 || c.p % 10 == 7))
+       || (c.invariant == CM_INVARIANT_J && c.d % 4 == 0
+           && ((c.d / 4) % 4 == 0 || ((c.d / 4) - 1) % 4 == 0))) {
+      /* also compute class group for order of conductor less by a factor    */
+      /* of 2                                                                */
+      cm_timer_start (clock_local);
+      cm_classgroup_init (&cl2, c.d / 4, checkpoints, verbose);
+      cm_timer_stop (clock_local);
+      if (verbose)
+         printf ("--- Time for class group2: %.1f\n", cm_timer_get (clock_local));
+   }
+   else
+      cl2.d = 0;
 
    nsystem = (cm_form_t *) malloc (c.h * sizeof (cm_form_t));
    cm_timer_start (clock_local);
@@ -989,7 +1012,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
       mpc_init2 (conjugate [i], prec);
    cm_timer_start (clock_local);
    if (!checkpoints || !read_conjugates (c, conjugate)) {
-      cm_modclass_init (&mc, cl, prec, checkpoints, verbose);
+      cm_modclass_init (&mc, cl, cl2, prec, checkpoints, verbose);
       compute_conjugates (conjugate, nsystem, c, mc, verbose);
       if (checkpoints)
          write_conjugates (c, conjugate);

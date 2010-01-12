@@ -73,9 +73,16 @@ typedef struct {
    mpfr_t root;
       /* sqrt (-cl.d); */
    mpfr_t sqrt2_over2, sqrt2_over4;
-   mpc_t *eta_value;
+   mpc_t *eta;
       /* contains the values of eta with respect to the entries of           */
       /* cl.form with the same row index. So only cl.h12 values are stored.  */
+   cm_classgroup_t cl2;
+   mpc_t *eta2;
+   mpfr_t root2;
+      /* Space for a second class group and associated eta values; intended  */
+      /* to be filled with an order of smaller conductor. Currently, is is   */
+      /* used for the Weber function with odd discriminant D; then cl.d==4*D */
+      /* and cl2.d==D.                                                       */
 } cm_modclass_t;
 
 
@@ -118,11 +125,11 @@ extern void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1,
    precomputations */
 
 extern void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   mp_prec_t prec, bool checkpoints, bool verbose);
+   cm_classgroup_t cl2, mp_prec_t prec, bool checkpoints, bool verbose);
 extern void cm_modclass_clear (cm_modclass_t *mc);
 
-extern void cm_modclass_eta_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b);
+extern void cm_modclass_eta_eval_quad (mpc_t rop, cm_modular_t m,
+   cm_classgroup_t cl, mpc_t *eta, int_cl_t a, int_cl_t b, mpfr_t root);
 extern void cm_modclass_f_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b);
 extern void cm_modclass_f1_eval_quad (cm_modclass_t mc, mpc_t rop,
