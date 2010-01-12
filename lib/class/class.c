@@ -806,7 +806,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       /* increase height estimate by bit size of sqrt (|D|)^h in constant    */
       /* coefficient                                                         */
       precision += (int) (log ((double) (-cl.d)) / log (2.0) / 2.0 * cl.h);
-precision *= 2;
+
    if (verbose)
       printf ("Estimated precision: %.1f\n", precision);
 
