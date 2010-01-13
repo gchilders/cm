@@ -486,27 +486,26 @@ static double class_get_valuation (cm_class_t c)
    int p1, p2;
    int l, e;
 
-   switch (c.invariant)
-   {
+   switch (c.invariant) {
    case CM_INVARIANT_J:
       result = 1;
       break;
    case CM_INVARIANT_GAMMA2:
-      result = 1 / (double) 3;
+      result = 1.0 / 3;
       break;
    case CM_INVARIANT_GAMMA3:
       result = 0.5;
       break;
    case CM_INVARIANT_ATKIN:
       if (c.p == 47)
-         result = 1 / (double) 24;
+         result = 1.0 / 24;
       else if (c.p == 59)
-         result = 1 / (double) 30;
+         result = 1.0 / 30;
       else /* 71 */
-         result = 1 / (double) 36;
+         result = 1.0 / 36;
       break;
    case CM_INVARIANT_WEBER:
-      result = 1 / (double) 72;
+      result = 1.0 / 72;
       if (c.p % 10 == 1 || c.p % 10 == 2 || c.p % 10 == 6)
          result *= 2;
       else if (c.p % 10 == 4 || c.p % 10 == 5)
@@ -790,40 +789,54 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    bool verbose) {
    /* returns an approximation of the required precision */
 
-   double precision = 0;
-   int i;
+   const double C = 2114.567;
+   const double pisqrtd = 3.14159265358979323846 * sqrt ((double) (-cl.d));
+   const double cf = class_get_valuation (c);
+   double x, binom = 1.0, simpleprec = 0, prec = 0, M;
+   int i, m;
+   mp_prec_t precision;
 
+   /* heuristic formula: log (height) = pi * sqrt (|d|) * \sum 1/A */
    for (i = 0; i < cl.h12; i++)
       if (cl.form [i].emb == real)
-         precision += 1.0 / cl.form [i].a;
+         simpleprec += 1.0 / cl.form [i].a;
       else
-         precision += 2.0 / cl.form [i].a;
+         simpleprec += 2.0 / cl.form [i].a;
+   simpleprec = ceil (simpleprec * pisqrtd / log (2.0) * cf);
 
-   /* the constant is pi / log (2)    */
-   precision *= 4.5323601418
-         * sqrt ((double) (-c.d)) * class_get_valuation (c);
-   if (c.invariant == CM_INVARIANT_GAMMA3)
-      /* increase height estimate by bit size of sqrt (|D|)^h in constant    */
-      /* coefficient                                                         */
-      precision += (int) (log ((double) (-cl.d)) / log (2.0) / 2.0 * cl.h);
+   /* formula of Lemma 8 of [Sutherland10]; assumes that the A values in cl  */
+   /* are sorted in increasing order                                         */
+   for (i = 0; i < cl.h12; i++) {
+      x = pisqrtd / cl.form [i].a;
+      if (x < 42)
+         M = log (exp (x) + C);
+      else /* prevent overflow in exponential without changing the result */
+         M = x;
+      if (cl.form [i].emb == real)
+         prec += M;
+      else
+         prec += 2*M;
+   }
+   M = exp (pisqrtd / cl.form [cl.h12 - 1].a) + C;
+   m = (int) ((cl.h + 1) / (M + 1));
+   for (i = 1; i <= m; i++)
+      binom *= (double) (cl.h - 1 + i) / i / M;
+   prec = ceil ((prec + log (binom)) / log (2.0) * cf);
 
-   if (verbose)
-      printf ("Estimated precision: %.1f\n", precision);
+   if (verbose) {
+      printf ("Heuristic precision bound:      %ld\n", (long int) simpleprec);
+      printf ("Less heuristic precision bound: %ld\n", (long int) prec);
+   }
 
-   if (c.invariant == CM_INVARIANT_ATKIN)
-      precision += (precision * 2) / 5 + 30;
-   else if (c.invariant == CM_INVARIANT_DOUBLEETA)
-      /* works for |D|<10^6; less is not enough for -994260 */
-      precision += 47;
-   else
-      precision += (precision > 3000 ? precision / 100 : 30);
+   /* add a security margin */
+   precision = (mp_prec_t) (prec + 256);
 
-   if (verbose)
-      printf ("Final precision: %d\n", (int) precision);
+   if (verbose) {
+      printf ("Precision:                      %ld\n", (long int) precision);
+   }
 
-   return (mp_prec_t) precision;
+   return precision;
 }
-
 /*****************************************************************************/
 
 static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
@@ -1005,7 +1018,10 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
    nsystem = (cm_form_t *) realloc (nsystem, c.h12 * sizeof (cm_form_t));
-   prec = compute_precision (c, cl, verbose);
+   if (c.invariant == CM_INVARIANT_WEBER && c.p % 100 == 17)
+      prec = compute_precision (c, cl2, verbose);
+   else
+      prec = compute_precision (c, cl, verbose);
 
    conjugate = (mpc_t *) malloc (c.h12 * sizeof (mpc_t));
    for (int i = 0; i < c.h12; i++)
