@@ -828,12 +828,19 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       printf ("Less heuristic precision bound: %ld\n", (long int) prec);
    }
 
+   if (c.invariant == CM_INVARIANT_GAMMA3) {
+      /* increase height estimate by bit size of sqrt (|D|)^h in constant    */
+      /* coefficient                                                         */
+      prec += (int) (log ((double) (-cl.d)) / log (2.0) / 2.0 * cl.h);
+      if (verbose)
+         printf ("Corrected bound for gamma3:     %ld\n", (long int) prec);
+   }
+
    /* add a security margin */
    precision = (mp_prec_t) (prec + 256);
 
-   if (verbose) {
+   if (verbose)
       printf ("Precision:                      %ld\n", (long int) precision);
-   }
 
    return precision;
 }
@@ -1336,7 +1343,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       cm_class_compute_minpoly (c, false, false, false, verbose);
    cm_timer_start (clock);
    mpz_init (root);
-   if (inv != CM_INVARIANT_WEBER || c.p != 15)
+   if (inv != CM_INVARIANT_WEBER || c.p % 100 != 13)
       /* avoid special case of Weber polynomial factoring over extension */
       /* of degree 3; handled in weber_cm_get_j_mod_P                    */
       get_root_mod_P (c, root, P, verbose);
@@ -1549,7 +1556,9 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
 
       cm_ntl_find_factor (factor, c.minpoly, c.minpoly_deg, 3, P, verbose);
       mpfpx_set_z_array (root_poly, factor, 4);
-      printf ("Root: "); mpfpx_out (root_poly);
+      if (verbose) {
+         printf ("Root: "); mpfpx_out (root_poly);
+      }
 
       if (c.p % 100 == 3)
          mpfpx_set_ui_array (f24_poly, x2, 3);
