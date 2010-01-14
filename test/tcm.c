@@ -56,7 +56,9 @@ int main ()
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_GAMMA2, false);
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_GAMMA3, false);
    test_curve ((int_cl_t) (-299), CM_INVARIANT_SIMPLEETA, false);
-   test_curve ((int_cl_t) (-108708), CM_INVARIANT_ATKIN, false);
+   test_curve ((int_cl_t) (-108708), CM_INVARIANT_ATKIN, false); /* p=71 */
+   test_curve ((int_cl_t) (-108707), CM_INVARIANT_ATKIN, false); /* p=47 */
+   test_curve ((int_cl_t) (-108711), CM_INVARIANT_ATKIN, false); /* p=59 */
 
    return 0;
 }
