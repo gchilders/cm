@@ -464,3 +464,22 @@ void cm_modular_atkinhecke71_eval (cm_modular_t m, mpc_t rop, mpc_t op)
 }
 
 /*****************************************************************************/
+
+void cm_modular_atkinhecke131_eval (cm_modular_t m, mpc_t rop, mpc_t op)
+   /* evaluates Atkin's optimised function for Gamma^0^* (131) */
+
+{
+   mpc_t z, tmp;
+
+   mpc_init2 (z, mpc_get_prec (op));
+   mpc_init2 (tmp, mpc_get_prec (rop));
+
+   mpc_set (z, op, MPC_RNDNN);
+   cm_modular_atkinhecke_eval (m, rop, z, 131, 61);
+   mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
+
+   mpc_clear (z);
+   mpc_clear (tmp);
+}
+
+/*****************************************************************************/

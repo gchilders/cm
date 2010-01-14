@@ -219,14 +219,20 @@ static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
          }
          case CM_INVARIANT_ATKIN:
             if (cm_classgroup_kronecker (disc, (int_cl_t) 71) != -1)
+               /* factor 36, T_5 + T_29 + 1 */
                return 71;
             else if (cm_classgroup_kronecker (disc, (int_cl_t) 59) != -1)
+               /* factor 30, T_5 + T_29 */
                return 59;
             else if (cm_classgroup_kronecker (disc, (int_cl_t) 47) != -1)
+               /* factor 24, -T_17 */
                return 47;
+            else if (cm_classgroup_kronecker (disc, (int_cl_t) 131) != -1)
+               /* factor 33, T_61 + 1 */
+               return 131;
             else {
                if (verbose) {
-                  printf ("\n*** 47, 59 and 71 are inert for %"PRIicl", so that ",
+                  printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl", so that ",
                           disc);
                   printf ("atkin cannot be used.\n");
                }
@@ -501,8 +507,10 @@ static double class_get_valuation (cm_class_t c)
          result = 1.0 / 24;
       else if (c.p == 59)
          result = 1.0 / 30;
-      else /* 71 */
+      else if (c.p == 71)
          result = 1.0 / 36;
+      else /* 131 */
+         result = 1.0 / 33;
       break;
    case CM_INVARIANT_WEBER:
       result = 1.0 / 72;
@@ -867,8 +875,10 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
          cm_modclass_atkinhecke47_eval_quad (mc, rop, Q.a, Q.b);
       else if (c.p == 59)
          cm_modclass_atkinhecke59_eval_quad (mc, rop, Q.a, Q.b);
-      else
+      else if (c.p == 71)
          cm_modclass_atkinhecke71_eval_quad (mc, rop, Q.a, Q.b);
+      else
+         cm_modclass_atkinhecke131_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_DOUBLEETA:
       p1 = c.p % 1000;

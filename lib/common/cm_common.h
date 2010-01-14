@@ -142,6 +142,7 @@ extern void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
    unsigned long int l, unsigned long int r);
 extern void cm_modular_atkinhecke59_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 extern void cm_modular_atkinhecke71_eval (cm_modular_t m, mpc_t rop, mpc_t op);
+extern void cm_modular_atkinhecke131_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 
 /* functions reading modular polynomials */
 extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,

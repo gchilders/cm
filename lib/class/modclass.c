@@ -781,3 +781,19 @@ void cm_modclass_atkinhecke71_eval_quad (cm_modclass_t mc, mpc_t rop,
 }
 
 /*****************************************************************************/
+
+void cm_modclass_atkinhecke131_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b)
+
+{
+   mpc_t z;
+
+   mpc_init2 (z, mpc_get_prec (rop));
+
+   cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
+   cm_modular_atkinhecke131_eval (mc.m, rop, z);
+
+   mpc_clear (z);
+}
+
+/*****************************************************************************/
