@@ -140,14 +140,8 @@ extern void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b);
 extern void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b);
-extern void cm_modclass_atkinhecke47_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b);
-extern void cm_modclass_atkinhecke59_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b);
-extern void cm_modclass_atkinhecke71_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b);
-extern void cm_modclass_atkinhecke131_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b);
+extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, unsigned long int l);
 
 
 /* functions for class polynomials */

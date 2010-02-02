@@ -733,8 +733,8 @@ void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
 
 /*****************************************************************************/
 
-void cm_modclass_atkinhecke47_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b)
+void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, unsigned long int l)
 
 {
    mpc_t z;
@@ -742,56 +742,7 @@ void cm_modclass_atkinhecke47_eval_quad (cm_modclass_t mc, mpc_t rop,
    mpc_init2 (z, mpc_get_prec (rop));
 
    cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
-   cm_modular_atkinhecke_eval (mc.m, rop, z, 47, 17);
-   mpc_neg (rop, rop, MPC_RNDNN);
-
-   mpc_clear (z);
-}
-
-/*****************************************************************************/
-
-void cm_modclass_atkinhecke59_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b)
-
-{
-   mpc_t z;
-
-   mpc_init2 (z, mpc_get_prec (rop));
-
-   cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
-   cm_modular_atkinhecke59_eval (mc.m, rop, z);
-
-   mpc_clear (z);
-}
-
-/*****************************************************************************/
-
-void cm_modclass_atkinhecke71_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b)
-
-{
-   mpc_t z;
-
-   mpc_init2 (z, mpc_get_prec (rop));
-
-   cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
-   cm_modular_atkinhecke71_eval (mc.m, rop, z);
-
-   mpc_clear (z);
-}
-
-/*****************************************************************************/
-
-void cm_modclass_atkinhecke131_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b)
-
-{
-   mpc_t z;
-
-   mpc_init2 (z, mpc_get_prec (rop));
-
-   cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
-   cm_modular_atkinhecke131_eval (mc.m, rop, z);
+   cm_modular_atkinhecke_level_eval (mc.m, rop, z, l);
 
    mpc_clear (z);
 }

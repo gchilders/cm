@@ -105,7 +105,7 @@ extern void cm_file_gzopen_write (FILE **f, char *filename);
 extern void cm_file_gzopen_read (FILE **f, char *filename);
 extern void cm_file_gzclose (FILE *f);
 
-/* functions missing in mpc */
+/* function missing in mpc */
 extern void mpc_pow_ui_binary (mpc_t rop, mpc_t op1, unsigned long int op2);
 
 /* different functions for number theoretic computations */
@@ -140,9 +140,8 @@ extern void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 extern void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op);
 extern void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
    unsigned long int l, unsigned long int r);
-extern void cm_modular_atkinhecke59_eval (cm_modular_t m, mpc_t rop, mpc_t op);
-extern void cm_modular_atkinhecke71_eval (cm_modular_t m, mpc_t rop, mpc_t op);
-extern void cm_modular_atkinhecke131_eval (cm_modular_t m, mpc_t rop, mpc_t op);
+extern void cm_modular_atkinhecke_level_eval (cm_modular_t m, mpc_t rop, mpc_t op,
+   unsigned long int l);
 
 /* functions reading modular polynomials */
 extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,

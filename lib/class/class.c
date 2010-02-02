@@ -871,14 +871,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       cm_modclass_gamma3_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_ATKIN:
-      if (c.p == 47)
-         cm_modclass_atkinhecke47_eval_quad (mc, rop, Q.a, Q.b);
-      else if (c.p == 59)
-         cm_modclass_atkinhecke59_eval_quad (mc, rop, Q.a, Q.b);
-      else if (c.p == 71)
-         cm_modclass_atkinhecke71_eval_quad (mc, rop, Q.a, Q.b);
-      else
-         cm_modclass_atkinhecke131_eval_quad (mc, rop, Q.a, Q.b);
+      cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b, c.p);
       break;
    case CM_INVARIANT_DOUBLEETA:
       p1 = c.p % 1000;

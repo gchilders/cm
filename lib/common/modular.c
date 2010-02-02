@@ -130,7 +130,7 @@ static void modular_fundamental_domain_matrix (mpc_t z, cm_matrix_t *M)
 
 /*****************************************************************************/
 
-extern void cm_modular_fundamental_domain (mpc_t z)
+void cm_modular_fundamental_domain (mpc_t z)
    /* transforms z into the fundamental domain                               */
 
 {
@@ -340,8 +340,8 @@ void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op)
 /*****************************************************************************/
 
 void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op)
-      /* evaluates the eta function at the purely imaginary argument op*I,      */
-      /* of course without transforming into the fundamental domain             */
+   /* evaluates the eta function at the purely imaginary argument op*I,      */
+   /* of course without transforming into the fundamental domain             */
 
 {
    mpfr_t q24;
@@ -423,63 +423,49 @@ void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
 
 /*****************************************************************************/
 
-void cm_modular_atkinhecke59_eval (cm_modular_t m, mpc_t rop, mpc_t op)
-   /* evaluates Atkin's optimised function for Gamma^0^* (59) */
+void cm_modular_atkinhecke_level_eval (cm_modular_t m, mpc_t rop, mpc_t op,
+   unsigned long int l)
+   /* evaluates Atkin's optimised function for Gamma^0^* (l) */
 
 {
-   mpc_t z, tmp;
+   if (l == 47) {
+      cm_modular_atkinhecke_eval (m, rop, op, 47, 17);
+      mpc_neg (rop, rop, MPC_RNDNN);
+   }
+   else if (l == 59) {
+      mpc_t z, tmp;
+      mpc_init2 (z, mpc_get_prec (op));
+      mpc_init2 (tmp, mpc_get_prec (rop));
+      mpc_set (z, op, MPC_RNDNN);
+      cm_modular_atkinhecke_eval (m, rop, z, 59, 5);
+      cm_modular_atkinhecke_eval (m, tmp, z, 59, 29);
+      mpc_add (rop, rop, tmp, MPC_RNDNN);
+      mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
+      mpc_clear (z);
+      mpc_clear (tmp);
+   }
+   else if (l == 71) {
+      mpc_t z, tmp;
+      mpc_init2 (z, mpc_get_prec (op));
+      mpc_init2 (tmp, mpc_get_prec (rop));
+      mpc_set (z, op, MPC_RNDNN);
+      cm_modular_atkinhecke_eval (m, rop, z, 71, 5);
+      cm_modular_atkinhecke_eval (m, tmp, z, 71, 29);
+      mpc_add (rop, rop, tmp, MPC_RNDNN);
+      mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
+      mpc_clear (z);
+      mpc_clear (tmp);
+   }
+   else if (l == 131) {
+      cm_modular_atkinhecke_eval (m, rop, op, 131, 61);
+      mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
+   }
+   else {
+      printf ("*** Called cm_modular_atkinhecke_level_eval with level %li, "
+         "for which the optimal Atkin invariant is not implemented.\n", l);
+      exit (1);
+   }
 
-   mpc_init2 (z, mpc_get_prec (op));
-   mpc_init2 (tmp, mpc_get_prec (rop));
-
-   mpc_set (z, op, MPC_RNDNN);
-   cm_modular_atkinhecke_eval (m, rop, z, 59, 5);
-   cm_modular_atkinhecke_eval (m, tmp, z, 59, 29);
-   mpc_add (rop, rop, tmp, MPC_RNDNN);
-   mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
-
-   mpc_clear (z);
-   mpc_clear (tmp);
-}
-
-/*****************************************************************************/
-
-void cm_modular_atkinhecke71_eval (cm_modular_t m, mpc_t rop, mpc_t op)
-   /* evaluates Atkin's optimised function for Gamma^0^* (71) */
-
-{
-   mpc_t z, tmp;
-
-   mpc_init2 (z, mpc_get_prec (op));
-   mpc_init2 (tmp, mpc_get_prec (rop));
-
-   mpc_set (z, op, MPC_RNDNN);
-   cm_modular_atkinhecke_eval (m, rop, z, 71, 5);
-   cm_modular_atkinhecke_eval (m, tmp, z, 71, 29);
-   mpc_add (rop, rop, tmp, MPC_RNDNN);
-   mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
-
-   mpc_clear (z);
-   mpc_clear (tmp);
-}
-
-/*****************************************************************************/
-
-void cm_modular_atkinhecke131_eval (cm_modular_t m, mpc_t rop, mpc_t op)
-   /* evaluates Atkin's optimised function for Gamma^0^* (131) */
-
-{
-   mpc_t z, tmp;
-
-   mpc_init2 (z, mpc_get_prec (op));
-   mpc_init2 (tmp, mpc_get_prec (rop));
-
-   mpc_set (z, op, MPC_RNDNN);
-   cm_modular_atkinhecke_eval (m, rop, z, 131, 61);
-   mpc_add_ui (rop, rop, 1ul, MPC_RNDNN);
-
-   mpc_clear (z);
-   mpc_clear (tmp);
 }
 
 /*****************************************************************************/
