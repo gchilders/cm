@@ -30,6 +30,9 @@ static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
    uint_cl_t *cond_primes, unsigned int *cond_exp);
 static void classgroup_write (cm_classgroup_t cl);
 static bool classgroup_read (cm_classgroup_t cl);
+static int avl_cmp (cm_form_t P, cm_form_t Q);
+static bool avl_insert_rec (cm_avl_t **t, cm_form_t c, bool *ok);
+static int avl_flatten_rec (cm_form_t **list, cm_avl_t *t, int pos);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -99,9 +102,6 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
    /* class group from a file and writes the result to a file             */
 
 {
-   int k;
-   int_cl_t a, b, c;
-
    if (disc >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
       exit (1);
@@ -120,7 +120,11 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
       printf ("Class numbers: h = %d, h1 = %d, h2 = %d\n",
          cl->h, cl->h1, cl->h2);
 
+#if 0
    if (!checkpoints || !classgroup_read (*cl)) {
+      int k;
+      int_cl_t a, b, c;
+
       k = 0;
       for (a = 1; a*a <= (-cl->d) / 3; a++) {
          if (cl->d % 2 == 0)
@@ -146,8 +150,85 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
          }
       }
 
-   if (checkpoints)
-      classgroup_write (*cl);
+      if (checkpoints)
+         classgroup_write (*cl);
+   }
+#endif
+
+   {
+      int h;
+      cm_form_t *Cl;
+         /* class number and class group as far as they are already computed */
+      cm_avl_t *t;
+         /* avl tree of forms in Cl */
+      int_cl_t p;
+      cm_form_t P, Ppow;
+         /* prime, form above it and powers of the form */
+      int relo;
+         /* relative order of the prime form modulo Cl */
+      int i, j;
+
+      /* computation of the class group */
+      Cl = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
+      P.a = 1;
+      P.b = (disc % 2 == 0 ? 0 : 1);
+      t = NULL;
+      cm_classgroup_avl_insert (&t, P);
+      h = 1;
+      Cl [0] = P;
+
+      p = (int_cl_t) 1;
+      while (h < cl->h) {
+         /* select next prime form */
+         do {
+            p = (int_cl_t) cm_nt_next_prime ((unsigned long int) p);
+         } while (cm_classgroup_kronecker (disc, p) == -1);
+         P = cm_classgroup_prime_form (p, disc);
+
+         /* determine its relative order through inserting its powers into   */
+         /* the tree                                                         */
+         Ppow = P;
+         relo = 1;
+         while (cm_classgroup_avl_insert (&t, Ppow)) {
+            cm_classgroup_compose (&Ppow, Ppow, P, disc);
+            relo++;
+         }
+         printf ("   [%"PRIicl", %"PRIicl"]: %i\n", P.a, P.b, relo);
+
+         /* Multiply all other forms by the powers of P and insert them into  */
+         /* the tree. Cl[0] contains the principal form, which is already     */
+         /* handled.                                                          */
+         for (i = 1; i < h; i++) {
+            Ppow = Cl [i];
+            for (j = 1; j < relo; j++) {
+               cm_classgroup_compose (&Ppow, Ppow, P, disc);
+               cm_classgroup_avl_insert (&t, Ppow);
+            }
+         }
+
+         h *= relo;
+         /* copy tree content into array */
+         cm_classgroup_avl_flatten (&Cl, t);
+      }
+
+      /* Copy one representative of each form pair into cl->form and         */
+      /* determine the embeddings; by the way forms are ordered, conjugate   */
+      /* forms are consecutive, and the one with negative b comes first.     */
+      j = 0;
+      for (i = 0; i < h; i++) {
+         if (Cl [i].b < 0) {
+            /* pair of conjugate forms, skip the one with negative b */
+            i++;
+            Cl [i].emb = complex;
+         }
+         else
+            Cl [i].emb = real;
+         cl->form [j] = Cl [i];
+         j++;
+      }
+
+      cm_classgroup_avl_delete (t);
+      free (Cl);
    }
 }
 
@@ -711,6 +792,226 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
 
 /*****************************************************************************/
 /*                                                                           */
+/* functions implementing avl trees on classgroup elements                   */
+/*                                                                           */
+/*****************************************************************************/
+
+static int avl_cmp (cm_form_t P, cm_form_t Q)
+   /* Returns -1, 0 or 1, depending on whether P is smaller than, equal to   */
+   /* or larger than Q. Uses the lexicographical order on (a, |b|), and      */
+   /* breaks ties by putting the negative b first.                           */
+
+{
+   if (P.a < Q.a)
+      return -1;
+   else if (P.a > Q.a)
+      return 1;
+   else if (P.b == Q.b)
+      return 0;
+   else {
+      /* the same a, different b */
+      int_cl_t Pbabs = (P.b < 0 ? -P.b : P.b);
+      int_cl_t Qbabs = (Q.b < 0 ? -Q.b : Q.b);
+      if (Pbabs < Qbabs)
+         return -1;
+      else if (Pbabs > Qbabs)
+         return 1;
+      else if (P.b < 0 && Q.b > 0)
+         return -1;
+      else /* P.b > 0 && Q.b < 0 */
+         return 1;
+   }
+}
+
+/*****************************************************************************/
+
+static bool avl_insert_rec (cm_avl_t **t, cm_form_t c, bool *ok)
+   /* Recursive function doing the work; the return value indicates whether  */
+   /* the branch has become longer, so that rebalancing is needed.           */
+
+{
+   bool rebalance;
+   int cmp;
+   cm_avl_t *y, *x, *w;
+      /* notations as in the GNU libavl book by Ben Pfaff */
+
+   y = *t;
+   if (y == NULL) {
+      *t = (cm_avl_t *) malloc (sizeof (cm_avl_t));
+      (*t)->l = NULL;
+      (*t)->r = NULL;
+      (*t)->b = 0;
+      (*t)->c = c;
+      *ok = true;
+      return true;
+   }
+
+   cmp = avl_cmp (c, y->c);
+   if (cmp == 0) {
+      *ok = false;
+      return false;
+   }
+   else if (cmp < 0) {
+      /* insert into the left subtree */
+      rebalance = avl_insert_rec (&(y->l), c, ok);
+      if (rebalance) {
+         /* left subtree has become longer */
+         switch (y->b) {
+            case 1: /* right branch was longer, balanced now */
+               y->b = 0;
+               return false;
+            case 0: /* now left branch is longer, rebalance needed */
+               y->b = -1;
+               return true;
+            default: /* now left branch is longer by 2, rotations needed */
+               x = y->l;
+               if (x->b == -1) {
+                  /* rotate right at y */
+                  y->l = x->r;
+                  x->r = y;
+                  *t = x;
+                  /* update balance factor */
+                  y->b = 0;
+                  x->b = 0;
+               }
+               else {
+                  /* x->b == 1; rotate left at x, then right at y */
+                  w = x->r;
+                  x->r = w->l;
+                  y->l = w->r;
+                  w->l = x;
+                  w->r = y;
+                  *t = w;
+                  if (w->b == 1)
+                     x->b = -1;
+                  else
+                     x->b = 0;
+                  if (w->b == -1)
+                     y->b = 1;
+                  else
+                     y->b = 0;
+                  w->b = 0;
+               }
+               /* everything is balanced now */
+               return false;
+         }
+      }
+      else /* left subtree has same length as before */
+         return false;
+   }
+   else {
+      /* c > y->c, insert into the right subtree and balance by symmetry */
+      rebalance = avl_insert_rec (&(y->r), c, ok);
+      if (rebalance) {
+         switch (y->b) {
+            case -1:
+               y->b = 0;
+               return false;
+            case 0:
+               y->b = 1;
+               return true;
+            default:
+               x = y->r;
+               if (x->b == 1) {
+                  y->r = x->l;
+                  x->l = y;
+                  *t = x;
+                  y->b = 0;
+                  x->b = 0;
+               }
+               else {
+                  w = x->l;
+                  x->l = w->r;
+                  y->r = w->l;
+                  w->r = x;
+                  w->l = y;
+                  *t = w;
+                  if (w->b == -1)
+                     x->b = 1;
+                  else
+                     x->b = 0;
+                  if (w->b == 1)
+                     y->b = -1;
+                  else
+                     y->b = 0;
+                  w->b = 0;
+               }
+               return false;
+         }
+      }
+      else
+         return false;
+   }
+}
+
+/*****************************************************************************/
+
+bool cm_classgroup_avl_insert (cm_avl_t **t, cm_form_t c)
+   /* Tries to insert a new element c into the tree t; returns FALSE if the  */
+   /* element is already contained in the tree, TRUE otherwise (indicating   */
+   /* that an insertion has indeed taken place).                             */
+
+{
+   bool ok;
+   avl_insert_rec (t, c, &ok);
+   return ok;
+}
+
+/*****************************************************************************/
+
+int cm_classgroup_avl_count (cm_avl_t *t)
+   /* returns the number of entries in t */
+
+{
+   if (t == NULL)
+      return 0;
+   else
+      return cm_classgroup_avl_count (t->l)
+         + cm_classgroup_avl_count (t->r) + 1;
+}
+
+/*****************************************************************************/
+
+static int avl_flatten_rec (cm_form_t **list, cm_avl_t *t, int pos)
+   /* Returns the content of t as an ordered array from position pos in      */
+   /* list, which needs to provide the necessary space. The return value is  */
+   /* the next free index.                                                   */
+
+{
+   if (t == NULL)
+      return pos;
+   else {
+      pos = avl_flatten_rec (list, t->l, pos);
+      (*list)[pos] = t->c;
+      pos++;
+      return avl_flatten_rec (list, t->r, pos);
+   }
+}
+
+/*****************************************************************************/
+
+void cm_classgroup_avl_flatten (cm_form_t **list, cm_avl_t *t)
+   /* Returns the content of t as an ordered array in list, which needs to   */
+   /* provide the necessary space.                                           */
+
+{
+   avl_flatten_rec (list, t, 0);
+}
+
+/*****************************************************************************/
+
+void cm_classgroup_avl_delete (cm_avl_t *t)
+
+{
+   if (t != NULL) {
+      cm_classgroup_avl_delete (t->l);
+      cm_classgroup_avl_delete (t->r);
+      free (t);
+   }
+}
+
+/*****************************************************************************/
+/*                                                                           */
 /* functions for computing in the class group                                */
 /*                                                                           */
 /*****************************************************************************/
@@ -823,8 +1124,8 @@ void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1, cm_form_t Q2,
 /*****************************************************************************/
 
 cm_form_t cm_classgroup_prime_form (int_cl_t p, int_cl_t d)
-   /* Assumes that p is a ramified or split prime and returns the prime form */
-   /* above p with non-negative b.                                           */
+   /* Assumes that p is a ramified or split prime and returns the reduction  */
+   /* of the prime form above p with non-negative b.                         */
 
 {
    cm_form_t Q;
@@ -848,6 +1149,8 @@ cm_form_t cm_classgroup_prime_form (int_cl_t p, int_cl_t d)
       Q.emb = real;
    else
       Q.emb = complex;
+
+   cm_classgroup_reduce (&Q, d);
 
    return Q;
 }
