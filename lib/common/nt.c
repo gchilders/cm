@@ -403,61 +403,48 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
    /* computes a square root of a modulo q=p^n, first modulo p by the        */
    /* Tonelli-Shanks algorithm, see Cohen, Algorithm 1.5., then doing a      */
    /* Hensel lift                                                            */
-   /* Tests also for a=0.                                                    */
 
 {
-   static mpz_t        local_p, pm1, z;
-   mpz_t               y, x, b, tmp, tmp2, p_i;
-   static unsigned int e;
-   unsigned long int   r, m;
-   static bool         first_time = true;
+   mpz_t             pm1, z;
+   mpz_t             a_local, y, x, b, tmp, tmp2, p_i;
+   unsigned int      e;
+   unsigned long int r, m;
 
-   if (mpz_cmp_ui (a, 0ul) == 0)
-   {
+   mpz_init (a_local);
+   mpz_tdiv_r (a_local, a, q);
+   if (mpz_cmp_ui (a_local, 0ul) == 0) {
       mpz_set_ui (root, 0ul);
       return;
    }
 
+   mpz_init (pm1);
+   mpz_init (z);
    mpz_init (y);
    mpz_init (x);
    mpz_init (b);
    mpz_init (tmp);
    mpz_init (tmp2);
    mpz_init (p_i);
-   if (first_time)
-   {
-      mpz_init_set_ui (local_p, 0ul);
-      mpz_init (pm1);
-      mpz_init (z);
-      first_time = false;
+
+   mpz_sub_ui (pm1, p, 1ul);
+   e = 0;
+   while (mpz_divisible_2exp_p (pm1, 1ul) != 0) {
+      mpz_tdiv_q_2exp (pm1, pm1, 1ul);
+      e++;
    }
-   if (mpz_cmp (p, local_p) != 0)
-   {
-      mpz_set (local_p, p);
-      mpz_sub_ui (pm1, p, 1ul);
-      e = 0;
-      while (mpz_divisible_2exp_p (pm1, 1ul) != 0)
-      {
-         mpz_tdiv_q_2exp (pm1, pm1, 1ul);
-         e++;
-      }
-      if (e > 1)
-      {
-         /* find generator of the 2-Sylow group */
-         for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
-                mpz_add_ui (z, z, 1ul));
-         mpz_powm (z, z, pm1, p);
-      }
+   if (e > 1) {
+      /* find generator of the 2-Sylow group */
+      for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
+               mpz_add_ui (z, z, 1ul));
+      mpz_powm (z, z, pm1, p);
    }
 
-   if (e == 1) /* p=3 (mod 8) */
-   {
+   if (e == 1) /* p=3 (mod 8) */ {
       mpz_add_ui (tmp, p, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 2ul);
-      mpz_powm (x, a, tmp, p);
+      mpz_powm (x, a_local, tmp, p);
    }
-   else
-   {
+   else {
       /* initialisation */
       mpz_set (y, z);
       r = e;
@@ -465,22 +452,19 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
       mpz_tdiv_q_2exp (tmp, tmp, 1ul);
       mpz_powm (x, a, tmp, p);
       mpz_powm_ui (b, x, 2ul, p);
-      mpz_mul (b, b, a);
+      mpz_mul (b, b, a_local);
       mpz_mod (b, b, p);
-      mpz_mul (x, x, a);
+      mpz_mul (x, x, a_local);
       mpz_mod (x, x, p);
-      while (mpz_cmp_ui (b, 1ul) != 0)
-      {
+      while (mpz_cmp_ui (b, 1ul) != 0) {
          /* find exponent */
          m = 1;
          mpz_powm_ui (tmp, b, 2ul, p);
-         while (mpz_cmp_ui (tmp, 1ul) != 0)
-         {
+         while (mpz_cmp_ui (tmp, 1ul) != 0) {
             m++;
             mpz_powm_ui (tmp, tmp, 2ul, p);
          }
-         if (m == r)
-         {
+         if (m == r) {
             printf ("*** mpz_tonelli called with a = ");
             mpz_out_str (stdout, 10, a);
             printf (" and p = ");
@@ -501,12 +485,11 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
 
    mpz_set (p_i, p);
 
-   while (mpz_cmp (p_i, q) < 0)
-   {
+   while (mpz_cmp (p_i, q) < 0) {
       /* The root x is known modulo p_i, refine by Hensel for p_i^2. */
       mpz_mod (x, x, p_i);
       mpz_pow_ui (tmp, x, 2ul);
-      mpz_sub (tmp, tmp, a);
+      mpz_sub (tmp, tmp, a_local);
       mpz_divexact (tmp, tmp, p_i);
 
       mpz_mul_2exp (tmp2, x, 1ul);
@@ -522,6 +505,9 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
 
    mpz_mod (root, x, q);
 
+   mpz_clear (a_local);
+   mpz_clear (pm1);
+   mpz_clear (z);
    mpz_clear (y);
    mpz_clear (x);
    mpz_clear (b);

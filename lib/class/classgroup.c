@@ -182,8 +182,11 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
          /* select next prime form */
          do {
             p = (int_cl_t) cm_nt_next_prime ((unsigned long int) p);
+            printf ("- [%"PRIicl"]\n", p);
          } while (cm_classgroup_kronecker (disc, p) == -1);
+         printf ("+ [%"PRIicl"]\n", p);
          P = cm_classgroup_prime_form (p, disc);
+         printf ("   [%"PRIicl", %"PRIicl"]\n", P.a, P.b);
 
          /* determine its relative order through inserting its powers into   */
          /* the tree                                                         */
@@ -349,7 +352,7 @@ uint_cl_t cm_classgroup_mod (int_cl_t a, uint_cl_t p)
       /* returns a representative of a % p in [0, p-1[ */
 
 {
-   int_cl_t res = a % p;
+   int_cl_t res = a % (int_cl_t) p;
    return (res < 0 ? res + (int_cl_t) p : res);
 }
 
@@ -441,15 +444,14 @@ static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
 
 int cm_classgroup_kronecker (int_cl_t a, int_cl_t b)
    /* computes the Kronecker symbol (a / b) following Algorithm 1.4.12       */
-   /* in Cohen (by the binary algorithm)                                     */
+   /* in Cohen93 (by the binary algorithm)                                   */
 {
    const int tab [8] = {0, 1, 0, -1, 0, -1, 0, 1};
    int k;
    int_cl_t r;
 
    /* step 1 */
-   if (b == 0)
-   {
+   if (b == 0) {
       if (a == 1 || a == -1)
          return 1;
       else
@@ -462,44 +464,34 @@ int cm_classgroup_kronecker (int_cl_t a, int_cl_t b)
 
    while (b % 4 == 0)
       b >>= 2;
-   if (b % 2 == 0)
-   {
+   if (b % 2 == 0) {
       b >>= 1;
-      k = tab [a & 7];
+      k = tab [cm_classgroup_mod (a, (uint_cl_t) 8)];
    }
    else
       k = 1;
 
-   if (b < 0)
-   {
+   if (b < 0) {
       b = -b;
       if (a < 0)
          k = -k;
    }
 
-   /* step 3 and added test; here, b is already odd */
-   if (a < 0)
-   {
-      a = -a;
-      if (b & 2)
-         k = -k;
-   }
-   a %= b;
+   /* step 3 */
+   a = cm_classgroup_mod (a, b);
 
    /* steps 4 to 6 */
-   while (a != 0)
-   {
+   while (a != 0) {
       while (a % 4 == 0)
          a >>= 2;
-      if (a % 2 == 0)
-      {
+      if (a % 2 == 0) {
          a >>= 1;
-         k *= tab [b & 7];
+         k *= tab [cm_classgroup_mod (b, (uint_cl_t) 8)];
       }
-      if (b > a)
-      {
+      if (b > a) {
          r = b - a;
-         if (a & b & 2)
+         if (   cm_classgroup_mod (a, (uint_cl_t) 4) == 3
+             && cm_classgroup_mod (b, (uint_cl_t) 4) == 3)
             k = -k;
          b = a;
          a = r;
