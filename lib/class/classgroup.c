@@ -156,7 +156,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
          cm_classgroup_compose (&Ppow, Ppow, P, disc);
          relo++;
       }
-      if (relo > 1)
+      if (verbose && relo > 1)
          printf ("   [%"PRIicl", %"PRIicl"]: %i\n", P.a, P.b, relo);
 
       /* Multiply all other forms by the powers of P and insert them into  */
