@@ -61,7 +61,8 @@ AC_C_CONST
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_CHECK_LIB([m], [sqrt])
+AC_CHECK_LIB([m], [sqrt], , AC_MSG_ERROR([libm not found.]))
+AC_CHECK_LIB([z], [gzopen], , AC_MSG_ERROR([libz not found.]))
 AC_CHECK_FUNCS([sqrt])
 
 # Checks if compiler accepts warning flags.
