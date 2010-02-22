@@ -107,7 +107,7 @@ extern mpz_t* cm_ntl_find_roots (mpz_t *f, int deg, mpz_t p, int *no);
 /* functions for classgroups of imaginary-quadratic number fields */
 
 extern void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc,
-   bool checkpoints, bool verbose);
+   bool verbose);
 extern void cm_classgroup_clear (cm_classgroup_t *cl);
 
 extern void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op);

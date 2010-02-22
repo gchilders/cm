@@ -28,8 +28,6 @@ static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
 static int_cl_t classgroup_tonelli (int_cl_t a, int_cl_t p);
 static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
    uint_cl_t *cond_primes, unsigned int *cond_exp);
-static void classgroup_write (cm_classgroup_t cl);
-static bool classgroup_read (cm_classgroup_t cl);
 static int avl_cmp (cm_form_t P, cm_form_t Q);
 static bool avl_insert_rec (cm_avl_t **t, cm_form_t c, bool *ok);
 static int avl_flatten_rec (cm_form_t **list, cm_avl_t *t, int pos);
@@ -96,12 +94,21 @@ int_cl_t cm_classgroup_mpz_get_icl (mpz_t op)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
-   bool verbose)
-   /* If checkpoints is true, then the function tries to read the         */
-   /* class group from a file and writes the result to a file             */
+void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
 
 {
+   int h;
+   cm_form_t *Cl;
+      /* class number and class group as far as they are already computed */
+   cm_avl_t *t;
+      /* avl tree of forms in Cl */
+   int_cl_t p;
+   cm_form_t P, Ppow;
+      /* prime, form above it and powers of the form */
+   int relo;
+      /* relative order of the prime form modulo Cl */
+   int i, j;
+
    if (disc >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
       exit (1);
@@ -120,117 +127,68 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
       printf ("Class numbers: h = %d, h1 = %d, h2 = %d\n",
          cl->h, cl->h1, cl->h2);
 
-#if 0
-   if (!checkpoints || !classgroup_read (*cl)) {
-      int k;
-      int_cl_t a, b, c;
+   /* computation of the class group */
+   Cl = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
+   P.a = 1;
+   P.b = (disc % 2 == 0 ? 0 : 1);
+   t = NULL;
+   cm_classgroup_avl_insert (&t, P);
+   h = 1;
+   Cl [0] = P;
 
-      k = 0;
-      for (a = 1; a*a <= (-cl->d) / 3; a++) {
-         if (cl->d % 2 == 0)
-            b = 0;
-         else
-            b = 1;
-         for (; b <= a; b += 2) {
-            if ((b*b - cl->d) % (4*a) == 0) {
-               c = ((b*b - cl->d) / (4*a));
-               if (c >= a) {
-                  if (cm_classgroup_gcd (cm_classgroup_gcd (a, b), c) == 1) {
-                     /* we have a primitive reduced form */
-                     cl->form [k].a = a;
-                     cl->form [k].b = b;
-                     if (b == 0 || b == a || a == c)
-                        cl->form [k].emb = real;
-                     else
-                        cl->form [k].emb = complex;
-                     k++;
-                  }
-               }
-            }
-         }
+   p = (int_cl_t) 1;
+   while (h < cl->h) {
+      /* select next prime form */
+      do {
+         p = (int_cl_t) cm_nt_next_prime ((unsigned long int) p);
+      } while (cm_classgroup_kronecker (disc, p) == -1);
+      P = cm_classgroup_prime_form (p, disc);
+
+      /* determine its relative order through inserting its powers into   */
+      /* the tree                                                         */
+      Ppow = P;
+      relo = 1;
+      while (cm_classgroup_avl_insert (&t, Ppow)) {
+         cm_classgroup_compose (&Ppow, Ppow, P, disc);
+         relo++;
       }
+      if (relo > 1)
+         printf ("   [%"PRIicl", %"PRIicl"]: %i\n", P.a, P.b, relo);
 
-      if (checkpoints)
-         classgroup_write (*cl);
-   }
-#endif
-
-   {
-      int h;
-      cm_form_t *Cl;
-         /* class number and class group as far as they are already computed */
-      cm_avl_t *t;
-         /* avl tree of forms in Cl */
-      int_cl_t p;
-      cm_form_t P, Ppow;
-         /* prime, form above it and powers of the form */
-      int relo;
-         /* relative order of the prime form modulo Cl */
-      int i, j;
-
-      /* computation of the class group */
-      Cl = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
-      P.a = 1;
-      P.b = (disc % 2 == 0 ? 0 : 1);
-      t = NULL;
-      cm_classgroup_avl_insert (&t, P);
-      h = 1;
-      Cl [0] = P;
-
-      p = (int_cl_t) 1;
-      while (h < cl->h) {
-         /* select next prime form */
-         do {
-            p = (int_cl_t) cm_nt_next_prime ((unsigned long int) p);
-         } while (cm_classgroup_kronecker (disc, p) == -1);
-         P = cm_classgroup_prime_form (p, disc);
-
-         /* determine its relative order through inserting its powers into   */
-         /* the tree                                                         */
-         Ppow = P;
-         relo = 1;
-         while (cm_classgroup_avl_insert (&t, Ppow)) {
+      /* Multiply all other forms by the powers of P and insert them into  */
+      /* the tree. Cl[0] contains the principal form, which is already     */
+      /* handled.                                                          */
+      for (i = 1; i < h; i++) {
+         Ppow = Cl [i];
+         for (j = 1; j < relo; j++) {
             cm_classgroup_compose (&Ppow, Ppow, P, disc);
-            relo++;
+            cm_classgroup_avl_insert (&t, Ppow);
          }
-         if (relo > 1)
-            printf ("   [%"PRIicl", %"PRIicl"]: %i\n", P.a, P.b, relo);
-
-         /* Multiply all other forms by the powers of P and insert them into  */
-         /* the tree. Cl[0] contains the principal form, which is already     */
-         /* handled.                                                          */
-         for (i = 1; i < h; i++) {
-            Ppow = Cl [i];
-            for (j = 1; j < relo; j++) {
-               cm_classgroup_compose (&Ppow, Ppow, P, disc);
-               cm_classgroup_avl_insert (&t, Ppow);
-            }
-         }
-
-         h *= relo;
-         /* copy tree content into array */
-         cm_classgroup_avl_flatten (&Cl, t);
       }
 
-      /* Copy one representative of each form pair into cl->form and         */
-      /* determine the embeddings; by the way forms are ordered, conjugate   */
-      /* forms are consecutive, and the one with negative b comes first.     */
-      j = 0;
-      for (i = 0; i < h; i++) {
-         if (Cl [i].b < 0) {
-            /* pair of conjugate forms, skip the one with negative b */
-            i++;
-            Cl [i].emb = complex;
-         }
-         else
-            Cl [i].emb = real;
-         cl->form [j] = Cl [i];
-         j++;
-      }
-
-      cm_classgroup_avl_delete (t);
-      free (Cl);
+      h *= relo;
+      /* copy tree content into array */
+      cm_classgroup_avl_flatten (&Cl, t);
    }
+
+   /* Copy one representative of each form pair into cl->form and         */
+   /* determine the embeddings; by the way forms are ordered, conjugate   */
+   /* forms are consecutive, and the one with negative b comes first.     */
+   j = 0;
+   for (i = 0; i < h; i++) {
+      if (Cl [i].b < 0) {
+         /* pair of conjugate forms, skip the one with negative b */
+         i++;
+         Cl [i].emb = complex;
+      }
+      else
+         Cl [i].emb = real;
+      cl->form [j] = Cl [i];
+      j++;
+   }
+
+   cm_classgroup_avl_delete (t);
+   free (Cl);
 }
 
 /*****************************************************************************/
@@ -239,105 +197,6 @@ void cm_classgroup_clear (cm_classgroup_t *cl)
 
 {
    free (cl->form);
-}
-
-/*****************************************************************************/
-/*                                                                           */
-/* file handling functions                                                   */
-/*                                                                           */
-/*****************************************************************************/
-
-static void classgroup_write (cm_classgroup_t cl)
-   /* writes the classgroup to the file                                      */
-   /* CLASS_TMPDIR + "/tmp_" + d + "_classgroup.dat"                         */
-
-{
-   char filename [255];
-   FILE *f;
-   int i;
-
-   sprintf (filename, "%s/tmp_%"PRIicl"_classgroup.dat", CM_CLASS_TMPDIR, -cl.d);
-
-   if (!cm_file_open_write (&f, filename))
-      exit (1);
-
-   fprintf (f, "%"PRIicl"\n", -cl.d);
-   fprintf (f, "%i\n", cl.h);
-   fprintf (f, "%i\n", cl.h1);
-   fprintf (f, "%i\n", cl.h2);
-
-   for (i = 0; i < cl.h12; i++)
-      fprintf (f, "%"PRIicl" %"PRIicl"\n",
-         cl.form [i].a, cl.form [i].b);
-
-   cm_file_close (f);
-}
-
-/*****************************************************************************/
-
-bool classgroup_read (cm_classgroup_t cl)
-   /* reads the classgroup from the file                                     */
-   /* CLASS_TMPDIR + "/tmp_" + d + "_classgroup.dat"                         */
-   /* If an error occurs, the return value is false.                         */
-
-{
-   char filename [255];
-   FILE* f;
-   int i;
-   int_cl_t disc;
-
-   sprintf (filename, "%s/tmp_%"PRIicl"_classgroup.dat", CM_CLASS_TMPDIR, -cl.d);
-
-   if (!cm_file_open_read (&f, filename))
-      return false;
-
-   if (!fscanf (f, "%"SCNicl"\n", &disc))
-      return false;
-   if (-disc != cl.d) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** discriminant %"PRIicl" instead of %"PRIicl"\n", -disc, cl.d);
-      exit (1);
-   }
-   if (!fscanf (f, "%i", &i))
-      return false;
-   if (i != cl.h) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** h equals %i instead of %i\n", i, cl.h);
-      exit (1);
-   }
-   if (!fscanf (f, "%i", &i))
-      return false;
-   if (i != cl.h1) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** h1 equals %i instead of %i\n", i, cl.h1);
-      exit (1);
-   }
-   if (!fscanf (f, "%i", &i))
-      return false;
-   if (i != cl.h2) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** h2 equals %i instead of %i\n", i, cl.h2);
-      exit (1);
-   }
-
-   for (i = 0; i < cl.h12; i++) {
-      if (!fscanf (f, "%"SCNicl" %"SCNicl,
-           &(cl.form [i].a), &(cl.form [i].b)))
-         return false;
-      if (cl.form [i].b == 0 || cl.form [i].b == cl.form [i].a
-          || cl.form [i].a == ((cl.form [i].b*cl.form [i].b - cl.d) / (4*cl.form [i].a)))
-         cl.form [i].emb = real;
-      else
-         cl.form [i].emb = complex;
-   }
-
-   cm_file_close (f);
-
-   return true;
 }
 
 /*****************************************************************************/

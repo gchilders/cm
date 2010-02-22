@@ -1000,7 +1000,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    cm_timer_start (clock_global);
 
    cm_timer_start (clock_local);
-   cm_classgroup_init (&cl, c.d, checkpoints, verbose);
+   cm_classgroup_init (&cl, c.d, verbose);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
@@ -1013,7 +1013,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
       /* also compute class group for order of conductor less by a factor    */
       /* of 2                                                                */
       cm_timer_start (clock_local);
-      cm_classgroup_init (&cl2, c.d / 4, checkpoints, verbose);
+      cm_classgroup_init (&cl2, c.d / 4, verbose);
       cm_timer_stop (clock_local);
       if (verbose)
          printf ("--- Time for class group2: %.1f\n", cm_timer_get (clock_local));
