@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
    int_cl_t b);
+static int_cl_t classgroup_tonelli (int_cl_t a, int_cl_t p);
 static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
    uint_cl_t *cond_primes, unsigned int *cond_exp);
 static void classgroup_write (cm_classgroup_t cl);
@@ -433,6 +434,29 @@ int cm_classgroup_kronecker (int_cl_t a, int_cl_t b)
 }
 
 /*****************************************************************************/
+
+static int_cl_t classgroup_tonelli (int_cl_t a, int_cl_t p)
+{
+   mpz_t az, pz, rz;
+   int_cl_t r;
+
+   mpz_init (az);
+   mpz_init (pz);
+   mpz_init (rz);
+
+   cm_classgroup_mpz_set_icl (az, a);
+   cm_classgroup_mpz_set_icl (pz, p);
+   cm_nt_mpz_tonelli_z (rz, az, pz, pz);
+   r = cm_classgroup_mpz_get_icl (rz);
+
+   mpz_clear (az);
+   mpz_clear (pz);
+   mpz_clear (rz);
+
+   return r;
+}
+
+/*****************************************************************************/
 /*                                                                           */
 /* functions computing fundamental discriminants, conductors and class       */
 /* numbers                                                                   */
@@ -796,4 +820,37 @@ void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1, cm_form_t Q2,
    cm_classgroup_reduce (Q, d);
 }
 
+/*****************************************************************************/
+
+cm_form_t cm_classgroup_prime_form (int_cl_t p, int_cl_t d)
+   /* Assumes that p is a ramified or split prime and returns the prime form */
+   /* above p with non-negative b.                                           */
+
+{
+   cm_form_t Q;
+
+   Q.a = p;
+   if (p == 2)
+      if (d % 8 == 0)
+         Q.b = 0;
+      else if ((d - 4) % 8 == 0)
+         Q.b = 2;
+      else
+         Q.b = 1;
+   else {
+      Q.b = classgroup_tonelli (d, p);
+      /* fix parity of b */
+      if ((d + Q.b) % 2 != 0)
+         Q.b += p;
+   }
+
+   if (d % p == 0)
+      Q.emb = real;
+   else
+      Q.emb = complex;
+
+   return Q;
+}
+
+/*****************************************************************************/
 /*****************************************************************************/

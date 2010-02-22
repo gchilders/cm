@@ -23,7 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm_common-impl.h"
 
-static void nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q);
 static void nt_elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
    mpz_t a, mpz_t p);
 static void nt_elliptic_curve_add (mpz_t P_x,  mpz_t P_y, bool *P_infty,
@@ -400,7 +399,7 @@ void cm_nt_factor (long int d, unsigned long int *factors,
 
 /*****************************************************************************/
 
-static void nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
+void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
    /* computes a square root of a modulo q=p^n, first modulo p by the        */
    /* Tonelli-Shanks algorithm, see Cohen, Algorithm 1.5., then doing a      */
    /* Hensel lift                                                            */
@@ -540,7 +539,7 @@ void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p, mpz_t q)
    mpz_t tmp_a;
 
    mpz_init_set_si (tmp_a, a);
-   nt_mpz_tonelli_z (root, tmp_a, p, q);
+   cm_nt_mpz_tonelli_z (root, tmp_a, p, q);
    mpz_clear (tmp_a);
 }
 
@@ -741,7 +740,7 @@ void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
       if (mpz_jacobi (P_y, p) != -1)
       {
          mpz_set_ui (P_x, P_x_long);
-         nt_mpz_tonelli_z (P_y, P_y, p, p);
+         cm_nt_mpz_tonelli_z (P_y, P_y, p, p);
          /* get rid of the cofactor */
          P_infty = false;
          cm_nt_elliptic_curve_multiply (P_x, P_y, &P_infty, cofactor, a, p);
