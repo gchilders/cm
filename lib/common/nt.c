@@ -399,21 +399,21 @@ void cm_nt_factor (long int d, unsigned long int *factors,
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
-   /* computes a square root of a modulo q=p^n, first modulo p by the        */
-   /* Tonelli-Shanks algorithm, see Cohen, Algorithm 1.5., then doing a      */
-   /* Hensel lift                                                            */
+void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p)
+   /* computes a square root of a modulo p by the Tonelli-Shanks algorithm,  */
+   /* see Cohen93, Algorithm 1.5.                                            */
 
 {
    mpz_t             pm1, z;
-   mpz_t             a_local, y, x, b, tmp, tmp2, p_i;
+   mpz_t             a_local, y, x, b, tmp;
    unsigned int      e;
    unsigned long int r, m;
 
    mpz_init (a_local);
-   mpz_tdiv_r (a_local, a, q);
+   mpz_tdiv_r (a_local, a, p);
    if (mpz_cmp_ui (a_local, 0ul) == 0) {
       mpz_set_ui (root, 0ul);
+      mpz_clear (a_local);
       return;
    }
 
@@ -423,8 +423,6 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
    mpz_init (x);
    mpz_init (b);
    mpz_init (tmp);
-   mpz_init (tmp2);
-   mpz_init (p_i);
 
    mpz_sub_ui (pm1, p, 1ul);
    e = 0;
@@ -450,7 +448,7 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
       r = e;
       mpz_sub_ui (tmp, pm1, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 1ul);
-      mpz_powm (x, a, tmp, p);
+      mpz_powm (x, a_local, tmp, p);
       mpz_powm_ui (b, x, 2ul, p);
       mpz_mul (b, b, a_local);
       mpz_mod (b, b, p);
@@ -483,27 +481,7 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
       }
    }
 
-   mpz_set (p_i, p);
-
-   while (mpz_cmp (p_i, q) < 0) {
-      /* The root x is known modulo p_i, refine by Hensel for p_i^2. */
-      mpz_mod (x, x, p_i);
-      mpz_pow_ui (tmp, x, 2ul);
-      mpz_sub (tmp, tmp, a_local);
-      mpz_divexact (tmp, tmp, p_i);
-
-      mpz_mul_2exp (tmp2, x, 1ul);
-      mpz_invert (tmp2, tmp2, p_i);
-      mpz_mul (tmp, tmp, tmp2);
-      mpz_mod (tmp, tmp, p_i);
-
-      mpz_mul (tmp, tmp, p_i);
-      mpz_sub (x, x, tmp);
-
-      mpz_pow_ui (p_i, p_i, 2ul);
-   }
-
-   mpz_mod (root, x, q);
+   mpz_set (root, x);
 
    mpz_clear (a_local);
    mpz_clear (pm1);
@@ -512,20 +490,18 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q)
    mpz_clear (x);
    mpz_clear (b);
    mpz_clear (tmp);
-   mpz_clear (tmp2);
-   mpz_clear (p_i);
 }
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p, mpz_t q)
-   /* computes a square root of a modulo q=p^n */
+void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p)
+   /* computes a square root of a modulo p */
 
 {
    mpz_t tmp_a;
 
    mpz_init_set_si (tmp_a, a);
-   cm_nt_mpz_tonelli_z (root, tmp_a, p, q);
+   cm_nt_mpz_tonelli_z (root, tmp_a, p);
    mpz_clear (tmp_a);
 }
 
@@ -726,7 +702,7 @@ void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
       if (mpz_jacobi (P_y, p) != -1)
       {
          mpz_set_ui (P_x, P_x_long);
-         cm_nt_mpz_tonelli_z (P_y, P_y, p, p);
+         cm_nt_mpz_tonelli_z (P_y, P_y, p);
          /* get rid of the cofactor */
          P_infty = false;
          cm_nt_elliptic_curve_multiply (P_x, P_y, &P_infty, cofactor, a, p);

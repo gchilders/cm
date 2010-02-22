@@ -120,8 +120,8 @@ extern long int cm_nt_sqrt (const unsigned long int n);
 extern void cm_nt_factor (long int d, unsigned long int *factors,
    unsigned int *exponents);
 
-extern void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p, mpz_t q);
-extern void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p, mpz_t q);
+extern void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p);
+extern void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p);
 
 extern void cm_nt_elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
    mpz_t m, mpz_t a, mpz_t p);

@@ -1292,7 +1292,7 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
       /* compute the second element of the integral basis modulo P */
       cm_timer_start (clock);
       fund = cm_classgroup_fundamental_discriminant (c.d);
-      cm_nt_mpz_tonelli (omega, fund, P, P);
+      cm_nt_mpz_tonelli (omega, fund, P);
       cm_timer_stop (clock);
       if (verbose)
          printf ("--- Time for square root: %.1f\n", cm_timer_get (clock));

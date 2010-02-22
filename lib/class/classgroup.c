@@ -182,11 +182,8 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
          /* select next prime form */
          do {
             p = (int_cl_t) cm_nt_next_prime ((unsigned long int) p);
-            printf ("- [%"PRIicl"]\n", p);
          } while (cm_classgroup_kronecker (disc, p) == -1);
-         printf ("+ [%"PRIicl"]\n", p);
          P = cm_classgroup_prime_form (p, disc);
-         printf ("   [%"PRIicl", %"PRIicl"]\n", P.a, P.b);
 
          /* determine its relative order through inserting its powers into   */
          /* the tree                                                         */
@@ -196,7 +193,8 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool checkpoints,
             cm_classgroup_compose (&Ppow, Ppow, P, disc);
             relo++;
          }
-         printf ("   [%"PRIicl", %"PRIicl"]: %i\n", P.a, P.b, relo);
+         if (relo > 1)
+            printf ("   [%"PRIicl", %"PRIicl"]: %i\n", P.a, P.b, relo);
 
          /* Multiply all other forms by the powers of P and insert them into  */
          /* the tree. Cl[0] contains the principal form, which is already     */
@@ -519,7 +517,7 @@ static int_cl_t classgroup_tonelli (int_cl_t a, int_cl_t p)
 
    cm_classgroup_mpz_set_icl (az, a);
    cm_classgroup_mpz_set_icl (pz, p);
-   cm_nt_mpz_tonelli_z (rz, az, pz, pz);
+   cm_nt_mpz_tonelli_z (rz, az, pz);
    r = cm_classgroup_mpz_get_icl (rz);
 
    mpz_clear (az);
