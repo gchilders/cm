@@ -141,7 +141,11 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       /* select next prime form */
       do {
          p = (int_cl_t) cm_nt_next_prime ((unsigned long int) p);
-      } while (cm_classgroup_kronecker (disc, p) == -1);
+      } while (cm_classgroup_kronecker (disc, p) == -1 ||
+           /* avoid primes dividing the conductor */
+           (cm_classgroup_mod (disc, p*p) == 0
+            && (   cm_classgroup_mod (disc / (p*p), (uint_cl_t) 4) == 1
+                || cm_classgroup_mod (disc / (p*p), (uint_cl_t) 4) == 0)));
       P = cm_classgroup_prime_form (p, disc);
 
       /* determine its relative order through inserting its powers into   */
