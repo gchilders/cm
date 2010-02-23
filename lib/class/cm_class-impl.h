@@ -2,7 +2,7 @@
 
 cm_class-impl.h - header file for internal use of the cm_class library
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 

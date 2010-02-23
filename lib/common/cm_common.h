@@ -2,7 +2,7 @@
 
 cm_common.h - header file for the cm_common library
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -141,8 +141,11 @@ extern void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 extern void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op);
 extern void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
    unsigned long int l, unsigned long int r);
-extern void cm_modular_atkinhecke_level_eval (cm_modular_t m, mpc_t rop, mpc_t op,
-   unsigned long int l);
+extern void cm_modular_atkinhecke_level_eval (cm_modular_t m, mpc_t rop,
+   mpc_t op, unsigned long int l);
+
+/* functions for evaluating modular functions using the AGM */
+extern void cm_fem_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
 
 /* functions reading modular polynomials */
 extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,

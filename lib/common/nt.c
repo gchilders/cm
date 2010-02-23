@@ -2,7 +2,7 @@
 
 nt.c - number theoretic helper functions
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 

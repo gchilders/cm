@@ -2,7 +2,7 @@
 
 modclass.c - code for evaluating modular functions in quadratic arguments
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -27,14 +27,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
    (b >= 0) ? mpz_sub_ui (c, a, (unsigned long int) b) \
             : mpz_add_ui (c, a, (unsigned long int) (-b))
 
+static void cm_modclass_mpc_set_quadratic (mpc_t rop,
+   int_cl_t a, int_cl_t b, mpfr_t root);
 static void write_q24eta (mpc_t *q24eta, cm_classgroup_t cl,
    mp_prec_t prec, char *type);
 static bool read_q24eta (mpc_t *q24eta, cm_classgroup_t cl, mp_prec_t prec,
    char *type);
-static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpc_t *q24,
-   bool verbose);
-static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpc_t *eta,
-   bool checkpoints, bool verbose);
+static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
+   mpc_t *q24, bool verbose);
+static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
+   mpc_t *eta, bool fem, bool checkpoints, bool verbose);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -42,6 +44,7 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpc_t *eta,
 /*                                                                           */
 /*****************************************************************************/
 
+#define CM_FEM false
 void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    cm_classgroup_t cl2, mp_prec_t prec, bool checkpoints, bool verbose)
    /* cl2.d may be 0, in which case mc->eta2 is not computed                 */
@@ -70,7 +73,7 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    for (i = 0; i < mc->cl.h12; i++)
       mpc_init2 (mc->eta [i], prec);
    if (!checkpoints || !read_q24eta (mc->eta, mc->cl, prec, "eta"))
-      compute_eta (mc->m, mc->cl, mc->eta, checkpoints, verbose);
+      compute_eta (mc->m, mc->cl, mc->root, mc->eta, CM_FEM, checkpoints, verbose);
 
    if (cl2.d != 0) {
       mpfr_init2 (mc->root2, prec);
@@ -81,7 +84,8 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
       for (i = 0; i < mc->cl2.h12; i++)
          mpc_init2 (mc->eta2 [i], prec);
       if (!checkpoints || !read_q24eta (mc->eta2, mc->cl2, prec, "eta"))
-         compute_eta (mc->m, mc->cl2, mc->eta2, checkpoints, verbose);
+         compute_eta (mc->m, mc->cl2, mc->root2, mc->eta2, CM_FEM, checkpoints,
+            verbose);
    }
 
    mpz_clear (tmp_z);
@@ -173,13 +177,12 @@ static bool read_q24eta (mpc_t *q24eta, cm_classgroup_t cl, mp_prec_t prec,
 /*                                                                           */
 /*****************************************************************************/
 
-static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpc_t *q24,
-   bool verbose)
-   /* computes the q^(1/24) for all forms of the class group in mc           */
+static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
+   mpc_t *q24, bool verbose)
+   /* Computes the q^(1/24) for all forms of cl; root contains sqrt(-d).     */
 {
    int i, j, tmp_int;
    int_cl_t tmp_cli;
-   mpz_t tmp_z;
    mpfr_t Pi24, Pi24_root, tmp;
    mpfr_t *q_real;
    unsigned long int *A_red, *B_red, *order;
@@ -191,12 +194,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpc_t *q24,
    mpfr_init2 (tmp, m.prec);
 
    mpfr_div_ui (Pi24, m.pi, 24ul, GMP_RNDN);
-   mpz_init (tmp_z);
-   cm_classgroup_mpz_set_icl (tmp_z, -cl.d);
-   mpfr_set_z (Pi24_root, tmp_z, GMP_RNDN);
-   mpfr_sqrt (Pi24_root, Pi24_root, GMP_RNDN);
-   mpz_clear (tmp_z);
-   mpfr_mul (Pi24_root, Pi24_root, Pi24, GMP_RNDN);
+   mpfr_mul (Pi24_root, root, Pi24, GMP_RNDN);
 
    A_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
    B_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
@@ -374,54 +372,75 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpc_t *q24,
 
 /*****************************************************************************/
 
-static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpc_t *eta,
-   bool checkpoints, bool verbose)
+static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
+   mpc_t *eta, bool fem, bool checkpoints, bool verbose)
    /* computes the values of the Dedekind eta function for all reduced forms */
    /* of the class group cl and stores them in eta; the precision is taken   */
-   /* from eta [0]                                                           */
+   /* from eta [0], and root contains sqrt(-d).                              */
+   /* If fem is true, then evaluation via the AGM is activated.              */
 
 {
    int i;
-   mpc_t *q24;
-   cm_timer clock1, clock2;
+   cm_timer clock1;
    mp_prec_t prec = mpc_get_prec (eta [0]);
-
    cm_timer_start (clock1);
 
-   q24 = (mpc_t *) malloc (cl.h12 * sizeof (mpc_t));
-   for (i = 0; i < cl.h12; i++) {
-      mpc_init2 (q24 [i], prec);
-   }
+   if (!fem) {
+      mpc_t *q24;
+      cm_timer clock2;
 
-   if (!checkpoints || !read_q24eta (q24, cl, prec, "q24")) {
-      compute_q24 (m, cl, q24, verbose);
-      if (checkpoints)
-         write_q24eta (q24, cl, prec, "q24");
-   }
-
-   cm_timer_start (clock2);
-   for (i = 0; i < cl.h12; i++) {
-      cm_modular_eta_series (m, eta [i], q24 [i]);
-      if (verbose && i % 200 == 0) {
-         printf (".");
-         fflush (stdout);
+      q24 = (mpc_t *) malloc (cl.h12 * sizeof (mpc_t));
+      for (i = 0; i < cl.h12; i++) {
+         mpc_init2 (q24 [i], prec);
       }
-   }
-   cm_timer_stop (clock2);
-   if (verbose)
-      printf ("\n- Time for series:                %.1f\n",
-               cm_timer_get (clock2));
-   cm_timer_stop (clock2);
-   if (checkpoints)
-      write_q24eta (eta, cl, prec, "eta");
 
-   for (i = 0; i < cl.h12; i++)
-      mpc_clear (q24 [i]);
-   free (q24);
+      if (!checkpoints || !read_q24eta (q24, cl, prec, "q24")) {
+         compute_q24 (m, cl, root, q24, verbose);
+         if (checkpoints)
+            write_q24eta (q24, cl, prec, "q24");
+      }
+
+      cm_timer_start (clock2);
+      for (i = 0; i < cl.h12; i++) {
+         cm_modular_eta_series (m, eta [i], q24 [i]);
+         if (verbose && i % 200 == 0) {
+            printf (".");
+            fflush (stdout);
+         }
+      }
+      cm_timer_stop (clock2);
+      if (verbose)
+         printf ("\n- Time for series:                %.1f",
+                  cm_timer_get (clock2));
+      cm_timer_stop (clock2);
+      if (checkpoints)
+         write_q24eta (eta, cl, prec, "eta");
+
+      for (i = 0; i < cl.h12; i++)
+         mpc_clear (q24 [i]);
+      free (q24);
+   }
+   else {
+      mpc_t tau;
+
+      mpc_init2 (tau, prec);
+
+      for (i = 0; i < cl.h12; i++) {
+         cm_modclass_mpc_set_quadratic (tau, cl.form [i].a, cl.form [i].b,
+            root);
+         cm_fem_eta_eval (m, eta [i], tau);
+         if (verbose && i % 200 == 0) {
+            printf (".");
+            fflush (stdout);
+         }
+      }
+
+      mpc_clear (tau);
+   }
 
    cm_timer_stop (clock1);
    if (verbose)
-      printf ("- Time for eta:                   %.1f\n",
+      printf ("\n- Time for eta:                   %.1f\n",
               cm_timer_get (clock1));
 }
 
