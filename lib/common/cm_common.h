@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_MODPOL_J           'j'
 #define CM_MODPOL_DOUBLEETA   'd'
 #define CM_MODPOL_SIMPLEETA   's'
+#define CM_MODPOL_MULTIETA    'm'
 #define CM_MODPOL_WEBER       'w'
 #define CM_MODPOL_WEBERSQUARE '2'
 #define CM_MODPOL_U           'u'
