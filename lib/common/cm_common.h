@@ -106,9 +106,6 @@ extern void cm_file_gzopen_write (FILE **f, char *filename);
 extern void cm_file_gzopen_read (FILE **f, char *filename);
 extern void cm_file_gzclose (FILE *f);
 
-/* function missing in mpc */
-extern void mpc_pow_ui_binary (mpc_t rop, mpc_t op1, unsigned long int op2);
-
 /* different functions for number theoretic computations */
 extern int cm_nt_is_prime (mpz_t a);
 extern int cm_nt_is_prime_l (const unsigned long int prime);

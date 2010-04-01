@@ -270,7 +270,7 @@ void cm_modular_eta_series (cm_modular_t m, mpc_t rop, mpc_t q_24)
 
    mpc_init2 (factor, mpfr_get_prec (rop->re));
 
-   mpc_pow_ui_binary (factor, q_24, 24ul);
+   mpc_pow_ui (factor, q_24, 24ul, MPC_RNDNN);
    cm_qdev_eval (factor, m.eta, factor);
    mpc_mul (rop, q_24, factor, MPC_RNDNN);
 

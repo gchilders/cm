@@ -286,8 +286,8 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
             mpc_set (q24 [order [i]], q24 [order [j]], MPC_RNDNN);
          else {
             counter1++;
-            mpc_pow_ui_binary (q24 [order [i]], q24 [order [j]],
-                        A_red [order [j]] / A_red [order [i]]);
+            mpc_pow_ui (q24 [order [i]], q24 [order [j]],
+                        A_red [order [j]] / A_red [order [i]], MPC_RNDNN);
          }
       }
       else {
@@ -332,14 +332,14 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
                         MPC_RNDNN);
             else {
                counter1++;
-               mpc_pow_ui_binary (q24 [order [i]], q24 [order [j]],
-                           B_red [order [i]] / B_red [order [j]]);
+               mpc_pow_ui (q24 [order [i]], q24 [order [j]],
+                           B_red [order [i]] / B_red [order [j]], MPC_RNDNN);
             }
          }
          else {
             counter2++;
-            mpc_pow_ui_binary (q24 [order[i]], q24 [order [i]],
-                        B_red [order [i]]);
+            mpc_pow_ui (q24 [order[i]], q24 [order [i]],
+                        B_red [order [i]], MPC_RNDNN);
          }
       }
    }
@@ -697,7 +697,7 @@ void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, mpc_t rop,
    mpc_init2 (f, mpc_get_prec (rop));
 
    cm_modclass_f1_eval_quad (mc, f, a, b);
-   mpc_pow_ui_binary (f, f, 8ul);
+   mpc_pow_ui (f, f, 8ul, MPC_RNDNN);
    mpc_sqr (rop, f, MPC_RNDNN);
    mpc_ui_div (f, 16ul, f, MPC_RNDNN);
    mpc_add (rop, rop, f, MPC_RNDNN);
@@ -719,13 +719,13 @@ void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, mpc_t rop,
    mpc_init2 (tmp, mpc_get_prec (rop));
 
    cm_modclass_f_eval_quad (mc, f, a, b);
-   mpc_pow_ui_binary (f, f, 8ul);
+   mpc_pow_ui (f, f, 8ul, MPC_RNDNN);
    cm_modclass_f1_eval_quad (mc, rop, a, b);
-   mpc_pow_ui_binary (rop, rop, 8ul);
+   mpc_pow_ui (rop, rop, 8ul, MPC_RNDNN);
 
    mpc_mul_ui (rop, rop, 2ul, MPC_RNDNN);
    mpc_sub (rop, rop, f, MPC_RNDNN);
-   mpc_pow_ui_binary (tmp, f, 3ul);
+   mpc_pow_ui (tmp, f, 3ul, MPC_RNDNN);
    mpc_add_ui (tmp, tmp, 8ul, MPC_RNDNN);
    mpc_mul (rop, rop, tmp, MPC_RNDNN);
    mpc_div (rop, rop, f, MPC_RNDNN);
@@ -747,7 +747,7 @@ void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
 
 {
    cm_modclass_gamma2_eval_quad (mc, rop, a, b);
-   mpc_pow_ui_binary (rop, rop, 3ul);
+   mpc_pow_ui (rop, rop, 3ul, MPC_RNDNN);
 }
 
 /*****************************************************************************/
