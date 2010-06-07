@@ -1009,7 +1009,8 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    if (   (c.invariant == CM_INVARIANT_WEBER
            && (   (c.p / 10) % 10 == 1
                || c.p % 10 == 3 || c.p % 10 == 4 || c.p % 10 == 7))
-       || (c.invariant == CM_INVARIANT_J && c.d % 4 == 0
+       || (   (c.invariant == CM_INVARIANT_J || c.invariant == CM_INVARIANT_GAMMA2)
+           && c.d % 4 == 0
            && ((c.d / 4) % 4 == 0 || ((c.d / 4) - 1) % 4 == 0))) {
       /* also compute class group for order of conductor less by a factor    */
       /* of 2                                                                */

@@ -270,7 +270,13 @@ void cm_modular_eta_series (cm_modular_t m, mpc_t rop, mpc_t q_24)
 
    mpc_init2 (factor, mpfr_get_prec (rop->re));
 
-   mpc_pow_ui (factor, q_24, 24ul, MPC_RNDNN);
+   if (mpfr_zero_p (mpc_imagref (q_24))) {
+      /* avoid mpc_pow_ui, since it calls mpc_pow to determine the sign of 0 */
+      mpfr_pow_ui (mpc_realref (factor), mpc_realref (q_24), 24ul, GMP_RNDN);
+      mpfr_set_ui (mpc_imagref (factor), 0ul, GMP_RNDN);
+   }
+   else
+      mpc_pow_ui (factor, q_24, 24ul, MPC_RNDNN);
    cm_qdev_eval (factor, m.eta, factor);
    mpc_mul (rop, q_24, factor, MPC_RNDNN);
 
