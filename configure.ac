@@ -8,6 +8,9 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([1.9])
 AM_MAINTAINER_MODE
 
+AC_CANONICAL_HOST
+AC_CONFIG_MACRO_DIR([m4])
+
 # Extra arguments to configure
 AC_ARG_WITH([gmp],
             [AC_HELP_STRING([--with-gmp=DIR],
