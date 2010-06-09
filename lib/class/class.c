@@ -1148,7 +1148,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
 
    if (print) {
       printf ("x^%i", c.minpoly_deg);
-      for (i = c.minpoly_deg; i >= 0; i--) {
+      for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
          mpz_out_str (stdout, 10, c.minpoly [i]);
          printf (") * x^%i", i);
