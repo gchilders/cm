@@ -110,8 +110,8 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
 
    c->h = cm_classgroup_h (NULL, NULL, c->d);
    c->minpoly_deg = c->h;
-   c->minpoly = (mpz_t *) malloc (c->minpoly_deg * sizeof (mpz_t));
-   for (i = 0; i < c->minpoly_deg; i++)
+   c->minpoly = (mpz_t *) malloc ((c->minpoly_deg + 1) * sizeof (mpz_t));
+   for (i = 0; i <= c->minpoly_deg; i++)
       mpz_init (c->minpoly [i]);
    if (c->field == CM_FIELD_COMPLEX) {
       c->minpoly_complex = (mpz_t *) malloc (c->minpoly_deg * sizeof (mpz_t));
@@ -127,7 +127,7 @@ void cm_class_clear (cm_class_t *c)
 {
    int i;
 
-   for (i = 0; i < c->minpoly_deg; i++)
+   for (i = 0; i <= c->minpoly_deg; i++)
       mpz_clear (c->minpoly [i]);
    free (c->minpoly);
    if (c->field == CM_FIELD_COMPLEX) {
@@ -1144,10 +1144,11 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
          printf ("\n");
          exit (1);
       }
+   mpz_set_ui (c.minpoly [c.minpoly_deg], 1ul);
 
    if (print) {
       printf ("x^%i", c.minpoly_deg);
-      for (i = c.minpoly_deg - 1; i >= 0; i--) {
+      for (i = c.minpoly_deg; i >= 0; i--) {
          printf (" + (");
          mpz_out_str (stdout, 10, c.minpoly [i]);
          printf (") * x^%i", i);
@@ -1282,13 +1283,13 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
    /* modulo P                                                      */
 
    if (c.field == CM_FIELD_REAL)
-      cm_ntl_find_root_monic (root, c.minpoly, c.minpoly_deg, P, verbose);
+      cm_ntl_find_root_split (root, c.minpoly, c.minpoly_deg, P, verbose);
    else {
       mpz_init (omega);
       mpz_init (tmp);
 
-      minpoly_P = (mpz_t*) malloc (c.minpoly_deg * sizeof (mpz_t));
-      for (i = 0; i < c.minpoly_deg; i++)
+      minpoly_P = (mpz_t*) malloc ((c.minpoly_deg + 1) * sizeof (mpz_t));
+      for (i = 0; i <= c.minpoly_deg; i++)
          mpz_init (minpoly_P [i]);
 
       /* compute the second element of the integral basis modulo P */
@@ -1313,12 +1314,13 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
          mpz_add (tmp, minpoly_P [i], c.minpoly [i]);
          mpz_mod (minpoly_P [i], tmp, P);
       }
+      mpz_set_ui (minpoly_P [c.minpoly_deg], 1ul);
 
-      cm_ntl_find_root_monic (root, minpoly_P, c.minpoly_deg, P, verbose);
+      cm_ntl_find_root_split (root, minpoly_P, c.minpoly_deg, P, verbose);
 
       mpz_clear (omega);
       mpz_clear (tmp);
-      for (i = 0; i < c.minpoly_deg; i++)
+      for (i = 0; i <= c.minpoly_deg; i++)
          mpz_clear (minpoly_P [i]);
       free (minpoly_P);
    }

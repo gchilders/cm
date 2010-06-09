@@ -99,7 +99,7 @@ extern "C" {
 /* functions depending on NTL                                                */
 extern void cm_ntl_find_factor (mpz_t *res, mpz_t *f, int f_deg, int factor_deg,
    mpz_t p, bool verbose);
-extern void cm_ntl_find_root_monic (mpz_t root, mpz_t *f, int deg, mpz_t p,
+extern void cm_ntl_find_root_split (mpz_t root, mpz_t *f, int deg, mpz_t p,
    bool verbose);
 extern mpz_t* cm_ntl_find_roots (mpz_t *f, int deg, mpz_t p, int *no);
 

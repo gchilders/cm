@@ -57,7 +57,6 @@ void cm_ntl_find_factor (mpz_t *res, mpz_t *f_z, int f_deg, int factor_deg,
    // distinct factors of degree factor_deg over the prime field
    // One of the factors is returned as a list of coefficients via res, which
    // must contain sufficiently many initialised fields.
-   // All polynomials are given without their leading coefficient 1.
    // We use a trick by Atkin to speed up the splitting process. If n | p-1,
    // then there is a primitive n-th root of unity zeta in the prime field.
    // We may compute the gcd of all the X^((p^degree-1) / n) - zeta^i with f
@@ -136,8 +135,7 @@ void cm_ntl_find_factor (mpz_t *res, mpz_t *f_z, int f_deg, int factor_deg,
    // copy the polynomial into a variable of NTL type
    ZZ_pX f;
    f.rep.SetLength (f_deg + 1);
-   f.rep [f_deg] = 1;
-   for (i = 0; i < f_deg; i++)
+   for (i = 0; i <= f_deg; i++)
       mpz_get_ZZp (f.rep [i], f_z [i]);
 
    mpz_get_ZZ (exponent_ZZ, exponent);
@@ -234,10 +232,10 @@ void cm_ntl_find_factor (mpz_t *res, mpz_t *f_z, int f_deg, int factor_deg,
 
 /*****************************************************************************/
 
-void cm_ntl_find_root_monic (mpz_t root, mpz_t *f, int deg, mpz_t p,
+void cm_ntl_find_root_split (mpz_t root, mpz_t *f, int deg, mpz_t p,
    bool verbose)
-   // finds a root of the monic polynomial f of degree deg (stored without the
-   // leading coefficient) over the prime field of characteristic p
+   // finds a root of the monic polynomial f of degree deg over the prime
+   // field of characteristic p
    // assumes that the polynomial splits into distinct linear factors
    // root is changed
 
@@ -251,6 +249,8 @@ void cm_ntl_find_root_monic (mpz_t root, mpz_t *f, int deg, mpz_t p,
       mpz_sub (root, p, factor [0]);
    else
       mpz_set_ui (root, 0);
+   mpz_clear (factor [0]);
+   mpz_clear (factor [1]);
 }
 
 /*****************************************************************************/
