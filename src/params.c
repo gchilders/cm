@@ -2,7 +2,7 @@
 
 params.c - command line parameter evaluation
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -40,6 +40,7 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
    char *invariant_string = NULL;
 
    if (verbose) {
+      GEN v;
       printf ("GMP: include %d.%d.%d, lib %s\n",
             __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR, __GNU_MP_VERSION_PATCHLEVEL,
             gmp_version);
@@ -48,6 +49,15 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
             mpfr_get_version ());
       printf ("MPC: include %s, lib %s\n", MPC_VERSION_STRING,
             mpc_get_version ());
+      printf ("MPFRCX: include %s, lib %s\n", MPFRCX_VERSION_STRING,
+            mpfrcx_get_version ());
+      pari_init (100, 0);
+      v = pari_version ();
+      printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
+            PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
+            PARI_VERSION_CODE & 255ul,
+            itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
+      pari_close ();
    }
 
    *d = 0;

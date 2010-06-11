@@ -1,5 +1,5 @@
 AC_PREREQ(2.61)
-AC_INIT(cm, 0.2-dev, enge@lix.polytechnique.fr)
+AC_INIT(cm, 0.2-dev, andreas.enge@inria.fr)
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/common/cm_common.h])
 AC_CONFIG_HEADER([config.h])
@@ -40,9 +40,9 @@ AC_ARG_WITH([mpfrcx],
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib"
             ])
-AC_ARG_WITH([ntl],
-            [AC_HELP_STRING([--with-ntl=DIR],
-                           [NTL install directory])],
+AC_ARG_WITH([pari],
+            [AC_HELP_STRING([--with-pari=DIR],
+                           [PARI install directory])],
             [
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib"
@@ -50,7 +50,6 @@ AC_ARG_WITH([ntl],
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_CXX
 AC_PROG_LIBTOOL
 
 # Checks for header files.
@@ -112,20 +111,18 @@ AC_LINK_IFELSE(
         AC_MSG_RESULT(no)
         AC_MSG_ERROR([libmpfrcx not found or uses a different ABI.])
         ])
-AC_LANG_PUSH([C++])
-AC_MSG_CHECKING(for NTL)
-LIBS="-lntl $LIBS"
+AC_MSG_CHECKING(for PARI)
+LIBS="-lpari $LIBS"
 AC_LINK_IFELSE(
         [AC_LANG_PROGRAM(
-                [[#include "NTL/ZZ.h"]],
-                [[NTL::ZZ x;]]
+                [[#include "pari/pari.h"]],
+                [[pari_init (100, 0); pari_close ();]]
         )],
         [AC_MSG_RESULT(yes)],
         [
         AC_MSG_RESULT(no)
-        AC_MSG_ERROR([libntl not found or uses a different ABI.])
+        AC_MSG_ERROR([libpari not found or uses a different ABI.])
         ])
-AC_LANG_POP([C++])
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile lib/mpfp/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile src/Makefile test/Makefile])
 AC_OUTPUT

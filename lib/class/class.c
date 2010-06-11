@@ -1283,7 +1283,7 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
    /* modulo P                                                      */
 
    if (c.field == CM_FIELD_REAL)
-      cm_ntl_find_root_split (root, c.minpoly, c.minpoly_deg, P, verbose);
+      cm_pari_oneroot (root, c.minpoly, c.minpoly_deg, P, verbose);
    else {
       mpz_init (omega);
       mpz_init (tmp);
@@ -1316,7 +1316,7 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
       }
       mpz_set_ui (minpoly_P [c.minpoly_deg], 1ul);
 
-      cm_ntl_find_root_split (root, minpoly_P, c.minpoly_deg, P, verbose);
+      cm_pari_oneroot (root, minpoly_P, c.minpoly_deg, P, verbose);
 
       mpz_clear (omega);
       mpz_clear (tmp);
@@ -1444,7 +1444,7 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
 
    poly_j = cm_modpol_read_specialised_mod (&n, level, type, P, root,
       modpoldir);
-   j = cm_ntl_find_roots (poly_j, n, P, no);
+   j = cm_pari_find_roots (poly_j, n, P, no);
    for (i = 0; i <= n; i++)
       mpz_clear (poly_j [i]);
    free (poly_j);
@@ -1561,11 +1561,10 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
       mpfpx_init (tmp2_poly);
       mpfp_init_set_ui (one, 1ul);
 
-      cm_ntl_find_factor (factor, c.minpoly, c.minpoly_deg, 3, P, verbose);
+      cm_pari_onefactor (factor, c.minpoly, c.minpoly_deg, 3, P, verbose);
       mpfpx_set_z_array (root_poly, factor, 4);
-      if (verbose) {
+      if (verbose)
          printf ("Root: "); mpfpx_out (root_poly);
-      }
 
       if (c.p % 100 == 3)
          mpfpx_set_ui_array (f24_poly, x2, 3);

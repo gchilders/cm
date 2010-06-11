@@ -96,12 +96,12 @@ typedef struct {
 extern "C" {
 #endif
 
-/* functions depending on NTL                                                */
-extern void cm_ntl_find_factor (mpz_t *res, mpz_t *f, int f_deg, int factor_deg,
+/* functions depending on PARI                                               */
+extern void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
    mpz_t p, bool verbose);
-extern void cm_ntl_find_root_split (mpz_t root, mpz_t *f, int deg, mpz_t p,
+extern void cm_pari_oneroot (mpz_t root, mpz_t *f, int deg, mpz_t p,
    bool verbose);
-extern mpz_t* cm_ntl_find_roots (mpz_t *f, int deg, mpz_t p, int *no);
+extern mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no);
 
 
 /* functions for classgroups of imaginary-quadratic number fields */

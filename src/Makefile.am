@@ -6,8 +6,8 @@ bin_PROGRAMS = cm classpol
 
 cm_LDADD = $(top_builddir)/lib/class/libcm_class.la $(top_builddir)/lib/common/libcm_common.la $(top_builddir)/lib/mpfpx/libmpfpx.la $(top_builddir)/lib/mpfp/libmpfp.la
 
-cm_SOURCES = params.h params.c cm.cc
+cm_SOURCES = params.h params.c cm.c
 
 classpol_LDADD = $(top_builddir)/lib/class/libcm_class.la $(top_builddir)/lib/common/libcm_common.la $(top_builddir)/lib/mpfpx/libmpfpx.la $(top_builddir)/lib/mpfp/libmpfp.la
 
-classpol_SOURCES = params.h params.c classpol.cc
+classpol_SOURCES = params.h params.c classpol.c

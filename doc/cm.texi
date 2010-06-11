@@ -32,9 +32,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 @set MINGMP 4.2
 @set MINMPFR 2.3.1
 @set MINMPC 0.8.2
-@set MINMPFRCX 0.2
+@set MINMPFRCX 0.3
+@set MINPARI 2.3.5
 @set AUTHORS Andreas Enge
-@set COPYRIGHTDATES 2009
+@set COPYRIGHTDATES 2009, 2010
 @syncodeindex fn cp
 @syncodeindex tp cp
 
@@ -185,12 +186,9 @@ before compiling CM: GNU MP (@pxref{Gr09}, version @value{MINGMP} or higher),
 GNU MPFR (@pxref{HaLePeZi09}, version @value{MINMPFR} or higher),
 MPC (@pxref{EnThZi09}, version @value{MINMPC} or higher),
 MPFRCX (@pxref{En09b}, version @value{MINMPFRCX} or higher) and
-NTL (@pxref{Sh09}).
-In principle, CM needs only a standards compliant C compiler (preferably
-GCC), but the dependency on NTL introduces the additional need for a C++
-compiler (preferably G++). For this reason, it is planned to get rid of the
-NTL dependency in the future. Apart from that, the @samp{make} program and
-some other standard unix utilities are needed.
+PARI (@pxref{Pa10}, version @value{MINPARI} or higher).
+Compilation of CM needs a standards compliant C compiler (preferably
+GCC).
 
 These are the steps needed to install CM, provided that the required libraries
 are installed in standard locations:
@@ -246,7 +244,7 @@ to be passed in the @samp{./configure} step above by adding parameters
 @samp{--with-mpfrcx=<mpfrcx_install_dir>}
 and
 @item
-@samp{--with-ntl=<ntl_install_dir>}.
+@samp{--with-pari=<pari_install_dir>}.
 @end itemize
 For an exhaustive list of configuration parameters, execute
 @samp{./configure --help}.
@@ -533,7 +531,7 @@ Andreas Enge.
 @code{mpfrcx} -- A library for the arithmetic of univariate polynomials over arbitrary
 precision real or complex numbers.
 INRIA.
-Version 0.2, 2009,
+Version 0.3, 2010,
 @url{http://mpfrcx.multiprecision.org/}
 
 @item
@@ -562,12 +560,12 @@ Version 2.4.1, 2009,
 @url{http://www.mpfr.org/}
 
 @item
-@anchor{Sh09}
-[Sh09]
-Victor Shoup.
-@code{NTL} -- A library for doing number theory.
-Version 5.5.2, 2009,
-@url{http://www.shoup.net/ntl/}
+@anchor{Pa10}
+[Pa10]
+The PARI group.
+@code{PARI/GP}.
+Version 2.3.5, 2010,
+@url{http://pari.math.u-bordeaux.fr/}
 
 
 @end itemize

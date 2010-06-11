@@ -6,4 +6,4 @@ include_HEADERS = cm_class.h
 lib_LTLIBRARIES = libcm_class.la
 
 libcm_class_la_SOURCES = cm_class.h cm_class-impl.h \
-   ntl.cc classgroup.c modclass.c curve.c class.c
+   classgroup.c modclass.c curve.c class.c pari.c
