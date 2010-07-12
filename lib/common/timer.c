@@ -2,7 +2,7 @@
 
 timer.c - helper functions for measuring elapsed cpu time
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -34,20 +34,13 @@ void cm_timer_start (cm_timer clock)
 
 /*****************************************************************************/
 
-void cm_timer_run (cm_timer clock)
-
-{
-   times (&(clock->time_old));
-}
-
-/*****************************************************************************/
-
 void cm_timer_stop (cm_timer clock)
 
 {
-   times (&(clock->time_new));
-   clock->elapsed +=
-     ((double) (clock->time_new.tms_utime - clock->time_old.tms_utime)) / 100;
+   struct tms time_new;
+   times (&time_new);
+   clock->elapsed =
+     ((double) (time_new.tms_utime - clock->time_old.tms_utime)) / 100;
 }
 
 /*****************************************************************************/

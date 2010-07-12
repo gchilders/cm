@@ -47,7 +47,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 
 typedef struct {
-   struct tms time_old, time_new;
+   struct tms time_old;
    double     elapsed;
 } __cm_timer_struct;
 typedef __cm_timer_struct cm_timer [1];
@@ -94,7 +94,6 @@ extern "C" {
 
 /* functions for measuring the passing time */
 extern void cm_timer_start (cm_timer clock);
-extern void cm_timer_run (cm_timer clock);
 extern void cm_timer_stop (cm_timer clock);
 extern double cm_timer_get (cm_timer clock);
 
