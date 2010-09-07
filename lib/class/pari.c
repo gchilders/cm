@@ -185,14 +185,12 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
       cm_timer_start (clock2);
       xpow = FpXQ_pow (xplusa, exp, factor, pp);
       cm_timer_stop (clock2);
-      printf ("- Time for pow: %.1f\n", cm_timer_get (clock2));
-      printf ("  factor.deg %i\n", deg_f);
-      pari_printf ("  xplusa %Ps\n", xplusa);
+      if (verbose)
+         printf ("- Time for pow: %.1f in degree %i\n", cm_timer_get (clock2),
+                 deg_f);
       for (i = 0; i < n; i++) {
          tmp = FpX_gcd (FpX_Fp_sub (xpow, zeta, pp), factor, pp);
-         pari_printf ("   zeta %Ps\n", zeta);
          if (degree (tmp) > 0 && degree (tmp) < degree (factor)) {
-            printf ("   tmp.deg %li\n", degree (tmp));
             factor = FpX_div (factor, tmp, pp);
             if (degree (tmp) < degree (minfactor)) {
                minfactor = tmp;
@@ -206,7 +204,6 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
       }
     }
 
-   pari_printf ("%Ps\n", FpX_normalize (minfactor, pp));
    ZX_get_mpzx (res, FpX_normalize (minfactor, pp));
 
    pari_close ();
