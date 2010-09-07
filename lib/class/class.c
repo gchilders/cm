@@ -1563,8 +1563,10 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
 
       cm_pari_onefactor (factor, c.minpoly, c.minpoly_deg, 3, P, verbose);
       mpfpx_set_z_array (root_poly, factor, 4);
-      if (verbose)
-         printf ("Root: "); mpfpx_out (root_poly);
+      if (verbose) {
+         printf ("Root: ");
+         mpfpx_out (root_poly);
+      }
 
       if (c.p % 100 == 3)
          mpfpx_set_ui_array (f24_poly, x2, 3);
