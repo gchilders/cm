@@ -146,12 +146,20 @@ extern void cm_modclass_f_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b);
 extern void cm_modclass_f1_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b);
-extern void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b);
 extern void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b);
 extern void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b);
+extern void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b);
+extern void cm_modclass_simpleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int N, int e);
+extern void cm_modclass_doubleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int p1, int p2);
+extern void cm_modclass_tripleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int p1, int p2, int p3, int e);
+extern void cm_modclass_quadrupleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int p1, int p2, int p3, int p4, int e);
 extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b, unsigned long int l);
 

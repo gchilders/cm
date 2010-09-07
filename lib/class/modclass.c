@@ -752,6 +752,91 @@ void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
 
 /*****************************************************************************/
 
+void cm_modclass_simpleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int N, int e)
+
+{
+   mpc_t tmp;
+
+   mpc_init2 (tmp, mpc_get_prec (rop));
+
+   cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta, a*N, b, mc.root);
+   cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a, b, mc.root);
+   mpc_div (rop, rop, tmp, MPC_RNDNN);
+   mpc_pow_ui (rop, rop, (unsigned long int) e, MPC_RNDNN);
+
+   mpc_clear (tmp);
+}
+
+/*****************************************************************************/
+
+void cm_modclass_doubleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int p1, int p2)
+
+{
+   mpc_t tmp;
+
+   mpc_init2 (tmp, mpc_get_prec (rop));
+
+   cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta, a, b, mc.root);
+   cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p1*p2, b, mc.root);
+   mpc_mul (rop, rop, tmp, MPC_RNDNN);
+   if (p1 == p2) {
+      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p1, b, mc.root);
+      mpc_sqr (tmp, tmp, MPC_RNDNN);
+      mpc_div (rop, tmp, rop, MPC_RNDNN);
+   }
+   else {
+      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p1, b, mc.root);
+      mpc_div (rop, tmp, rop, MPC_RNDNN);
+      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p2, b, mc.root);
+      mpc_mul (rop, rop, tmp, MPC_RNDNN);
+   }
+
+   mpc_clear (tmp);
+}
+
+/*****************************************************************************/
+
+void cm_modclass_tripleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int p1, int p2, int p3, int e)
+
+{
+   mpc_t tmp;
+
+   mpc_init2 (tmp, mpc_get_prec (rop));
+
+   cm_modclass_doubleeta_eval_quad (mc, rop, a, b, p1, p2);
+   cm_modclass_doubleeta_eval_quad (mc, tmp, a*p3, b, p1, p2);
+
+   mpc_div (rop, rop, tmp, MPC_RNDNN);
+   if (e != 1)
+      mpc_pow_ui (rop, rop, e, MPC_RNDNN);
+
+   mpc_clear (tmp);
+}
+
+/*****************************************************************************/
+
+void cm_modclass_quadrupleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int p1, int p2, int p3, int p4, int e)
+
+{
+   mpc_t tmp;
+
+   mpc_init2 (tmp, mpc_get_prec (rop));
+
+   cm_modclass_tripleeta_eval_quad (mc, rop, a, b, p1, p2, p3, 1ul);
+   cm_modclass_tripleeta_eval_quad (mc, tmp, a*p4, b, p1, p2, p3, 1ul);
+   mpc_div (rop, rop, tmp, MPC_RNDNN);
+   if (e != 1)
+      mpc_pow_ui (rop, rop, e, MPC_RNDNN);
+
+   mpc_clear (tmp);
+}
+
+/*****************************************************************************/
+
 void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, mpc_t rop,
    int_cl_t a, int_cl_t b, unsigned long int l)
 

@@ -239,11 +239,13 @@ static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
                }
                return 0;
             }
+         case CM_INVARIANT_MULTIETA:
+            return 13110503;
          case CM_INVARIANT_DOUBLEETA:
             return doubleeta_compute_parameter (disc);
          default: /* should not occur */
             printf ("class_compute_parameter called for "
-                    "unknown class invariant %d\n", inv);
+                    "unknown class invariant '%c'\n", inv);
             exit (1);
       }
 
@@ -490,7 +492,7 @@ static double class_get_valuation (cm_class_t c)
 
 {
    double result;
-   int p1, p2;
+   int p1, p2, p3, p4;
    int l, e;
 
    switch (c.invariant) {
@@ -525,12 +527,23 @@ static double class_get_valuation (cm_class_t c)
    case CM_INVARIANT_DOUBLEETA:
       p1 = c.p % 1000;
       p2 = c.p / 1000;
-      result = ((p1-1)*(p2-1) / (double) (12 * (p1+1) * (p2+1)));
+      result = ((p1-1)*(p2-1)) / (double) (12*(p1+1)*(p2+1));
+      break;
+   case CM_INVARIANT_MULTIETA:
+      p1 = c.p % 100;
+      p2 = (c.p / 100) % 100;
+      p3 = (c.p / 10000) % 100;
+      p4 = c.p / 1000000;
+      if (p4 == 0)
+         result = ((p1-1)*(p2-1)*(p3-1)) / (double) (6*(p1+1)*(p2+1)*(p3+1));
+      else
+         result = ((p1-1)*(p2-1)*(p3-1)*(p4-1))
+                  / (double) (3*(p1+1)*(p2+1)*(p3+1)*(p4+1));
       break;
    case CM_INVARIANT_SIMPLEETA:
       l = c.p / 10000;
       e = (c.p / 100) % 100;
-      return (e * (l-1) / (double) (24 * (l+1)));
+      result = (e * (l-1) / (double) (24 * (l+1)));
       break;
    default: /* should not occur */
       printf ("class_get_valuation called for unknown class ");
@@ -744,9 +757,29 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             cm_classgroup_reduce (&neutral, c->d);
             break;
          }
+         case CM_INVARIANT_MULTIETA:
+         {
+            int_cl_t C;
+            N = (c->p % 100) * ((c->p / 100) % 100) * ((c->p / 10000) % 100);
+            if (c->p / 1000000 != 0)
+               N *= c->p / 1000000;
+            if (c->d % 2 == 0)
+               b0 = 2;
+            else
+               b0 = 1;
+            while (true) {
+               C = (b0*b0 - c->d) / 4;
+               if (C % N == 0 && cm_nt_gcd (C / N, N) == 1)
+                  break;
+               b0 += 2;
+            }
+            neutral.a = N;
+            neutral.b = -b0;
+            cm_classgroup_reduce (&neutral, c->d);
+            break;
+         }
          default: /* should not occur */
-            printf ("compute_nsystem_and_embedding called for ");
-            printf ("unknown class invariant\n");
+            printf ("compute_nsystem called for unknown class invariant\n");
             exit (1);
       }
    }
@@ -858,9 +891,6 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
 static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
 
 {
-   mpc_t tmp, tmp2;
-   int   p1, p2;
-
    switch (c.invariant) {
    case CM_INVARIANT_J:
       cm_modclass_j_eval_quad (mc, rop, Q.a, Q.b);
@@ -874,46 +904,21 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
    case CM_INVARIANT_ATKIN:
       cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b, c.p);
       break;
-   case CM_INVARIANT_DOUBLEETA:
-      p1 = c.p % 1000;
-      p2 = c.p / 1000;
-
-      mpc_init2 (tmp, mc.m.prec);
-      mpc_init2 (tmp2, mc.m.prec);
-
-      if (p1 == p2) {
-         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta,
-                                    Q.a * p1, Q.b, mc.root);
-         mpc_sqr (rop, rop, MPC_RNDNN);
-      }
-      else {
-         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta,
-                                    Q.a * p1, Q.b, mc.root);
-         cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta,
-                                    Q.a * p2, Q.b, mc.root);
-         mpc_mul (rop, rop, tmp, MPC_RNDNN);
-      }
-      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta,
-                                 Q.a, Q.b, mc.root);
-      cm_modclass_eta_eval_quad (tmp2, mc.m, mc.cl, mc.eta,
-                                 Q.a * p1 * p2, Q.b, mc.root);
-      mpc_mul (tmp, tmp, tmp2, MPC_RNDNN);
-      mpc_div (rop, rop, tmp, MPC_RNDNN);
-
-      mpc_clear (tmp);
-      mpc_clear (tmp2);
-      break;
    case CM_INVARIANT_SIMPLEETA:
-      mpc_init2 (tmp, mc.m.prec);
-
-      cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta,
-                                 Q.a * (c.p / 10000), Q.b, mc.root);
-      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta,
-                                 Q.a, Q.b, mc.root);
-      mpc_div (rop, rop, tmp, MPC_RNDNN);
-      mpc_pow_ui (rop, rop, (unsigned long int) (c.p % 100), MPC_RNDNN);
-
-      mpc_clear (tmp);
+      cm_modclass_simpleeta_eval_quad (mc, rop, Q.a, Q.b,
+         c.p / 10000, (c.p / 100) % 100);
+      break;
+   case CM_INVARIANT_DOUBLEETA:
+      cm_modclass_doubleeta_eval_quad (mc, rop, Q.a, Q.b,
+         c.p % 1000, c.p / 1000);
+      break;
+   case CM_INVARIANT_MULTIETA:
+      if (c.p / 1000000 == 0)
+         cm_modclass_tripleeta_eval_quad (mc, rop, Q.a, Q.b,
+            c.p % 100, (c.p / 100) % 100, (c.p / 10000) % 100, 1ul);
+      else
+         cm_modclass_quadrupleeta_eval_quad (mc, rop, Q.a, Q.b,
+            c.p % 100, (c.p / 100) % 100, (c.p / 10000) % 100, c.p / 1000000, 1ul);
       break;
    case CM_INVARIANT_WEBER:
       if (c.p % 10 == 1) {
@@ -1396,6 +1401,19 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 #endif
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
             (c.p / 1000) * (c.p % 1000), root, P);
+         break;
+      case CM_INVARIANT_MULTIETA:
+         if (c.p / 1000000 == 0)
+            j = cm_get_j_mod_P_from_modular (no, modpoldir,
+               CM_MODPOL_MULTIETA,
+               (c.p / 10000) * ((c.p % 10000) / 100) * (c.p % 100),
+               root, P);
+         else
+            j = cm_get_j_mod_P_from_modular (no, modpoldir,
+               CM_MODPOL_MULTIETA,
+               (c.p / 1000000) * ((c.p % 1000000) / 10000)
+                  * ((c.p % 10000) / 100) * (c.p % 100),
+               root, P);
          break;
       case CM_INVARIANT_ATKIN:
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,

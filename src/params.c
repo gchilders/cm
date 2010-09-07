@@ -99,9 +99,9 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
       else if (strlen (argv [index]) >= 2 && argv [index] [1] == 'i') {
          if (strlen (argv [index]) == 2) {
             printf ("You specified the option '-i' without anything following; it should be\n");
-            printf ("followed by 'j', 'gamma2', 'gamma3', 'weber', 'doubleeta', 'simpleeta'\n");
-            printf ("or 'atkin', depending on which type of class invariant you would like\n");
-            printf ("to use for the computations.\n");
+            printf ("followed by 'j', 'gamma2', 'gamma3', 'weber', 'doubleeta', 'simpleeta',\n");
+            printf ("'multieta' or 'atkin', depending on which type of class invariant you\n");
+            printf ("would like to use for the computations.\n");
             ok = false;
          }
          else if (*invariant != CM_INVARIANT_NONE) {
@@ -123,13 +123,15 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
                *invariant = CM_INVARIANT_DOUBLEETA;
             else if (!strcmp (invariant_string, "simpleeta"))
                *invariant = CM_INVARIANT_SIMPLEETA;
+            else if (!strcmp (invariant_string, "multieta"))
+               *invariant = CM_INVARIANT_MULTIETA;
             else if (!strcmp (invariant_string, "atkin"))
                *invariant = CM_INVARIANT_ATKIN;
             else {
                printf ("You specified the option '-i' follow by '%s', ", invariant_string);
                printf ("which is not a recognised\n");
                printf ("class invariant. It should be followed by 'j', 'gamma2', 'gamma3', 'weber',\n");
-               printf ("'doubleeta', 'simpleeta' or 'atkin'\n");
+               printf ("'doubleeta', 'simpleeta', 'multieta' or 'atkin'\n");
                ok = false;
             }
             index++;
@@ -141,8 +143,8 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
          printf ("which does not exist. You may use the options\n");
          printf ("'-d' followed by the absolute value of the discriminant\n");
          printf ("'-i' followed by 'j', 'gamma2', 'gamma3', 'weber', 'doubleeta',\n");
-         printf ("     'simpleeta' or 'atkin', depending on which type of class\n");
-         printf ("     invariant you would like to use for the computations\n");
+         printf ("     'simpleeta', 'multieta' or 'atkin', depending on which type\n");
+         printf ("     of class invariant you would like to use for the computations\n");
          printf ("'-v' to enable verbose output\n");
          ok = false;
       }

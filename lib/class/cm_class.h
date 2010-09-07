@@ -2,7 +2,7 @@
 
 cm_class.h - header file for the cm_class library
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -34,6 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_INVARIANT_WEBER     'w'
 #define CM_INVARIANT_DOUBLEETA 'd'
 #define CM_INVARIANT_SIMPLEETA 's'
+#define CM_INVARIANT_MULTIETA  'm'
 #define CM_INVARIANT_ATKIN     'a'
 
 
