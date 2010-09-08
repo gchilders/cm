@@ -103,7 +103,8 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %i\n",
                c->d, c->invariant, c->p);
 
-   if (inv == CM_INVARIANT_SIMPLEETA)
+   if ( inv == CM_INVARIANT_SIMPLEETA ||
+       (inv == CM_INVARIANT_MULTIETA && c->p / 1000000 == 0))
       c->field = CM_FIELD_COMPLEX;
    else
       c->field = CM_FIELD_REAL;
@@ -240,7 +241,7 @@ static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
                return 0;
             }
          case CM_INVARIANT_MULTIETA:
-            return 13110503;
+            return 70503;
          case CM_INVARIANT_DOUBLEETA:
             return doubleeta_compute_parameter (disc);
          default: /* should not occur */

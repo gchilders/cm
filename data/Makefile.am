@@ -1,1 +1,1 @@
-SUBDIRS = af df
+SUBDIRS = af df mf

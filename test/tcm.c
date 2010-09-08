@@ -60,6 +60,7 @@ int main ()
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_ATKIN, false); /* p=47 */
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_ATKIN, false); /* p=59 */
    test_curve ((int_cl_t) (-58767), CM_INVARIANT_ATKIN, false); /* p=131 */
+   test_curve ((int_cl_t) (-105131), CM_INVARIANT_MULTIETA, false); /* N=3*5*7 */
 
    return 0;
 }
