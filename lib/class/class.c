@@ -658,7 +658,7 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
          c += Q->a + Q->b;
          Q->b += 2 * Q->a;
       }
-#if 1
+#if 0
       printf ("[%"PRIicl" %"PRIicl"]: %i\n", Q->a,
          Q->b, Q->emb);
 #endif
