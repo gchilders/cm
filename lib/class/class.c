@@ -235,8 +235,10 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_MULTIETA:
-         c->p [0] = 70503;
-         c->p [1] = 0;
+         c->p [0] = 3;
+         c->p [1] = 5;
+         c->p [2] = 7;
+         c->p [3] = 0;
          c->s = 1;
          c->e = 1;
          break;
@@ -518,7 +520,6 @@ static double class_get_valuation (cm_class_t c)
 
 {
    double result;
-   int p1, p2, p3, p4;
 
    switch (c.invariant) {
    case CM_INVARIANT_J:
@@ -550,18 +551,20 @@ static double class_get_valuation (cm_class_t c)
          result *= 3;
       break;
    case CM_INVARIANT_DOUBLEETA:
-      result = ((c.p[0]-1)*(c.p[1]-1)) / (double) (12*(c.p[0]+1)*(c.p[1]+1));
-      break;
    case CM_INVARIANT_MULTIETA:
-      p1 = c.p [0] % 100;
-      p2 = (c.p [0] / 100) % 100;
-      p3 = (c.p [0] / 10000) % 100;
-      p4 = c.p [0] / 1000000;
-      if (p4 == 0)
-         result = ((p1-1)*(p2-1)*(p3-1)) / (double) (6*(p1+1)*(p2+1)*(p3+1));
-      else
-         result = ((p1-1)*(p2-1)*(p3-1)*(p4-1))
-                  / (double) (3*(p1+1)*(p2+1)*(p3+1)*(p4+1));
+   {
+      int num = 1, den = 1, i;
+      for (i = 0; c.p [i] != 0; i++) {
+         num *= c.p [i] - 1;
+         den *= c.p [i] + 1;
+      }
+      if (i == 2)
+         result = num / (double) (12 * den);
+      else if (i == 3)
+         result = num / (double) (6 * den);
+      else /* i == 4 */
+         result = num / (double) (3 * den);
+   }
       break;
    case CM_INVARIANT_SIMPLEETA:
       result = (c.p [0] - 1) / (double) (24 * (c.p [0] + 1));
@@ -771,30 +774,14 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             N = 48;
             break;
          case CM_INVARIANT_DOUBLEETA:
-         {
-            int_cl_t C;
-            N = c->p [0] * c->p [1] * c->s / c->e;
-            if (c->d % 2 == 0)
-               b0 = 2;
-            else
-               b0 = 1;
-            while (true) {
-               C = (b0*b0 - c->d) / 4;
-               if (C % N == 0 && cm_nt_gcd (C / N, N) == 1)
-                  break;
-               b0 += 2;
-            }
-            neutral.a = N;
-            neutral.b = -b0;
-            cm_classgroup_reduce (&neutral, c->d);
-            break;
-         }
          case CM_INVARIANT_MULTIETA:
          {
+            int i;
             int_cl_t C;
-            N = (c->p [0] % 100) * ((c->p [0] / 100) % 100) * ((c->p [0] / 10000) % 100);
-            if (c->p [0] / 1000000 != 0)
-               N *= c->p [0] / 1000000;
+            N = 1;
+            for (i = 0; c->p [i] != 0; i++)
+               N *= c->p [i];
+            N *= c->s / c->e;
             if (c->d % 2 == 0)
                b0 = 2;
             else
@@ -921,12 +908,12 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
          c.p [0], c.p [1], c.e);
       break;
    case CM_INVARIANT_MULTIETA:
-      if (c.p [0] / 1000000 == 0)
+      if (c.p [3] == 0)
          cm_modclass_tripleeta_eval_quad (mc, rop, Q.a, Q.b,
-            c.p [0] % 100, (c.p [0] / 100) % 100, (c.p [0] / 10000) % 100, 1ul);
+            c.p [0], c.p [1], c.p [2], c.e);
       else
          cm_modclass_quadrupleeta_eval_quad (mc, rop, Q.a, Q.b,
-            c.p [0] % 100, (c.p [0] / 100) % 100, (c.p [0] / 10000) % 100, c.p [0] / 1000000, 1ul);
+            c.p [0], c.p [1], c.p [2], c.p [3], c.e);
       break;
    case CM_INVARIANT_WEBER:
       if (c.p [0] % 10 == 1) {
@@ -1411,17 +1398,13 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
             c.p [0] * c.p [1], root, P);
          break;
       case CM_INVARIANT_MULTIETA:
-         if (c.p [0] / 1000000 == 0)
+      {
+         int N = 1, i;
+         for (i = 0; c.p [i] != 0; i++)
+            N *= c.p [i];
             j = cm_get_j_mod_P_from_modular (no, modpoldir,
-               CM_MODPOL_MULTIETA,
-               (c.p [0] / 10000) * ((c.p [0] % 10000) / 100) * (c.p [0] % 100),
-               root, P);
-         else
-            j = cm_get_j_mod_P_from_modular (no, modpoldir,
-               CM_MODPOL_MULTIETA,
-               (c.p [0] / 1000000) * ((c.p [0] % 1000000) / 10000)
-                  * ((c.p [0] % 10000) / 100) * (c.p [0] % 100),
-               root, P);
+               CM_MODPOL_MULTIETA, N, root, P);
+      }
          break;
       case CM_INVARIANT_ATKIN:
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
