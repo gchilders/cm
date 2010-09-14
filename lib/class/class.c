@@ -333,8 +333,9 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
             }
          }
 
-   c->p [0] = 1000*p2opt + p1opt;
-   c->p [1] = 0;
+   c->p [0] = p1opt;
+   c->p [1] = p2opt;
+   c->p [2] = 0;
    c->s = 1;
    c->e = 1;
    return ok;
@@ -549,9 +550,7 @@ static double class_get_valuation (cm_class_t c)
          result *= 3;
       break;
    case CM_INVARIANT_DOUBLEETA:
-      p1 = c.p [0] % 1000;
-      p2 = c.p [0] / 1000;
-      result = ((p1-1)*(p2-1)) / (double) (12*(p1+1)*(p2+1));
+      result = ((c.p[0]-1)*(c.p[1]-1)) / (double) (12*(c.p[0]+1)*(c.p[1]+1));
       break;
    case CM_INVARIANT_MULTIETA:
       p1 = c.p [0] % 100;
@@ -565,13 +564,15 @@ static double class_get_valuation (cm_class_t c)
                   / (double) (3*(p1+1)*(p2+1)*(p3+1)*(p4+1));
       break;
    case CM_INVARIANT_SIMPLEETA:
-      result = (c.e * (c.p [0] - 1) / (double) (24 * (c.p [0] + 1)));
+      result = (c.p [0] - 1) / (double) (24 * (c.p [0] + 1));
       break;
    default: /* should not occur */
       printf ("class_get_valuation called for unknown class ");
       printf ("invariant\n");
       exit (1);
    }
+
+   result *= c.e;
 
    return result;
 }
@@ -772,7 +773,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
          case CM_INVARIANT_DOUBLEETA:
          {
             int_cl_t C;
-            N = (c->p [0]/1000)*(c->p [0]%1000);
+            N = c->p [0] * c->p [1] * c->s / c->e;
             if (c->d % 2 == 0)
                b0 = 2;
             else
@@ -917,7 +918,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       break;
    case CM_INVARIANT_DOUBLEETA:
       cm_modclass_doubleeta_eval_quad (mc, rop, Q.a, Q.b,
-         c.p [0] % 1000, c.p [0] / 1000);
+         c.p [0], c.p [1], c.e);
       break;
    case CM_INVARIANT_MULTIETA:
       if (c.p [0] / 1000000 == 0)
@@ -1407,7 +1408,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       case CM_INVARIANT_RAMIFIED:
 #endif
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
-            (c.p [0] / 1000) * (c.p [0] % 1000), root, P);
+            c.p [0] * c.p [1], root, P);
          break;
       case CM_INVARIANT_MULTIETA:
          if (c.p [0] / 1000000 == 0)
@@ -1641,17 +1642,14 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
 {
    mpz_t* j = (mpz_t*) malloc (sizeof (mpz_t));
    mpz_t f3, tmp;
-   int l = c.p [0] / 10000;
 
    mpz_init (j [0]);
    mpz_init (f3);
    mpz_init (tmp);
 
-   /* raise to the power s/e */
-   mpz_powm_ui (root, root,
-      (unsigned long int) ((c.p [0] % 100) / ((c.p [0] / 100) % 100)), P);
+   mpz_powm_ui (root, root, (unsigned long int) (c.s / c.e), P);
 
-   if (l == 3) {
+   if (c.p [0] == 3) {
       mpz_add_ui (f3, root, 3ul);
       mpz_powm_ui (f3, f3, 3ul, P);
       mpz_invert (tmp, root, P);
@@ -1660,7 +1658,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
       mpz_mul (j [0], f3, tmp);
       mpz_mod (j [0], j [0], P);
    }
-   else if (l == 5) {
+   else if (c.p [0] == 5) {
       mpz_add_ui (tmp, root, 10ul);
       mpz_mul (f3, root, tmp);
       mpz_mod (f3, f3, P);
@@ -1670,7 +1668,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
       mpz_mul (j [0], f3, tmp);
       mpz_mod (j [0], j [0], P);
    }
-   else if (l == 7) {
+   else if (c.p [0] == 7) {
       mpz_add_ui (tmp, root, 5ul);
       mpz_mul (f3, root, tmp);
       mpz_mod (f3, f3, P);
@@ -1686,7 +1684,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
       mpz_mul (j [0], j [0], tmp);
       mpz_mod (j [0], j [0], P);
    }
-   else if (l == 13) {
+   else if (c.p [0] == 13) {
       mpz_add_ui (f3, root, 7ul);
       mpz_mul (f3, f3, root);
       mpz_mod (f3, f3, P);
@@ -1708,7 +1706,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
       mpz_mul (j [0], j [0], tmp);
       mpz_mod (j [0], j [0], P);
    }
-   else if (l == 4) {
+   else if (c.p [0] == 4) {
       mpz_add_ui (f3, root, 16ul);
       mpz_mul (f3, f3, root);
       mpz_mod (f3, f3, P);
@@ -1718,7 +1716,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
       mpz_mul (j [0], tmp, f3);
       mpz_mod (j [0], j [0], P);
    }
-   else if (l == 9) {
+   else if (c.p [0] == 9) {
       mpz_add_ui (tmp, root, 9ul);
       mpz_mul (tmp, tmp, root);
       mpz_mod (tmp, tmp, P);
@@ -1734,7 +1732,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
       mpz_mul (j [0], j [0], f3);
       mpz_mod (j [0], j [0], P);
    }
-   else if (l == 25) {
+   else if (c.p [0] == 25) {
       mpz_add_ui (f3, root, 10ul);
       mpz_mul (f3, f3, root);
       mpz_mod (f3, f3, P);

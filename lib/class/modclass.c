@@ -771,7 +771,7 @@ void cm_modclass_simpleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
 /*****************************************************************************/
 
 void cm_modclass_doubleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b, int p1, int p2)
+   int_cl_t a, int_cl_t b, int p1, int p2, int e)
 
 {
    mpc_t tmp;
@@ -792,6 +792,7 @@ void cm_modclass_doubleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
       cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p2, b, mc.root);
       mpc_mul (rop, rop, tmp, MPC_RNDNN);
    }
+   mpc_pow_ui (rop, rop, (unsigned long int) e, MPC_RNDNN);
 
    mpc_clear (tmp);
 }
@@ -806,8 +807,8 @@ void cm_modclass_tripleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
 
    mpc_init2 (tmp, mpc_get_prec (rop));
 
-   cm_modclass_doubleeta_eval_quad (mc, rop, a, b, p1, p2);
-   cm_modclass_doubleeta_eval_quad (mc, tmp, a*p3, b, p1, p2);
+   cm_modclass_doubleeta_eval_quad (mc, rop, a, b, p1, p2, 1ul);
+   cm_modclass_doubleeta_eval_quad (mc, tmp, a*p3, b, p1, p2, 1ul);
 
    mpc_div (rop, rop, tmp, MPC_RNDNN);
    if (e != 1)
