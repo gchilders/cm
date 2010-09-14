@@ -90,7 +90,7 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       c->d = d;
       if (!cm_class_compute_parameter (c, verbose))
          exit (1);
-      if (inv == CM_INVARIANT_WEBER && ((c->p [0] / 10) % 10 != 0))
+      if (inv == CM_INVARIANT_WEBER && c->p [1] == 1)
          /* special case Weber with d=1 (4): compute ring class field for 4d */
          /* If d=1 (8), this is the same as the Hilbert class field;         */
          /* if d=5 (8), it is a degree 3 relative extension, which will be   */
@@ -102,7 +102,7 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
                c->d, c->invariant, c->p [0]);
 
    if ( inv == CM_INVARIANT_SIMPLEETA ||
-       (inv == CM_INVARIANT_MULTIETA && c->p [0] / 1000000 == 0))
+       (inv == CM_INVARIANT_MULTIETA && c->p [3] == 0))
       c->field = CM_FIELD_COMPLEX;
    else
       c->field = CM_FIELD_REAL;
@@ -182,9 +182,7 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->s = 1;
          c->e = 1;
          break;
-      case CM_INVARIANT_WEBER: {
-         int p;
-
+      case CM_INVARIANT_WEBER:
          if (c->d % 32 == 0) {
             if (verbose) {
                printf ("\n*** %"PRIicl" is divisible by 32, so that the Weber ",
@@ -194,22 +192,26 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
             return false;
          }
 
-         /* If disc is even and not divisible by 3, let m=-disc           */
-         /* and p=m % 8; if disc is odd and not divisible by 3, compute   */
-         /* p for 4*disc and add 10.                                      */
-         /* If disc is divisible by 3, add 300.                           */
-         if (c->d % 4 == 0)
-            p = ((-(c->d)) / 4) % 8;
-         else
-            p = 10 + (-(c->d)) % 8;
-         if (c->d % 3 == 0)
-            p += 300;
-         c->p [0] = p;
-         c->p [1] = 0;
-         c->s = 1;
+         /* If disc is even, let m = -disc and p [0] = m % 8; if disc is  */
+         /* odd, compute p [0] for 4*disc and let p [1] = 1.              */
+         if (c->d % 4 == 0) {
+            c->p [0] = ((-(c->d)) / 4) % 8;
+            c->p [1] = 0;
+         }
+         else {
+            c->p [0] = (-(c->d)) % 8;
+            c->p [1] = 1;
+            c->p [2] = 0;
+         }
+         c->s = 24;
          c->e = 1;
+         if (c->p [0] == 1 || c->p [0] == 2 || c->p [0] == 6)
+            c->e *= 2;
+         else if (c->p [0] == 4 || c->p [0] == 5)
+            c->e *= 4;
+         if (c->d % 3 == 0)
+            c->e *= 3;
          break;
-      }
       case CM_INVARIANT_ATKIN:
          if (cm_classgroup_kronecker (c->d, (int_cl_t) 71) != -1)
             /* factor 36, T_5 + T_29 + 1 */
@@ -543,12 +545,6 @@ static double class_get_valuation (cm_class_t c)
       break;
    case CM_INVARIANT_WEBER:
       result = 1.0 / 72;
-      if (c.p [0] % 10 == 1 || c.p [0] % 10 == 2 || c.p [0] % 10 == 6)
-         result *= 2;
-      else if (c.p [0] % 10 == 4 || c.p [0] % 10 == 5)
-         result *= 4;
-      if (c.p [0] / 100 == 3)
-         result *= 3;
       break;
    case CM_INVARIANT_DOUBLEETA:
    case CM_INVARIANT_MULTIETA:
@@ -916,38 +912,38 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
             c.p [0], c.p [1], c.p [2], c.p [3], c.e);
       break;
    case CM_INVARIANT_WEBER:
-      if (c.p [0] % 10 == 1) {
+      if (c.p [0] == 1) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_sqr (rop, rop, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
-      else if (c.p [0] % 10 == 3)
+      else if (c.p [0] == 3)
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-      else if (c.p [0] % 10 == 5) {
+      else if (c.p [0] == 5) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_pow_ui (rop, rop, 4ul, MPC_RNDNN);
          mpc_div_ui (rop, rop, 2ul, MPC_RNDNN);
       }
-      else if (c.p [0] % 10 == 7) {
+      else if (c.p [0] == 7) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
-      else if (c.p [0] % 10 == 2 || c.p [0] % 10 == 6) {
+      else if (c.p [0] == 2 || c.p [0] == 6) {
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
          mpc_sqr (rop, rop, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
       else {
-         /* c.p [0] % 10 == 4 */
+         /* c.p [0] == 4 */
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
          mpc_pow_ui (rop, rop, 4ul, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over4, MPC_RNDNN);
       }
 
-      if (c.p [0] / 100 == 3)
+      if (c.d % 3 == 0)
          mpc_pow_ui (rop, rop, 3ul, MPC_RNDNN);
 
-      if (c.p [0] % 10 != 3 && c.p [0] % 10 != 5)
+      if (c.p [0] != 3 && c.p [0] != 5)
          if (cm_classgroup_kronecker ((int_cl_t) 2, Q.a) == -1)
             mpc_neg (rop, rop, MPC_RNDNN);
 
@@ -1350,7 +1346,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       cm_class_compute_minpoly (c, false, false, false, verbose);
    cm_timer_start (clock);
    mpz_init (root);
-   if (inv != CM_INVARIANT_WEBER || c.p [0] % 100 != 13)
+   if (inv != CM_INVARIANT_WEBER || c.p [0] != 3 || c.p [1] != 1)
       /* avoid special case of Weber polynomial factoring over extension */
       /* of degree 3; handled in weber_cm_get_j_mod_P                    */
       get_root_mod_P (c, root, P, verbose);
@@ -1481,14 +1477,14 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
    mpz_init (f24);
    mpz_init (tmp);
 
-   if (c.p [0] % 100 != 13) {
-      if (c.p [0] / 100 == 3)
+   if (c.p [0] != 3 || c.p [1] != 1) {
+      if (c.d % 3 == 0)
          mpz_powm_ui (f24, root, 2ul, P);
       else
          mpz_powm_ui (f24, root, 6ul, P);
 
-      if (c.p [0] % 100 != 17) {
-         if (c.p [0] % 10 == 1) {
+      if (c.p [0] != 7 || c.p [1] != 1) {
+         if (c.p [0] == 1) {
             mpz_mul_2exp (tmp, f24, 3ul);
             mpz_mod (tmp, tmp, P);
             mpz_powm_ui (f24, tmp, 2ul, P);
@@ -1498,7 +1494,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p [0] % 10 == 3) {
+         else if (c.p [0] == 3) {
             mpz_powm_ui (tmp, f24, 4ul, P);
             mpz_set (f24, tmp);
             mpz_sub_ui (j [0], f24, 16ul);
@@ -1507,7 +1503,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p [0] % 10 == 5) {
+         else if (c.p [0] == 5) {
             mpz_mul_2exp (tmp, f24, 6ul);
             mpz_set (f24, tmp);
             mpz_sub_ui (j [0], f24, 16ul);
@@ -1516,7 +1512,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p [0] % 10 == 7) {
+         else if (c.p [0] == 7) {
             mpz_mul_2exp (tmp, f24, 3ul);
             mpz_mod (tmp, tmp, P);
             mpz_powm_ui (f24, tmp, 4ul, P);
@@ -1526,7 +1522,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p [0] % 10 == 2 || c.p [0] % 10 == 6) {
+         else if (c.p [0] == 2 || c.p [0] == 6) {
             mpz_mul_2exp (tmp, f24, 3ul);
             mpz_mod (tmp, tmp, P);
             mpz_powm_ui (f24, tmp, 2ul, P);
@@ -1537,7 +1533,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mod (j [0], j [0], P);
          }
          else {
-            /* c.p [0] % 10 == 4 */
+            /* c.p [0] == 4 */
             mpz_mul_2exp (tmp, f24, 9ul);
             mpz_set (f24, tmp);
             mpz_add_ui (j [0], f24, 16ul);
@@ -1577,7 +1573,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
          mpfpx_out (root_poly);
       }
 
-      if (c.p [0] % 100 == 3)
+      if (c.d % 3 == 0)
          mpfpx_set_ui_array (f24_poly, x2, 3);
       else {
          mpfpx_set_ui_array (f24_poly, x6, 7);

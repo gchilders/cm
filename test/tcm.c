@@ -48,18 +48,40 @@ void test_curve (int_cl_t d, char invariant, bool verbose) {
 
 int main ()
 {
-   test_curve ((int_cl_t) (-108715), CM_INVARIANT_DOUBLEETA, false);
-   test_curve ((int_cl_t) (-108708), CM_INVARIANT_J, false);
+   /* Weber: d divisible by 4, not by 32, not by 3 */
+   test_curve ((int_cl_t) (-108740), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108712), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108716), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108752), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108724), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108728), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108764), CM_INVARIANT_WEBER, false);
+   /* Weber: d divisible by 12, not by 32 */
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108720), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108732), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108744), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108756), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108780), CM_INVARIANT_WEBER, false);
+   test_curve ((int_cl_t) (-108792), CM_INVARIANT_WEBER, false);
+   /* Weber: d=1 (8), not divisible by 3 */
+   test_curve ((int_cl_t) (-108703), CM_INVARIANT_WEBER, false);
+   /* Weber: d=1 (8), divisible by 3 */
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_WEBER, false);
+   /* Weber: d=5 (8), not divisible by 3 */
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_WEBER, false);
+   /* Weber: d=5 (8), divisible by 3 */
+   test_curve ((int_cl_t) (-108723), CM_INVARIANT_WEBER, false);
+
+   test_curve ((int_cl_t) (-108708), CM_INVARIANT_J, false);
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_GAMMA2, false);
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_GAMMA3, false);
-   test_curve ((int_cl_t) (-299), CM_INVARIANT_SIMPLEETA, false);
+   test_curve ((int_cl_t) (-108715), CM_INVARIANT_DOUBLEETA, false);
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_ATKIN, false); /* p=71 */
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_ATKIN, false); /* p=47 */
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_ATKIN, false); /* p=59 */
-   test_curve ((int_cl_t) (-58767), CM_INVARIANT_ATKIN, false); /* p=131 */
+   test_curve ((int_cl_t) (-58767),  CM_INVARIANT_ATKIN, false); /* p=131 */
+   test_curve ((int_cl_t) (-299),    CM_INVARIANT_SIMPLEETA, false);
    test_curve ((int_cl_t) (-105131), CM_INVARIANT_MULTIETA, false); /* N=3*5*7 */
 
    return 0;
