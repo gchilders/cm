@@ -243,27 +243,16 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
       case CM_INVARIANT_DOUBLEETA:
          return doubleeta_compute_parameter (c);
       case CM_INVARIANT_SIMPLEETA:
-      {
-         /* we compute (eta (alpha/l) / eta(alpha))^e, while the modular  */
-         /* equation is given for the power s                             */
-         /* We let p = 10000*l + 100*e + s                                */
-         int l, s, e;
-
-         l = 25;
-         s = 1;
-         e = 1;
-
-         if (cm_classgroup_kronecker (c->d, (int_cl_t) l) == -1) {
+         c->p [0] = 25;
+         if (cm_classgroup_kronecker (c->d, (int_cl_t) (c->p [0])) == -1) {
             if (verbose)
                printf ("*** Unsuited discriminant\n\n");
             return false;
          }
 
-         c->p [0] = 10000*l + 100*s + e;
          c->p [1] = 0;
          c->s = 1;
          c->e = 1;
-      }
          break;
       default: /* should not occur */
          printf ("class_compute_parameter called for "
@@ -529,7 +518,6 @@ static double class_get_valuation (cm_class_t c)
 {
    double result;
    int p1, p2, p3, p4;
-   int l, e;
 
    switch (c.invariant) {
    case CM_INVARIANT_J:
@@ -577,9 +565,7 @@ static double class_get_valuation (cm_class_t c)
                   / (double) (3*(p1+1)*(p2+1)*(p3+1)*(p4+1));
       break;
    case CM_INVARIANT_SIMPLEETA:
-      l = c.p [0] / 10000;
-      e = (c.p [0] / 100) % 100;
-      result = (e * (l-1) / (double) (24 * (l+1)));
+      result = (c.e * (c.p [0] - 1) / (double) (24 * (c.p [0] + 1)));
       break;
    default: /* should not occur */
       printf ("class_get_valuation called for unknown class ");
@@ -721,22 +707,17 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 
    if (c->invariant == CM_INVARIANT_SIMPLEETA) {
       bool ok = false;
-      int l, s, e;
+      N = c->p[0] * c->s / c->e;
 
-      l = c->p [0] / 10000;
-      s = (c->p [0] / 100) % 100;
-      e = c->p [0] % 100;
-      N = l * s / e;
-
-      if (l != 4) {
+      if (c->p[0] != 4) {
          b0 = c->d % 2;
          while (!ok) {
             b0 += 2;
-            if ((b0*b0 - c->d) % (4*l) != 0)
+            if ((b0*b0 - c->d) % (4*c->p[0]) != 0)
                ok = false;
-            else if (l != 2 && (s/e) % 2 == 0 && (b0 - 1) % 4 != 0)
+            else if (c->p[0] != 2 && (c->s/c->e) % 2 == 0 && (b0 - 1) % 4 != 0)
                ok = false;
-            else if (l != 2 && (s/e) % 3 == 0 && b0 % 3 != 0)
+            else if (c->p[0] != 2 && (c->s/c->e) % 3 == 0 && b0 % 3 != 0)
                ok = false;
             else
                ok = true;
@@ -746,7 +727,8 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
         b0 = (int_cl_t) -7;
       }
       if (verbose)
-         printf ("l %i\ns %i\ne %i\nN %"PRIicl"\nb0 %"PRIicl"\n", l, s, e, N, b0);
+         printf ("l %i\ns %i\ne %i\nN %"PRIicl"\nb0 %"PRIicl"\n",
+                 c->p[0], c->s, c->e, N, b0);
    }
 
    else {
@@ -931,8 +913,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b, c.p [0]);
       break;
    case CM_INVARIANT_SIMPLEETA:
-      cm_modclass_simpleeta_eval_quad (mc, rop, Q.a, Q.b,
-         c.p [0] / 10000, (c.p [0] / 100) % 100);
+      cm_modclass_simpleeta_eval_quad (mc, rop, Q.a, Q.b, c.p [0], c.e);
       break;
    case CM_INVARIANT_DOUBLEETA:
       cm_modclass_doubleeta_eval_quad (mc, rop, Q.a, Q.b,
