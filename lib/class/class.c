@@ -144,111 +144,141 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
       /* otherwise, returns 0                                                   */
 
 {
-   if (c->invariant == CM_INVARIANT_SIMPLEETA) {
-      /* we compute (eta (alpha/l) / eta(alpha))^e, while the modular        */
-      /* equation is given for the power s                                   */
-      /* We let p = 10000*l + 100*e + s                                      */
-      int l, s, e;
+   int i;
+   char* pointer;
 
-      l = 25;
-      s = 1;
-      e = 1;
-
-      if (cm_classgroup_kronecker (c->d, (int_cl_t) l) == -1) {
-         if (verbose)
-            printf ("*** Unsuited discriminant\n\n");
-         return false;
-      }
-
-      if (verbose)
-         printf ("l = %i, s = %i, e = %i\n", l, s, e);
-
-      c->p [0] = 10000*l + 100*s + e;
-   }
-   else {
-      switch (c->invariant) {
-         case CM_INVARIANT_J:
-            c->p [0] = 1;
-            break;
-         case CM_INVARIANT_GAMMA2:
-            if (c->d % 3 == 0) {
-               if (verbose) {
-                  printf ("\n*** %"PRIicl" is divisible by 3, so that gamma2 ",
-                          c->d);
-                  printf ("cannot be used.\n");
-               }
-               return false;
+   switch (c->invariant) {
+      case CM_INVARIANT_J:
+         c->p [0] = 1;
+         c->p [1] = 0;
+         c->s = 1;
+         c->e = 1;
+         break;
+      case CM_INVARIANT_GAMMA2:
+         if (c->d % 3 == 0) {
+            if (verbose) {
+               printf ("\n*** %"PRIicl" is divisible by 3, so that gamma2 ",
+                        c->d);
+               printf ("cannot be used.\n");
             }
-            c->p [0] = 1;
-            break;
-         case CM_INVARIANT_GAMMA3:
-            if (c->d % 2 == 0) {
-               if (verbose) {
-                  printf ("\n*** %"PRIicl" is divisible by 4, so that gamma3 ",
-                          c->d);
-                  printf ("cannot be used.\n");
-               }
-               return false;
-            }
-            break;
-         case CM_INVARIANT_WEBER: {
-            int p;
-
-            if (c->d % 32 == 0) {
-               if (verbose) {
-                  printf ("\n*** %"PRIicl" is divisible by 32, so that the Weber ",
-                          c->d);
-                  printf ("functions cannot be used.\n");
-               }
-               return false;
-            }
-
-            /* If disc is even and not divisible by 3, let m=-disc           */
-            /* and p=m % 8; if disc is odd and not divisible by 3, compute   */
-            /* p for 4*disc and add 10.                                      */
-            /* If disc is divisible by 3, add 300.                           */
-            if (c->d % 4 == 0)
-               p = ((-(c->d)) / 4) % 8;
-            else
-               p = 10 + (-(c->d)) % 8;
-            if (c->d % 3 == 0)
-               p += 300;
-            c->p [0] = p;
-            break;
+            return false;
          }
-         case CM_INVARIANT_ATKIN:
-            if (cm_classgroup_kronecker (c->d, (int_cl_t) 71) != -1)
-               /* factor 36, T_5 + T_29 + 1 */
-               c->p [0] = 71;
-            else if (cm_classgroup_kronecker (c->d, (int_cl_t) 59) != -1)
-               /* factor 30, T_5 + T_29 */
-               c->p [0] = 59;
-            else if (cm_classgroup_kronecker (c->d, (int_cl_t) 47) != -1)
-               /* factor 24, -T_17 */
-               c->p [0] = 47;
-            else if (cm_classgroup_kronecker (c->d, (int_cl_t) 131) != -1)
-               /* factor 33, T_61 + 1 */
-               c->p [0] = 131;
-            else {
-               if (verbose) {
-                  printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl", so that ",
-                          c->d);
-                  printf ("atkin cannot be used.\n");
-               }
-               return false;
+         c->p [0] = 1;
+         c->p [1] = 0;
+         c->s = 1;
+         c->e = 1;
+         break;
+      case CM_INVARIANT_GAMMA3:
+         if (c->d % 2 == 0) {
+            if (verbose) {
+               printf ("\n*** %"PRIicl" is divisible by 4, so that gamma3 ",
+                        c->d);
+               printf ("cannot be used.\n");
             }
-            break;
-         case CM_INVARIANT_MULTIETA:
-            c->p [0] = 70503;
-            break;
-         case CM_INVARIANT_DOUBLEETA:
-            return doubleeta_compute_parameter (c);
-         default: /* should not occur */
-            printf ("class_compute_parameter called for "
-                    "unknown class invariant '%c'\n", c->invariant);
-            exit (1);
+            return false;
+         }
+         c->p [0] = 1;
+         c->p [1] = 0;
+         c->s = 1;
+         c->e = 1;
+         break;
+      case CM_INVARIANT_WEBER: {
+         int p;
+
+         if (c->d % 32 == 0) {
+            if (verbose) {
+               printf ("\n*** %"PRIicl" is divisible by 32, so that the Weber ",
+                        c->d);
+               printf ("functions cannot be used.\n");
+            }
+            return false;
+         }
+
+         /* If disc is even and not divisible by 3, let m=-disc           */
+         /* and p=m % 8; if disc is odd and not divisible by 3, compute   */
+         /* p for 4*disc and add 10.                                      */
+         /* If disc is divisible by 3, add 300.                           */
+         if (c->d % 4 == 0)
+            p = ((-(c->d)) / 4) % 8;
+         else
+            p = 10 + (-(c->d)) % 8;
+         if (c->d % 3 == 0)
+            p += 300;
+         c->p [0] = p;
+         c->p [1] = 0;
+         c->s = 1;
+         c->e = 1;
+         break;
       }
+      case CM_INVARIANT_ATKIN:
+         if (cm_classgroup_kronecker (c->d, (int_cl_t) 71) != -1)
+            /* factor 36, T_5 + T_29 + 1 */
+            c->p [0] = 71;
+         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 59) != -1)
+            /* factor 30, T_5 + T_29 */
+            c->p [0] = 59;
+         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 47) != -1)
+            /* factor 24, -T_17 */
+            c->p [0] = 47;
+         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 131) != -1)
+            /* factor 33, T_61 + 1 */
+            c->p [0] = 131;
+         else {
+            if (verbose) {
+               printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl, c->d);
+               printf (", so that atkin cannot be used.\n");
+            }
+            return false;
+         }
+         c->p [1] = 0;
+         c->s = 1;
+         c->e = 1;
+         break;
+      case CM_INVARIANT_MULTIETA:
+         c->p [0] = 70503;
+         c->p [1] = 0;
+         c->s = 1;
+         c->e = 1;
+         break;
+      case CM_INVARIANT_DOUBLEETA:
+         return doubleeta_compute_parameter (c);
+      case CM_INVARIANT_SIMPLEETA:
+      {
+         /* we compute (eta (alpha/l) / eta(alpha))^e, while the modular  */
+         /* equation is given for the power s                             */
+         /* We let p = 10000*l + 100*e + s                                */
+         int l, s, e;
+
+         l = 25;
+         s = 1;
+         e = 1;
+
+         if (cm_classgroup_kronecker (c->d, (int_cl_t) l) == -1) {
+            if (verbose)
+               printf ("*** Unsuited discriminant\n\n");
+            return false;
+         }
+
+         c->p [0] = 10000*l + 100*s + e;
+         c->p [1] = 0;
+         c->s = 1;
+         c->e = 1;
+      }
+         break;
+      default: /* should not occur */
+         printf ("class_compute_parameter called for "
+                  "unknown class invariant '%c'\n", c->invariant);
+         exit (1);
    }
+
+   /* create parameter string */
+   pointer = c->paramstr;
+   i = 0;
+   do {
+      pointer += sprintf (pointer, "%i_", c->p [i]);
+      i++;
+   } while (c->p [i] != 0);
+   sprintf (pointer, "%i_%i", c->e, c->s);
 
    return true;
 }
@@ -315,6 +345,9 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
          }
 
    c->p [0] = 1000*p2opt + p1opt;
+   c->p [1] = 0;
+   c->s = 1;
+   c->e = 1;
    return ok;
 }
 
@@ -326,22 +359,23 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
 
 void cm_class_write (cm_class_t c)
    /* writes the class polynomial to the file                                */
-   /* CLASS_DATADIR + "/cp_" + d + "_" + invariant + p + ".dat"              */
+   /* CM_CLASS_DATADIR + "/cp_" + d + "_" + invariant + "_" + paramstr       */
+   /* + ".dat"                                                               */
 
 {
    char filename [255];
    FILE *f;
    int i;
 
-   sprintf (filename, "%s/cp_%"PRIicl"_%c%i.dat", CM_CLASS_DATADIR, -c.d,
-            c.invariant, c.p [0]);
+   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.d,
+            c.invariant, c.paramstr);
 
    if (!cm_file_open_write (&f, filename))
       exit (1);
 
    fprintf (f, "%"PRIicl"\n", -c.d);
    fprintf (f, "%c\n", c.invariant);
-   fprintf (f, "%i\n", c.p [0]);
+   fprintf (f, "%s\n", c.paramstr);
    fprintf (f, "%i\n", c.minpoly_deg);
    if (c.field == CM_FIELD_REAL)
       fprintf (f, "1\n");
@@ -362,8 +396,7 @@ void cm_class_write (cm_class_t c)
 /*****************************************************************************/
 
 bool cm_class_read (cm_class_t c)
-   /* reads the class polynomial from the file                               */
-   /* CM_CLASS_DATADIR + "/cp_" + d + "_" + invariant + p + ".dat"           */
+   /* reads the class polynomial from a file written by cm_class_write       */
    /* If an error occurs, the return value is false.                         */
 
 {
@@ -371,10 +404,11 @@ bool cm_class_read (cm_class_t c)
    FILE* f;
    int i;
    char inv;
+   char pars [255];
    int_cl_t disc;
 
-   sprintf (filename, "%s/cp_%"PRIicl"_%c%i.dat", CM_CLASS_DATADIR, -c.d,
-      c.invariant, c.p [0]);
+   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.d,
+            c.invariant, c.paramstr);
 
    if (!cm_file_open_read (&f, filename))
       return false;
@@ -395,12 +429,12 @@ bool cm_class_read (cm_class_t c)
       printf ("*** invariant '%c' instead of '%c'\n", inv, c.invariant);
       exit (1);
    }
-   if (!fscanf (f, "%i", &i))
+   if (!fscanf (f, "%254s", pars))
       return false;
-   if (i != c.p [0]) {
+   if (!strcmp (pars, c.paramstr)) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** parameter %i instead of %i\n", i, c.p [0]);
+      printf ("*** parameter %s instead of %s\n", pars, c.paramstr);
       exit (1);
    }
    if (!fscanf (f, "%i", &i))
@@ -434,16 +468,17 @@ bool cm_class_read (cm_class_t c)
 
 static void write_conjugates (cm_class_t c, mpc_t *conjugate)
    /* writes the conjugates to the file                                      */
-   /* CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + p + "_" + prec +     */
-   /* "_conjugates.dat"                                                      */
+   /* CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + "_" + paramstr + "_" */
+   /* + prec + "_conjugates.dat"                                             */
 
 {
    char filename [255];
    FILE *f;
    int i;
 
-   sprintf (filename, "%s/tmp_%"PRIicl"_%c%i_%i_conjugates.dat", CM_CLASS_TMPDIR,
-      -c.d, c.invariant, c.p [0], (int) mpc_get_prec (conjugate [0]));
+   sprintf (filename, "%s/tmp_%"PRIicl"_%c_%s_%i_conjugates.dat",
+      CM_CLASS_TMPDIR, -c.d, c.invariant, c.paramstr,
+      (int) mpc_get_prec (conjugate [0]));
 
    if (!cm_file_open_write (&f, filename))
       exit (1);
@@ -459,17 +494,16 @@ static void write_conjugates (cm_class_t c, mpc_t *conjugate)
 /*****************************************************************************/
 
 static bool read_conjugates (cm_class_t c, mpc_t *conjugate)
-   /* reads the conjugates from the file                                     */
-   /* CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + p + "_" + prec +     */
-   /* "_conjugates.dat"                                                      */
+   /* reads the conjugates from a file written by write_conjugates           */
    /* If the file could not be openend, the return value is false.           */
 {
    char filename [255];
    FILE *f;
    int i;
 
-   sprintf (filename, "%s/tmp_%"PRIicl"_%c%i_%i_conjugates.dat", CM_CLASS_TMPDIR,
-      -c.d, c.invariant, c.p [0], (int) mpc_get_prec (conjugate [0]));
+   sprintf (filename, "%s/tmp_%"PRIicl"_%c_%s_%i_conjugates.dat",
+      CM_CLASS_TMPDIR, -c.d, c.invariant, c.paramstr,
+      (int) mpc_get_prec (conjugate [0]));
 
    if (!cm_file_open_read (&f, filename))
       return false;

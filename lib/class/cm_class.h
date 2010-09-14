@@ -54,9 +54,11 @@ typedef struct {
       /* complex numbers                                                        */
    int p [5], e, s;
       /* some parameters of the class invariant                                 */
-      /* p is usually a 0-terminated list of integers/primes (for multiple eta  */
-      /* quotients), or just p [0] is used as one parameter;                    */
-      /* s is the canonical power, e the power actually used.                   */
+      /* p is a 0-terminated list of integers (often the primes dividing the    */
+      /* level; s is the canonical power, e the power actually used.            */
+   char paramstr [255];
+      /* a string encoding the previous characters, used in files and their     */
+      /* names                                                                  */
    int_cl_t d;
       /* the discriminant                                                       */
    int h, h1, h2, h12;
