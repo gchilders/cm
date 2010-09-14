@@ -52,8 +52,11 @@ typedef struct {
    int field;
       /* a constant describing whether we are working over the real or the      */
       /* complex numbers                                                        */
-   int p;
-      /* some parameter of the class invariant                                  */
+   int p, e, s;
+      /* some parameters of the class invariant                                 */
+      /* p is usually a 0-terminated list of integers/primes (for multiple eta  */
+      /* quotients), or just p [0] is used as one parameter;                    */
+      /* s is the canonical power, e the power actually used.                   */
    int_cl_t d;
       /* the discriminant                                                       */
    int h, h1, h2, h12;

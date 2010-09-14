@@ -31,7 +31,7 @@ static int class_get_height (cm_class_t c);
    /* in the complex case, returns the binary length of the largest          */
    /* coefficient with respect to the decomposition over an integral basis   */
 
-static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose);
+static bool cm_class_compute_parameter (cm_class_t *c, bool verbose);
 static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    cm_form_t neutral_class, cm_class_t *cl);
    /* changes Q to obtain an N-system                                        */
@@ -60,7 +60,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    cm_form_t *nsystem, bool print, bool verbose);
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    bool print, bool verbose);
-static int doubleeta_compute_parameter (int_cl_t disc);
+static bool doubleeta_compute_parameter (cm_class_t *c);
 static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
    int *no, bool verbose);
 static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
@@ -87,12 +87,10 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
    }
    else {
       c->invariant = inv;
-      c->p = cm_class_compute_parameter (d, inv, verbose);
-      if (!(c->p))
+      c->d = d;
+      if (!cm_class_compute_parameter (c, verbose))
          exit (1);
-      if (inv != CM_INVARIANT_WEBER || ((c->p / 10) % 10 == 0))
-         c->d = d;
-      else
+      if (inv == CM_INVARIANT_WEBER && ((c->p / 10) % 10 != 0))
          /* special case Weber with d=1 (4): compute ring class field for 4d */
          /* If d=1 (8), this is the same as the Hilbert class field;         */
          /* if d=5 (8), it is a degree 3 relative extension, which will be   */
@@ -140,14 +138,13 @@ void cm_class_clear (cm_class_t *c)
 
 /*****************************************************************************/
 
-static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
+static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
       /* tests whether the discriminant is suited for the chosen invariant and  */
       /* in this case computes and returns the parameter p                      */
       /* otherwise, returns 0                                                   */
 
 {
-   if (inv == CM_INVARIANT_SIMPLEETA)
-   {
+   if (c->invariant == CM_INVARIANT_SIMPLEETA) {
       /* we compute (eta (alpha/l) / eta(alpha))^e, while the modular        */
       /* equation is given for the power s                                   */
       /* We let p = 10000*l + 100*e + s                                      */
@@ -157,106 +154,108 @@ static int cm_class_compute_parameter (int_cl_t disc, int inv, bool verbose)
       s = 1;
       e = 1;
 
-      if (cm_classgroup_kronecker (disc, (int_cl_t) l) == -1) {
+      if (cm_classgroup_kronecker (c->d, (int_cl_t) l) == -1) {
          if (verbose)
             printf ("*** Unsuited discriminant\n\n");
-         return 0;
+         return false;
       }
 
       if (verbose)
          printf ("l = %i, s = %i, e = %i\n", l, s, e);
 
-      return (10000*l + 100*s + e);
+      c->p = 10000*l + 100*s + e;
    }
-   else
-   {
-      switch (inv)
-      {
+   else {
+      switch (c->invariant) {
          case CM_INVARIANT_J:
-            return 1;
+            c->p = 1;
+            break;
          case CM_INVARIANT_GAMMA2:
-            if (disc % 3 == 0) {
+            if (c->d % 3 == 0) {
                if (verbose) {
                   printf ("\n*** %"PRIicl" is divisible by 3, so that gamma2 ",
-                          disc);
+                          c->d);
                   printf ("cannot be used.\n");
                }
-               return 0;
+               return false;
             }
-            return 1;
+            c->p = 1;
+            break;
          case CM_INVARIANT_GAMMA3:
-            if (disc % 2 == 0) {
+            if (c->d % 2 == 0) {
                if (verbose) {
                   printf ("\n*** %"PRIicl" is divisible by 4, so that gamma3 ",
-                          disc);
+                          c->d);
                   printf ("cannot be used.\n");
                }
-               return 0;
+               return false;
             }
-            return 1;
-         case CM_INVARIANT_WEBER:
-         {
+            break;
+         case CM_INVARIANT_WEBER: {
             int p;
 
-            if (disc % 32 == 0) {
+            if (c->d % 32 == 0) {
                if (verbose) {
                   printf ("\n*** %"PRIicl" is divisible by 32, so that the Weber ",
-                          disc);
+                          c->d);
                   printf ("functions cannot be used.\n");
                }
-               return 0;
+               return false;
             }
 
             /* If disc is even and not divisible by 3, let m=-disc           */
             /* and p=m % 8; if disc is odd and not divisible by 3, compute   */
             /* p for 4*disc and add 10.                                      */
             /* If disc is divisible by 3, add 300.                           */
-            if (disc % 4 == 0)
-               p = ((-disc) / 4) % 8;
+            if (c->d % 4 == 0)
+               p = ((-(c->d)) / 4) % 8;
             else
-               p = 10 + (-disc) % 8;
-            if (disc % 3 == 0)
+               p = 10 + (-(c->d)) % 8;
+            if (c->d % 3 == 0)
                p += 300;
-            return p;
+            c->p = p;
+            break;
          }
          case CM_INVARIANT_ATKIN:
-            if (cm_classgroup_kronecker (disc, (int_cl_t) 71) != -1)
+            if (cm_classgroup_kronecker (c->d, (int_cl_t) 71) != -1)
                /* factor 36, T_5 + T_29 + 1 */
-               return 71;
-            else if (cm_classgroup_kronecker (disc, (int_cl_t) 59) != -1)
+               c->p = 71;
+            else if (cm_classgroup_kronecker (c->d, (int_cl_t) 59) != -1)
                /* factor 30, T_5 + T_29 */
-               return 59;
-            else if (cm_classgroup_kronecker (disc, (int_cl_t) 47) != -1)
+               c->p = 59;
+            else if (cm_classgroup_kronecker (c->d, (int_cl_t) 47) != -1)
                /* factor 24, -T_17 */
-               return 47;
-            else if (cm_classgroup_kronecker (disc, (int_cl_t) 131) != -1)
+               c->p = 47;
+            else if (cm_classgroup_kronecker (c->d, (int_cl_t) 131) != -1)
                /* factor 33, T_61 + 1 */
-               return 131;
+               c->p = 131;
             else {
                if (verbose) {
                   printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl", so that ",
-                          disc);
+                          c->d);
                   printf ("atkin cannot be used.\n");
                }
-               return 0;
+               return false;
             }
+            break;
          case CM_INVARIANT_MULTIETA:
-            return 70503;
+            c->p = 70503;
+            break;
          case CM_INVARIANT_DOUBLEETA:
-            return doubleeta_compute_parameter (disc);
+            return doubleeta_compute_parameter (c);
          default: /* should not occur */
             printf ("class_compute_parameter called for "
-                    "unknown class invariant '%c'\n", inv);
+                    "unknown class invariant '%c'\n", c->invariant);
             exit (1);
       }
-
-      return 0;
    }
+
+   return true;
 }
 
 /*****************************************************************************/
 
-static int doubleeta_compute_parameter (int_cl_t disc)
+static bool doubleeta_compute_parameter (cm_class_t *c)
    /* Compute p1 <= p2 prime following Cor. 3.1 of [EnSc04], that is,        */
    /* - 24 | (p1-1)(p2-1).                                                   */
    /* - p1, p2 are not inert;                                                */
@@ -266,10 +265,10 @@ static int doubleeta_compute_parameter (int_cl_t disc)
    /* Minimise with respect to the height factor gained, which is            */
    /* 12 psi (p1*p2) / (p1-1)(p2-1);                                         */
    /* then p1, p2 <= the smallest split prime which is 1 (mod 24).           */
-   /* Return p = 1000*p2 + p1.                                                */
+   /* Let p = 1000*p2 + p1.                                                */
 
 {
-   int_cl_t cond2 = disc / cm_classgroup_fundamental_discriminant (disc);
+   int_cl_t cond2 = c->d / cm_classgroup_fundamental_discriminant (c->d);
       /* square of conductor */
    const unsigned long int maxprime = 997;
    unsigned long int primelist [169];
@@ -285,7 +284,7 @@ static int doubleeta_compute_parameter (int_cl_t disc)
    p1 = 2;
    ok = false;
    do {
-      int kro = cm_classgroup_kronecker (disc, (int_cl_t) p1);
+      int kro = cm_classgroup_kronecker (c->d, (int_cl_t) p1);
       if (kro != -1) {
          primelist [i] = p1;
          i++;
@@ -304,17 +303,19 @@ static int doubleeta_compute_parameter (int_cl_t disc)
       for (i = 0, p1 = primelist [i]; i <= j; i++, p1 = primelist [i])
          if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
              && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
-                 || (p1 == p2 && ((-disc) % p1 != 0 || cond2 % p1 == 0)))) {
+                 || (p1 == p2 && ((-c->d) % p1 != 0 || cond2 % p1 == 0)))) {
             quality = (p1 == p2 ? p1 : p1 + 1) * (p2 + 1) / (double) (p1 - 1)
                / (double) (p2 - 1);
             if (quality > opt) {
                p1opt = p1;
                p2opt = p2;
                opt = quality;
+               ok = true;
             }
          }
 
-   return (int) (1000*p2opt + p1opt);
+   c->p = 1000*p2opt + p1opt;
+   return ok;
 }
 
 /*****************************************************************************/
@@ -587,15 +588,18 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    /* Changes the form Q by a unimodular transformation so that Q.a is       */
    /* coprime to N and Q.b is congruent to b0 modulo 2*N                     */
    /* Furthermore, determines and returns via Q.emb how many conjugates      */
-   /* real or complex conjugate ones) correspond to the form.                */
+   /* (real or complex conjugate ones) correspond to the form.               */
    /* In the real case, forms whose product is equivalent to neutral_class   */
    /* correspond to conjugate complex values. The lexicographically smaller  */
-   /* one of two such forms gets Q.emb = complex; the other one gets         */
-   /* Q.emb = conj, is in fact not corrected to the N-system condition and   */
-   /* shall be dropped. If the square of a form equals the neutral class,    */
-   /* then the conjugate is real and Q.emb=real; moreover, cl.h1 and cl.h12  */
-   /* incremented. In the complex case, Q.emb=complex, and cl.h2 and cl.h12  */
-   /* are incremented.                                                       */
+   /* one of two such forms gets Q.emb = complex, cl.h2 and cl.h12 are       */
+   /* incremented; the other one gets Q.emb = conj, is in fact not corrected */
+   /* to the N-system condition and shall be dropped. If the square of a     */
+   /* form equals the neutral class, then the conjugate is real, Q.emb=real  */
+   /* and cl.h1 and cl.h12 are incremented.                                  */
+   /* In the complex case, Q.emb=complex, and cl.h1 and cl.h12 are           */
+   /* incremented.                                                           */
+   /* So in all cases, cl.h1+2*cl.h2 equals the class number, and cl.h12 is  */
+   /* the number of conjugates to compute.                                   */
 
 {
    int_cl_t c, tmp;
@@ -623,8 +627,11 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
       else
          Q->emb = conj;
    }
-   else
+   else {
       Q->emb = complex;
+      cl->h1++;
+      cl->h12++;
+   }
 
    if (Q->emb != conj)
    {
