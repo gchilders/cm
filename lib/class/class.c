@@ -90,7 +90,7 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       c->d = d;
       if (!cm_class_compute_parameter (c, verbose))
          exit (1);
-      if (inv == CM_INVARIANT_WEBER && ((c->p / 10) % 10 != 0))
+      if (inv == CM_INVARIANT_WEBER && ((c->p [0] / 10) % 10 != 0))
          /* special case Weber with d=1 (4): compute ring class field for 4d */
          /* If d=1 (8), this is the same as the Hilbert class field;         */
          /* if d=5 (8), it is a degree 3 relative extension, which will be   */
@@ -99,10 +99,10 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
    }
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %i\n",
-               c->d, c->invariant, c->p);
+               c->d, c->invariant, c->p [0]);
 
    if ( inv == CM_INVARIANT_SIMPLEETA ||
-       (inv == CM_INVARIANT_MULTIETA && c->p / 1000000 == 0))
+       (inv == CM_INVARIANT_MULTIETA && c->p [0] / 1000000 == 0))
       c->field = CM_FIELD_COMPLEX;
    else
       c->field = CM_FIELD_REAL;
@@ -163,12 +163,12 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
       if (verbose)
          printf ("l = %i, s = %i, e = %i\n", l, s, e);
 
-      c->p = 10000*l + 100*s + e;
+      c->p [0] = 10000*l + 100*s + e;
    }
    else {
       switch (c->invariant) {
          case CM_INVARIANT_J:
-            c->p = 1;
+            c->p [0] = 1;
             break;
          case CM_INVARIANT_GAMMA2:
             if (c->d % 3 == 0) {
@@ -179,7 +179,7 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
                }
                return false;
             }
-            c->p = 1;
+            c->p [0] = 1;
             break;
          case CM_INVARIANT_GAMMA3:
             if (c->d % 2 == 0) {
@@ -213,22 +213,22 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
                p = 10 + (-(c->d)) % 8;
             if (c->d % 3 == 0)
                p += 300;
-            c->p = p;
+            c->p [0] = p;
             break;
          }
          case CM_INVARIANT_ATKIN:
             if (cm_classgroup_kronecker (c->d, (int_cl_t) 71) != -1)
                /* factor 36, T_5 + T_29 + 1 */
-               c->p = 71;
+               c->p [0] = 71;
             else if (cm_classgroup_kronecker (c->d, (int_cl_t) 59) != -1)
                /* factor 30, T_5 + T_29 */
-               c->p = 59;
+               c->p [0] = 59;
             else if (cm_classgroup_kronecker (c->d, (int_cl_t) 47) != -1)
                /* factor 24, -T_17 */
-               c->p = 47;
+               c->p [0] = 47;
             else if (cm_classgroup_kronecker (c->d, (int_cl_t) 131) != -1)
                /* factor 33, T_61 + 1 */
-               c->p = 131;
+               c->p [0] = 131;
             else {
                if (verbose) {
                   printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl", so that ",
@@ -239,7 +239,7 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
             }
             break;
          case CM_INVARIANT_MULTIETA:
-            c->p = 70503;
+            c->p [0] = 70503;
             break;
          case CM_INVARIANT_DOUBLEETA:
             return doubleeta_compute_parameter (c);
@@ -314,7 +314,7 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
             }
          }
 
-   c->p = 1000*p2opt + p1opt;
+   c->p [0] = 1000*p2opt + p1opt;
    return ok;
 }
 
@@ -334,14 +334,14 @@ void cm_class_write (cm_class_t c)
    int i;
 
    sprintf (filename, "%s/cp_%"PRIicl"_%c%i.dat", CM_CLASS_DATADIR, -c.d,
-            c.invariant, c.p);
+            c.invariant, c.p [0]);
 
    if (!cm_file_open_write (&f, filename))
       exit (1);
 
    fprintf (f, "%"PRIicl"\n", -c.d);
    fprintf (f, "%c\n", c.invariant);
-   fprintf (f, "%i\n", c.p);
+   fprintf (f, "%i\n", c.p [0]);
    fprintf (f, "%i\n", c.minpoly_deg);
    if (c.field == CM_FIELD_REAL)
       fprintf (f, "1\n");
@@ -374,7 +374,7 @@ bool cm_class_read (cm_class_t c)
    int_cl_t disc;
 
    sprintf (filename, "%s/cp_%"PRIicl"_%c%i.dat", CM_CLASS_DATADIR, -c.d,
-      c.invariant, c.p);
+      c.invariant, c.p [0]);
 
    if (!cm_file_open_read (&f, filename))
       return false;
@@ -397,10 +397,10 @@ bool cm_class_read (cm_class_t c)
    }
    if (!fscanf (f, "%i", &i))
       return false;
-   if (i != c.p) {
+   if (i != c.p [0]) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** parameter %i instead of %i\n", i, c.p);
+      printf ("*** parameter %i instead of %i\n", i, c.p [0]);
       exit (1);
    }
    if (!fscanf (f, "%i", &i))
@@ -443,7 +443,7 @@ static void write_conjugates (cm_class_t c, mpc_t *conjugate)
    int i;
 
    sprintf (filename, "%s/tmp_%"PRIicl"_%c%i_%i_conjugates.dat", CM_CLASS_TMPDIR,
-      -c.d, c.invariant, c.p, (int) mpc_get_prec (conjugate [0]));
+      -c.d, c.invariant, c.p [0], (int) mpc_get_prec (conjugate [0]));
 
    if (!cm_file_open_write (&f, filename))
       exit (1);
@@ -469,7 +469,7 @@ static bool read_conjugates (cm_class_t c, mpc_t *conjugate)
    int i;
 
    sprintf (filename, "%s/tmp_%"PRIicl"_%c%i_%i_conjugates.dat", CM_CLASS_TMPDIR,
-      -c.d, c.invariant, c.p, (int) mpc_get_prec (conjugate [0]));
+      -c.d, c.invariant, c.p [0], (int) mpc_get_prec (conjugate [0]));
 
    if (!cm_file_open_read (&f, filename))
       return false;
@@ -508,34 +508,34 @@ static double class_get_valuation (cm_class_t c)
       result = 0.5;
       break;
    case CM_INVARIANT_ATKIN:
-      if (c.p == 47)
+      if (c.p [0] == 47)
          result = 1.0 / 24;
-      else if (c.p == 59)
+      else if (c.p [0] == 59)
          result = 1.0 / 30;
-      else if (c.p == 71)
+      else if (c.p [0] == 71)
          result = 1.0 / 36;
       else /* 131 */
          result = 1.0 / 33;
       break;
    case CM_INVARIANT_WEBER:
       result = 1.0 / 72;
-      if (c.p % 10 == 1 || c.p % 10 == 2 || c.p % 10 == 6)
+      if (c.p [0] % 10 == 1 || c.p [0] % 10 == 2 || c.p [0] % 10 == 6)
          result *= 2;
-      else if (c.p % 10 == 4 || c.p % 10 == 5)
+      else if (c.p [0] % 10 == 4 || c.p [0] % 10 == 5)
          result *= 4;
-      if (c.p / 100 == 3)
+      if (c.p [0] / 100 == 3)
          result *= 3;
       break;
    case CM_INVARIANT_DOUBLEETA:
-      p1 = c.p % 1000;
-      p2 = c.p / 1000;
+      p1 = c.p [0] % 1000;
+      p2 = c.p [0] / 1000;
       result = ((p1-1)*(p2-1)) / (double) (12*(p1+1)*(p2+1));
       break;
    case CM_INVARIANT_MULTIETA:
-      p1 = c.p % 100;
-      p2 = (c.p / 100) % 100;
-      p3 = (c.p / 10000) % 100;
-      p4 = c.p / 1000000;
+      p1 = c.p [0] % 100;
+      p2 = (c.p [0] / 100) % 100;
+      p3 = (c.p [0] / 10000) % 100;
+      p4 = c.p [0] / 1000000;
       if (p4 == 0)
          result = ((p1-1)*(p2-1)*(p3-1)) / (double) (6*(p1+1)*(p2+1)*(p3+1));
       else
@@ -543,8 +543,8 @@ static double class_get_valuation (cm_class_t c)
                   / (double) (3*(p1+1)*(p2+1)*(p3+1)*(p4+1));
       break;
    case CM_INVARIANT_SIMPLEETA:
-      l = c.p / 10000;
-      e = (c.p / 100) % 100;
+      l = c.p [0] / 10000;
+      e = (c.p [0] / 100) % 100;
       result = (e * (l-1) / (double) (24 * (l+1)));
       break;
    default: /* should not occur */
@@ -689,9 +689,9 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
       bool ok = false;
       int l, s, e;
 
-      l = c->p / 10000;
-      s = (c->p / 100) % 100;
-      e = c->p % 100;
+      l = c->p [0] / 10000;
+      s = (c->p [0] / 100) % 100;
+      e = c->p [0] % 100;
       N = l * s / e;
 
       if (l != 4) {
@@ -736,7 +736,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             N = 2;
             break;
          case CM_INVARIANT_ATKIN:
-            N = c->p;
+            N = c->p [0];
             if (c->d % 2 == 0)
                b0 = 0;
             else
@@ -756,7 +756,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
          case CM_INVARIANT_DOUBLEETA:
          {
             int_cl_t C;
-            N = (c->p/1000)*(c->p%1000);
+            N = (c->p [0]/1000)*(c->p [0]%1000);
             if (c->d % 2 == 0)
                b0 = 2;
             else
@@ -775,9 +775,9 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
          case CM_INVARIANT_MULTIETA:
          {
             int_cl_t C;
-            N = (c->p % 100) * ((c->p / 100) % 100) * ((c->p / 10000) % 100);
-            if (c->p / 1000000 != 0)
-               N *= c->p / 1000000;
+            N = (c->p [0] % 100) * ((c->p [0] / 100) % 100) * ((c->p [0] / 10000) % 100);
+            if (c->p [0] / 1000000 != 0)
+               N *= c->p [0] / 1000000;
             if (c->d % 2 == 0)
                b0 = 2;
             else
@@ -894,57 +894,57 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       cm_modclass_gamma3_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_ATKIN:
-      cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b, c.p);
+      cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b, c.p [0]);
       break;
    case CM_INVARIANT_SIMPLEETA:
       cm_modclass_simpleeta_eval_quad (mc, rop, Q.a, Q.b,
-         c.p / 10000, (c.p / 100) % 100);
+         c.p [0] / 10000, (c.p [0] / 100) % 100);
       break;
    case CM_INVARIANT_DOUBLEETA:
       cm_modclass_doubleeta_eval_quad (mc, rop, Q.a, Q.b,
-         c.p % 1000, c.p / 1000);
+         c.p [0] % 1000, c.p [0] / 1000);
       break;
    case CM_INVARIANT_MULTIETA:
-      if (c.p / 1000000 == 0)
+      if (c.p [0] / 1000000 == 0)
          cm_modclass_tripleeta_eval_quad (mc, rop, Q.a, Q.b,
-            c.p % 100, (c.p / 100) % 100, (c.p / 10000) % 100, 1ul);
+            c.p [0] % 100, (c.p [0] / 100) % 100, (c.p [0] / 10000) % 100, 1ul);
       else
          cm_modclass_quadrupleeta_eval_quad (mc, rop, Q.a, Q.b,
-            c.p % 100, (c.p / 100) % 100, (c.p / 10000) % 100, c.p / 1000000, 1ul);
+            c.p [0] % 100, (c.p [0] / 100) % 100, (c.p [0] / 10000) % 100, c.p [0] / 1000000, 1ul);
       break;
    case CM_INVARIANT_WEBER:
-      if (c.p % 10 == 1) {
+      if (c.p [0] % 10 == 1) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_sqr (rop, rop, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
-      else if (c.p % 10 == 3)
+      else if (c.p [0] % 10 == 3)
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-      else if (c.p % 10 == 5) {
+      else if (c.p [0] % 10 == 5) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_pow_ui (rop, rop, 4ul, MPC_RNDNN);
          mpc_div_ui (rop, rop, 2ul, MPC_RNDNN);
       }
-      else if (c.p % 10 == 7) {
+      else if (c.p [0] % 10 == 7) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
-      else if (c.p % 10 == 2 || c.p % 10 == 6) {
+      else if (c.p [0] % 10 == 2 || c.p [0] % 10 == 6) {
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
          mpc_sqr (rop, rop, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
       }
       else {
-         /* c.p % 10 == 4 */
+         /* c.p [0] % 10 == 4 */
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
          mpc_pow_ui (rop, rop, 4ul, MPC_RNDNN);
          mpc_mul_fr (rop, rop, mc.sqrt2_over4, MPC_RNDNN);
       }
 
-      if (c.p / 100 == 3)
+      if (c.p [0] / 100 == 3)
          mpc_pow_ui (rop, rop, 3ul, MPC_RNDNN);
 
-      if (c.p % 10 != 3 && c.p % 10 != 5)
+      if (c.p [0] % 10 != 3 && c.p [0] % 10 != 5)
          if (cm_classgroup_kronecker ((int_cl_t) 2, Q.a) == -1)
             mpc_neg (rop, rop, MPC_RNDNN);
 
@@ -1004,8 +1004,8 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
       printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
 
    if (   (c.invariant == CM_INVARIANT_WEBER
-           && (   (c.p / 10) % 10 == 1
-               || c.p % 10 == 3 || c.p % 10 == 4 || c.p % 10 == 7))
+           && (   (c.p [0] / 10) % 10 == 1
+               || c.p [0] % 10 == 3 || c.p [0] % 10 == 4 || c.p [0] % 10 == 7))
        || (   (c.invariant == CM_INVARIANT_J || c.invariant == CM_INVARIANT_GAMMA2)
            && c.d % 4 == 0
            && ((c.d / 4) % 4 == 0 || ((c.d / 4) - 1) % 4 == 0))) {
@@ -1027,7 +1027,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
    nsystem = (cm_form_t *) realloc (nsystem, c.h12 * sizeof (cm_form_t));
-   if (c.invariant == CM_INVARIANT_WEBER && c.p % 100 == 17)
+   if (c.invariant == CM_INVARIANT_WEBER && c.p [0] % 100 == 17)
       prec = compute_precision (c, cl2, verbose);
    else
       prec = compute_precision (c, cl, verbose);
@@ -1347,7 +1347,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       cm_class_compute_minpoly (c, false, false, false, verbose);
    cm_timer_start (clock);
    mpz_init (root);
-   if (inv != CM_INVARIANT_WEBER || c.p % 100 != 13)
+   if (inv != CM_INVARIANT_WEBER || c.p [0] % 100 != 13)
       /* avoid special case of Weber polynomial factoring over extension */
       /* of degree 3; handled in weber_cm_get_j_mod_P                    */
       get_root_mod_P (c, root, P, verbose);
@@ -1392,24 +1392,24 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       case CM_INVARIANT_RAMIFIED:
 #endif
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
-            (c.p / 1000) * (c.p % 1000), root, P);
+            (c.p [0] / 1000) * (c.p [0] % 1000), root, P);
          break;
       case CM_INVARIANT_MULTIETA:
-         if (c.p / 1000000 == 0)
+         if (c.p [0] / 1000000 == 0)
             j = cm_get_j_mod_P_from_modular (no, modpoldir,
                CM_MODPOL_MULTIETA,
-               (c.p / 10000) * ((c.p % 10000) / 100) * (c.p % 100),
+               (c.p [0] / 10000) * ((c.p [0] % 10000) / 100) * (c.p [0] % 100),
                root, P);
          else
             j = cm_get_j_mod_P_from_modular (no, modpoldir,
                CM_MODPOL_MULTIETA,
-               (c.p / 1000000) * ((c.p % 1000000) / 10000)
-                  * ((c.p % 10000) / 100) * (c.p % 100),
+               (c.p [0] / 1000000) * ((c.p [0] % 1000000) / 10000)
+                  * ((c.p [0] % 10000) / 100) * (c.p [0] % 100),
                root, P);
          break;
       case CM_INVARIANT_ATKIN:
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
-            c.p, root, P);
+            c.p [0], root, P);
          break;
       case CM_INVARIANT_SIMPLEETA:
          j = simpleeta_cm_get_j_mod_P (c, root, P, no);
@@ -1482,14 +1482,14 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
    mpz_init (f24);
    mpz_init (tmp);
 
-   if (c.p % 100 != 13) {
-      if (c.p / 100 == 3)
+   if (c.p [0] % 100 != 13) {
+      if (c.p [0] / 100 == 3)
          mpz_powm_ui (f24, root, 2ul, P);
       else
          mpz_powm_ui (f24, root, 6ul, P);
 
-      if (c.p % 100 != 17) {
-         if (c.p % 10 == 1) {
+      if (c.p [0] % 100 != 17) {
+         if (c.p [0] % 10 == 1) {
             mpz_mul_2exp (tmp, f24, 3ul);
             mpz_mod (tmp, tmp, P);
             mpz_powm_ui (f24, tmp, 2ul, P);
@@ -1499,7 +1499,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p % 10 == 3) {
+         else if (c.p [0] % 10 == 3) {
             mpz_powm_ui (tmp, f24, 4ul, P);
             mpz_set (f24, tmp);
             mpz_sub_ui (j [0], f24, 16ul);
@@ -1508,7 +1508,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p % 10 == 5) {
+         else if (c.p [0] % 10 == 5) {
             mpz_mul_2exp (tmp, f24, 6ul);
             mpz_set (f24, tmp);
             mpz_sub_ui (j [0], f24, 16ul);
@@ -1517,7 +1517,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p % 10 == 7) {
+         else if (c.p [0] % 10 == 7) {
             mpz_mul_2exp (tmp, f24, 3ul);
             mpz_mod (tmp, tmp, P);
             mpz_powm_ui (f24, tmp, 4ul, P);
@@ -1527,7 +1527,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mul (j [0], j [0], tmp);
             mpz_mod (j [0], j [0], P);
          }
-         else if (c.p % 10 == 2 || c.p % 10 == 6) {
+         else if (c.p [0] % 10 == 2 || c.p [0] % 10 == 6) {
             mpz_mul_2exp (tmp, f24, 3ul);
             mpz_mod (tmp, tmp, P);
             mpz_powm_ui (f24, tmp, 2ul, P);
@@ -1538,7 +1538,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
             mpz_mod (j [0], j [0], P);
          }
          else {
-            /* c.p % 10 == 4 */
+            /* c.p [0] % 10 == 4 */
             mpz_mul_2exp (tmp, f24, 9ul);
             mpz_set (f24, tmp);
             mpz_add_ui (j [0], f24, 16ul);
@@ -1578,7 +1578,7 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
          mpfpx_out (root_poly);
       }
 
-      if (c.p % 100 == 3)
+      if (c.p [0] % 100 == 3)
          mpfpx_set_ui_array (f24_poly, x2, 3);
       else {
          mpfpx_set_ui_array (f24_poly, x6, 7);
@@ -1626,7 +1626,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
 {
    mpz_t* j = (mpz_t*) malloc (sizeof (mpz_t));
    mpz_t f3, tmp;
-   int l = c.p / 10000;
+   int l = c.p [0] / 10000;
 
    mpz_init (j [0]);
    mpz_init (f3);
@@ -1634,7 +1634,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
 
    /* raise to the power s/e */
    mpz_powm_ui (root, root,
-      (unsigned long int) ((c.p % 100) / ((c.p / 100) % 100)), P);
+      (unsigned long int) ((c.p [0] % 100) / ((c.p [0] / 100) % 100)), P);
 
    if (l == 3) {
       mpz_add_ui (f3, root, 3ul);
