@@ -98,8 +98,8 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
          c->d = 4 * d;
    }
    if (verbose)
-      printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %i\n",
-               c->d, c->invariant, c->p [0]);
+      printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
+               c->d, c->invariant, c->paramstr);
 
    if ( inv == CM_INVARIANT_SIMPLEETA ||
        (inv == CM_INVARIANT_MULTIETA && c->p [3] == 0))
@@ -245,7 +245,9 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_DOUBLEETA:
-         return doubleeta_compute_parameter (c);
+         if (!doubleeta_compute_parameter (c))
+            return false;
+         break;
       case CM_INVARIANT_SIMPLEETA:
          c->p [0] = 25;
          if (cm_classgroup_kronecker (c->d, (int_cl_t) (c->p [0])) == -1) {
@@ -272,7 +274,6 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
       i++;
    } while (c->p [i] != 0);
    sprintf (pointer, "%i_%i", c->e, c->s);
-
    return true;
 }
 
@@ -336,7 +337,6 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
                ok = true;
             }
          }
-
    c->p [0] = p1opt;
    c->p [1] = p2opt;
    c->p [2] = 0;
