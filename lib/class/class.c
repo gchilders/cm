@@ -707,7 +707,6 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 
    if (c->invariant == CM_INVARIANT_SIMPLEETA) {
       bool ok = false;
-      N = c->p[0] * c->s / c->e;
 
       if (c->p[0] != 4) {
          b0 = c->d % 2;
@@ -729,6 +728,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
       if (verbose)
          printf ("l %i\ns %i\ne %i\nN %"PRIicl"\nb0 %"PRIicl"\n",
                  c->p[0], c->s, c->e, N, b0);
+      N = c->p[0] * c->s / c->e;
    }
 
    else {
@@ -777,7 +777,6 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             N = 1;
             for (i = 0; c->p [i] != 0; i++)
                N *= c->p [i];
-            N *= c->s / c->e;
             if (c->d % 2 == 0)
                b0 = 2;
             else
@@ -791,6 +790,9 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
             neutral.a = N;
             neutral.b = -b0;
             cm_classgroup_reduce (&neutral, c->d);
+            /* The neutral form corresponds to the product of the primes,    */
+            /* but the n-system needs to take s/e into account               */
+            N *= c->s / c->e;
             break;
          }
          default: /* should not occur */
