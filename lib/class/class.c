@@ -1392,6 +1392,8 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 #if 0
       case CM_INVARIANT_RAMIFIED:
 #endif
+         if (c.s != c.e)
+            mpz_powm_ui (root, root, (unsigned long int) (c.s / c.e), P);
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
             c.p [0] * c.p [1], root, P);
          break;
@@ -1400,10 +1402,12 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
          int N = 1, i;
          for (i = 0; c.p [i] != 0; i++)
             N *= c.p [i];
-            j = cm_get_j_mod_P_from_modular (no, modpoldir,
-               CM_MODPOL_MULTIETA, N, root, P);
-      }
+         if (c.s != c.e)
+            mpz_powm_ui (root, root, (unsigned long int) (c.s / c.e), P);
+         j = cm_get_j_mod_P_from_modular (no, modpoldir,
+            CM_MODPOL_MULTIETA, N, root, P);
          break;
+      }
       case CM_INVARIANT_ATKIN:
          j = cm_get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
             c.p [0], root, P);
