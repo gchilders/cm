@@ -341,15 +341,19 @@ of little practical interest.
 weber: Class functions derived from Weber's functions, with height factors
 between 6 and 72.
 @item
-simpleeta: Simple eta quotients; currently not working properly since the
-determination of optimal parameters is still work in progress.
-@item
-atkin: Optimal functions for X0+(N) with N=71 (height factor 36), N=59 (height
+atkin: Optimal functions for X0+(N) with N=71 (height factor 36),
+N=131 (height factor 33), N=59 (height
 factor 30) or N=47 (height factor 24). While yielding a nice gain in the size of
 the computed objects, these functions are slow to evaluate numerically and thus
 not really attractive for the floating point approach implemented in CM. The
 implementation has not been optimised and should rather be seen as a proof of
 concept.
+@item
+simpleeta: Simple eta quotients; currently not working properly since the
+determination of optimal parameters is still work in progress.
+@item
+multieta: Multiple eta quotients; currently not working properly since the
+determination of optimal parameters is still work in progress.
 @end itemize
 
 
@@ -435,8 +439,8 @@ Sets the discriminant of @var{c} to @var{disc} and the class function to
 The variable @var{inv} may take one of the predefined constants
 @code{CM_INVARIANT_J}, @code{CM_INVARIANT_DOUBLEETA},
 @code{CM_INVARIANT_GAMMA3}, @code{CM_INVARIANT_GAMMA2},
-@code{CM_INVARIANT_WEBER}, @code{CM_INVARIANT_SIMPLEETA}
-or @code{CM_INVARIANT_ATKIN},
+@code{CM_INVARIANT_WEBER}, @code{CM_INVARIANT_SIMPLEETA},
+@code{CM_INVARIANT_MULTIETA} or @code{CM_INVARIANT_ATKIN},
 corresponding to the class functions enumerated in @ref{Applications}.
 For a parameterised family of class functions, a suitable parameter value is
 computed if it exists; otherwise, the program execution is aborted.

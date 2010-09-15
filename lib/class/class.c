@@ -216,15 +216,15 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          if (cm_classgroup_kronecker (c->d, (int_cl_t) 71) != -1)
             /* factor 36, T_5 + T_29 + 1 */
             c->p [0] = 71;
+         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 131) != -1)
+            /* factor 33, T_61 + 1 */
+            c->p [0] = 131;
          else if (cm_classgroup_kronecker (c->d, (int_cl_t) 59) != -1)
             /* factor 30, T_5 + T_29 */
             c->p [0] = 59;
          else if (cm_classgroup_kronecker (c->d, (int_cl_t) 47) != -1)
             /* factor 24, -T_17 */
             c->p [0] = 47;
-         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 131) != -1)
-            /* factor 33, T_61 + 1 */
-            c->p [0] = 131;
          else {
             if (verbose) {
                printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl, c->d);
