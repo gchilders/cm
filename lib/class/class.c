@@ -243,12 +243,10 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_MULTIETA:
-         c->p [0] = 2;
-         c->p [1] = 3;
-         c->p [2] = 5;
-         c->p [3] = 7;
-         c->p [4] = 11;
-         c->p [5] = 0;
+         c->p [0] = 3;
+         c->p [1] = 5;
+         c->p [2] = 7;
+         c->p [3] = 0;
          c->s = 1;
          c->e = 1;
          break;
