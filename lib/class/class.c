@@ -101,9 +101,15 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
                c->d, c->invariant, c->paramstr);
 
-   if ( inv == CM_INVARIANT_SIMPLEETA ||
-       (inv == CM_INVARIANT_MULTIETA && c->p [3] == 0))
+   if (inv == CM_INVARIANT_SIMPLEETA)
       c->field = CM_FIELD_COMPLEX;
+   else if (inv == CM_INVARIANT_MULTIETA) {
+      for (i = 0; c->p [i] != 0; i++);
+      if (i % 2 == 0)
+         c->field = CM_FIELD_REAL;
+      else
+         c->field = CM_FIELD_COMPLEX;
+   }
    else
       c->field = CM_FIELD_REAL;
 
@@ -237,10 +243,12 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_MULTIETA:
-         c->p [0] = 3;
-         c->p [1] = 5;
-         c->p [2] = 7;
-         c->p [3] = 0;
+         c->p [0] = 2;
+         c->p [1] = 3;
+         c->p [2] = 5;
+         c->p [3] = 7;
+         c->p [4] = 11;
+         c->p [5] = 0;
          c->s = 1;
          c->e = 1;
          break;
@@ -899,19 +907,9 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
       cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b, c.p [0]);
       break;
    case CM_INVARIANT_SIMPLEETA:
-      cm_modclass_simpleeta_eval_quad (mc, rop, Q.a, Q.b, c.p [0], c.e);
-      break;
    case CM_INVARIANT_DOUBLEETA:
-      cm_modclass_doubleeta_eval_quad (mc, rop, Q.a, Q.b,
-         c.p [0], c.p [1], c.e);
-      break;
    case CM_INVARIANT_MULTIETA:
-      if (c.p [3] == 0)
-         cm_modclass_tripleeta_eval_quad (mc, rop, Q.a, Q.b,
-            c.p [0], c.p [1], c.p [2], c.e);
-      else
-         cm_modclass_quadrupleeta_eval_quad (mc, rop, Q.a, Q.b,
-            c.p [0], c.p [1], c.p [2], c.p [3], c.e);
+         cm_modclass_multieta_eval_quad (mc, rop, Q.a, Q.b, c.p, c.e);
       break;
    case CM_INVARIANT_WEBER:
       if (c.p [0] == 1) {

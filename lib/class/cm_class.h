@@ -52,7 +52,7 @@ typedef struct {
    int field;
       /* a constant describing whether we are working over the real or the      */
       /* complex numbers                                                        */
-   int p [5], e, s;
+   int p [6], e, s;
       /* some parameters of the class invariant                                 */
       /* p is a 0-terminated list of integers (often the primes dividing the    */
       /* level; s is the canonical power, e the power actually used.            */

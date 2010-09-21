@@ -37,6 +37,8 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
    mpc_t *q24, bool verbose);
 static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
    mpc_t *eta, bool fem, bool checkpoints, bool verbose);
+static void multieta_eval_quad_rec (cm_modclass_t mc, mpc_t rop_num,
+   mpc_t rop_den, int_cl_t a, int_cl_t b, int *p);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -752,83 +754,64 @@ void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
 
 /*****************************************************************************/
 
-void cm_modclass_simpleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b, int N, int e)
+static void multieta_eval_quad_rec (cm_modclass_t mc, mpc_t rop_num,
+   mpc_t rop_den, int_cl_t a, int_cl_t b, int *p)
+   /* Evaluates a multiple eta quotient, whose transformation degress are    */
+   /* given by the numbers in p, which is an array terminated by 0; the      */
+   /* result is given by rop_num / rop_den. This approach replaces complex   */
+   /* divisions by faster multiplications.                                   */
+   /* Assumes that p contains at least one number.                           */
 
 {
-   mpc_t tmp;
-
-   mpc_init2 (tmp, mpc_get_prec (rop));
-
-   cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta, a*N, b, mc.root);
-   cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a, b, mc.root);
-   mpc_div (rop, rop, tmp, MPC_RNDNN);
-   mpc_pow_ui (rop, rop, (unsigned long int) e, MPC_RNDNN);
-
-   mpc_clear (tmp);
-}
-
-/*****************************************************************************/
-
-void cm_modclass_doubleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b, int p1, int p2, int e)
-
-{
-   mpc_t tmp;
-
-   mpc_init2 (tmp, mpc_get_prec (rop));
-
-   cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta, a, b, mc.root);
-   cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p1*p2, b, mc.root);
-   mpc_mul (rop, rop, tmp, MPC_RNDNN);
-   if (p1 == p2) {
-      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p1, b, mc.root);
-      mpc_sqr (tmp, tmp, MPC_RNDNN);
-      mpc_div (rop, tmp, rop, MPC_RNDNN);
+   if (p [1] == 0) {
+      /* simple eta quotient */
+      cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta, a * p [0], b,
+         mc.root);
+      cm_modclass_eta_eval_quad (rop_den, mc.m, mc.cl, mc.eta, a, b, mc.root);
+   }
+   else if (p [2] == 0 && p [0] == p [1]) {
+      /* special, faster code for double eta quotients with twice the same   */
+      /* transformation degree                                               */
+      cm_modclass_eta_eval_quad (rop_den, mc.m, mc.cl, mc.eta, a, b, mc.root);
+      cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta,
+         a * p [0] * p [0], b, mc.root);
+      mpc_mul (rop_den, rop_den, rop_num, MPC_RNDNN);
+      cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta, a * p [0], b,
+         mc.root);
+      mpc_sqr (rop_num, rop_num, MPC_RNDNN);
    }
    else {
-      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p1, b, mc.root);
-      mpc_div (rop, tmp, rop, MPC_RNDNN);
-      cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a*p2, b, mc.root);
-      mpc_mul (rop, rop, tmp, MPC_RNDNN);
+      mpc_t tmp1, tmp2;
+      mpfr_prec_t prec = mpc_get_prec (rop_num);
+
+      mpc_init2 (tmp1, prec);
+      mpc_init2 (tmp2, prec);
+
+      multieta_eval_quad_rec (mc, rop_num, tmp1, a, b, p+1);
+      multieta_eval_quad_rec (mc, rop_den, tmp2, a * p [0], b, p+1);
+      mpc_mul (rop_num, rop_num, tmp2, MPC_RNDNN);
+      mpc_mul (rop_den, rop_den, tmp1, MPC_RNDNN);
+
+      mpc_clear (tmp1);
+      mpc_clear (tmp2);
    }
-   mpc_pow_ui (rop, rop, (unsigned long int) e, MPC_RNDNN);
-
-   mpc_clear (tmp);
 }
 
 /*****************************************************************************/
 
-void cm_modclass_tripleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b, int p1, int p2, int p3, int e)
+void cm_modclass_multieta_eval_quad (cm_modclass_t mc, mpc_t rop,
+   int_cl_t a, int_cl_t b, int *p, int e)
+   /* Evaluates a multiple eta quotient, whose transformation degress are    */
+   /* given by the numbers in p, which is an array terminated by 0; the      */
+   /* quotient is additionally raised to the power e.                        */
+   /* Assumes that p contains at least one number.                           */
 
 {
    mpc_t tmp;
 
    mpc_init2 (tmp, mpc_get_prec (rop));
 
-   cm_modclass_doubleeta_eval_quad (mc, rop, a, b, p1, p2, 1ul);
-   cm_modclass_doubleeta_eval_quad (mc, tmp, a*p3, b, p1, p2, 1ul);
-
-   mpc_div (rop, rop, tmp, MPC_RNDNN);
-   if (e != 1)
-      mpc_pow_ui (rop, rop, e, MPC_RNDNN);
-
-   mpc_clear (tmp);
-}
-
-/*****************************************************************************/
-
-void cm_modclass_quadrupleeta_eval_quad (cm_modclass_t mc, mpc_t rop,
-   int_cl_t a, int_cl_t b, int p1, int p2, int p3, int p4, int e)
-
-{
-   mpc_t tmp;
-
-   mpc_init2 (tmp, mpc_get_prec (rop));
-
-   cm_modclass_tripleeta_eval_quad (mc, rop, a, b, p1, p2, p3, 1ul);
-   cm_modclass_tripleeta_eval_quad (mc, tmp, a*p4, b, p1, p2, p3, 1ul);
+   multieta_eval_quad_rec (mc, rop, tmp, a, b, p);
    mpc_div (rop, rop, tmp, MPC_RNDNN);
    if (e != 1)
       mpc_pow_ui (rop, rop, e, MPC_RNDNN);
