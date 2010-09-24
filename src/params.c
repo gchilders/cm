@@ -39,27 +39,6 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
    bool ok = true, paramd = false;
    char *invariant_string = NULL;
 
-   if (verbose) {
-      GEN v;
-      printf ("GMP: include %d.%d.%d, lib %s\n",
-            __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR, __GNU_MP_VERSION_PATCHLEVEL,
-            gmp_version);
-      printf ("MPFR: include %s, lib %s\n",
-            MPFR_VERSION_STRING,
-            mpfr_get_version ());
-      printf ("MPC: include %s, lib %s\n", MPC_VERSION_STRING,
-            mpc_get_version ());
-      printf ("MPFRCX: include %s, lib %s\n", MPFRCX_VERSION_STRING,
-            mpfrcx_get_version ());
-      pari_init (100, 0);
-      v = pari_version ();
-      printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
-            PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
-            PARI_VERSION_CODE & 255ul,
-            itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
-      pari_close ();
-   }
-
    *d = 0;
    *invariant = CM_INVARIANT_NONE;
    *verbose = false;
@@ -158,6 +137,27 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
    else if (*d >= 0 || (*d % 4 != 0 && (*d - 1) % 4 != 0)) {
       printf ("d = %"PRIicl" is not a quadratic discriminant\n", *d);
       ok = false;
+   }
+
+   if (*verbose) {
+      GEN v;
+      printf ("GMP: include %d.%d.%d, lib %s\n",
+            __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR, __GNU_MP_VERSION_PATCHLEVEL,
+            gmp_version);
+      printf ("MPFR: include %s, lib %s\n",
+            MPFR_VERSION_STRING,
+            mpfr_get_version ());
+      printf ("MPC: include %s, lib %s\n", MPC_VERSION_STRING,
+            mpc_get_version ());
+      printf ("MPFRCX: include %s, lib %s\n", MPFRCX_VERSION_STRING,
+            mpfrcx_get_version ());
+      pari_init (100, 0);
+      v = pari_version ();
+      printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
+            PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
+            PARI_VERSION_CODE & 255ul,
+            itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
+      pari_close ();
    }
 
    return ok;
