@@ -732,8 +732,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
         b0 = (int_cl_t) -7;
       }
       if (verbose)
-         printf ("l %i\ns %i\ne %i\nN %"PRIicl"\nb0 %"PRIicl"\n",
-                 c->p[0], c->s, c->e, p [0], b0);
+         printf ("N %i\ns %i\ne %i\nb0 %"PRIicl"\n", c->p[0], c->s, c->e, b0);
       N = c->p[0] * c->s / c->e;
    }
 
