@@ -1,3 +1,4 @@
+
 /*
 
 mpfpx.c - mpfpx library
@@ -49,25 +50,7 @@ static void mpfpx_karatsuba_split (mpfpx_t a, mpfpx_t b, mpfpx_t op)
 
 /*****************************************************************************/
 
-static void mpfpx_karatsuba_split2 (mpfpx_t a, mpfpx_t b, mpfpx_t op, int n)
-   /* writes op as a (X) X^n + b (X), where a, b and op must be distinct */
-
-{
-   int i;
-
-   b->deg = n-1;
-   a->deg = MAX(op->deg - n, -1);
-   for (i = 0; i < n; i++)
-      mpfp_set (b->coeff [i], op->coeff [i]);
-   for (i = n; i <= op->deg; i++)
-      mpfp_set (a->coeff [i - n], op->coeff [i]);
-   mpfpx_normalise (a);
-   mpfpx_normalise (b);
-}
-
-/*****************************************************************************/
-
-void mpfpx_newton (mpfpx_t rop, mpfpx_t op, int exp)
+static void mpfpx_newton (mpfpx_t rop, mpfpx_t op, int exp)
    /* computes rop such that rop*op \equiv 1 \mod X^exp; see Algorithm 9.3 */
    /* in GG99                                                              */
 
@@ -98,7 +81,7 @@ void mpfpx_newton (mpfpx_t rop, mpfpx_t op, int exp)
 
 /*****************************************************************************/
 
-void mpfpx_rev (mpfpx_t rop, mpfpx_t op, int k)
+static void mpfpx_rev (mpfpx_t rop, mpfpx_t op, int k)
    /* puts rop = X^k * op (1/X); only meaningful for k >= deg op */
 
 {
@@ -607,114 +590,6 @@ void mpfpx_mul_ui (mpfpx_t rop, mpfpx_t op1, unsigned long int op2)
 
 /*****************************************************************************/
 
-void mpfpx_mul2 (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2)
-   /* splitting differently in the Karatsuba part */
-
-{
-   int     i;
-
-   if (op1->deg == -1 || op2->deg == -1)
-      rop->deg = -1;
-   else if (op1->deg == 0)
-   {
-      if (mpfp_cmp_ui (op1->coeff [0], 1ul) == 0)
-         mpfpx_set (rop, op2);
-      else if (mpfp_cmp_si (op1->coeff [0], -1l) == 0)
-         mpfpx_neg (rop, op2);
-      else
-      {
-         rop->deg = op2->deg;
-         for (i = 0; i <= op2->deg; i++)
-            mpfp_mul (rop->coeff [i], op2->coeff [i], op1->coeff [0]);
-      }
-   }
-   else if (op2->deg == 0)
-   {
-      if (mpfp_cmp_ui (op2->coeff [0], 1ul) == 0)
-         mpfpx_set (rop, op1);
-      else if (mpfp_cmp_si (op2->coeff [0], -1l) == 0)
-         mpfpx_neg (rop, op1);
-      else
-      {
-         rop->deg = op1->deg;
-         for (i = 0; i <= op1->deg; i++)
-            mpfp_mul (rop->coeff [i], op1->coeff [i], op2->coeff [0]);
-      }
-   }
-   else
-   if (__mpfpx_arithmetic == MPFPX_KARATSUBA)
-   {
-      /* We put op1 = a (X) X^n + b (X) and op2 = c (X) X^n + d (X) */
-      /* and do plenty of copying                                   */
-      mpfpx_t a, b, c, d, u, v, w;
-      int        n = MAX(op1-> deg / 2, op2->deg / 2) + 1;
-
-      mpfpx_init (a);
-      mpfpx_init (b);
-      mpfpx_init (c);
-      mpfpx_init (d);
-      mpfpx_init (u);
-      mpfpx_init (v);
-      mpfpx_init (w);
-
-      mpfpx_karatsuba_split2 (a, b, op1, n);
-      mpfpx_karatsuba_split2 (c, d, op2, n);
-      mpfpx_add (v, a, b);
-      mpfpx_add (w, c, d);
-      mpfpx_mul2 (u, v, w);
-      mpfpx_mul2 (v, a, c);
-      mpfpx_mul2 (w, b, d);
-      rop->deg = op1->deg + op2->deg;
-      /* we have to put rop = v (X) X^{2n} + (u - v - w)(X) X^n + w (X) */
-      /* copy v (X) X^{2n} and w (X) and clear further coefficients     */
-      for (i = 0; i <= w->deg; i++)
-         mpfp_set (rop->coeff [i], w->coeff [i]);
-      for (i = w->deg + 1; i < 2*n; i++)
-         mpfp_set_ui (rop->coeff [i], 0ul);
-      for (i = 0; i <= v->deg; i++)
-         mpfp_set (rop->coeff [i + 2*n], v->coeff [i]);
-      for (i = 2*n + v->deg + 1; i <= rop->deg; i++)
-         mpfp_set_ui (rop->coeff [i], 0ul);
-      mpfpx_add (a, v, w);
-      mpfpx_sub (b, u, a);
-      /* add b (X) X^n */
-      for (i = 0; i <= b->deg; i++)
-         mpfp_add (rop->coeff [i+n], rop->coeff [i+n], b->coeff [i]);
-      mpfpx_normalise (rop);
-
-      mpfpx_clear (a);
-      mpfpx_clear (b);
-      mpfpx_clear (c);
-      mpfpx_clear (d);
-      mpfpx_clear (u);
-      mpfpx_clear (v);
-      mpfpx_clear (w);
-   }
-   else
-   {
-      /* naive arithmetic */
-      mpfpx_t lrop;
-      int     j;
-
-      mpfpx_init (lrop);
-
-      lrop->deg = op1->deg + op2->deg;
-      for (i = 0; i <= lrop->deg; i++)
-         mpfp_set_ui (lrop->coeff [i], 0ul);
-
-      for (i = 0; i <= op1->deg; i++)
-         for (j = 0; j <= op2->deg; j++)
-            mpfp_add_mul (lrop->coeff [i+j], op1->coeff [i], op2->coeff [j]);
-
-      mpfpx_set (rop, lrop);
-
-      mpfpx_clear (lrop);
-   }
-
-}
-
-/*****************************************************************************/
-
 void mpfpx_mul_low (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2, char exp)
 
 {
@@ -790,43 +665,37 @@ void mpfpx_mul_low (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2, char exp)
 void mpfpx_mul_high (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2, char exp)
 
 {
-   int     i;
+   int i, j;
 
    if (op1->deg == -1 || op2->deg == -1)
       rop->deg = -1;
-   else if (op1->deg == 0)
-   {
+   else if (op1->deg == 0) {
       if (mpfp_cmp_ui (op1->coeff [0], 1ul) == 0)
          mpfpx_set (rop, op2);
       else if (mpfp_cmp_si (op1->coeff [0], -1l) == 0)
          mpfpx_neg (rop, op2);
-      else
-      {
+      else {
          rop->deg = op2->deg;
          for (i = op2->deg; i >= MAX(op2->deg - exp, 0); i--)
             mpfp_mul (rop->coeff [i], op2->coeff [i], op1->coeff [0]);
       }
    }
-   else if (op2->deg == 0)
-   {
+   else if (op2->deg == 0) {
       if (mpfp_cmp_ui (op2->coeff [0], 1ul) == 0)
          mpfpx_set (rop, op1);
       else if (mpfp_cmp_si (op2->coeff [0], -1l) == 0)
          mpfpx_neg (rop, op1);
-      else
-      {
+      else {
          rop->deg = op1->deg;
          for (i = op1->deg; i >= MAX(op1->deg - exp, 0); i--)
             mpfp_mul (rop->coeff [i], op1->coeff [i], op2->coeff [0]);
       }
    }
-   else
-   if (__mpfpx_arithmetic == MPFPX_KARATSUBA && exp >= 3)
-   {
+   else if (__mpfpx_arithmetic == MPFPX_KARATSUBA && exp >= 3) {
       /* copying the first coefficients of the operators and then using */
       /* Karatsuba, which is probably not optimal                       */
       mpfpx_t lop1, lop2;
-      int     i, op1_deg, op2_deg;
+      int     op1_deg, op2_deg;
 
       mpfpx_init (lop1);
       mpfpx_init (lop2);
@@ -847,11 +716,9 @@ void mpfpx_mul_high (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2, char exp)
       mpfpx_clear (lop1);
       mpfpx_clear (lop2);
    }
-   else
-   {
+   else {
       /* naive arithmetic */
       mpfpx_t lrop;
-      int     j;
 
       mpfpx_init (lrop);
 
@@ -1195,8 +1062,7 @@ void mpfpx_sqr_high (mpfpx_t rop, mpfpx_t op, char exp)
 
    if (op->deg == -1)
       rop->deg = -1;
-   else if (op->deg == 0)
-   {
+   else if (op->deg == 0) {
       rop->deg = 0;
       if (   mpfp_cmp_ui (op->coeff [0],  1ul) == 0
           || mpfp_cmp_si (op->coeff [0], -1l) == 0)
@@ -1205,14 +1071,13 @@ void mpfpx_sqr_high (mpfpx_t rop, mpfpx_t op, char exp)
          mpfp_sqr (rop->coeff [0], op->coeff [0]);
    }
    else
-   if (__mpfpx_arithmetic == MPFPX_KARATSUBA && exp >= 5)
-   {
+   if (__mpfpx_arithmetic == MPFPX_KARATSUBA && exp >= 5) {
       /* copying the first coefficients of the operator and then using       */
       /* Karatsuba, which is probably not optimal. The degree bound of 5 has */
       /* been determined experimentally; for 4, we need more multiplications */
       /* altogether (6 additional squares versus 5 saved multiplications)    */
       mpfpx_t lop;
-      int     i, op_deg;
+      int     op_deg;
 
       mpfpx_init (lop);
 
@@ -1227,8 +1092,7 @@ void mpfpx_sqr_high (mpfpx_t rop, mpfpx_t op, char exp)
 
       mpfpx_clear (lop);
    }
-   else
-   {
+   else {
       /* naive arithmetic */
       mpfpx_t lrop;
       mpfp_t  tmp;
@@ -1240,15 +1104,12 @@ void mpfpx_sqr_high (mpfpx_t rop, mpfpx_t op, char exp)
       for (i = 0; i <= lrop->deg; i++)
          mpfp_set_ui (lrop->coeff [i], 0ul);
 
-      for (i = op->deg; i >= MAX((lrop->deg - exp + 1) / 2, 0); i--)
-      {
+      for (i = op->deg; i >= MAX((lrop->deg - exp + 1) / 2, 0); i--) {
          mpfp_sqr (tmp, op->coeff [i]);
          mpfp_add (lrop->coeff [2*i], lrop->coeff [2*i], tmp);
       }
-      for (i = op->deg; i >= MAX((lrop->deg - exp + 2) / 2, 0); i--)
-      {
-         for (j = i-1; j >= MAX(lrop->deg - exp - i, 0); j--)
-         {
+      for (i = op->deg; i >= MAX((lrop->deg - exp + 2) / 2, 0); i--) {
+         for (j = i-1; j >= MAX(lrop->deg - exp - i, 0); j--) {
             mpfp_mul (tmp, op->coeff [i], op->coeff [j]);
             mpfp_add (lrop->coeff [i+j], lrop->coeff [i+j], tmp);
             mpfp_add (lrop->coeff [i+j], lrop->coeff [i+j], tmp);
@@ -1293,58 +1154,6 @@ void mpfpx_sqr_m_high (mpfpx_t rop, mpfpx_t op, char exp)
       mpfpx_set (rop, lrop);
 
       mpfpx_clear (lrop);
-   }
-}
-
-/*****************************************************************************/
-
-void mpfpx_pow3_m_high (mpfpx_t rop, mpfpx_t op, char exp)
-
-{
-   mpfpx_t lrop, tmp;
-   int     i;
-
-   if (op->deg == -1)
-      rop->deg = -1;
-   else if (op->deg == 0)
-      mpfpx_set (rop, op);
-   else
-   {
-      int n = op->deg;
-      mpfpx_init (lrop);
-      mpfpx_init (tmp);
-
-      /* let a = op - X^n; initialise lrop as X^{3n} + a * X^{2n} */
-      lrop->deg = 3 * n;
-      mpfp_set_ui (lrop->coeff [lrop->deg], 1ul);
-      for (i = lrop->deg - 1; i >= MAX(lrop->deg - exp, 2*n); i--)
-      {
-         mpfp_add (lrop->coeff [i], lrop->coeff [i], op->coeff [i - 2*n]);
-         mpfp_add (lrop->coeff [i], lrop->coeff [i], op->coeff [i - 2*n]);
-         mpfp_add (lrop->coeff [i], lrop->coeff [i], op->coeff [i - 2*n]);
-      }
-      for (i = MAX(lrop->deg - exp, 2*n) - 1; i >= MAX(lrop->deg - exp, 0);
-           i--)
-         mpfp_set_ui (lrop->coeff [i], 0ul);
-      /* compute the high degree part of a^2 in tmp and add a^2 X^n to lrop */
-      op->deg --;
-      mpfpx_sqr_high (tmp, op, exp - 2);
-      for (i = lrop->deg - 2; i >= MAX(lrop->deg - exp, n); i--)
-      {
-         mpfp_add (lrop->coeff [i], lrop->coeff [i], tmp->coeff [i - n]);
-         mpfp_add (lrop->coeff [i], lrop->coeff [i], tmp->coeff [i - n]);
-         mpfp_add (lrop->coeff [i], lrop->coeff [i], tmp->coeff [i - n]);
-      }
-      /* compute a^3 and add it */
-      mpfpx_mul_high (tmp, tmp, op, exp - 3);
-      for (i = lrop->deg - 3; i >= MAX(lrop->deg - exp, 0); i--)
-         mpfp_add (lrop->coeff [i], lrop->coeff [i], tmp->coeff [i]);
-      op->deg ++;
-
-      mpfpx_set (rop, lrop);
-
-      mpfpx_clear (lrop);
-      mpfpx_clear (tmp);
    }
 }
 

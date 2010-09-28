@@ -93,7 +93,7 @@ extern void mpfpx_mul_low (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2, char exp);
    /* sets the degree of rop to that of op1*op2 and sets the coefficients */
    /* of degree at most exp of the product                                */
 extern void mpfpx_mul_high (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2, char exp);
-   /* ditto for the hight degree coefficients, of which we compute exp+1 */
+   /* ditto for the high degree coefficients, of which we compute exp+1 */
 extern void mpfpx_mul_m (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2);
    /* assumes that op2 is monic */
 extern void mpfpx_mul_m_low (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2,
