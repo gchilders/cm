@@ -39,7 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_FIELD_COMPLEX 2
 
 
-typedef enum {real, complex, conj}
+typedef enum {real, complex, drop}
    cm_embedding_t;
    /* When applied to class group entries, "real" indicates an ambiguous     */
    /* form, "complex" a non-ambiguous form with b > 0 and "conj" a           */
@@ -47,7 +47,7 @@ typedef enum {real, complex, conj}
    /* fact that for j, these forms yield real and complex values, with       */
    /* "conj" being the complex conjugate of a corresponding "complex".       */
    /* When applied to an N-system for other functions than j,                */
-   /* "real" and "complex" indicate a real or complex conjugate. "conj" is   */
+   /* "real" and "complex" indicate a real or complex conjugate. "drop" is   */
    /* used only in the case of a real class polynomial; it means that the    */
    /* conjugate is the complex conjugate of another one and can thus be      */
    /* dropped.                                                               */

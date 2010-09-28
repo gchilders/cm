@@ -618,7 +618,7 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    /* In the real case, forms whose product is equivalent to neutral_class   */
    /* correspond to conjugate complex values. The lexicographically smaller  */
    /* one of two such forms gets Q.emb = complex, cl.h2 and cl.h12 are       */
-   /* incremented; the other one gets Q.emb = conj, is in fact not corrected */
+   /* incremented; the other one gets Q.emb = drop, is in fact not corrected */
    /* to the N-system condition and shall be dropped. If the square of a     */
    /* form equals the neutral class, then the conjugate is real, Q.emb=real  */
    /* and cl.h1 and cl.h12 are incremented.                                  */
@@ -651,7 +651,7 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
          cl->h12++;
       }
       else
-         Q->emb = conj;
+         Q->emb = drop;
    }
    else {
       Q->emb = complex;
@@ -659,7 +659,7 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
       cl->h12++;
    }
 
-   if (Q->emb != conj)
+   if (Q->emb != drop)
    {
       /* First achieve gcd (Q->a, N) = 1, which is likely to hold already.   */
       c = (Q->b * Q->b - cl->d) / (4 * Q->a) ;
@@ -777,7 +777,6 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
          case CM_INVARIANT_DOUBLEETA:
          case CM_INVARIANT_MULTIETA:
          {
-            int i;
             int_cl_t C;
             N = 1;
             for (i = 0; c->p [i] != 0; i++)
@@ -1336,7 +1335,6 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    mpz_t *j;
    mpz_t root, d_mpz, tmp, tmp2;
    cm_timer clock;
-   int i;
 
    cm_class_init (&c, d, inv, verbose);
    if (!read || !cm_class_read (c))
@@ -1418,6 +1416,8 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    mpz_clear (root);
    cm_timer_stop (clock);
    if (verbose) {
+      int i;
+
       printf ("%i candidate", *no);
       if (*no > 1)
          printf ("s");

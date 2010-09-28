@@ -721,7 +721,7 @@ bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in)
 {
    mpfr_t rounded, diff;
    bool ok;
-   mp_exp_t exp;
+   mp_exp_t expo;
 
    mpfr_init2 (rounded, mpfr_get_prec (in));
    mpfr_init2 (diff, mpfr_get_prec (in));
@@ -729,11 +729,11 @@ bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in)
    mpfr_round (rounded, in);
    mpfr_sub (diff, in, rounded, GMP_RNDN);
    if (mpfr_sgn (diff) == 0 || (- diff->_mpfr_exp) >= 10) {
-      exp = mpfr_get_z_exp (out, rounded);
-      if (exp > 0)
+      expo = mpfr_get_z_exp (out, rounded);
+      if (expo > 0)
          ok = false;
-      else if (exp < 0) {
-         mpz_tdiv_q_2exp (out, out, (unsigned long int) (-exp));
+      else if (expo < 0) {
+         mpz_tdiv_q_2exp (out, out, (unsigned long int) (-expo));
          ok = true;
       }
       else

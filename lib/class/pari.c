@@ -121,7 +121,7 @@ static GEN good_root_of_unity (int *n, const GEN p, const int deg,
    /* twice as big and decrement until it divides p-1.                       */
 
 {
-   GEN pm, factn, pow, base, zeta;
+   GEN pm, factn, power, base, zeta;
 
    pari_sp lbot, ltop = avma;
 
@@ -131,11 +131,11 @@ static GEN good_root_of_unity (int *n, const GEN p, const int deg,
       printf ("n %i\n", *n);
 
    factn = Z_factor (stoi (*n));
-   pow = diviuexact (pm, *n);
+   power = diviuexact (pm, *n);
    base = gen_1;
    do {
       base = addis (base, 1l);
-      zeta = Fp_pow (base, pow, p);
+      zeta = Fp_pow (base, power, p);
       lbot = avma; /* memorise the only interesting object */
    }
    while (!equaliu (Fp_order (zeta, factn, p), *n));
@@ -156,7 +156,7 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
 {
    GEN pp;
    int n, deg_f, i;
-   GEN prim, exp, factor, minfactor, xplusa, zeta, xpow, tmp;
+   GEN prim, expo, fact, minfactor, xplusa, zeta, xpow, tmp;
    cm_timer clock, clock2;
 
    cm_timer_start (clock);
@@ -166,32 +166,32 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
    pari_init (2000 * deg * mpz_sizeinbase (p, 2) / 8 + 1000000, 0);
 
    pp = mpz_get_Z (p);
-   factor = mpzx_get_FpX (f, deg, p);
-   minfactor = factor; /* factor of minimal degree found so far */
+   fact = mpzx_get_FpX (f, deg, p);
+   minfactor = fact; /* factor of minimal degree found so far */
 
    prim = good_root_of_unity (&n,pp, deg, deg_factor, verbose);
-   exp = diviuexact (subis (powiu (pp, (unsigned long int) deg_factor), 1),
+   expo = diviuexact (subis (powiu (pp, (unsigned long int) deg_factor), 1),
             (unsigned long int) n);
 
-   xplusa = pol_x (varn (factor));
+   xplusa = pol_x (varn (fact));
    zeta = utoi (1ul);
    while (degree (minfactor) != deg_factor) {
       /* split minfactor by computing its gcd with (X+a)^exp-zeta, where    */
       /* zeta varies over the roots of unity in F_p                         */
-      factor = FpX_normalize (minfactor, pp);
-      deg_f = degree (factor);
+      fact = FpX_normalize (minfactor, pp);
+      deg_f = degree (fact);
       /* update X+a, avoid a=0 */
       gel (xplusa, 2) = addis (gel (xplusa, 2), 1);
       cm_timer_start (clock2);
-      xpow = FpXQ_pow (xplusa, exp, factor, pp);
+      xpow = FpXQ_pow (xplusa, expo, fact, pp);
       cm_timer_stop (clock2);
       if (verbose)
          printf ("- Time for pow: %.1f in degree %i\n", cm_timer_get (clock2),
                  deg_f);
       for (i = 0; i < n; i++) {
-         tmp = FpX_gcd (FpX_Fp_sub (xpow, zeta, pp), factor, pp);
-         if (degree (tmp) > 0 && degree (tmp) < degree (factor)) {
-            factor = FpX_div (factor, tmp, pp);
+         tmp = FpX_gcd (FpX_Fp_sub (xpow, zeta, pp), fact, pp);
+         if (degree (tmp) > 0 && degree (tmp) < degree (fact)) {
+            fact = FpX_div (fact, tmp, pp);
             if (degree (tmp) < degree (minfactor)) {
                minfactor = tmp;
                if (degree (minfactor) == deg_factor ||
@@ -215,6 +215,7 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
 
 /*****************************************************************************/
 
+#if 0
 void cm_pari_oneroot_alt (mpz_t root, mpz_t *f, int deg, mpz_t p, bool verbose)
    /* finds a root of the polynomial f of degree deg over the prime field of */
    /* characteristic p, assuming that such a root exists, and returns it in  */
@@ -242,6 +243,7 @@ void cm_pari_oneroot_alt (mpz_t root, mpz_t *f, int deg, mpz_t p, bool verbose)
    if (verbose)
       printf ("-- Time for root: %.1f\n", cm_timer_get (clock));
 }
+#endif
 
 /*****************************************************************************/
 
@@ -251,17 +253,17 @@ void cm_pari_oneroot (mpz_t root, mpz_t *f, int deg, mpz_t p, bool verbose)
    /* the variable of the same name                                          */
 
 {
-   mpz_t factor [2];
+   mpz_t fact [2];
 
-   mpz_init (factor [0]);
-   mpz_init (factor [1]);
-   cm_pari_onefactor (factor, f, deg, 1, p, verbose);
-   if (mpz_sgn (factor [0]) != 0)
-      mpz_sub (root, p, factor [0]);
+   mpz_init (fact [0]);
+   mpz_init (fact [1]);
+   cm_pari_onefactor (fact, f, deg, 1, p, verbose);
+   if (mpz_sgn (fact [0]) != 0)
+      mpz_sub (root, p, fact [0]);
    else
       mpz_set_ui (root, 0ul);
-   mpz_clear (factor [0]);
-   mpz_clear (factor [1]);
+   mpz_clear (fact [0]);
+   mpz_clear (fact [1]);
 }
 
 /*****************************************************************************/

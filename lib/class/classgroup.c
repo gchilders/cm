@@ -43,13 +43,13 @@ void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op)
 
 {
    int_cl_t mask = (((int_cl_t) 1) << 32) - 1;
-   int_cl_t abs = (op > 0 ? op : -op);
+   int_cl_t abso = (op > 0 ? op : -op);
 
    /* copy 32 high bits */
-   mpz_set_ui (rop, (unsigned long int) (abs >> 32));
+   mpz_set_ui (rop, (unsigned long int) (abso >> 32));
    /* add 32 low bits */
    mpz_mul_2exp (rop, rop, 32);
-   mpz_add_ui (rop, rop, (unsigned long int) (abs & mask));
+   mpz_add_ui (rop, rop, (unsigned long int) (abso & mask));
 
    if (op < 0)
       mpz_neg (rop, rop);
@@ -459,32 +459,29 @@ static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
 {
    int i, j;
    int_cl_t local_d;
-   int exp2;
+   int pow4;
    uint_cl_t factors [17];
    unsigned int exponents [17];
    int_cl_t fundamental_d = -1;
 
    /* handle 2 in the conductor separately */
    local_d = d;
-   exp2 = 0;
-   while (local_d % 4 == 0)
-   {
+   pow4 = 0;
+   while (local_d % 4 == 0) {
       local_d /= 4;
       if ((local_d - 1) % 4 == 0 || local_d % 4 == 0)
-         exp2++;
+         pow4++;
       else
          fundamental_d *= 4;
    }
-   if (local_d % 2 == 0)
-   {
+   if (local_d % 2 == 0) {
       local_d /= 2;
       fundamental_d *= 2;
    }
 
-   if (exp2 != 0)
-   {
+   if (pow4 != 0) {
       cond_primes [0] = 2;
-      cond_exp [0] = exp2;
+      cond_exp [0] = pow4;
       j = 1;
    }
    else
@@ -492,10 +489,8 @@ static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
 
    cm_classgroup_factor (local_d, factors, exponents);
 
-   for (i = 0; factors [i] != 0; i++)
-   {
-      if (exponents [i] >= 2)
-      {
+   for (i = 0; factors [i] != 0; i++) {
+      if (exponents [i] >= 2) {
          cond_primes [j] = factors [i];
          cond_exp [j] = exponents [i] / 2;
          j++;
