@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /*****************************************************************************/
 
-void test_curve (int_cl_t d, char invariant, bool verbose) {
+static void test_curve (int_cl_t d, char invariant, bool verbose) {
    cm_timer clock;
 
    cm_timer_start (clock);
@@ -46,7 +46,7 @@ void test_curve (int_cl_t d, char invariant, bool verbose) {
 
 /*****************************************************************************/
 
-int main ()
+int main (void)
 {
    /* Weber: d divisible by 4, not by 32, not by 3 */
    test_curve ((int_cl_t) (-108740), CM_INVARIANT_WEBER, false);
