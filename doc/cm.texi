@@ -29,11 +29,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 @end iftex
 
 @include version.texi
-@set MINGMP 4.2
-@set MINMPFR 2.3.1
+@set MINGMP 4.3.2
+@set MINMPFR 2.4.2
 @set MINMPC 0.8.2
-@set MINMPFRCX 0.3
-@set MINPARI 2.3.5
+@set MINMPFRCX 0.3.1
+@set MINPARI 2.4.2
 @set AUTHORS Andreas Enge
 @set COPYRIGHTDATES 2009, 2010
 @syncodeindex fn cp
@@ -186,7 +186,8 @@ before compiling CM: GNU MP (@pxref{Gr09}, version @value{MINGMP} or higher),
 GNU MPFR (@pxref{HaLePeZi09}, version @value{MINMPFR} or higher),
 MPC (@pxref{EnThZi09}, version @value{MINMPC} or higher),
 MPFRCX (@pxref{En09b}, version @value{MINMPFRCX} or higher) and
-PARI (@pxref{Pa10}, version @value{MINPARI} or higher).
+PARI (@pxref{Pa10}, version @value{MINPARI} or higher,
+compiled with GMP as the arithmetic kernel).
 Compilation of CM needs a standards compliant C compiler (preferably
 GCC).
 
