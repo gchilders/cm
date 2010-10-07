@@ -2,7 +2,7 @@
 
 mpfpx-impl.h - header file for internal use of the mpfpx library
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -28,13 +28,4 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <stdlib.h>
 #include <stdbool.h>
 
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
-#if defined (__cplusplus)
-}
-#endif
 #endif /* ifndef __MPFPX_IMPL_H */
