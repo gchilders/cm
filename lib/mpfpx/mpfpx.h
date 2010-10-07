@@ -25,12 +25,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define __MPFPX_H
 
 #include <stdio.h>
-#include "mpfp.h"
+#include "gmp.h"
 
 #define MPFPX_MAX_DEG 40
 
 #define MPFPX_NAIVE     0
 #define MPFPX_KARATSUBA 1
+
+typedef mpz_t mpfp_t;
 
 typedef struct
 {
@@ -44,6 +46,11 @@ typedef __mpfpx_t mpfpx_t [1];
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+extern void mpfp_init (mpfp_t rop);
+extern void mpfp_clear (mpfp_t rop);
+extern void mpfp_set_ui (mpfp_t rop, long unsigned int op);
+
 
 extern void mpfpx_type_init (mpz_t p, int arithmetic);
    /* sets the prime modulus and initialises the "class variables" */

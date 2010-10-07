@@ -169,5 +169,5 @@ AC_LINK_IFELSE(
         AC_MSG_ERROR([libpari not found or uses a different ABI.])
         ])
 
-AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile lib/mpfp/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
+AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT

@@ -1,1 +1,1 @@
-SUBDIRS = mpfp mpfpx common class
+SUBDIRS = mpfpx common class
