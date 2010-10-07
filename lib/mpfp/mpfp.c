@@ -2,7 +2,7 @@
 
 mpfp.c - mpfp library
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "mpfp-impl.h"
+#include "mpfp.h"
 
 /*****************************************************************************/
 
@@ -92,43 +92,6 @@ void mpfp_set_ui (mpfp_t rop, long unsigned int op)
 {
    mpz_set_ui (rop, op);
    mpz_mod (rop, rop, __mpfp_p);
-}
-
-/*****************************************************************************/
-
-void mpfp_set_str (mpfp_t rop, char *op, int base)
-
-{
-   mpz_set_str (rop, op, base);
-   mpz_mod (rop, rop, __mpfp_p);
-}
-
-/*****************************************************************************/
-/*****************************************************************************/
-
-void mpfp_init_set (mpfp_t rop, mpfp_t op)
-
-{
-   mpfp_init (rop);
-   mpfp_set (rop, op);
-}
-
-/*****************************************************************************/
-
-void mpfp_init_set_z (mpfp_t rop, mpz_t op)
-
-{
-   mpfp_init (rop);
-   mpfp_set_z (rop, op);
-}
-
-/*****************************************************************************/
-
-void mpfp_init_set_ui (mpfp_t rop, unsigned long int op)
-
-{
-   mpfp_init (rop);
-   mpfp_set_ui (rop, op);
 }
 
 /*****************************************************************************/

@@ -1565,7 +1565,8 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
       mpfpx_init (f24_poly);
       mpfpx_init (tmp_poly);
       mpfpx_init (tmp2_poly);
-      mpfp_init_set_ui (one, 1ul);
+      mpfp_init (one);
+      mpfp_set_ui (one, 1ul);
 
       cm_pari_onefactor (factor, c.minpoly, c.minpoly_deg, 3, P, verbose);
       mpfpx_set_z_array (root_poly, factor, 4);

@@ -4,5 +4,4 @@ include_HEADERS = mpfp.h
 
 lib_LTLIBRARIES = libmpfp.la
 
-libmpfp_la_SOURCES = mpfp.h mpfp-impl.h \
-   mpfp.c
+libmpfp_la_SOURCES = mpfp.h mpfp.c

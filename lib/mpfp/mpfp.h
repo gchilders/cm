@@ -2,7 +2,7 @@
 
 mpfp.h - header file for the mpfp library
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010 Andreas Enge
 
 This file is part of CM.
 
@@ -44,11 +44,6 @@ extern void mpfp_out (mpfp_t op);
 extern void mpfp_set (mpfp_t rop, mpfp_t op);
 extern void mpfp_set_z (mpfp_t rop, mpz_t op);
 extern void mpfp_set_ui (mpfp_t rop, long unsigned int op);
-extern void mpfp_set_str (mpfp_t rop, char *op, int base);
-
-extern void mpfp_init_set (mpfp_t rop, mpfp_t op);
-extern void mpfp_init_set_z (mpfp_t rop, mpz_t op);
-extern void mpfp_init_set_ui (mpfp_t rop, unsigned long int op);
 
 extern void mpfp_get_z (mpz_t rop, mpfp_t op);
 
