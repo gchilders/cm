@@ -1466,12 +1466,6 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
 {
    mpz_t* j = (mpz_t*) malloc (sizeof (mpz_t));
    mpz_t f24, tmp;
-   /* The following variables are only needed if the discriminant is 5 mod 8.*/
-   mpz_t factor [4];
-   int   i;
-   mpfpx_t root_poly, f24_poly, tmp_poly, tmp2_poly;
-   const unsigned long int x2 [] = {0, 0, 1};
-   const unsigned long int x6 [] = {0, 0, 0, 0, 0, 0, 1};
    mpfp_t one;
 
    mpz_init (j [0]);
@@ -1558,6 +1552,12 @@ static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
    }
    else {
       /* d/4 = 5 (mod 8), we need to factor over an extension of degree 3 */
+      mpz_t factor [4];
+      int   i;
+      mpfpx_t root_poly, f24_poly, tmp_poly, tmp2_poly;
+      const unsigned long int x2 [] = {0, 0, 1};
+      const unsigned long int x6 [] = {0, 0, 0, 0, 0, 0, 1};
+
       for (i = 0; i <= 3; i++)
          mpz_init (factor [i]);
       mpfpx_type_init (P, MPFPX_KARATSUBA);
