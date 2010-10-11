@@ -377,11 +377,7 @@ void cm_class_write (cm_class_t c)
    fprintf (f, "%c\n", c.invariant);
    fprintf (f, "%s\n", c.paramstr);
    fprintf (f, "%i\n", c.minpoly_deg);
-   if (c.field == CM_FIELD_REAL)
-      fprintf (f, "1\n");
-   else
-      fprintf (f, "1 0\n");
-   for (i = c.minpoly_deg - 1; i >= 0; i--) {
+   for (i = c.minpoly_deg; i >= 0; i--) {
       mpz_out_str (f, 10, c.minpoly [i]);
       if (c.field == CM_FIELD_COMPLEX) {
          fprintf (f, " ");
@@ -446,14 +442,7 @@ bool cm_class_read (cm_class_t c)
       exit (1);
    }
 
-   /* skip the leading 1 and possibly 0*/
-   if (!fscanf (f, "%i", &i))
-      return false;
-   if (c.field == CM_FIELD_COMPLEX)
-      if (!fscanf (f, "%i", &i))
-         return false;
-
-   for (i = c.minpoly_deg - 1; i >= 0; i--) {
+   for (i = c.minpoly_deg; i >= 0; i--) {
       mpz_inp_str (c.minpoly [i], f, 10);
       if (c.field == CM_FIELD_COMPLEX)
          mpz_inp_str (c.minpoly_complex [i], f, 10);
@@ -1340,6 +1329,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    cm_class_init (&c, d, inv, verbose);
    if (!readwrite || !cm_class_read (c))
       cm_class_compute_minpoly (c, false, readwrite, false, verbose);
+
    cm_timer_start (clock);
    mpz_init (root);
    if (inv != CM_INVARIANT_WEBER || c.p [0] != 3 || c.p [1] != 1)
