@@ -189,7 +189,13 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
          printf ("- Time for pow: %.1f in degree %i\n", cm_timer_get (clock2),
                  deg_f);
       for (i = 0; i < n; i++) {
+         cm_timer_start (clock2);
          tmp = FpX_gcd (FpX_Fp_sub (xpow, zeta, pp), fact, pp);
+         cm_timer_stop (clock2);
+         if (verbose)
+            printf ("- Time for gcd of degrees %li, %li -> %li: %.1f\n",
+               degpol (fact), degpol (xpow), degpol (tmp),
+               cm_timer_get (clock2));
          if (degpol (tmp) > 0 && degpol (tmp) < degpol (fact)) {
             fact = FpX_div (fact, tmp, pp);
             if (degpol (tmp) < degpol (minfactor)) {
