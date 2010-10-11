@@ -431,7 +431,7 @@ bool cm_class_read (cm_class_t c)
    }
    if (!fscanf (f, "%254s", pars))
       return false;
-   if (!strcmp (pars, c.paramstr)) {
+   if (strcmp (pars, c.paramstr)) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
       printf ("*** parameter %s instead of %s\n", pars, c.paramstr);

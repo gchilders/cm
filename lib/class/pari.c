@@ -174,12 +174,12 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
             (unsigned long int) n);
 
    xplusa = pol_x (varn (fact));
-   zeta = utoi (1ul);
-   while (degree (minfactor) != deg_factor) {
+   zeta = gen_1;
+   while (degpol (minfactor) != deg_factor) {
       /* split minfactor by computing its gcd with (X+a)^exp-zeta, where    */
       /* zeta varies over the roots of unity in F_p                         */
       fact = FpX_normalize (minfactor, pp);
-      deg_f = degree (fact);
+      deg_f = degpol (fact);
       /* update X+a, avoid a=0 */
       gel (xplusa, 2) = addis (gel (xplusa, 2), 1);
       cm_timer_start (clock2);
@@ -190,9 +190,9 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
                  deg_f);
       for (i = 0; i < n; i++) {
          tmp = FpX_gcd (FpX_Fp_sub (xpow, zeta, pp), fact, pp);
-         if (degree (tmp) > 0 && degree (tmp) < degree (fact)) {
+         if (degpol (tmp) > 0 && degpol (tmp) < degpol (fact)) {
             fact = FpX_div (fact, tmp, pp);
-            if (degree (tmp) < degree (minfactor)) {
+            if (degpol (tmp) < degpol (minfactor)) {
                minfactor = tmp;
                if (degree (minfactor) == deg_factor ||
                    degree (minfactor) <= deg_f / (2 * n) + 1)
