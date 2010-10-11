@@ -472,10 +472,14 @@ This is the counterpart to @code{cm_class_init} and should be called once
 the class polynomial is not needed any more to free the allocated space.
 @end deftypefun
 
-@deftypefun void cm_curve_compute_curve (int_cl_t @var{d}, char @var{inv}, int @var{fieldsize}, const char* @var{modpoldir}, bool @var{print}, bool @var{verbose})
+@deftypefun void cm_curve_compute_curve (int_cl_t @var{d}, char @var{inv}, int @var{fieldsize}, const char* @var{modpoldir}, bool @var{readwrite}, bool @var{print}, bool @var{verbose})
 Computes a cryptographically suitable curve with complex multiplication by
 @var{d} over some prime field of @var{fieldsize} bits, using the class
 function designated by @var{inv}.
+
+If @var{readwrite} is set to @code{true}, the function tries to read the class
+polynomial from a file; if the file is not present, the class polynomial
+is computed and written to a file.
 
 If @var{print} is set to @code{true}, the j-invariant and coefficients a and b
 of the curve are printed on screen, if @var{verbose} is set to @code{true},

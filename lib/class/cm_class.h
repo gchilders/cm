@@ -89,7 +89,7 @@ extern void cm_class_compute_minpoly (cm_class_t c, bool checkpoints,
 
 /* functions for computing parameters of a complex multiplication curve      */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool print, bool verbose);
+   const char* modpoldir, bool readwrite, bool print, bool verbose);
 #if defined (__cplusplus)
 }
 #endif

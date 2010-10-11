@@ -37,7 +37,7 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, true, verbose);
+   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, true, verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
 

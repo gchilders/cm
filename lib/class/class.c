@@ -1327,8 +1327,9 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
 /*****************************************************************************/
 
 mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
-   const char* modpoldir, bool read, bool verbose)
-   /* If read is true, tries to read the polynomial from a file. */
+   const char* modpoldir, bool readwrite, bool verbose)
+   /* If readwrite is true, tries to read the polynomial from a file, and    */
+   /* computes it and writes it to the file if it is not yet present.        */
 
 {
    cm_class_t c;
@@ -1337,8 +1338,8 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    cm_timer clock;
 
    cm_class_init (&c, d, inv, verbose);
-   if (!read || !cm_class_read (c))
-      cm_class_compute_minpoly (c, false, false, false, verbose);
+   if (!readwrite || !cm_class_read (c))
+      cm_class_compute_minpoly (c, false, readwrite, false, verbose);
    cm_timer_start (clock);
    mpz_init (root);
    if (inv != CM_INVARIANT_WEBER || c.p [0] != 3 || c.p [1] != 1)
