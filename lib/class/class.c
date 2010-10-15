@@ -1130,9 +1130,19 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    if (print) {
       printf ("x^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
-         printf (" + (");
-         mpz_out_str (stdout, 10, c.minpoly [i]);
-         printf (") * x^%i", i);
+         int cmp = mpz_cmp_ui (c.minpoly [i], 0);
+         if (cmp != 0) {
+            if (cmp > 0) {
+               printf (" +");
+               mpz_out_str (stdout, 10, c.minpoly [i]);
+            }
+            else
+               mpz_out_str (stdout, 10, c.minpoly [i]);
+            if (i >= 2)
+               printf ("*x^%i", i);
+            else if (i == 1)
+               printf ("*x");
+         }
       }
       printf ("\n");
    }
