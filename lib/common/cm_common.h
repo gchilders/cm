@@ -44,6 +44,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_MODPOL_ATKIN59     'A'
 #define CM_MODPOL_ATKIN71     '7'
 #define CM_MODPOL_RAMANUJAN   'r'
+#define CM_MODPOL_MULTI30     '0'
+#define CM_MODPOL_MULTI42     'x'
+#define CM_MODPOL_MULTI70     'y'
+#define CM_MODPOL_MULTI78     '8'
 
 
 typedef struct {
