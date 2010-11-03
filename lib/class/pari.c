@@ -126,7 +126,7 @@ static GEN good_root_of_unity (int *n, const GEN p, const int deg,
    pari_sp lbot, ltop = avma;
 
    pm = subis (p, 1ul);
-   for (*n = (2 * deg) / deg_factor + 1; !dvdiu (pm, *n); (*n)--);
+   for (*n = deg / 2 / deg_factor + 1; !dvdiu (pm, *n); (*n)--);
    if (verbose)
       printf ("n %i\n", *n);
 
@@ -201,7 +201,7 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
             if (degpol (tmp) < degpol (minfactor)) {
                minfactor = tmp;
                if (degree (minfactor) == deg_factor ||
-                   degree (minfactor) <= deg_f / (2 * n) + 1)
+                   degree (minfactor) <= deg_f / (n / 2) + 1)
                   /* stop early to avoid too many gcds */
                   break;
             }
