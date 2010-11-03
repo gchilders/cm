@@ -33,7 +33,8 @@ static void test_curve (int_cl_t d, char invariant, bool verbose) {
 
    printf ("d = %"PRIicl", inv = %c ", d, invariant);
    fflush (stdout);
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, verbose);
+   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, false,
+      verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
    printf (" ok\n");
