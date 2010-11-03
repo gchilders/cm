@@ -97,6 +97,42 @@ fi
 dnl Finally set up LibTool
 AC_PROG_LIBTOOL
 
+# Check for a recent GMP
+AC_MSG_CHECKING(for recent GMP)
+AC_COMPILE_IFELSE(
+        [AC_LANG_SOURCE(
+        [[
+#include "gmp.h"
+#if (__GNU_MP_VERSION*100 + __GNU_MP_VERSION_MINOR*10 + __GNU_MP_VERSION_PATCHLEVEL < 432)
+# error "Minimal GMP version is 4.3.2"
+error
+#endif
+        ]])],
+        [AC_MSG_RESULT(yes)],
+        [
+        AC_MSG_RESULT(no)
+        AC_MSG_ERROR([GMP version >= 4.3.2 required])
+        ])
+
+# Check for a recent MPFR: we require MPFR 2.4.2 so that the tests
+# in log.dat pass
+AC_MSG_CHECKING(for recent MPFR)
+AC_COMPILE_IFELSE(
+        [AC_LANG_SOURCE(
+        [[
+#include "mpfr.h"
+#if (MPFR_VERSION < MPFR_VERSION_NUM (2,4,2))
+# error "Minimal MPFR version is 2.4.2"
+error
+#endif
+        ]])],
+        [AC_MSG_RESULT(yes)],
+        [
+         AC_MSG_RESULT(no)
+         AC_MSG_ERROR([MPFR version >= 2.4.2 required])
+         ])
+
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([inttypes.h stdlib.h string.h])
@@ -117,9 +153,28 @@ CM_PROG_CC_WARNINGCFLAGS([WARNINGCFLAGS])
 
 # Checks for libraries.
 AC_CHECK_LIB([z], [gzopen])
+
+# Gmp
 AC_CHECK_LIB([gmp], [__gmpz_init],
              [LIBS="-lgmp $LIBS"],
              [AC_MSG_ERROR([libgmp not found or uses a different ABI.])])
+AC_MSG_CHECKING(for recent GMP)
+AC_COMPILE_IFELSE(
+        [AC_LANG_SOURCE(
+        [[
+#include "gmp.h"
+#if (__GNU_MP_VERSION*100 + __GNU_MP_VERSION_MINOR*10 + __GNU_MP_VERSION_PATCHLEVEL < 432)
+# error "Minimal GMP version is 4.3.2"
+error
+#endif
+        ]])],
+        [AC_MSG_RESULT(yes)],
+        [
+        AC_MSG_RESULT(no)
+        AC_MSG_ERROR([GMP version >= 4.3.2 required])
+        ])
+
+# Mpfr
 AC_MSG_CHECKING(for MPFR)
 LIBS="-lmpfr $LIBS"
 AC_LINK_IFELSE(
@@ -132,6 +187,23 @@ AC_LINK_IFELSE(
         AC_MSG_RESULT(no)
         AC_MSG_ERROR([libmpfr not found or uses a different ABI.])
         ])
+AC_MSG_CHECKING(for recent MPFR)
+AC_COMPILE_IFELSE(
+        [AC_LANG_SOURCE(
+        [[
+#include "mpfr.h"
+#if (MPFR_VERSION < MPFR_VERSION_NUM (2,4,2))
+# error "Minimal MPFR version is 2.4.2"
+error
+#endif
+        ]])],
+        [AC_MSG_RESULT(yes)],
+        [
+         AC_MSG_RESULT(no)
+         AC_MSG_ERROR([MPFR version >= 2.4.2 required])
+         ])
+
+# Mpc
 AC_MSG_CHECKING(for MPC)
 LIBS="-lmpc $LIBS"
 AC_LINK_IFELSE(
@@ -144,6 +216,23 @@ AC_LINK_IFELSE(
         AC_MSG_RESULT(no)
         AC_MSG_ERROR([libmpc not found or uses a different ABI.])
         ])
+AC_MSG_CHECKING(for recent MPC)
+AC_COMPILE_IFELSE(
+        [AC_LANG_SOURCE(
+        [[
+#include "mpc.h"
+#if (MPC_VERSION < MPC_VERSION_NUM (0,8,2))
+# error "Minimal MPC version is 0.8.2"
+error
+#endif
+        ]])],
+        [AC_MSG_RESULT(yes)],
+        [
+         AC_MSG_RESULT(no)
+         AC_MSG_ERROR([MPC version >= 0.8.2 required])
+         ])
+
+# Mpfrcx
 AC_MSG_CHECKING(for MPFRCX)
 LIBS="-lmpfrcx $LIBS"
 AC_LINK_IFELSE(
@@ -156,6 +245,23 @@ AC_LINK_IFELSE(
         AC_MSG_RESULT(no)
         AC_MSG_ERROR([libmpfrcx not found or uses a different ABI.])
         ])
+AC_MSG_CHECKING(for recent MPFRCX)
+AC_COMPILE_IFELSE(
+        [AC_LANG_SOURCE(
+        [[
+#include "mpfrcx.h"
+#if (100*MPFRCX_VERSION_MAJOR + 100*MPFRCX_VERSION_MINOR + MPFRCX_VERSION_PATCHLEVEL < 30)
+# error "Minimal MPFRCX version is 0.3"
+error
+#endif
+        ]])],
+        [AC_MSG_RESULT(yes)],
+        [
+         AC_MSG_RESULT(no)
+         AC_MSG_ERROR([MPFRCX version >= 0.3 required])
+         ])
+
+# Pari
 AC_MSG_CHECKING(for PARI)
 LIBS="-lpari $LIBS"
 AC_LINK_IFELSE(
@@ -168,6 +274,35 @@ AC_LINK_IFELSE(
         AC_MSG_RESULT(no)
         AC_MSG_ERROR([libpari not found or uses a different ABI.])
         ])
+AC_MSG_CHECKING(for recent PARI)
+AC_COMPILE_IFELSE(
+        [AC_LANG_SOURCE(
+        [[
+#include "pari/pari.h"
+#if (PARI_VERSION_CODE < PARI_VERSION (2,4,3))
+# error "Minimal PARI version is 2.4.3"
+error
+#endif
+        ]])],
+        [AC_MSG_RESULT(yes)],
+        [
+         AC_MSG_RESULT(no)
+         AC_MSG_ERROR([PARI version >= 2.4.3 required])
+         ])
+AC_MSG_CHECKING(for static PARI library)
+save_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -static"
+AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM(
+                [[#include "pari/pari.h"]],
+                [[pari_init (100, 0); pari_close ();]]
+        )],
+        [AC_MSG_RESULT(yes)],
+        [
+        AC_MSG_RESULT(no)
+        AC_MSG_ERROR([static libpari not found; install it with "make install-lib-sta".])
+        ])
+LDFLAGS="$save_LDFLAGS"
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT
