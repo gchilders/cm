@@ -2,8 +2,8 @@ Recent changes:
   - Features
     * new class invariants: multiple eta quotients with '-imultieta'
     * double eta quotients with both primes >100
-    * new parameter choice for double eta quotients yielding smaller class polynomials
-    * static linking of the binaries
+    * new parameter choice for double eta quotients yielding smaller class
+      polynomials
     * slightly lower height bounds for double eta quotients
   - Bug fixes
     * printing of field and curve cardinality even without parameter "-v"

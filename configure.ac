@@ -1,7 +1,7 @@
 /*
 configure.ac
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2011 Andreas Enge
 
 This file is part of CM.
 
@@ -89,49 +89,13 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
  AC_MSG_ERROR([gmp.h can't be found, or is unusable.])
 ])
 
-dnl Check for GMP CFLAGS in gmp.h
+# Check for GMP CFLAGS in gmp.h
 if test -z "$user_redefine_cc" ; then
    MPC_GMP_CC_CFLAGS
 fi
 
-dnl Finally set up LibTool
+# Set up LibTool
 AC_PROG_LIBTOOL
-
-# Check for a recent GMP
-AC_MSG_CHECKING(for recent GMP)
-AC_COMPILE_IFELSE(
-        [AC_LANG_SOURCE(
-        [[
-#include "gmp.h"
-#if (__GNU_MP_VERSION*100 + __GNU_MP_VERSION_MINOR*10 + __GNU_MP_VERSION_PATCHLEVEL < 432)
-# error "Minimal GMP version is 4.3.2"
-error
-#endif
-        ]])],
-        [AC_MSG_RESULT(yes)],
-        [
-        AC_MSG_RESULT(no)
-        AC_MSG_ERROR([GMP version >= 4.3.2 required])
-        ])
-
-# Check for a recent MPFR: we require MPFR 2.4.2 so that the tests
-# in log.dat pass
-AC_MSG_CHECKING(for recent MPFR)
-AC_COMPILE_IFELSE(
-        [AC_LANG_SOURCE(
-        [[
-#include "mpfr.h"
-#if (MPFR_VERSION < MPFR_VERSION_NUM (2,4,2))
-# error "Minimal MPFR version is 2.4.2"
-error
-#endif
-        ]])],
-        [AC_MSG_RESULT(yes)],
-        [
-         AC_MSG_RESULT(no)
-         AC_MSG_ERROR([MPFR version >= 2.4.2 required])
-         ])
-
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -289,20 +253,6 @@ error
          AC_MSG_RESULT(no)
          AC_MSG_ERROR([PARI version >= 2.4.3 required])
          ])
-AC_MSG_CHECKING(for static PARI library)
-save_LDFLAGS="$LDFLAGS"
-LDFLAGS="$LDFLAGS -static"
-AC_LINK_IFELSE(
-        [AC_LANG_PROGRAM(
-                [[#include "pari/pari.h"]],
-                [[pari_init (100, 0); pari_close ();]]
-        )],
-        [AC_MSG_RESULT(yes)],
-        [
-        AC_MSG_RESULT(no)
-        AC_MSG_ERROR([static libpari not found; install it with "make install-lib-sta".])
-        ])
-LDFLAGS="$save_LDFLAGS"
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT
