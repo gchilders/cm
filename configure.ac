@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 AC_PREREQ(2.61)
-AC_INIT(cm, 0.2-dev, andreas.enge@inria.fr)
+AC_INIT(cm, 0.2dev, andreas.enge@inria.fr)
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/common/cm_common.h])
 AC_CONFIG_HEADER([config.h])
@@ -69,18 +69,17 @@ AC_ARG_WITH([pari],
             LDFLAGS="$LDFLAGS -L$withval/lib"
             ])
 
-dnl Setup CC and CFLAGS
-
-dnl Check for user specification of CC or CFLAGS
-if test -n "$CFLAGS" || test -n "$CC" ; then
-   user_redefine_cc=yes
-fi
-
 # Checks for programs.
 AC_PROG_CC
+AC_LANG(C)
+
+# Set up LibTool
 AC_PROG_LIBTOOL
 
-dnl Check GMP Header
+# Checks if compiler accepts warning flags.
+MPC_C_CHECK_WARNINGFLAGS
+
+# Check GMP Header
 AC_MSG_CHECKING(for gmp.h)
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 #include "gmp.h"
@@ -88,14 +87,6 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
  AC_MSG_RESULT(no)
  AC_MSG_ERROR([gmp.h can't be found, or is unusable.])
 ])
-
-# Check for GMP CFLAGS in gmp.h
-if test -z "$user_redefine_cc" ; then
-   MPC_GMP_CC_CFLAGS
-fi
-
-# Set up LibTool
-AC_PROG_LIBTOOL
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -111,9 +102,6 @@ AC_FUNC_REALLOC
 AC_CHECK_LIB([m], [sqrt], , AC_MSG_ERROR([libm not found.]))
 AC_CHECK_LIB([z], [gzopen], , AC_MSG_ERROR([libz not found.]))
 AC_CHECK_FUNCS([sqrt])
-
-# Checks if compiler accepts warning flags.
-CM_PROG_CC_WARNINGCFLAGS([WARNINGCFLAGS])
 
 # Checks for libraries.
 AC_CHECK_LIB([z], [gzopen])
@@ -253,6 +241,13 @@ error
          AC_MSG_RESULT(no)
          AC_MSG_ERROR([PARI version >= 2.4.3 required])
          ])
+
+# Checks for gcc version, result in variables CM_GCC etc. inside config.h
+AX_GCC_VERSION
+AC_DEFINE_UNQUOTED([CM_GCC], ["$GCC"], [Gcc yes or no])
+AC_DEFINE_UNQUOTED([CM_CC], ["$CC"], [C compiler])
+AC_DEFINE_UNQUOTED([CM_GCC_VERSION], ["$GCC_VERSION"], [Version of gcc])
+
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile lib/mpfpx/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT

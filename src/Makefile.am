@@ -1,4 +1,4 @@
-AM_CFLAGS = -std=c99 -D CM_MODPOLDIR=\"${datadir}\" @WARNINGCFLAGS@ -I$(top_srcdir)/lib/mpfpx -I$(top_srcdir)/lib/common -I$(top_srcdir)/lib/class
+AM_CFLAGS = -std=c99 -D CM_MODPOLDIR=\"${datadir}\" -I$(top_srcdir)/lib/mpfpx -I$(top_srcdir)/lib/common -I$(top_srcdir)/lib/class
 
 bin_PROGRAMS = cm classpol
 

@@ -1,4 +1,4 @@
-AM_CFLAGS=-std=c99 @WARNINGCFLAGS@
+AM_CFLAGS=-std=c99
 
 include_HEADERS = cm_common.h
 

@@ -1,4 +1,4 @@
-AM_CFLAGS=-std=c99 @WARNINGCFLAGS@ -I$(top_srcdir)/lib/mpfp
+AM_CFLAGS=-std=c99 -I$(top_srcdir)/lib/mpfp
 
 include_HEADERS = mpfpx.h
 
