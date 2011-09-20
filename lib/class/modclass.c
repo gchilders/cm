@@ -101,6 +101,8 @@ void cm_modclass_clear (cm_modclass_t *mc)
    int i;
 
    mpfr_clear (mc->root);
+   mpfr_clear (mc->sqrt2_over2);
+   mpfr_clear (mc->sqrt2_over4);
    for (i = 0; i < mc->cl.h12; i++)
       mpc_clear (mc->eta [i]);
    free (mc->eta);

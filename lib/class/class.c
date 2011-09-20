@@ -2,7 +2,7 @@
 
 class.c - code for computing class polynomials
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2011 Andreas Enge
 
 This file is part of CM.
 
@@ -140,6 +140,8 @@ void cm_class_clear (cm_class_t *c)
          mpz_clear (c->minpoly_complex [i]);
       free (c->minpoly_complex);
    }
+
+   mpfr_free_cache ();
 }
 
 /*****************************************************************************/
