@@ -8,6 +8,7 @@ Recent changes:
   - Bug fixes
     * printing of field and curve cardinality even without parameter "-v"
     * Weber polynomials work again (activated by "-iweber")
+    * Class polynomials for D=-4 and D=-16 work (no curve is constructed)
   - Dependencies
     * factorisation of class polynomials is done by pari instead of ntl
      

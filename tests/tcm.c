@@ -2,7 +2,7 @@
 
 tcm.c - tests for cm
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2011 Andreas Enge
 
 This file is part of CM.
 
@@ -74,6 +74,9 @@ int main (void)
    /* Weber: d=5 (8), divisible by 3 */
    test_curve ((int_cl_t) (-108723), CM_INVARIANT_WEBER, false);
 
+   /* d==-16, corresponds to fixed bug */
+   test_curve ((int_cl_t) (-16), CM_INVARIANT_J, false);
+   
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_J, false);
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_GAMMA2, false);
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_GAMMA3, false);

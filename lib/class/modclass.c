@@ -2,7 +2,7 @@
 
 modclass.c - code for evaluating modular functions in quadratic arguments
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2011 Andreas Enge
 
 This file is part of CM.
 
@@ -520,7 +520,7 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
       mpz_divexact (c, c, a_local);
       /* if not reduced, invert */
       if (mpz_cmp (a_local, c) < 0 ||
-          (mpz_cmp (a_local, c) == 0 && mpz_sgn (b_local) > 0))
+          (mpz_cmp (a_local, c) == 0 && mpz_sgn (b_local) >= 0))
          reduced = true;
       else {
          mpz_set (a_local, c);
