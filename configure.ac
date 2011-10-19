@@ -76,9 +76,6 @@ AC_LANG(C)
 # Set up LibTool
 AC_PROG_LIBTOOL
 
-# Checks if compiler accepts warning flags.
-MPC_C_CHECK_WARNINGFLAGS
-
 # Check GMP Header
 AC_MSG_CHECKING(for gmp.h)
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -102,6 +99,9 @@ AC_FUNC_REALLOC
 AC_CHECK_LIB([m], [sqrt], , AC_MSG_ERROR([libm not found.]))
 AC_CHECK_LIB([z], [gzopen], , AC_MSG_ERROR([libz not found.]))
 AC_CHECK_FUNCS([sqrt])
+
+# Checks if compiler accepts warning flags.
+MPC_C_CHECK_WARNINGCFLAGS
 
 # Gmp
 AC_CHECK_LIB([gmp], [__gmpz_init],
