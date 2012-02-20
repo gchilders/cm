@@ -68,6 +68,16 @@ AC_ARG_WITH([pari],
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib"
             ])
+AC_ARG_ENABLE([valgrind-tests],
+             [AC_HELP_STRING([--enable-valgrind-tests],
+                             [run checks through valgrind (default = no)])],
+             [case $enableval in
+                 yes) gl_VALGRIND_TESTS ;;
+                 no)  ;;
+                 *)   AC_MSG_ERROR([Bad value for --enable-valgrind-tests: Use yes or no]) ;;
+              esac
+             ]
+             )
 
 # Checks for programs.
 AC_PROG_CC
