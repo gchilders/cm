@@ -1,7 +1,7 @@
 /*
 configure.ac
 
-Copyright (C) 2009, 2010, 2011 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012 Andreas Enge
 
 This file is part of CM.
 
@@ -199,15 +199,15 @@ AC_COMPILE_IFELSE(
         [AC_LANG_SOURCE(
         [[
 #include "mpfrcx.h"
-#if (100*MPFRCX_VERSION_MAJOR + 100*MPFRCX_VERSION_MINOR + MPFRCX_VERSION_PATCHLEVEL < 30)
-# error "Minimal MPFRCX version is 0.3"
+#if (100*MPFRCX_VERSION_MAJOR + 100*MPFRCX_VERSION_MINOR + MPFRCX_VERSION_PATCHLEVEL < 40)
+# error "Minimal MPFRCX version is 0.4"
 error
 #endif
         ]])],
         [AC_MSG_RESULT(yes)],
         [
          AC_MSG_RESULT(no)
-         AC_MSG_ERROR([MPFRCX version >= 0.3 required])
+         AC_MSG_ERROR([MPFRCX version >= 0.4 required])
          ])
 
 # Pari
@@ -228,15 +228,15 @@ AC_COMPILE_IFELSE(
         [AC_LANG_SOURCE(
         [[
 #include "pari/pari.h"
-#if (PARI_VERSION_CODE < PARI_VERSION (2,4,3))
-# error "Minimal PARI version is 2.4.3"
+#if PARI_VERSION_CODE < PARI_VERSION (2,5,0)
+# error "Minimal PARI version is 2.5.0"
 error
 #endif
         ]])],
         [AC_MSG_RESULT(yes)],
         [
          AC_MSG_RESULT(no)
-         AC_MSG_ERROR([PARI version >= 2.4.3 required])
+         AC_MSG_ERROR([PARI version >= 2.5.0 required])
          ])
 
 # Checks for gcc version, result in variables CM_GCC etc. inside config.h

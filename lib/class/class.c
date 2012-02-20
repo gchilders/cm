@@ -2,7 +2,7 @@
 
 class.c - code for computing class polynomials
 
-Copyright (C) 2009, 2010, 2011 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012 Andreas Enge
 
 This file is part of CM.
 
@@ -57,9 +57,9 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
 
 /* the remaining functions are put separately as their code is quite long    */
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   cm_form_t *nsystem, bool print, bool verbose);
+   cm_form_t *nsystem, bool print);
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   bool print, bool verbose);
+   bool print);
 static bool doubleeta_compute_parameter (cm_class_t *c);
 static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
    int *no, bool verbose);
@@ -1035,9 +1035,9 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
 
    cm_timer_start (clock_local);
    if (c.field == CM_FIELD_REAL)
-      real_compute_minpoly (c, conjugate, nsystem, print, verbose);
+      real_compute_minpoly (c, conjugate, nsystem, print);
    else
-      complex_compute_minpoly (c, conjugate, print, verbose);
+      complex_compute_minpoly (c, conjugate, print);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for polynomial reconstruction: %.1f\n",
@@ -1065,7 +1065,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
 /*****************************************************************************/
 
 static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   cm_form_t *nsystem, bool print, bool verbose)
+   cm_form_t *nsystem, bool print)
    /* computes the minimal polynomial of the function over Q                 */
    /* frees conjugates                                                       */
 
@@ -1114,7 +1114,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    }
 
    mpfrx_init (mpol, c.minpoly_deg + 1, factors [0]->prec);
-   mpfrx_reconstruct (mpol, factors, (c.h1+1)/2 + c.h2, verbose);
+   mpfrx_reconstruct (mpol, factors, (c.h1+1)/2 + c.h2);
    for (i = 0; i < (c.h1+1)/2 + c.h2; i++)
       mpfrx_clear (factors [i]);
    free (factors);
@@ -1196,7 +1196,7 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
 /*****************************************************************************/
 
 static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
-   bool print, bool verbose)
+   bool print)
    /* computes the minimal polynomial of the function over Q (sqrt D)        */
    /* frees conjugates                                                       */
 
@@ -1221,7 +1221,7 @@ static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    free (conjugate);
 
    mpcx_init (mpol, c.minpoly_deg + 1, factors [0]->prec);
-   mpcx_reconstruct (mpol, factors, c.h12, verbose);
+   mpcx_reconstruct (mpol, factors, c.h12);
    for (i = 0; i < c.h12; i++)
       mpcx_clear (factors [i]);
    free (factors);

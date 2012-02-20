@@ -32,10 +32,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 @set MINGMP 4.3.2
 @set MINMPFR 2.4.2
 @set MINMPC 0.8.2
-@set MINMPFRCX 0.3
-@set MINPARI 2.4.3
+@set MINMPFRCX 0.4
+@set MINPARI 2.5.0
 @set AUTHORS Andreas Enge
-@set COPYRIGHTDATES 2009, 2010
+@set COPYRIGHTDATES 2009, 2010, 2012
 @syncodeindex fn cp
 @syncodeindex tp cp
 
