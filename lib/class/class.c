@@ -967,11 +967,11 @@ static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
+void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
    bool print, bool verbose)
    /* checkpoints indicates whether intermediate results are to be kept in   */
    /* and potentially read from files.                                       */
-   /* write indicates whether the result should be written to disk.          */
+   /* disk indicates whether the result should be written to disk.           */
    /* print indicates whether the result should be printed on screen.        */
 {
    cm_classgroup_t cl, cl2;
@@ -1058,7 +1058,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool write,
             cm_timer_get (clock_global));
       printf ("Height of minimal polynomial: %d\n", class_get_height (c));
    }
-   if (write)
+   if (disk)
       cm_class_write (c);
 }
 
