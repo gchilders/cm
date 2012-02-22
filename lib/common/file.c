@@ -2,7 +2,7 @@
 
 file.c - code for handling (gzipped) files
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2012 Andreas Enge
 
 This file is part of CM.
 
@@ -62,7 +62,7 @@ void cm_file_close (FILE *f)
 
 /*****************************************************************************/
 
-void cm_file_gzopen_write (FILE **f, char *filename)
+void cm_file_gzopen_write (gzFile *f, char *filename)
 {
    *f = gzopen (filename, "w9");
    if (*f == NULL) {
@@ -73,7 +73,7 @@ void cm_file_gzopen_write (FILE **f, char *filename)
 
 /*****************************************************************************/
 
-void cm_file_gzopen_read (FILE **f, char *filename)
+void cm_file_gzopen_read (gzFile *f, char *filename)
 {
    *f = gzopen (filename, "r");
    if (*f == NULL) {
@@ -84,7 +84,7 @@ void cm_file_gzopen_read (FILE **f, char *filename)
 
 /*****************************************************************************/
 
-void cm_file_gzclose (FILE *f)
+void cm_file_gzclose (gzFile f)
 {
    gzclose (f);
 }

@@ -2,7 +2,7 @@
 
 cm_common.h - header file for the cm_common library
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2012 Andreas Enge
 
 This file is part of CM.
 
@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include <sys/times.h>
 #include <stdbool.h>
+#include <zlib.h>
 #include "mpfrcx.h"
 
 
@@ -105,9 +106,9 @@ extern double cm_timer_get (cm_timer clock);
 extern bool cm_file_open_write (FILE **f, char *filename);
 extern bool cm_file_open_read (FILE **f, char *filename);
 extern void cm_file_close (FILE *f);
-extern void cm_file_gzopen_write (FILE **f, char *filename);
-extern void cm_file_gzopen_read (FILE **f, char *filename);
-extern void cm_file_gzclose (FILE *f);
+extern void cm_file_gzopen_write (gzFile *f, char *filename);
+extern void cm_file_gzopen_read (gzFile *f, char *filename);
+extern void cm_file_gzclose (gzFile f);
 
 /* different functions for number theoretic computations */
 extern int cm_nt_is_prime (mpz_t a);

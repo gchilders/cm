@@ -2,7 +2,7 @@
 
 modpol.c - code for handling modular polynomials
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2012 Andreas Enge
 
 This file is part of CM.
 
@@ -23,12 +23,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm_common-impl.h"
 
-static unsigned long int read_gz_ui (FILE *f);
-static void read_gz_mpz (mpz_t rop, FILE *f);
+static unsigned long int read_gz_ui (gzFile f);
+static void read_gz_mpz (mpz_t rop, gzFile f);
 
 /*****************************************************************************/
 
-static unsigned long int read_gz_ui (FILE *f)
+static unsigned long int read_gz_ui (gzFile f)
    /* reads and returns an unsigned long integer in base 10 from the gzipped */
    /* file f                                                                 */
 {
@@ -56,7 +56,7 @@ static unsigned long int read_gz_ui (FILE *f)
 
 /*****************************************************************************/
 
-static void read_gz_mpz (mpz_t rop, FILE *f)
+static void read_gz_mpz (mpz_t rop, gzFile f)
    /* reads a coefficient of type mpz in base 10 from the gzipped file f     */
 {
    char c;
@@ -102,7 +102,7 @@ mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type, mpz_t p,
 
 {
    char filename [255];
-   FILE* f;
+   gzFile f;
    int lev, N, i, k;
    char c;
    mpz_t* xpow;
@@ -168,7 +168,7 @@ void cm_modpol_print_pari (int level, char type, const char* datadir)
 
 {
    char filename [255];
-   FILE* f;
+   gzFile f;
    int lev, i_old, i, k;
    char c;
    mpz_t tmp;
@@ -233,7 +233,7 @@ void cm_modpol_print_magma (int level, char type, const char* datadir)
 
 {
    char filename [255];
-   FILE* f;
+   gzFile f;
    int lev, i, k;
    char c;
    mpz_t tmp;

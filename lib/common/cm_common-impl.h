@@ -2,7 +2,7 @@
 
 cm_common-impl.h - header file for internal use of the cm_common library
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2012 Andreas Enge
 
 This file is part of CM.
 
@@ -30,7 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <stdlib.h>
 #include <math.h>
 #include <ctype.h>
-#include <zlib.h>
 
 #define CM_QDEV_ETA   1
 #define CM_QDEV_ATKIN 2
