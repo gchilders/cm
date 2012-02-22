@@ -1,16 +1,16 @@
-Recent changes:
+Changes in version 0.2:
   - Features
-    * new class invariants: multiple eta quotients with '-imultieta'
-    * double eta quotients with both primes >100
-    * new parameter choice for double eta quotients yielding smaller class
+    - new class invariants: multiple eta quotients with '-imultieta'
+    - double eta quotients with both primes >100
+    - new parameter choice for double eta quotients yielding smaller class
       polynomials
-    * slightly lower height bounds for double eta quotients
+    - slightly lower height bounds for double eta quotients
   - Bug fixes
-    * printing of field and curve cardinality even without parameter "-v"
-    * Weber polynomials work again (activated by "-iweber")
-    * Class polynomials for D=-4 and D=-16 work (no curve is constructed)
+    - printing of field and curve cardinality even without parameter "-v"
+    - Weber polynomials work again (activated by "-iweber")
+    - Class polynomials for D=-4 and D=-16 work (no curve is constructed)
   - Dependencies
-    * factorisation of class polynomials is done by pari instead of ntl
+    - factorisation of class polynomials is done by pari instead of ntl
      
 Version 0.1 ("Apfelkraut"):
   - initial release
