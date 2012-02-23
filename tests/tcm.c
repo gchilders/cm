@@ -2,7 +2,7 @@
 
 tcm.c - tests for cm
 
-Copyright (C) 2009, 2010, 2011 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012 Andreas Enge
 
 This file is part of CM.
 
@@ -47,7 +47,14 @@ static void test_curve (int_cl_t d, char invariant, bool verbose) {
 
 /*****************************************************************************/
 
-int main (void)
+static void small_test (void)
+{
+   test_curve ((int_cl_t) (-108715), CM_INVARIANT_DOUBLEETA, false);
+}
+
+/*****************************************************************************/
+
+static void big_test (void)
 {
    /* Weber: d divisible by 4, not by 32, not by 3 */
    test_curve ((int_cl_t) (-108740), CM_INVARIANT_WEBER, false);
@@ -76,17 +83,24 @@ int main (void)
 
    /* d==-16, corresponds to fixed bug */
    test_curve ((int_cl_t) (-16), CM_INVARIANT_J, false);
-   
+
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_J, false);
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_GAMMA2, false);
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_GAMMA3, false);
-   test_curve ((int_cl_t) (-108715), CM_INVARIANT_DOUBLEETA, false);
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_ATKIN, false); /* p=71 */
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_ATKIN, false); /* p=47 */
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_ATKIN, false); /* p=59 */
    test_curve ((int_cl_t) (-58767),  CM_INVARIANT_ATKIN, false); /* p=131 */
    test_curve ((int_cl_t) (-299),    CM_INVARIANT_SIMPLEETA, false);
    test_curve ((int_cl_t) (-105131), CM_INVARIANT_MULTIETA, false); /* N=3*5*7 */
+}
 
+/*****************************************************************************/
+
+int main (void)
+{
+   small_test ();
+   big_test ();
+   
    return 0;
 }

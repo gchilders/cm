@@ -1175,9 +1175,7 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
    mpfr_div (tmp, in->im, omega_i, GMP_RNDN);
    ok = cm_nt_mpfr_get_z (out2, tmp);
 
-   if (!ok)
-      return false;
-   else {
+   if (ok) {
       if (div4)
          mpfr_set (tmp, in->re, GMP_RNDN);
       else {
@@ -1186,11 +1184,12 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
          mpfr_sub (tmp, in->re, tmp, GMP_RNDN);
       }
       ok = cm_nt_mpfr_get_z (out1, tmp);
-      return ok;
    }
 
    mpfr_clear (omega_i);
    mpfr_clear (tmp);
+
+   return ok;
 }
 
 /*****************************************************************************/
