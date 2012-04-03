@@ -246,7 +246,7 @@ error
         [AC_MSG_RESULT(yes)],
         [
          AC_MSG_RESULT(no)
-         AC_MSG_ERROR([PARI version >= 2.5.0 required])
+         AC_MSG_ERROR([PARI version >= 2.5.1 required])
          ])
 
 # Checks for gcc version, result in variables CM_GCC etc. inside config.h
