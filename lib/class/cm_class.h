@@ -55,7 +55,7 @@ typedef struct {
    int p [6], e, s;
       /* some parameters of the class invariant                                 */
       /* p is a 0-terminated list of integers (often the primes dividing the    */
-      /* level; s is the canonical power, e the power actually used.            */
+      /* level); s is the canonical power, e the power actually used.           */
    char paramstr [255];
       /* a string encoding the previous characters, used in files and their     */
       /* names                                                                  */

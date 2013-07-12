@@ -3,7 +3,7 @@
 
 cm.texi - texinfo documentation for cm
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2013 Andreas Enge
 
 This file is part of CM.
 
@@ -35,7 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 @set MINMPFRCX 0.4
 @set MINPARI 2.5.1
 @set AUTHORS Andreas Enge
-@set COPYRIGHTDATES 2009, 2010, 2012
+@set COPYRIGHTDATES 2009, 2010, 2012, 2013
 @syncodeindex fn cp
 @syncodeindex tp cp
 
@@ -223,7 +223,7 @@ If you get error messages, please report them to the mailing list
 This copies the executable applications into the directory @file{/usr/local/bin},
 the header files into @file{/usr/local/include},
 the library files into @file{/usr/local/lib},
-the data files into subdirectories of @file{/usr/local/share}
+the data files into subdirectories of @file{/usr/local/share/cm}
 (see @ref{Data})
 and the file @file{cm.info} into @file{/usr/local/share/info}.
 
@@ -269,10 +269,10 @@ create the documentation in the corresponding formats.
 Some parameterised families of class functions need additional data (namely,
 @dfn{modular polynomials}), which depend on the parameter value, to deduce the equation
 of an elliptic curve from the class polynomial. A few modular polynomials for
-double eta quotients are provided and stored in @file{/usr/local/share/df} (or
-the subdirectory @file{share/df} of the installation directory provided with the
+double eta quotients are provided and stored in @file{/usr/local/share/cm/df} (or
+the subdirectory @file{share/cm/df} of the installation directory provided with the
 @samp{--prefix} configuration option, respectively); those for Atkin functions
-can be found in @file{/usr/local/share/af}.
+can be found in @file{/usr/local/share/cm/af}, and so on.
 
 An infinite amount of data is needed to handle all possible discriminants with a
 given family of class functions, and already covering all moderately sized
@@ -489,7 +489,7 @@ The variable @var{modpoldir} holds the base directory of the modular
 polynomials needed to derive elliptic curves from roots of class polynomials;
 the modular polynomials themelves are stored in subdirectories @code{df},
 @code{af} and so on of the base directory. In the standard installation,
-this is @code{/usr/local/share}.
+this is @code{/usr/local/share/cm}.
 @end deftypefun
 
 
