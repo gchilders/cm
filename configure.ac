@@ -1,7 +1,7 @@
 /*
 configure.ac
 
-Copyright (C) 2009, 2010, 2011, 2012 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2013 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 AC_PREREQ(2.61)
-AC_INIT(cm, 0.2.1dev, andreas.enge@inria.fr)
+AC_INIT(cm, 0.3dev, andreas.enge@inria.fr)
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/common/cm_common.h])
 AC_CONFIG_HEADER([config.h])
@@ -66,7 +66,7 @@ AC_ARG_WITH([pari],
                            [PARI install directory])],
             [
             CPPFLAGS="$CPPFLAGS -I$withval/include"
-            LDFLAGS="$LDFLAGS -L$withval/lib"
+            LDFLAGS="$LDFLAGS -L$withval/lib -Wl,-rpath -Wl,$withval/lib"
             ])
 AC_ARG_ENABLE([valgrind-tests],
              [AC_HELP_STRING([--enable-valgrind-tests],
