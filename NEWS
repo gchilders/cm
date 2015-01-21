@@ -1,3 +1,7 @@
+Recent changes:
+  - Features
+    - enable precision beyond 300000 bits
+
 Changes in version 0.2 ("Blindhühnchen"):
   - Features
     - new class invariants: multiple eta quotients with '-imultieta'
