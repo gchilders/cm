@@ -2,7 +2,7 @@
 
 modular.c - code for evaluating modular functions in floating point arguments
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -191,7 +191,7 @@ void cm_modular_init (cm_modular_t *m, mp_prec_t prec)
    mpfr_init2 (m->sqrt2, prec);
    mpfr_sqrt_ui (m->sqrt2, 2ul, GMP_RNDN);
 
-   cm_qdev_init (&(m->eta));
+   cm_qdev_init (&(m->eta), prec);
 }
 
 /*****************************************************************************/

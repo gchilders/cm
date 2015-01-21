@@ -2,7 +2,7 @@
 
 qdev.c - code handling q-expansions
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -92,17 +92,21 @@ static long int lognormmax (mpc_t op)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_qdev_init (cm_qdev_t *f)
+void cm_qdev_init (cm_qdev_t *f, mp_prec_t prec)
    /* initialises the addition chain for eta */
 
 {
    int n, i, j, k;
 //    int n1 = 0, n2 = 0, n3 = 0, n4 = 0, n5 = 0, n6 = 0;
 
-   f->length = 321;
+   f->length = 2 * ((mp_prec_t) (sqrt (prec * 0.085) + 1)) + 1;
    /* must be odd                                                        */
-   /* 321 corresponds to about 300000 bits in the worst case, each power */
-   /* of q yielding at least log_2 (exp (sqrt (3) * pi)) = 7.85 bits.    */
+   /* Since each power of q yields at least                              */
+   /* log_2 (exp (sqrt (3) * pi)) = 7.85 bits,                           */
+   /* the k yielding the largest exponent must satisfy                   */
+   /* ((3*k+1)*k/2)*7.85 >= prec; we drop the +1 to simplify.            */
+   /* Then we have twice as many exponents (taking into account the      */
+   /* (3*k-1)*k/2), and one more for the constant coefficient.           */
 
    f->chain = (long int **) malloc (f->length * sizeof (long int *));
    for (n = 0; n < f->length; n++)

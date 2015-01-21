@@ -2,7 +2,7 @@
 
 cm_common-impl.h - header file for internal use of the cm_common library
 
-Copyright (C) 2009, 2012 Andreas Enge
+Copyright (C) 2009, 2012, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -50,7 +50,7 @@ extern void cm_nt_elliptic_curve_random_l (long int *P_x, long int *P_y,
 
 /* functions for computing q expansions of modular functions and addition
    chains */
-extern void cm_qdev_init (cm_qdev_t *f);
+extern void cm_qdev_init (cm_qdev_t *f, mp_prec_t prec);
 extern void cm_qdev_clear (cm_qdev_t *f);
 extern void cm_qdev_eval (mpc_t rop, cm_qdev_t f, mpc_t q1);
 extern void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1);
