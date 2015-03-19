@@ -319,12 +319,12 @@ void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1)
 
    q = (mpfr_t *) malloc (f.length * sizeof (mpfr_t));
    mpfr_init2 (q [1], prec);
-   mpfr_set (q [1], q1, GMP_RNDN);
+   mpfr_set (q [1], q1, MPFR_RNDN);
    mpfr_init2 (term, prec);
 
-   mpfr_set_si (rop, f.chain [0][5], GMP_RNDN);
-   mpfr_mul_si (term, q [1], f.chain [1][5], GMP_RNDN);
-   mpfr_add (rop, rop, term, GMP_RNDN);
+   mpfr_set_si (rop, f.chain [0][5], MPFR_RNDN);
+   mpfr_mul_si (term, q [1], f.chain [1][5], MPFR_RNDN);
+   mpfr_add (rop, rop, term, MPFR_RNDN);
    n = 1;
 
    /* take next power of q into account if result is not precise enough */
@@ -336,9 +336,9 @@ void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1)
          printf ("*** Houston, we have a problem! Addition chain too short ");
          printf ("in 'qdev_eval_fr'.\n");
          printf ("n=%i, length=%i\n", n, f.length);
-         printf ("q "); mpfr_out_str (stdout, 10, 0, q [1], GMP_RNDN);
+         printf ("q "); mpfr_out_str (stdout, 10, 0, q [1], MPFR_RNDN);
          printf ("\n");
-         printf ("q^i "); mpfr_out_str (stdout, 10, 0, q [n-1], GMP_RNDN);
+         printf ("q^i "); mpfr_out_str (stdout, 10, 0, q [n-1], MPFR_RNDN);
          printf ("\n");
          exit (1);
       }
@@ -346,35 +346,35 @@ void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1)
       switch (f.chain [n][1])
       {
       case 1:
-         mpfr_sqr (q [n], q [f.chain [n][2]], GMP_RNDN);
+         mpfr_sqr (q [n], q [f.chain [n][2]], MPFR_RNDN);
          break;
       case 2:
          mpfr_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  GMP_RNDN);
+                  MPFR_RNDN);
          break;
       case 3:
-         mpfr_sqr (q [n], q [f.chain [n][2]], GMP_RNDN);
-         mpfr_sqr (q [n], q [n], GMP_RNDN);
+         mpfr_sqr (q [n], q [f.chain [n][2]], MPFR_RNDN);
+         mpfr_sqr (q [n], q [n], MPFR_RNDN);
          break;
       case 4:
-         mpfr_sqr (q [n], q [f.chain [n][2]], GMP_RNDN);
-         mpfr_mul (q [n], q[n], q [f.chain [n][3]], GMP_RNDN);
+         mpfr_sqr (q [n], q [f.chain [n][2]], MPFR_RNDN);
+         mpfr_mul (q [n], q[n], q [f.chain [n][3]], MPFR_RNDN);
          break;
       case 5:
          mpfr_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  GMP_RNDN);
-         mpfr_sqr (q [n], q[n], GMP_RNDN);
+                  MPFR_RNDN);
+         mpfr_sqr (q [n], q[n], MPFR_RNDN);
          break;
       case 6:
          mpfr_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  GMP_RNDN);
-         mpfr_mul (q [n], q [n], q [f.chain [n][4]], GMP_RNDN);
+                  MPFR_RNDN);
+         mpfr_mul (q [n], q [n], q [f.chain [n][4]], MPFR_RNDN);
          break;
       }
       if (f.chain [n][5] != 0)
       {
-         mpfr_mul_si (term, q [n], f.chain [n][5], GMP_RNDN);
-         mpfr_add (rop, rop, term, GMP_RNDN);
+         mpfr_mul_si (term, q [n], f.chain [n][5], MPFR_RNDN);
+         mpfr_add (rop, rop, term, MPFR_RNDN);
       }
    }
 

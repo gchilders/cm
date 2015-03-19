@@ -2,7 +2,7 @@
 
 class.c - code for computing class polynomials
 
-Copyright (C) 2009, 2010, 2011, 2012 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -1088,19 +1088,19 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
       if (nsystem [i].emb == real) {
          mpfrx_init (factors [right], 2, mpfr_get_prec (conjugate [i]->re));
          factors [right]->deg = 1;
-         mpfr_set_ui (factors [right]->coeff [1], 1ul, GMP_RNDN);
-         mpfr_neg (factors [right]->coeff [0], conjugate [i]->re, GMP_RNDN);
+         mpfr_set_ui (factors [right]->coeff [1], 1ul, MPFR_RNDN);
+         mpfr_neg (factors [right]->coeff [0], conjugate [i]->re, MPFR_RNDN);
          right--;
       }
       else {
          mpfrx_init (factors [left], 3, mpfr_get_prec (conjugate [i]->re));
          factors [left]->deg = 2;
-         mpfr_set_ui (factors [left]->coeff [2], 1ul, GMP_RNDN);
+         mpfr_set_ui (factors [left]->coeff [2], 1ul, MPFR_RNDN);
          mpfr_mul_2ui (factors [left]->coeff [1], conjugate [i]->re, 1ul,
-            GMP_RNDN);
+            MPFR_RNDN);
          mpfr_neg (factors [left]->coeff [1], factors [left]->coeff [1],
-            GMP_RNDN);
-         mpc_norm (factors [left]->coeff [0], conjugate [i], GMP_RNDN);
+            MPFR_RNDN);
+         mpc_norm (factors [left]->coeff [0], conjugate [i], MPFR_RNDN);
          left++;
       }
       mpc_clear (conjugate [i]);
@@ -1123,7 +1123,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    for (i = 0; i < c.minpoly_deg; i++)
       if (!cm_nt_mpfr_get_z (c.minpoly [i], mpol->coeff [i])) {
          printf ("*** Accuracy not sufficient for coefficient of X^%d = ", i);
-         mpfr_out_str (stdout, 10, 0ul, mpol->coeff [i], GMP_RNDN);
+         mpfr_out_str (stdout, 10, 0ul, mpol->coeff [i], MPFR_RNDN);
          printf ("\n");
          exit (1);
       }
@@ -1169,19 +1169,19 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
    mpfr_init2 (tmp, mpc_get_prec (in));
 
    div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
-   mpfr_sqrt_ui (omega_i, -d, GMP_RNDN);
-   mpfr_div_2ui (omega_i, omega_i, 1ul, GMP_RNDN);
+   mpfr_sqrt_ui (omega_i, -d, MPFR_RNDN);
+   mpfr_div_2ui (omega_i, omega_i, 1ul, MPFR_RNDN);
 
-   mpfr_div (tmp, in->im, omega_i, GMP_RNDN);
+   mpfr_div (tmp, in->im, omega_i, MPFR_RNDN);
    ok = cm_nt_mpfr_get_z (out2, tmp);
 
    if (ok) {
       if (div4)
-         mpfr_set (tmp, in->re, GMP_RNDN);
+         mpfr_set (tmp, in->re, MPFR_RNDN);
       else {
-         mpfr_set_z (tmp, out2, GMP_RNDN);
-         mpfr_div_2ui (tmp, tmp, 1ul, GMP_RNDN);
-         mpfr_sub (tmp, in->re, tmp, GMP_RNDN);
+         mpfr_set_z (tmp, out2, MPFR_RNDN);
+         mpfr_div_2ui (tmp, tmp, 1ul, MPFR_RNDN);
+         mpfr_sub (tmp, in->re, tmp, MPFR_RNDN);
       }
       ok = cm_nt_mpfr_get_z (out1, tmp);
    }

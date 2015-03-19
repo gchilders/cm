@@ -2,7 +2,7 @@
 
 modclass.c - code for evaluating modular functions in quadratic arguments
 
-Copyright (C) 2009, 2010, 2011 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -63,13 +63,13 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
 
    mpfr_init2 (mc->root, prec);
    cm_classgroup_mpz_set_icl (tmp_z, -cl.d);
-   mpfr_set_z (mc->root, tmp_z, GMP_RNDN);
-   mpfr_sqrt (mc->root, mc->root, GMP_RNDN);
+   mpfr_set_z (mc->root, tmp_z, MPFR_RNDN);
+   mpfr_sqrt (mc->root, mc->root, MPFR_RNDN);
    mpfr_init2 (mc->sqrt2_over2, prec);
-   mpfr_sqrt_ui (mc->sqrt2_over2, 2ul, GMP_RNDN);
-   mpfr_div_2ui (mc->sqrt2_over2, mc->sqrt2_over2, 1ul, GMP_RNDN);
+   mpfr_sqrt_ui (mc->sqrt2_over2, 2ul, MPFR_RNDN);
+   mpfr_div_2ui (mc->sqrt2_over2, mc->sqrt2_over2, 1ul, MPFR_RNDN);
    mpfr_init2 (mc->sqrt2_over4, prec);
-   mpfr_div_2ui (mc->sqrt2_over4, mc->sqrt2_over2, 1ul, GMP_RNDN);
+   mpfr_div_2ui (mc->sqrt2_over4, mc->sqrt2_over2, 1ul, MPFR_RNDN);
 
    mc->eta = (mpc_t *) malloc (mc->cl.h12 * sizeof (mpc_t));
    for (i = 0; i < mc->cl.h12; i++)
@@ -80,8 +80,8 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    if (cl2.d != 0) {
       mpfr_init2 (mc->root2, prec);
       cm_classgroup_mpz_set_icl (tmp_z, -cl2.d);
-      mpfr_set_z (mc->root2, tmp_z, GMP_RNDN);
-      mpfr_sqrt (mc->root2, mc->root2, GMP_RNDN);
+      mpfr_set_z (mc->root2, tmp_z, MPFR_RNDN);
+      mpfr_sqrt (mc->root2, mc->root2, MPFR_RNDN);
       mc->eta2 = (mpc_t *) malloc (mc->cl2.h12 * sizeof (mpc_t));
       for (i = 0; i < mc->cl2.h12; i++)
          mpc_init2 (mc->eta2 [i], prec);
@@ -197,8 +197,8 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
    mpfr_init2 (Pi24_root, m.prec);
    mpfr_init2 (tmp, m.prec);
 
-   mpfr_div_ui (Pi24, m.pi, 24ul, GMP_RNDN);
-   mpfr_mul (Pi24_root, root, Pi24, GMP_RNDN);
+   mpfr_div_ui (Pi24, m.pi, 24ul, MPFR_RNDN);
+   mpfr_mul (Pi24_root, root, Pi24, MPFR_RNDN);
 
    A_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
    B_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
@@ -222,19 +222,19 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
            j < cl.h12 && cl.form [j].a % cl.form [i].a != 0; j++);
       if (j < cl.h12) {
          if (cl.form [i].a == cl.form [j].a)
-            mpfr_set (q_real [i], q_real [j], GMP_RNDN);
+            mpfr_set (q_real [i], q_real [j], MPFR_RNDN);
          else {
             counter1++;
             mpfr_pow_ui (q_real [i], q_real [j],
-                         cl.form [j].a / cl.form [i].a, GMP_RNDN);
+                         cl.form [j].a / cl.form [i].a, MPFR_RNDN);
          }
       }
       else {
          counter1++;
          counter2++;
-         mpfr_div_ui (q_real [i], Pi24_root, cl.form [i].a, GMP_RNDN);
-         mpfr_neg (q_real [i], q_real [i], GMP_RNDN);
-         mpfr_exp (q_real [i], q_real [i], GMP_RNDN);
+         mpfr_div_ui (q_real [i], Pi24_root, cl.form [i].a, MPFR_RNDN);
+         mpfr_neg (q_real [i], q_real [i], MPFR_RNDN);
+         mpfr_exp (q_real [i], q_real [i], MPFR_RNDN);
       }
       if (verbose &&i % 200 == 0) {
          printf (".");
@@ -297,9 +297,9 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
       else {
          counter1++;
          counter2++;
-         mpfr_div_ui (tmp, Pi24, A_red [order [i]], GMP_RNDN);
+         mpfr_div_ui (tmp, Pi24, A_red [order [i]], MPFR_RNDN);
          mpfr_sin_cos (q24 [order [i]]->im, q24 [order [i]]->re,
-                       tmp, GMP_RNDN);
+                       tmp, MPFR_RNDN);
       }
       if (verbose && i % 200 == 0) {
          printf (".");
@@ -459,8 +459,8 @@ static void cm_modclass_mpc_set_quadratic (mpc_t rop,
    /* sets rop to (b + i*root) / (2a)                                      */
 
 {
-   mpfr_set_si (rop->re, b, GMP_RNDN);
-   mpfr_set (rop->im, root, GMP_RNDN);
+   mpfr_set_si (rop->re, b, MPFR_RNDN);
+   mpfr_set (rop->im, root, MPFR_RNDN);
    mpc_div_ui (rop, rop, 2*a, MPC_RNDNN);
 }
 
@@ -738,7 +738,7 @@ void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, mpc_t rop,
    tmp_fr [0] = rop->im [0];
    rop->im [0] = rop->re [0];
    rop->re [0] = tmp_fr [0];
-   mpfr_neg (rop->re, rop->re, GMP_RNDN);
+   mpfr_neg (rop->re, rop->re, MPFR_RNDN);
 
    mpc_clear (f);
    mpc_clear (tmp);

@@ -58,7 +58,7 @@ static void modular_fundamental_matrix (mpc_srcptr z,cm_matrix_t *M)
       ok = true;
       /* obtain -0.5 <= real part <= 0.5 */
       mpfr_round (tmp_fr, local_z->re);
-      tmp_int = -mpfr_get_si (tmp_fr, GMP_RNDN);
+      tmp_int = -mpfr_get_si (tmp_fr, MPFR_RNDN);
       mpc_add_si (local_z, local_z, tmp_int, MPC_RNDNN);
       /* multiply M from the left by T^tmp_int */
       M->a += M->c * tmp_int;
@@ -169,11 +169,11 @@ void cm_modular_init (cm_modular_t *m, mp_prec_t prec)
    mpc_init2 (m->log_zeta24, prec);
    mpc_init2 (m->zeta48inv, prec);
 
-   mpfr_const_pi (m->pi, GMP_RNDN);
+   mpfr_const_pi (m->pi, MPFR_RNDN);
    mpc_set_ui_ui (m->twopii, 0ul, 0ul, MPC_RNDNN);
-   mpfr_mul_2exp (m->twopii->im, m->pi, 1ul, GMP_RNDN);
+   mpfr_mul_2ui (m->twopii->im, m->pi, 1ul, MPFR_RNDN);
    mpc_set_ui_ui (m->log_zeta24, 0ul, 0ul, MPC_RNDNN);
-   mpfr_div_ui (m->log_zeta24->im, m->pi, 12ul, GMP_RNDN);
+   mpfr_div_ui (m->log_zeta24->im, m->pi, 12ul, MPFR_RNDN);
    mpc_div_ui (m->zeta48inv, m->log_zeta24, 2ul, MPC_RNDNN);
    mpc_neg (m->zeta48inv, m->zeta48inv, MPC_RNDNN);
    mpc_exp (m->zeta48inv, m->zeta48inv, MPC_RNDNN);
@@ -189,7 +189,7 @@ void cm_modular_init (cm_modular_t *m, mp_prec_t prec)
    }
 
    mpfr_init2 (m->sqrt2, prec);
-   mpfr_sqrt_ui (m->sqrt2, 2ul, GMP_RNDN);
+   mpfr_sqrt_ui (m->sqrt2, 2ul, MPFR_RNDN);
 
    cm_qdev_init (&(m->eta), prec);
 }
@@ -272,8 +272,8 @@ void cm_modular_eta_series (cm_modular_t m, mpc_t rop, mpc_t q_24)
 
    if (mpfr_zero_p (mpc_imagref (q_24))) {
       /* avoid mpc_pow_ui, since it calls mpc_pow to determine the sign of 0 */
-      mpfr_pow_ui (mpc_realref (factor), mpc_realref (q_24), 24ul, GMP_RNDN);
-      mpfr_set_ui (mpc_imagref (factor), 0ul, GMP_RNDN);
+      mpfr_pow_ui (mpc_realref (factor), mpc_realref (q_24), 24ul, MPFR_RNDN);
+      mpfr_set_ui (mpc_imagref (factor), 0ul, MPFR_RNDN);
    }
    else
       mpc_pow_ui (factor, q_24, 24ul, MPC_RNDNN);
@@ -295,9 +295,9 @@ void cm_modular_eta_series_fr (cm_modular_t m, mpfr_t rop, mpfr_t q_24)
 
    mpfr_init2 (factor, mpfr_get_prec (rop));
 
-   mpfr_pow_ui (factor, q_24, 24ul, GMP_RNDN);
+   mpfr_pow_ui (factor, q_24, 24ul, MPFR_RNDN);
    cm_qdev_eval_fr (factor, m.eta, factor);
-   mpfr_mul (rop, q_24, factor, GMP_RNDN);
+   mpfr_mul (rop, q_24, factor, MPFR_RNDN);
 
    mpfr_clear (factor);
 }
@@ -354,9 +354,9 @@ void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op)
 
    mpfr_init2 (q24, mpfr_get_prec (rop));
 
-   mpfr_mul (q24, op, m.log_zeta24->im, GMP_RNDN);
-   mpfr_neg (q24, q24, GMP_RNDN);
-   mpfr_exp (q24, q24, GMP_RNDN);
+   mpfr_mul (q24, op, m.log_zeta24->im, MPFR_RNDN);
+   mpfr_neg (q24, q24, MPFR_RNDN);
+   mpfr_exp (q24, q24, MPFR_RNDN);
    cm_modular_eta_series_fr (m, rop, q24);
 
    mpfr_clear (q24);
@@ -409,12 +409,12 @@ void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
    mpc_set_ui_ui (rop_local, 0ul, 0ul, MPC_RNDNN);
    for (i = 0; i < r; i++) {
       mpc_add_ui (Mz, op_local, 24*i, MPC_RNDNN);
-      mpc_div_ui (Mz, Mz, r, GMP_RNDN);
+      mpc_div_ui (Mz, Mz, r, MPFR_RNDN);
       atkin_eval (m, tmp, Mz, l);
       mpc_add (rop_local, rop_local, tmp, MPC_RNDNN);
    }
    mpc_div_ui (rop_local, rop_local, r, MPC_RNDNN);
-   mpc_mul_ui (Mz, op_local, r, GMP_RNDN);
+   mpc_mul_ui (Mz, op_local, r, MPFR_RNDN);
    atkin_eval (m, tmp, Mz, l);
    mpc_add (rop_local, rop_local, tmp, MPC_RNDNN);
 

@@ -2,7 +2,7 @@
 
 nt.c - number theoretic helper functions
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -727,7 +727,7 @@ bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in)
    mpfr_init2 (diff, mpfr_get_prec (in));
 
    mpfr_round (rounded, in);
-   mpfr_sub (diff, in, rounded, GMP_RNDN);
+   mpfr_sub (diff, in, rounded, MPFR_RNDN);
    if (mpfr_sgn (diff) == 0 || (- diff->_mpfr_exp) >= 10) {
       expo = mpfr_get_z_exp (out, rounded);
       if (expo > 0)
