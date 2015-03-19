@@ -1,7 +1,7 @@
 /*
 configure.ac
 
-Copyright (C) 2009, 2010, 2011, 2012, 2013 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -92,7 +92,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 #include "gmp.h"
 ]])],[AC_MSG_RESULT(yes)],[
  AC_MSG_RESULT(no)
- AC_MSG_ERROR([gmp.h can't be found, or is unusable.])
+ AC_MSG_ERROR([gmp.h cannot be found or is unusable.])
 ])
 
 # Checks for header files.
@@ -151,15 +151,15 @@ AC_COMPILE_IFELSE(
         [AC_LANG_SOURCE(
         [[
 #include "mpfr.h"
-#if (MPFR_VERSION < MPFR_VERSION_NUM (2,4,2))
-# error "Minimal MPFR version is 2.4.2"
+#if (MPFR_VERSION < MPFR_VERSION_NUM (3,0,0))
+# error "Minimal MPFR version is 3.0.0"
 error
 #endif
         ]])],
         [AC_MSG_RESULT(yes)],
         [
          AC_MSG_RESULT(no)
-         AC_MSG_ERROR([MPFR version >= 2.4.2 required])
+         AC_MSG_ERROR([MPFR version >= 3.0.0 required])
          ])
 
 # Mpc
@@ -180,15 +180,15 @@ AC_COMPILE_IFELSE(
         [AC_LANG_SOURCE(
         [[
 #include "mpc.h"
-#if (MPC_VERSION < MPC_VERSION_NUM (0,8,2))
-# error "Minimal MPC version is 0.8.2"
+#if (MPC_VERSION < MPC_VERSION_NUM (1,0,0))
+# error "Minimal MPC version is 1.0.0"
 error
 #endif
         ]])],
         [AC_MSG_RESULT(yes)],
         [
          AC_MSG_RESULT(no)
-         AC_MSG_ERROR([MPC version >= 0.8.2 required])
+         AC_MSG_ERROR([MPC version >= 1.0.0 required])
          ])
 
 # Mpfrcx
@@ -238,15 +238,15 @@ AC_COMPILE_IFELSE(
         [AC_LANG_SOURCE(
         [[
 #include "pari/pari.h"
-#if PARI_VERSION_CODE < PARI_VERSION (2,5,1)
-# error "Minimal PARI version is 2.5.1"
+#if PARI_VERSION_CODE < PARI_VERSION (2,7,0)
+# error "Minimal PARI version is 2.7.0"
 error
 #endif
         ]])],
         [AC_MSG_RESULT(yes)],
         [
          AC_MSG_RESULT(no)
-         AC_MSG_ERROR([PARI version >= 2.5.1 required])
+         AC_MSG_ERROR([PARI version >= 2.7.0 required])
          ])
 
 # Checks for gcc version, result in variables CM_GCC etc. inside config.h

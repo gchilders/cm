@@ -1,6 +1,9 @@
 Recent changes:
   - Features
     - enable precision beyond 300000 bits
+  - Dependencies
+    - increase minimal version number for mpfr to 3.0.0, for mpc to 1.0.0
+      and for pari to 2.7.0
 
 Changes in version 0.2 ("Blindhühnchen"):
   - Features
