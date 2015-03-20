@@ -23,12 +23,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 @end ignore
 
 @setfilename cm.info
+@include version.texi
 @settitle CM @value{VERSION}
 @iftex
 @afourpaper
 @end iftex
 
-@include version.texi
 @set MINGMP 4.3.2
 @set MINMPFR 3.0.0
 @set MINMPC 1.0.0
@@ -330,7 +330,8 @@ j: The default choice.
 @item
 doubleeta: Double eta quotients whose levels are the product of two (not necessarily
 distinct) primes p1 and p2. The class polynomial is asymptotically smaller by a
-@dfn{height factor} @cindex height factor
+@cindex height factor
+@dfn{height factor}
 of 12*psi(p1*p2) / ((p1-1)*(p2-1)), where
 psi(p1*p2) = (p1+1)*(p2+1) if p1 and p2 are distinct and psi(p1^2) = p1*(p1+1).
 This factor is at least 12 and may reach 37 in the optimal case p1=2 and p2=73.
@@ -412,7 +413,6 @@ to create a name space proper to CM.
 @menu
 * cm_class::
 * cm_common::
-* mpfp::
 * mpfpx::
 @end menu
 
@@ -507,20 +507,13 @@ also be useful in a broader context (notably, the computation of modular
 polynomials).
 
 
-@node mpfp
-@section @code{mpfp}
-@cindex mpfp
-
-This library defines elements of prime fields (whose modulus is stored
-as a global variable).
-
-
 @node mpfpx
 @section @code{mpfpx}
 @cindex mpfpx
 
-This library is used for low degree polynomials over prime fields. As
-well as the previous library, it is in a very rudimentary state.
+This library is used for low degree polynomials over prime fields,
+the characteristic of which is stored in a global variable.
+It is in a very rudimentary state.
 
 
 @node References
