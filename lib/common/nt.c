@@ -714,22 +714,22 @@ void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
 /*****************************************************************************/
 /*****************************************************************************/
 
-bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in)
+bool cm_nt_fget_z (mpz_t out, ftype in)
    /* tries to round the real to an integer value                            */
    /* The return value reflects the success of the operation.                */
 
 {
-   mpfr_t rounded, diff;
+   ftype rounded, diff;
    bool ok;
    mp_exp_t expo;
 
-   mpfr_init2 (rounded, mpfr_get_prec (in));
-   mpfr_init2 (diff, mpfr_get_prec (in));
+   finit (rounded, fget_prec (in));
+   finit (diff, fget_prec (in));
 
-   mpfr_round (rounded, in);
-   mpfr_sub (diff, in, rounded, MPFR_RNDN);
-   if (mpfr_sgn (diff) == 0 || (- diff->_mpfr_exp) >= 10) {
-      expo = mpfr_get_z_exp (out, rounded);
+   fround (rounded, in);
+   fsub (diff, in, rounded);
+   if (fsgn (diff) == 0 || (- fget_exp (diff)) >= 10) {
+      expo = fget_z_exp (out, rounded);
       if (expo > 0)
          ok = false;
       else if (expo < 0) {
@@ -742,8 +742,8 @@ bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in)
    else
       ok = false;
 
-   mpfr_clear (rounded);
-   mpfr_clear (diff);
+   fclear (rounded);
+   fclear (diff);
 
    return ok;
 }

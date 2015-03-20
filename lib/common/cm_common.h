@@ -2,7 +2,7 @@
 
 cm_common.h - header file for the cm_common library
 
-Copyright (C) 2009, 2010, 2012 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <sys/times.h>
 #include <stdbool.h>
 #include <zlib.h>
+#include "cm_arith.h"
 #include "mpfrcx.h"
 
 
@@ -82,13 +83,13 @@ typedef struct {
 } cm_qdev_t;
 
 typedef struct {
-   mp_prec_t prec;
-   mpc_t zeta48inv;
-   mpfr_t pi;
-   mpc_t log_zeta24;
-   mpc_t twopii;
-   mpc_t zeta24 [24];
-   mpfr_t sqrt2;
+   fprec_t prec;
+   ctype zeta48inv;
+   ftype pi;
+   ctype log_zeta24;
+   ctype twopii;
+   ctype zeta24 [24];
+   ftype sqrt2;
    cm_qdev_t eta;
 } cm_modular_t;
 
@@ -130,24 +131,24 @@ extern void cm_nt_elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
 extern void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
    mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p);
 
-extern bool cm_nt_mpfr_get_z (mpz_t out, mpfr_t in);
+extern bool cm_nt_fget_z (mpz_t out, ftype in);
 
 /* functions for evaluating modular functions */
-extern void cm_modular_fundamental_domain (mpc_ptr z);
-extern void cm_modular_init (cm_modular_t *m, mp_prec_t prec);
+extern void cm_modular_fundamental_domain (cptr z);
+extern void cm_modular_init (cm_modular_t *m, fprec_t prec);
 extern void cm_modular_clear (cm_modular_t *m);
-extern void cm_modular_eta_transform (cm_modular_t m, mpc_t rop, mpc_t z,
+extern void cm_modular_eta_transform (cm_modular_t m, ctype rop, ctype z,
    cm_matrix_t M);
-extern void cm_modular_eta_series (cm_modular_t m, mpc_t rop, mpc_t q_24);
-extern void cm_modular_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
-extern void cm_modular_eta_eval_fr (cm_modular_t m, mpfr_t rop, mpfr_t op);
-extern void cm_modular_atkinhecke_eval (cm_modular_t m, mpc_t rop, mpc_t op,
+extern void cm_modular_eta_series (cm_modular_t m, ctype rop, ctype q_24);
+extern void cm_modular_eta_eval (cm_modular_t m, ctype rop, ctype op);
+extern void cm_modular_eta_eval_fr (cm_modular_t m, ftype rop, ftype op);
+extern void cm_modular_atkinhecke_eval (cm_modular_t m, ctype rop, ctype op,
    unsigned long int l, unsigned long int r);
-extern void cm_modular_atkinhecke_level_eval (cm_modular_t m, mpc_t rop,
-   mpc_t op, unsigned long int l);
+extern void cm_modular_atkinhecke_level_eval (cm_modular_t m, ctype rop,
+   ctype op, unsigned long int l);
 
 /* functions for evaluating modular functions using the AGM */
-extern void cm_fem_eta_eval (cm_modular_t m, mpc_t rop, mpc_t op);
+extern void cm_fem_eta_eval (cm_modular_t m, ctype rop, ctype op);
 
 /* functions reading modular polynomials */
 extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,

@@ -39,26 +39,26 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    cm_classgroup_t cl, bool verbose);
    /* computes and returns an N-system of forms, including the embeddings    */
    /* (real or complex) of the conjugates                                    */
-static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
+static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    bool verbose);
 
-static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q);
-static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
+static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q);
+static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose);
    /* computes and returns the h12 conjugates                                */
-static void write_conjugates (cm_class_t c, mpc_t *conjugates);
-static bool read_conjugates (cm_class_t c, mpc_t *conjugates);
+static void write_conjugates (cm_class_t c, ctype *conjugates);
+static bool read_conjugates (cm_class_t c, ctype *conjugates);
 
-static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d);
+static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d);
 
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
 static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
 
 /* the remaining functions are put separately as their code is quite long    */
-static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
+static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
    cm_form_t *nsystem, bool print);
-static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
+static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    bool print);
 static bool doubleeta_compute_parameter (cm_class_t *c);
 static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
@@ -141,7 +141,7 @@ void cm_class_clear (cm_class_t *c)
       free (c->minpoly_complex);
    }
 
-   mpfr_free_cache ();
+   ffree_cache ();
 }
 
 /*****************************************************************************/
@@ -457,7 +457,7 @@ bool cm_class_read (cm_class_t c)
 
 /*****************************************************************************/
 
-static void write_conjugates (cm_class_t c, mpc_t *conjugate)
+static void write_conjugates (cm_class_t c, ctype *conjugate)
    /* writes the conjugates to the file                                      */
    /* CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + "_" + paramstr + "_" */
    /* + prec + "_conjugates.dat"                                             */
@@ -469,13 +469,13 @@ static void write_conjugates (cm_class_t c, mpc_t *conjugate)
 
    sprintf (filename, "%s/tmp_%"PRIicl"_%c_%s_%i_conjugates.dat",
       CM_CLASS_TMPDIR, -c.d, c.invariant, c.paramstr,
-      (int) mpc_get_prec (conjugate [0]));
+      (int) cget_prec (conjugate [0]));
 
    if (!cm_file_open_write (&f, filename))
       exit (1);
 
    for (i = 0; i < c.h12; i++) {
-      mpc_out_str (f, 16, 0, conjugate [i], MPC_RNDNN);
+      cout_str (f, 16, 0, conjugate [i]);
       fprintf (f, "\n");
    }
 
@@ -484,7 +484,7 @@ static void write_conjugates (cm_class_t c, mpc_t *conjugate)
 
 /*****************************************************************************/
 
-static bool read_conjugates (cm_class_t c, mpc_t *conjugate)
+static bool read_conjugates (cm_class_t c, ctype *conjugate)
    /* reads the conjugates from a file written by write_conjugates           */
    /* If the file could not be openend, the return value is false.           */
 {
@@ -494,13 +494,13 @@ static bool read_conjugates (cm_class_t c, mpc_t *conjugate)
 
    sprintf (filename, "%s/tmp_%"PRIicl"_%c_%s_%i_conjugates.dat",
       CM_CLASS_TMPDIR, -c.d, c.invariant, c.paramstr,
-      (int) mpc_get_prec (conjugate [0]));
+      (int) cget_prec (conjugate [0]));
 
    if (!cm_file_open_read (&f, filename))
       return false;
 
    for (i = 0; i < c.h12; i++) {
-      mpc_inp_str (conjugate [i], f, NULL, 16, MPC_RNDNN);
+      cinp_str (conjugate [i], f, NULL, 16);
    }
 
    cm_file_close (f);
@@ -816,7 +816,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 
 /*****************************************************************************/
 
-static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
+static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    bool verbose) {
    /* returns an approximation of the required precision */
 
@@ -825,7 +825,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    const double cf = class_get_valuation (c);
    double x, binom = 1.0, simpleprec = 0, prec = 0, M;
    int i, m;
-   mp_prec_t precision;
+   fprec_t precision;
 
    /* heuristic formula: log (height) = pi * sqrt (|d|) * \sum 1/A */
    for (i = 0; i < cl.h12; i++)
@@ -868,7 +868,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    }
 
    /* add a security margin */
-   precision = (mp_prec_t) (prec + 256);
+   precision = (fprec_t) (prec + 256);
 
    if (verbose)
       printf ("Precision:                      %ld\n", (long int) precision);
@@ -877,7 +877,7 @@ static mp_prec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
 }
 /*****************************************************************************/
 
-static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
+static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q)
 
 {
    switch (c.invariant) {
@@ -901,38 +901,38 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
    case CM_INVARIANT_WEBER:
       if (c.p [0] == 1) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-         mpc_sqr (rop, rop, MPC_RNDNN);
-         mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
+         csqr (rop, rop);
+         cmul_fr (rop, rop, mc.sqrt2_over2);
       }
       else if (c.p [0] == 3)
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
       else if (c.p [0] == 5) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-         mpc_pow_ui (rop, rop, 4ul, MPC_RNDNN);
-         mpc_div_ui (rop, rop, 2ul, MPC_RNDNN);
+         cpow_ui (rop, rop, 4ul);
+         cdiv_ui (rop, rop, 2ul);
       }
       else if (c.p [0] == 7) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-         mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
+         cmul_fr (rop, rop, mc.sqrt2_over2);
       }
       else if (c.p [0] == 2 || c.p [0] == 6) {
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
-         mpc_sqr (rop, rop, MPC_RNDNN);
-         mpc_mul_fr (rop, rop, mc.sqrt2_over2, MPC_RNDNN);
+         csqr (rop, rop);
+         cmul_fr (rop, rop, mc.sqrt2_over2);
       }
       else {
          /* c.p [0] == 4 */
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
-         mpc_pow_ui (rop, rop, 4ul, MPC_RNDNN);
-         mpc_mul_fr (rop, rop, mc.sqrt2_over4, MPC_RNDNN);
+         cpow_ui (rop, rop, 4ul);
+         cmul_fr (rop, rop, mc.sqrt2_over4);
       }
 
       if (c.d % 3 == 0)
-         mpc_pow_ui (rop, rop, 3ul, MPC_RNDNN);
+         cpow_ui (rop, rop, 3ul);
 
       if (c.p [0] != 3 && c.p [0] != 5)
          if (cm_classgroup_kronecker ((int_cl_t) 2, Q.a) == -1)
-            mpc_neg (rop, rop, MPC_RNDNN);
+            cneg (rop, rop);
 
       break;
    default: /* should not occur */
@@ -943,7 +943,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, mpc_t rop, cm_form_t Q)
 
 /*****************************************************************************/
 
-static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
+static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose)
    /* computes the conjugates of the singular value over Q */
 
@@ -957,7 +957,7 @@ static void compute_conjugates (mpc_t *conjugate, cm_form_t *nsystem,
          fflush (stdout);
       }
 #if 0
-      mpc_out_str (stdout, 10, 0, conjugate[i], MPC_RNDNN);
+      cout_str (stdout, 10, 0, conjugate[i]);
       printf ("\n");
 #endif
    }
@@ -976,9 +976,9 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 {
    cm_classgroup_t cl, cl2;
    cm_form_t *nsystem;
-   mp_prec_t prec;
+   fprec_t prec;
    cm_modclass_t mc;
-   mpc_t *conjugate;
+   ctype *conjugate;
    cm_timer  clock_global, clock_local;
 
    cm_timer_start (clock_global);
@@ -1018,9 +1018,9 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
    else
       prec = compute_precision (c, cl, verbose);
 
-   conjugate = (mpc_t *) malloc (c.h12 * sizeof (mpc_t));
+   conjugate = (ctype *) malloc (c.h12 * sizeof (ctype));
    for (int i = 0; i < c.h12; i++)
-      mpc_init2 (conjugate [i], prec);
+      cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
    if (!checkpoints || !read_conjugates (c, conjugate)) {
       cm_modclass_init (&mc, cl, cl2, prec, checkpoints, verbose);
@@ -1046,7 +1046,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
    /* is done in real_compute_minpoly or complex_compute_minpoly */
    /*
    for (i = 0; i < c.h12; i++)
-      mpc_clear (conjugate [i]);
+      cclear (conjugate [i]);
    free (conjugate);
    */
    free (nsystem);
@@ -1064,7 +1064,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 
 /*****************************************************************************/
 
-static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
+static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
    cm_form_t *nsystem, bool print)
    /* computes the minimal polynomial of the function over Q                 */
    /* frees conjugates                                                       */
@@ -1086,24 +1086,22 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    factors = (mpfrx_t*) malloc (c.h12 * sizeof (mpfrx_t));
    for (i = 0; i < c.h12; i++) {
       if (nsystem [i].emb == real) {
-         mpfrx_init (factors [right], 2, mpfr_get_prec (conjugate [i]->re));
+         mpfrx_init (factors [right], 2, fget_prec (conjugate [i]->re));
          factors [right]->deg = 1;
-         mpfr_set_ui (factors [right]->coeff [1], 1ul, MPFR_RNDN);
-         mpfr_neg (factors [right]->coeff [0], conjugate [i]->re, MPFR_RNDN);
+         fset_ui (factors [right]->coeff [1], 1ul);
+         fneg (factors [right]->coeff [0], conjugate [i]->re);
          right--;
       }
       else {
-         mpfrx_init (factors [left], 3, mpfr_get_prec (conjugate [i]->re));
+         mpfrx_init (factors [left], 3, fget_prec (conjugate [i]->re));
          factors [left]->deg = 2;
-         mpfr_set_ui (factors [left]->coeff [2], 1ul, MPFR_RNDN);
-         mpfr_mul_2ui (factors [left]->coeff [1], conjugate [i]->re, 1ul,
-            MPFR_RNDN);
-         mpfr_neg (factors [left]->coeff [1], factors [left]->coeff [1],
-            MPFR_RNDN);
-         mpc_norm (factors [left]->coeff [0], conjugate [i], MPFR_RNDN);
+         fset_ui (factors [left]->coeff [2], 1ul);
+         fmul_2ui (factors [left]->coeff [1], conjugate [i]->re, 1ul);
+         fneg (factors [left]->coeff [1], factors [left]->coeff [1]);
+         cnorm (factors [left]->coeff [0], conjugate [i]);
          left++;
       }
-      mpc_clear (conjugate [i]);
+      cclear (conjugate [i]);
    }
    free (conjugate);
 
@@ -1121,9 +1119,9 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
 
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
    for (i = 0; i < c.minpoly_deg; i++)
-      if (!cm_nt_mpfr_get_z (c.minpoly [i], mpol->coeff [i])) {
+      if (!cm_nt_fget_z (c.minpoly [i], mpol->coeff [i])) {
          printf ("*** Accuracy not sufficient for coefficient of X^%d = ", i);
-         mpfr_out_str (stdout, 10, 0ul, mpol->coeff [i], MPFR_RNDN);
+         fout_str (stdout, 10, 0ul, mpol->coeff [i]);
          printf ("\n");
          exit (1);
       }
@@ -1154,7 +1152,7 @@ static void real_compute_minpoly (cm_class_t c, mpc_t *conjugate,
 
 /*****************************************************************************/
 
-static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
+static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
    /* tries to round the complex number to an integer in the quadratic order */
    /* of discriminant d by decomposing it over the integral basis [1, omega] */
    /* with omega = sqrt (d/4) or omega = (1 + sqrt (d)) / 2                  */
@@ -1162,39 +1160,39 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, mpc_t in, int_cl_t d)
    /* out1 and out2 are changed.                                             */
 
 {
-   mpfr_t   omega_i, tmp;
+   ftype   omega_i, tmp;
    bool     div4, ok;
 
-   mpfr_init2 (omega_i, mpc_get_prec (in));
-   mpfr_init2 (tmp, mpc_get_prec (in));
+   finit (omega_i, cget_prec (in));
+   finit (tmp, cget_prec (in));
 
    div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
-   mpfr_sqrt_ui (omega_i, -d, MPFR_RNDN);
-   mpfr_div_2ui (omega_i, omega_i, 1ul, MPFR_RNDN);
+   fsqrt_ui (omega_i, -d);
+   fdiv_2ui (omega_i, omega_i, 1ul);
 
-   mpfr_div (tmp, in->im, omega_i, MPFR_RNDN);
-   ok = cm_nt_mpfr_get_z (out2, tmp);
+   fdiv (tmp, in->im, omega_i);
+   ok = cm_nt_fget_z (out2, tmp);
 
    if (ok) {
       if (div4)
-         mpfr_set (tmp, in->re, MPFR_RNDN);
+         fset (tmp, in->re);
       else {
-         mpfr_set_z (tmp, out2, MPFR_RNDN);
-         mpfr_div_2ui (tmp, tmp, 1ul, MPFR_RNDN);
-         mpfr_sub (tmp, in->re, tmp, MPFR_RNDN);
+         fset_z (tmp, out2);
+         fdiv_2ui (tmp, tmp, 1ul);
+         fsub (tmp, in->re, tmp);
       }
-      ok = cm_nt_mpfr_get_z (out1, tmp);
+      ok = cm_nt_fget_z (out1, tmp);
    }
 
-   mpfr_clear (omega_i);
-   mpfr_clear (tmp);
+   fclear (omega_i);
+   fclear (tmp);
 
    return ok;
 }
 
 /*****************************************************************************/
 
-static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
+static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    bool print)
    /* computes the minimal polynomial of the function over Q (sqrt D)        */
    /* frees conjugates                                                       */
@@ -1210,12 +1208,12 @@ static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
    /* To save memory, free the conjugates at the same time.         */
    factors = (mpcx_t*) malloc (c.h12 * sizeof (mpcx_t));
    for (i = 0; i < c.h12; i++) {
-      mpcx_init (factors [i], 2, mpfr_get_prec (conjugate [i]->re));
+      mpcx_init (factors [i], 2, fget_prec (conjugate [i]->re));
       factors [i]->deg = 1;
-      mpc_set_ui (factors [i]->coeff [1], 1ul, MPC_RNDNN);
-      mpc_set (factors [i]->coeff [0], conjugate [i], MPC_RNDNN);
-      mpc_neg (factors [i]->coeff [0], factors [i]->coeff[0], MPC_RNDNN);
-      mpc_clear (conjugate [i]);
+      cset_ui (factors [i]->coeff [1], 1ul);
+      cset (factors [i]->coeff [0], conjugate [i]);
+      cneg (factors [i]->coeff [0], factors [i]->coeff[0]);
+      cclear (conjugate [i]);
    }
    free (conjugate);
 
@@ -1232,7 +1230,7 @@ static void complex_compute_minpoly (cm_class_t c, mpc_t *conjugate,
       if (!get_quadratic (c.minpoly [i], c.minpoly_complex [i],
          mpol->coeff[i], fund)) {
          printf ("*** accuracy not sufficient for coefficient of X^%d = ", i);
-         mpc_out_str (stdout, 10, 0ul, mpol->coeff [i], MPC_RNDNN);
+         cout_str (stdout, 10, 0ul, mpol->coeff [i]);
          printf ("\n");
          exit (1);
       }

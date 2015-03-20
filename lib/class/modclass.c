@@ -27,18 +27,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
    (b >= 0) ? mpz_sub_ui (c, a, (unsigned long int) b) \
             : mpz_add_ui (c, a, (unsigned long int) (-b))
 
-static void cm_modclass_mpc_set_quadratic (mpc_t rop,
-   int_cl_t a, int_cl_t b, mpfr_t root);
-static void write_q24eta (mpc_t *q24eta, cm_classgroup_t cl,
-   mp_prec_t prec, char *type);
-static bool read_q24eta (mpc_t *q24eta, cm_classgroup_t cl, mp_prec_t prec,
+static void cm_modclass_cset_quadratic (ctype rop,
+   int_cl_t a, int_cl_t b, ftype root);
+static void write_q24eta (ctype *q24eta, cm_classgroup_t cl,
+   fprec_t prec, char *type);
+static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
    char *type);
-static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
-   mpc_t *q24, bool verbose);
-static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
-   mpc_t *eta, bool fem, bool checkpoints, bool verbose);
-static void multieta_eval_quad_rec (cm_modclass_t mc, mpc_t rop_num,
-   mpc_t rop_den, int_cl_t a, int_cl_t b, int *p);
+static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
+   ctype *q24, bool verbose);
+static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
+   ctype *eta, bool fem, bool checkpoints, bool verbose);
+static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
+   ctype rop_den, int_cl_t a, int_cl_t b, int *p);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -48,7 +48,7 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, mpc_t rop_num,
 
 #define CM_FEM false
 void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   cm_classgroup_t cl2, mp_prec_t prec, bool checkpoints, bool verbose)
+   cm_classgroup_t cl2, fprec_t prec, bool checkpoints, bool verbose)
    /* cl2.d may be 0, in which case mc->eta2 is not computed                 */
 
 {
@@ -61,30 +61,30 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    mc->cl = cl;
    mc->cl2 = cl2;
 
-   mpfr_init2 (mc->root, prec);
+   finit (mc->root, prec);
    cm_classgroup_mpz_set_icl (tmp_z, -cl.d);
-   mpfr_set_z (mc->root, tmp_z, MPFR_RNDN);
-   mpfr_sqrt (mc->root, mc->root, MPFR_RNDN);
-   mpfr_init2 (mc->sqrt2_over2, prec);
-   mpfr_sqrt_ui (mc->sqrt2_over2, 2ul, MPFR_RNDN);
-   mpfr_div_2ui (mc->sqrt2_over2, mc->sqrt2_over2, 1ul, MPFR_RNDN);
-   mpfr_init2 (mc->sqrt2_over4, prec);
-   mpfr_div_2ui (mc->sqrt2_over4, mc->sqrt2_over2, 1ul, MPFR_RNDN);
+   fset_z (mc->root, tmp_z);
+   fsqrt (mc->root, mc->root);
+   finit (mc->sqrt2_over2, prec);
+   fsqrt_ui (mc->sqrt2_over2, 2ul);
+   fdiv_2ui (mc->sqrt2_over2, mc->sqrt2_over2, 1ul);
+   finit (mc->sqrt2_over4, prec);
+   fdiv_2ui (mc->sqrt2_over4, mc->sqrt2_over2, 1ul);
 
-   mc->eta = (mpc_t *) malloc (mc->cl.h12 * sizeof (mpc_t));
+   mc->eta = (ctype *) malloc (mc->cl.h12 * sizeof (ctype));
    for (i = 0; i < mc->cl.h12; i++)
-      mpc_init2 (mc->eta [i], prec);
+      cinit (mc->eta [i], prec);
    if (!checkpoints || !read_q24eta (mc->eta, mc->cl, prec, "eta"))
       compute_eta (mc->m, mc->cl, mc->root, mc->eta, CM_FEM, checkpoints, verbose);
 
    if (cl2.d != 0) {
-      mpfr_init2 (mc->root2, prec);
+      finit (mc->root2, prec);
       cm_classgroup_mpz_set_icl (tmp_z, -cl2.d);
-      mpfr_set_z (mc->root2, tmp_z, MPFR_RNDN);
-      mpfr_sqrt (mc->root2, mc->root2, MPFR_RNDN);
-      mc->eta2 = (mpc_t *) malloc (mc->cl2.h12 * sizeof (mpc_t));
+      fset_z (mc->root2, tmp_z);
+      fsqrt (mc->root2, mc->root2);
+      mc->eta2 = (ctype *) malloc (mc->cl2.h12 * sizeof (ctype));
       for (i = 0; i < mc->cl2.h12; i++)
-         mpc_init2 (mc->eta2 [i], prec);
+         cinit (mc->eta2 [i], prec);
       if (!checkpoints || !read_q24eta (mc->eta2, mc->cl2, prec, "eta"))
          compute_eta (mc->m, mc->cl2, mc->root2, mc->eta2, CM_FEM, checkpoints,
             verbose);
@@ -100,16 +100,16 @@ void cm_modclass_clear (cm_modclass_t *mc)
 {
    int i;
 
-   mpfr_clear (mc->root);
-   mpfr_clear (mc->sqrt2_over2);
-   mpfr_clear (mc->sqrt2_over4);
+   fclear (mc->root);
+   fclear (mc->sqrt2_over2);
+   fclear (mc->sqrt2_over4);
    for (i = 0; i < mc->cl.h12; i++)
-      mpc_clear (mc->eta [i]);
+      cclear (mc->eta [i]);
    free (mc->eta);
    if (mc->cl2.d != 0) {
-      mpfr_clear (mc->root2);
+      fclear (mc->root2);
       for (i = 0; i < mc->cl2.h12; i++)
-         mpc_clear (mc->eta2 [i]);
+         cclear (mc->eta2 [i]);
       free (mc->eta2);
    }
 
@@ -122,8 +122,8 @@ void cm_modclass_clear (cm_modclass_t *mc)
 /*                                                                           */
 /*****************************************************************************/
 
-static void write_q24eta (mpc_t *q24eta, cm_classgroup_t cl,
-   mp_prec_t prec, char *type)
+static void write_q24eta (ctype *q24eta, cm_classgroup_t cl,
+   fprec_t prec, char *type)
    /* writes the values of q24eta to the file                                */
    /* CLASS_TMPDIR + "/tmp_" + -cl.d + "_" + prec + "_" + type + ".dat"      */
    /* type should be one of "q24" or "eta"                                   */
@@ -140,7 +140,7 @@ static void write_q24eta (mpc_t *q24eta, cm_classgroup_t cl,
       exit (1);
 
    for (i = 0; i < cl.h12; i++) {
-      mpc_out_str (f, 16, 0, q24eta [i], MPC_RNDNN);
+      cout_str (f, 16, 0, q24eta [i]);
       fprintf (f, "\n");
    }
 
@@ -149,7 +149,7 @@ static void write_q24eta (mpc_t *q24eta, cm_classgroup_t cl,
 
 /*****************************************************************************/
 
-static bool read_q24eta (mpc_t *q24eta, cm_classgroup_t cl, mp_prec_t prec,
+static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
    char *type)
    /* reads the values of q24eta from the file                               */
    /* CLASS_TMPDIR + "/tmp_" + -cl.d + "_" + prec + "_" + type + ".dat"      */
@@ -167,7 +167,7 @@ static bool read_q24eta (mpc_t *q24eta, cm_classgroup_t cl, mp_prec_t prec,
       return false;
 
    for (i = 0; i < cl.h12; i++) {
-      mpc_inp_str (q24eta [i], f, NULL, 16, MPC_RNDNN);
+      cinp_str (q24eta [i], f, NULL, 16);
    }
 
    cm_file_close (f);
@@ -181,32 +181,32 @@ static bool read_q24eta (mpc_t *q24eta, cm_classgroup_t cl, mp_prec_t prec,
 /*                                                                           */
 /*****************************************************************************/
 
-static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
-   mpc_t *q24, bool verbose)
+static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
+   ctype *q24, bool verbose)
    /* Computes the q^(1/24) for all forms of cl; root contains sqrt(-d).     */
 {
    int i, j, tmp_int;
    int_cl_t tmp_cli;
-   mpfr_t Pi24, Pi24_root, tmp;
-   mpfr_t *q_real;
+   ftype Pi24, Pi24_root, tmp;
+   ftype *q_real;
    unsigned long int *A_red, *B_red, *order;
    cm_timer  clock2, clock3;
    int    counter1, counter2;
 
-   mpfr_init2 (Pi24, m.prec);
-   mpfr_init2 (Pi24_root, m.prec);
-   mpfr_init2 (tmp, m.prec);
+   finit (Pi24, m.prec);
+   finit (Pi24_root, m.prec);
+   finit (tmp, m.prec);
 
-   mpfr_div_ui (Pi24, m.pi, 24ul, MPFR_RNDN);
-   mpfr_mul (Pi24_root, root, Pi24, MPFR_RNDN);
+   fdiv_ui (Pi24, m.pi, 24ul);
+   fmul (Pi24_root, root, Pi24);
 
    A_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
    B_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
    order = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
-   q_real = (mpfr_t *) malloc (cl.h12 * sizeof (mpfr_t));
+   q_real = (ftype *) malloc (cl.h12 * sizeof (ftype));
 
    for (i = 0; i < cl.h12; i++)
-      mpfr_init2 (q_real [i], m.prec);
+      finit (q_real [i], m.prec);
 
    cm_timer_start (clock2);
    /* precompute the absolute values of q^{1/24}, i.e. the */
@@ -222,19 +222,19 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
            j < cl.h12 && cl.form [j].a % cl.form [i].a != 0; j++);
       if (j < cl.h12) {
          if (cl.form [i].a == cl.form [j].a)
-            mpfr_set (q_real [i], q_real [j], MPFR_RNDN);
+            fset (q_real [i], q_real [j]);
          else {
             counter1++;
-            mpfr_pow_ui (q_real [i], q_real [j],
-                         cl.form [j].a / cl.form [i].a, MPFR_RNDN);
+            fpow_ui (q_real [i], q_real [j],
+                         cl.form [j].a / cl.form [i].a);
          }
       }
       else {
          counter1++;
          counter2++;
-         mpfr_div_ui (q_real [i], Pi24_root, cl.form [i].a, MPFR_RNDN);
-         mpfr_neg (q_real [i], q_real [i], MPFR_RNDN);
-         mpfr_exp (q_real [i], q_real [i], MPFR_RNDN);
+         fdiv_ui (q_real [i], Pi24_root, cl.form [i].a);
+         fneg (q_real [i], q_real [i]);
+         fexp (q_real [i], q_real [i]);
       }
       if (verbose &&i % 200 == 0) {
          printf (".");
@@ -287,19 +287,19 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
            j++);
       if (j < cl.h12) {
          if (A_red [order [i]] == A_red [order [j]])
-            mpc_set (q24 [order [i]], q24 [order [j]], MPC_RNDNN);
+            cset (q24 [order [i]], q24 [order [j]]);
          else {
             counter1++;
-            mpc_pow_ui (q24 [order [i]], q24 [order [j]],
-                        A_red [order [j]] / A_red [order [i]], MPC_RNDNN);
+            cpow_ui (q24 [order [i]], q24 [order [j]],
+                        A_red [order [j]] / A_red [order [i]]);
          }
       }
       else {
          counter1++;
          counter2++;
-         mpfr_div_ui (tmp, Pi24, A_red [order [i]], MPFR_RNDN);
-         mpfr_sin_cos (q24 [order [i]]->im, q24 [order [i]]->re,
-                       tmp, MPFR_RNDN);
+         fdiv_ui (tmp, Pi24, A_red [order [i]]);
+         fsin_cos (q24 [order [i]]->im, q24 [order [i]]->re,
+                       tmp);
       }
       if (verbose && i % 200 == 0) {
          printf (".");
@@ -320,7 +320,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
    for (i = cl.h12 - 1; i >= 0; i--)
    {
       if (B_red [order [i]] == 0)
-         mpc_set_ui_ui (q24 [order [i]], 1ul, 0ul, MPC_RNDNN);
+         cset_ui_ui (q24 [order [i]], 1ul, 0ul);
       else if (B_red [order [i]] > 1) {
          /* Check whether the current B is a multiple of a previous one with */
          /* the same A; if so, take the previous one which is closest.       */
@@ -332,18 +332,17 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
          if (j < cl.h12 && A_red [order [j]] == A_red [order [i]]
              && B_red [order [j]] > 0) {
             if (B_red [order [i]] == B_red [order [j]])
-               mpc_set (q24 [order [i]], q24 [order [j]],
-                        MPC_RNDNN);
+               cset (q24 [order [i]], q24 [order [j]]);
             else {
                counter1++;
-               mpc_pow_ui (q24 [order [i]], q24 [order [j]],
-                           B_red [order [i]] / B_red [order [j]], MPC_RNDNN);
+               cpow_ui (q24 [order [i]], q24 [order [j]],
+                           B_red [order [i]] / B_red [order [j]]);
             }
          }
          else {
             counter2++;
-            mpc_pow_ui (q24 [order[i]], q24 [order [i]],
-                        B_red [order [i]], MPC_RNDNN);
+            cpow_ui (q24 [order[i]], q24 [order [i]],
+                        B_red [order [i]]);
          }
       }
    }
@@ -356,28 +355,28 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
 
    /* Compute the q^(1/24) in q24 */
    for (i = 0; i < cl.h12; i++)
-      mpc_mul_fr (q24 [i], q24 [i], q_real [i], MPC_RNDNN);
+      cmul_fr (q24 [i], q24 [i], q_real [i]);
    cm_timer_stop (clock2);
    if (verbose)
       printf ("- Time for q^(1/24):              %.1f\n", cm_timer_get (clock2));
 
    for (i = 0; i < cl.h12; i++)
-      mpfr_clear (q_real [i]);
+      fclear (q_real [i]);
 
    free (A_red);
    free (B_red);
    free (order);
    free (q_real);
 
-   mpfr_clear (Pi24);
-   mpfr_clear (Pi24_root);
-   mpfr_clear (tmp);
+   fclear (Pi24);
+   fclear (Pi24_root);
+   fclear (tmp);
 }
 
 /*****************************************************************************/
 
-static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
-   mpc_t *eta, bool fem, bool checkpoints, bool verbose)
+static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
+   ctype *eta, bool fem, bool checkpoints, bool verbose)
    /* computes the values of the Dedekind eta function for all reduced forms */
    /* of the class group cl and stores them in eta; the precision is taken   */
    /* from eta [0], and root contains sqrt(-d).                              */
@@ -386,16 +385,16 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
 {
    int i;
    cm_timer clock1;
-   mp_prec_t prec = mpc_get_prec (eta [0]);
+   fprec_t prec = cget_prec (eta [0]);
    cm_timer_start (clock1);
 
    if (!fem) {
-      mpc_t *q24;
+      ctype *q24;
       cm_timer clock2;
 
-      q24 = (mpc_t *) malloc (cl.h12 * sizeof (mpc_t));
+      q24 = (ctype *) malloc (cl.h12 * sizeof (ctype));
       for (i = 0; i < cl.h12; i++) {
-         mpc_init2 (q24 [i], prec);
+         cinit (q24 [i], prec);
       }
 
       if (!checkpoints || !read_q24eta (q24, cl, prec, "q24")) {
@@ -421,16 +420,16 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
          write_q24eta (eta, cl, prec, "eta");
 
       for (i = 0; i < cl.h12; i++)
-         mpc_clear (q24 [i]);
+         cclear (q24 [i]);
       free (q24);
    }
    else {
-      mpc_t tau;
+      ctype tau;
 
-      mpc_init2 (tau, prec);
+      cinit (tau, prec);
 
       for (i = 0; i < cl.h12; i++) {
-         cm_modclass_mpc_set_quadratic (tau, cl.form [i].a, cl.form [i].b,
+         cm_modclass_cset_quadratic (tau, cl.form [i].a, cl.form [i].b,
             root);
          cm_fem_eta_eval (m, eta [i], tau);
          if (verbose && i % 200 == 0) {
@@ -439,7 +438,7 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
          }
       }
 
-      mpc_clear (tau);
+      cclear (tau);
    }
 
    cm_timer_stop (clock1);
@@ -454,14 +453,14 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, mpfr_t root,
 /*                                                                           */
 /*****************************************************************************/
 
-static void cm_modclass_mpc_set_quadratic (mpc_t rop,
-   int_cl_t a, int_cl_t b, mpfr_t root)
+static void cm_modclass_cset_quadratic (ctype rop,
+   int_cl_t a, int_cl_t b, ftype root)
    /* sets rop to (b + i*root) / (2a)                                      */
 
 {
-   mpfr_set_si (rop->re, b, MPFR_RNDN);
-   mpfr_set (rop->im, root, MPFR_RNDN);
-   mpc_div_ui (rop, rop, 2*a, MPC_RNDNN);
+   fset_si (rop->re, b);
+   fset (rop->im, root);
+   cdiv_ui (rop, rop, 2*a);
 }
 
 /*****************************************************************************/
@@ -552,8 +551,8 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_modclass_eta_eval_quad (mpc_t rop, cm_modular_t m, cm_classgroup_t cl,
-   mpc_t *eta, int_cl_t a, int_cl_t b, mpfr_t root)
+void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m, cm_classgroup_t cl,
+   ctype *eta, int_cl_t a, int_cl_t b, ftype root)
    /* evaluates the eta function at the quadratic integer                    */
    /* (b + sqrt (cl.d)) / (2a)                                               */
    /* root needs to be set to sqrt (|d|).                                    */
@@ -564,12 +563,12 @@ void cm_modclass_eta_eval_quad (mpc_t rop, cm_modular_t m, cm_classgroup_t cl,
    int_cl_t a_local, b_local;
    int      i, sign;
    cm_matrix_t M;
-   mpc_t    tmp;
+   ctype    tmp;
 
    a_local = a;
    b_local = b;
    cm_modclass_fundamental_domain_quad (cl.d, &a_local, &b_local, &M);
-   cm_modclass_mpc_set_quadratic (rop, a_local, b_local, root);
+   cm_modclass_cset_quadratic (rop, a_local, b_local, root);
    cm_modular_eta_transform (m, rop, rop, M);
 
    /* look up the eta value */
@@ -588,38 +587,38 @@ void cm_modclass_eta_eval_quad (mpc_t rop, cm_modular_t m, cm_classgroup_t cl,
       /* modular function and the conductor have a common factor. This case  */
       /* is rare, and the following computations are not optimised.          */
       printf ("Q");
-      mpc_init2 (tmp, mpc_get_prec (rop));
+      cinit (tmp, cget_prec (rop));
       if (sign == 1)
-         cm_modclass_mpc_set_quadratic (tmp, a_local, b_local, root);
+         cm_modclass_cset_quadratic (tmp, a_local, b_local, root);
       else
-         cm_modclass_mpc_set_quadratic (tmp, a_local, -b_local, root);
+         cm_modclass_cset_quadratic (tmp, a_local, -b_local, root);
       cm_modular_eta_eval (m, tmp, tmp);
-      mpc_mul (rop, rop, tmp, MPC_RNDNN);
-      mpc_clear (tmp);
+      cmul (rop, rop, tmp);
+      cclear (tmp);
    }
    else {
       if (sign == 1)
-         mpc_mul (rop, rop, eta [i], MPC_RNDNN);
+         cmul (rop, rop, eta [i]);
       else {
-         mpc_conj (eta [i], eta [i], MPC_RNDNN);
-         mpc_mul (rop, rop, eta [i], MPC_RNDNN);
-         mpc_conj (eta [i], eta [i], MPC_RNDNN);
+         cconj (eta [i], eta [i]);
+         cmul (rop, rop, eta [i]);
+         cconj (eta [i], eta [i]);
       }
    }
 }
 
 /*****************************************************************************/
 
-void cm_modclass_f_eval_quad (cm_modclass_t mc, mpc_t rop,
+void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b)
    /* evaluates the Weber f-function at the quadratic integer                */
    /* (b + sqrt (d)) / (2*a)                                                 */
 
 {
-   mpc_t tmp;
+   ctype tmp;
    int_cl_t c;
 
-   mpc_init2 (tmp, mpc_get_prec (rop));
+   cinit (tmp, cget_prec (rop));
 
    cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a, b, mc.root);
 
@@ -637,33 +636,33 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, mpc_t rop,
          cm_modclass_eta_eval_quad (rop, mc.m, mc.cl2, mc.eta2, a, b/2 + a, mc.root2);
       }
    else {
-      mpc_t z;
-      mpc_init2 (z, mpc_get_prec (rop));
-      cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
-      mpc_add_ui (rop, z, 1ul, MPC_RNDNN);
-      mpc_div_ui (rop, rop, 2ul, MPC_RNDNN);
+      ctype z;
+      cinit (z, cget_prec (rop));
+      cm_modclass_cset_quadratic (z, a, b, mc.root);
+      cadd_ui (rop, z, 1ul);
+      cdiv_ui (rop, rop, 2ul);
       cm_modular_eta_eval (mc.m, rop, rop);
-      mpc_clear (z);
+      cclear (z);
    }
 
-   mpc_div (rop, rop, tmp, MPC_RNDNN);
-   mpc_mul (rop, rop, mc.m.zeta48inv, MPC_RNDNN);
+   cdiv (rop, rop, tmp);
+   cmul (rop, rop, mc.m.zeta48inv);
 
-   mpc_clear (tmp);
+   cclear (tmp);
 }
 
 /*****************************************************************************/
 
-void cm_modclass_f1_eval_quad (cm_modclass_t mc, mpc_t rop,
+void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b)
    /* evaluates the Weber f1-function at the quadratic integer               */
    /* (b + sqrt (d)) / (2*a); the same comments as for f apply.              */
 
 {
-   mpc_t tmp;
+   ctype tmp;
    int_cl_t c;
 
-   mpc_init2 (tmp, mpc_get_prec (rop));
+   cinit (tmp, cget_prec (rop));
 
    cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a, b, mc.root);
    /* The argument z/2 of the numerator corresponds to the quadratic form    */
@@ -678,86 +677,86 @@ void cm_modclass_f1_eval_quad (cm_modclass_t mc, mpc_t rop,
          cm_modclass_eta_eval_quad (rop, mc.m, mc.cl2, mc.eta2, a, b/2, mc.root2);
       }
    else {
-      mpc_t z;
-      mpc_init2 (z, mpc_get_prec (rop));
-      cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
-      mpc_div_ui (rop, z, 2ul, MPC_RNDNN);
+      ctype z;
+      cinit (z, cget_prec (rop));
+      cm_modclass_cset_quadratic (z, a, b, mc.root);
+      cdiv_ui (rop, z, 2ul);
       cm_modular_eta_eval (mc.m, rop, rop);
-      mpc_clear (z);
+      cclear (z);
    }
-   mpc_div (rop, rop, tmp, MPC_RNDNN);
+   cdiv (rop, rop, tmp);
 
-   mpc_clear (tmp);
+   cclear (tmp);
 }
 
 /*****************************************************************************/
 
-void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, mpc_t rop,
+void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b)
 
 {
-   mpc_t f;
+   ctype f;
 
-   mpc_init2 (f, mpc_get_prec (rop));
+   cinit (f, cget_prec (rop));
 
    cm_modclass_f1_eval_quad (mc, f, a, b);
-   mpc_pow_ui (f, f, 8ul, MPC_RNDNN);
-   mpc_sqr (rop, f, MPC_RNDNN);
-   mpc_ui_div (f, 16ul, f, MPC_RNDNN);
-   mpc_add (rop, rop, f, MPC_RNDNN);
+   cpow_ui (f, f, 8ul);
+   csqr (rop, f);
+   cui_div (f, 16ul, f);
+   cadd (rop, rop, f);
 
-   mpc_clear (f);
+   cclear (f);
 }
 
 /*****************************************************************************/
 
-void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, mpc_t rop,
+void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b)
    /* evaluates sqrt (d) * gamma3 */
 
 {
-   mpc_t f, tmp;
-   mpfr_t tmp_fr;
+   ctype f, tmp;
+   ftype tmp_fr;
 
-   mpc_init2 (f, mpc_get_prec (rop));
-   mpc_init2 (tmp, mpc_get_prec (rop));
+   cinit (f, cget_prec (rop));
+   cinit (tmp, cget_prec (rop));
 
    cm_modclass_f_eval_quad (mc, f, a, b);
-   mpc_pow_ui (f, f, 8ul, MPC_RNDNN);
+   cpow_ui (f, f, 8ul);
    cm_modclass_f1_eval_quad (mc, rop, a, b);
-   mpc_pow_ui (rop, rop, 8ul, MPC_RNDNN);
+   cpow_ui (rop, rop, 8ul);
 
-   mpc_mul_ui (rop, rop, 2ul, MPC_RNDNN);
-   mpc_sub (rop, rop, f, MPC_RNDNN);
-   mpc_pow_ui (tmp, f, 3ul, MPC_RNDNN);
-   mpc_add_ui (tmp, tmp, 8ul, MPC_RNDNN);
-   mpc_mul (rop, rop, tmp, MPC_RNDNN);
-   mpc_div (rop, rop, f, MPC_RNDNN);
-   mpc_mul_fr (rop, rop, mc.root, MPC_RNDNN);
+   cmul_ui (rop, rop, 2ul);
+   csub (rop, rop, f);
+   cpow_ui (tmp, f, 3ul);
+   cadd_ui (tmp, tmp, 8ul);
+   cmul (rop, rop, tmp);
+   cdiv (rop, rop, f);
+   cmul_fr (rop, rop, mc.root);
    /* multiply by i */
    tmp_fr [0] = rop->im [0];
    rop->im [0] = rop->re [0];
    rop->re [0] = tmp_fr [0];
-   mpfr_neg (rop->re, rop->re, MPFR_RNDN);
+   fneg (rop->re, rop->re);
 
-   mpc_clear (f);
-   mpc_clear (tmp);
+   cclear (f);
+   cclear (tmp);
 }
 
 /*****************************************************************************/
 
-void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
+void cm_modclass_j_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b)
 
 {
    cm_modclass_gamma2_eval_quad (mc, rop, a, b);
-   mpc_pow_ui (rop, rop, 3ul, MPC_RNDNN);
+   cpow_ui (rop, rop, 3ul);
 }
 
 /*****************************************************************************/
 
-static void multieta_eval_quad_rec (cm_modclass_t mc, mpc_t rop_num,
-   mpc_t rop_den, int_cl_t a, int_cl_t b, int *p)
+static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
+   ctype rop_den, int_cl_t a, int_cl_t b, int *p)
    /* Evaluates a multiple eta quotient, whose transformation degress are    */
    /* given by the numbers in p, which is an array terminated by 0; the      */
    /* result is given by rop_num / rop_den. This approach replaces complex   */
@@ -777,31 +776,31 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, mpc_t rop_num,
       cm_modclass_eta_eval_quad (rop_den, mc.m, mc.cl, mc.eta, a, b, mc.root);
       cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta,
          a * p [0] * p [0], b, mc.root);
-      mpc_mul (rop_den, rop_den, rop_num, MPC_RNDNN);
+      cmul (rop_den, rop_den, rop_num);
       cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta, a * p [0], b,
          mc.root);
-      mpc_sqr (rop_num, rop_num, MPC_RNDNN);
+      csqr (rop_num, rop_num);
    }
    else {
-      mpc_t tmp1, tmp2;
-      mpfr_prec_t prec = mpc_get_prec (rop_num);
+      ctype tmp1, tmp2;
+      fprec_t prec = cget_prec (rop_num);
 
-      mpc_init2 (tmp1, prec);
-      mpc_init2 (tmp2, prec);
+      cinit (tmp1, prec);
+      cinit (tmp2, prec);
 
       multieta_eval_quad_rec (mc, rop_num, tmp1, a, b, p+1);
       multieta_eval_quad_rec (mc, rop_den, tmp2, a * p [0], b, p+1);
-      mpc_mul (rop_num, rop_num, tmp2, MPC_RNDNN);
-      mpc_mul (rop_den, rop_den, tmp1, MPC_RNDNN);
+      cmul (rop_num, rop_num, tmp2);
+      cmul (rop_den, rop_den, tmp1);
 
-      mpc_clear (tmp1);
-      mpc_clear (tmp2);
+      cclear (tmp1);
+      cclear (tmp2);
    }
 }
 
 /*****************************************************************************/
 
-void cm_modclass_multieta_eval_quad (cm_modclass_t mc, mpc_t rop,
+void cm_modclass_multieta_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, int *p, int e)
    /* Evaluates a multiple eta quotient, whose transformation degress are    */
    /* given by the numbers in p, which is an array terminated by 0; the      */
@@ -809,32 +808,32 @@ void cm_modclass_multieta_eval_quad (cm_modclass_t mc, mpc_t rop,
    /* Assumes that p contains at least one number.                           */
 
 {
-   mpc_t tmp;
+   ctype tmp;
 
-   mpc_init2 (tmp, mpc_get_prec (rop));
+   cinit (tmp, cget_prec (rop));
 
    multieta_eval_quad_rec (mc, rop, tmp, a, b, p);
-   mpc_div (rop, rop, tmp, MPC_RNDNN);
+   cdiv (rop, rop, tmp);
    if (e != 1)
-      mpc_pow_ui (rop, rop, e, MPC_RNDNN);
+      cpow_ui (rop, rop, e);
 
-   mpc_clear (tmp);
+   cclear (tmp);
 }
 
 /*****************************************************************************/
 
-void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, mpc_t rop,
+void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, unsigned long int l)
 
 {
-   mpc_t z;
+   ctype z;
 
-   mpc_init2 (z, mpc_get_prec (rop));
+   cinit (z, cget_prec (rop));
 
-   cm_modclass_mpc_set_quadratic (z, a, b, mc.root);
+   cm_modclass_cset_quadratic (z, a, b, mc.root);
    cm_modular_atkinhecke_level_eval (mc.m, rop, z, l);
 
-   mpc_clear (z);
+   cclear (z);
 }
 
 /*****************************************************************************/

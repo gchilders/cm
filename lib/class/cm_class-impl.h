@@ -2,7 +2,7 @@
 
 cm_class-impl.h - header file for internal use of the cm_class library
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2015 Andreas Enge
 
 This file is part of CM.
 
@@ -77,15 +77,15 @@ typedef struct {
 typedef struct {
    cm_modular_t m;
    cm_classgroup_t cl;
-   mpfr_t root;
+   ftype root;
       /* sqrt (-cl.d); */
-   mpfr_t sqrt2_over2, sqrt2_over4;
-   mpc_t *eta;
+   ftype sqrt2_over2, sqrt2_over4;
+   ctype *eta;
       /* contains the values of eta with respect to the entries of           */
       /* cl.form with the same row index. So only cl.h12 values are stored.  */
    cm_classgroup_t cl2;
-   mpc_t *eta2;
-   mpfr_t root2;
+   ctype *eta2;
+   ftype root2;
       /* Space for a second class group and associated eta values; intended  */
       /* to be filled with an order of smaller conductor. Currently, is is   */
       /* used for the Weber function with odd discriminant D; then cl.d==4*D */
@@ -138,24 +138,24 @@ extern cm_form_t cm_classgroup_prime_form (int_cl_t p, int_cl_t d);
    precomputations */
 
 extern void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   cm_classgroup_t cl2, mp_prec_t prec, bool checkpoints, bool verbose);
+   cm_classgroup_t cl2, fprec_t prec, bool checkpoints, bool verbose);
 extern void cm_modclass_clear (cm_modclass_t *mc);
 
-extern void cm_modclass_eta_eval_quad (mpc_t rop, cm_modular_t m,
-   cm_classgroup_t cl, mpc_t *eta, int_cl_t a, int_cl_t b, mpfr_t root);
-extern void cm_modclass_f_eval_quad (cm_modclass_t mc, mpc_t rop,
+extern void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m,
+   cm_classgroup_t cl, ctype *eta, int_cl_t a, int_cl_t b, ftype root);
+extern void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b);
-extern void cm_modclass_f1_eval_quad (cm_modclass_t mc, mpc_t rop,
+extern void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b);
-extern void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, mpc_t rop,
+extern void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b);
-extern void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, mpc_t rop,
+extern void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b);
-extern void cm_modclass_j_eval_quad (cm_modclass_t mc, mpc_t rop,
+extern void cm_modclass_j_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b);
-extern void cm_modclass_multieta_eval_quad (cm_modclass_t mc, mpc_t rop,
+extern void cm_modclass_multieta_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, int *p, int e);
-extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, mpc_t rop,
+extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, unsigned long int l);
 
 

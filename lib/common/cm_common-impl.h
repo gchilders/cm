@@ -24,12 +24,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef __CM_COMMON_IMPL_H
 #define __CM_COMMON_IMPL_H
 
-#include "cm_common.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <ctype.h>
+
+#include "cm_common.h"
 
 #define CM_QDEV_ETA   1
 #define CM_QDEV_ATKIN 2
@@ -50,13 +50,13 @@ extern void cm_nt_elliptic_curve_random_l (long int *P_x, long int *P_y,
 
 /* functions for computing q expansions of modular functions and addition
    chains */
-extern void cm_qdev_init (cm_qdev_t *f, mp_prec_t prec);
+extern void cm_qdev_init (cm_qdev_t *f, fprec_t prec);
 extern void cm_qdev_clear (cm_qdev_t *f);
-extern void cm_qdev_eval (mpc_t rop, cm_qdev_t f, mpc_t q1);
-extern void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1);
+extern void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1);
+extern void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1);
 
 /* functions for evaluating modular functions */
-extern void cm_modular_eta_series_fr (cm_modular_t m, mpfr_t rop, mpfr_t q_24);
+extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
 
 #if defined (__cplusplus)
 }

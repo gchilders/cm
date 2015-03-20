@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MAX(a,b) ((a > b ? a : b))
 
 static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no);
-static long int lognormmax (mpc_t op);
+static long int lognormmax (ctype op);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -69,21 +69,21 @@ static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no)
 
 /*****************************************************************************/
 
-static long int lognormmax (mpc_t op)
+static long int lognormmax (ctype op)
    /* computes the logarithm in base 2 (as the exponent of the value) of the */
    /* max norm of op                                                         */
 
 {
-   if (mpfr_sgn (op->re) == 0)
-      if (mpfr_sgn (op->im) == 0)
-         return mpfr_get_emin ();
+   if (fsgn (op->re) == 0)
+      if (fsgn (op->im) == 0)
+         return fget_emin ();
       else
-         return (op->im->_mpfr_exp);
+         return (fget_exp (op->im));
    else
-      if (mpfr_sgn (op->im) == 0)
-         return (op->re->_mpfr_exp);
+      if (fsgn (op->im) == 0)
+         return (fget_exp (op->re));
       else
-         return MAX(op->re->_mpfr_exp, op->im->_mpfr_exp);
+         return MAX(fget_exp (op->re), fget_exp (op->im));
 }
 
 /*****************************************************************************/
@@ -92,14 +92,14 @@ static long int lognormmax (mpc_t op)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_qdev_init (cm_qdev_t *f, mp_prec_t prec)
+void cm_qdev_init (cm_qdev_t *f, fprec_t prec)
    /* initialises the addition chain for eta */
 
 {
    int n, i, j, k;
 //    int n1 = 0, n2 = 0, n3 = 0, n4 = 0, n5 = 0, n6 = 0;
 
-   f->length = 2 * ((mp_prec_t) (sqrt (prec * 0.085) + 1)) + 1;
+   f->length = 2 * ((fprec_t) (sqrt (prec * 0.085) + 1)) + 1;
    /* must be odd                                                        */
    /* Since each power of q yields at least                              */
    /* log_2 (exp (sqrt (3) * pi)) = 7.85 bits,                           */
@@ -225,26 +225,26 @@ void cm_qdev_clear (cm_qdev_t *f)
 
 /*****************************************************************************/
 
-void cm_qdev_eval (mpc_t rop, cm_qdev_t f, mpc_t q1)
+void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    /* evaluates f in q */
 
 {
    mp_exp_t prec;
-   mpc_t    *q, term;
+   ctype    *q, term;
    int      n, i;
 
-   prec = mpfr_get_prec (rop->re);
+   prec = fget_prec (rop->re);
 
-   q = (mpc_t *) malloc (f.length * sizeof (mpc_t));
-   mpc_init2 (q [1], prec);
-   mpc_set (q [1], q1, MPC_RNDNN);
-   mpc_init2 (term, prec);
+   q = (ctype *) malloc (f.length * sizeof (ctype));
+   cinit (q [1], prec);
+   cset (q [1], q1);
+   cinit (term, prec);
 
-   mpc_set_si (rop, f.chain [0][5], MPC_RNDNN);
+   cset_si (rop, f.chain [0][5]);
    if (f.chain [1][5] != 0)
    {
-      mpc_mul_si (term, q [1], f.chain [1][5], MPC_RNDNN);
-      mpc_add (rop, rop, term, MPC_RNDNN);
+      cmul_si (term, q [1], f.chain [1][5]);
+      cadd (rop, rop, term);
    }
    n = 1;
 
@@ -257,78 +257,75 @@ void cm_qdev_eval (mpc_t rop, cm_qdev_t f, mpc_t q1)
          printf ("*** Houston, we have a problem! Addition chain too short ");
          printf ("in 'qdev_eval'.\n");
          printf ("n=%i, length=%i\n", n, f.length);
-         printf ("q "); mpc_out_str (stdout, 10, 10, q [1], MPC_RNDNN);
+         printf ("q "); cout_str (stdout, 10, 10, q [1]);
          printf ("\n");
-         printf ("q^i "); mpc_out_str (stdout, 10, 10, q [n-1], MPC_RNDNN);
+         printf ("q^i "); cout_str (stdout, 10, 10, q [n-1]);
          printf ("\n");
          exit (1);
       }
-      mpc_init2 (q [n], prec);
+      cinit (q [n], prec);
       switch (f.chain [n][1])
       {
       case 1:
-         mpc_sqr (q [n], q [f.chain [n][2]], MPC_RNDNN);
+         csqr (q [n], q [f.chain [n][2]]);
          break;
       case 2:
-         mpc_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  MPC_RNDNN);
+         cmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
          break;
       case 3:
-         mpc_sqr (q [n], q [f.chain [n][2]], MPC_RNDNN);
-         mpc_sqr (q [n], q [n], MPC_RNDNN);
+         csqr (q [n], q [f.chain [n][2]]);
+         csqr (q [n], q [n]);
          break;
       case 4:
-         mpc_sqr (q [n], q [f.chain [n][2]], MPC_RNDNN);
-         mpc_mul (q [n], q[n], q [f.chain [n][3]], MPC_RNDNN);
+         csqr (q [n], q [f.chain [n][2]]);
+         cmul (q [n], q[n], q [f.chain [n][3]]);
          break;
       case 5:
-         mpc_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  MPC_RNDNN);
-         mpc_sqr (q [n], q[n], MPC_RNDNN);
+         cmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
+         csqr (q [n], q[n]);
          break;
       case 6:
-         mpc_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  MPC_RNDNN);
-         mpc_mul (q [n], q [n], q [f.chain [n][4]], MPC_RNDNN);
+         cmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
+         cmul (q [n], q [n], q [f.chain [n][4]]);
          break;
       }
       if (f.chain [n][5] != 0)
       {
-         mpc_mul_si (term, q [n], f.chain [n][5], MPC_RNDNN);
-         mpc_add (rop, rop, term, MPC_RNDNN);
+         cmul_si (term, q [n], f.chain [n][5]);
+         cadd (rop, rop, term);
       }
    }
 
    for (i = 1; i <= n; i++)
-      mpc_clear (q [i]);
+      cclear (q [i]);
    free (q);
-   mpc_clear (term);
+   cclear (term);
 }
 
 /*****************************************************************************/
 
-void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1)
+void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
    /* evaluates f in q */
 
 {
    mp_exp_t prec;
-   mpfr_t    *q, term;
+   ftype    *q, term;
    int      n, i;
 
-   prec = mpfr_get_prec (rop);
+   prec = fget_prec (rop);
 
-   q = (mpfr_t *) malloc (f.length * sizeof (mpfr_t));
-   mpfr_init2 (q [1], prec);
-   mpfr_set (q [1], q1, MPFR_RNDN);
-   mpfr_init2 (term, prec);
+   q = (ftype *) malloc (f.length * sizeof (ftype));
+   finit (q [1], prec);
+   fset (q [1], q1);
+   finit (term, prec);
 
-   mpfr_set_si (rop, f.chain [0][5], MPFR_RNDN);
-   mpfr_mul_si (term, q [1], f.chain [1][5], MPFR_RNDN);
-   mpfr_add (rop, rop, term, MPFR_RNDN);
+   fset_si (rop, f.chain [0][5]);
+   fmul_si (term, q [1], f.chain [1][5]);
+   fadd (rop, rop, term);
    n = 1;
 
    /* take next power of q into account if result is not precise enough */
-   while (mpfr_get_exp (term) > -prec)
+   while (fget_exp (term) > -prec)
    {
       n++;
       if (n >= f.length)
@@ -336,52 +333,49 @@ void cm_qdev_eval_fr (mpfr_t rop, cm_qdev_t f, mpfr_t q1)
          printf ("*** Houston, we have a problem! Addition chain too short ");
          printf ("in 'qdev_eval_fr'.\n");
          printf ("n=%i, length=%i\n", n, f.length);
-         printf ("q "); mpfr_out_str (stdout, 10, 0, q [1], MPFR_RNDN);
+         printf ("q "); fout_str (stdout, 10, 0, q [1]);
          printf ("\n");
-         printf ("q^i "); mpfr_out_str (stdout, 10, 0, q [n-1], MPFR_RNDN);
+         printf ("q^i "); fout_str (stdout, 10, 0, q [n-1]);
          printf ("\n");
          exit (1);
       }
-      mpfr_init2 (q [n], prec);
+      finit (q [n], prec);
       switch (f.chain [n][1])
       {
       case 1:
-         mpfr_sqr (q [n], q [f.chain [n][2]], MPFR_RNDN);
+         fsqr (q [n], q [f.chain [n][2]]);
          break;
       case 2:
-         mpfr_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  MPFR_RNDN);
+         fmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
          break;
       case 3:
-         mpfr_sqr (q [n], q [f.chain [n][2]], MPFR_RNDN);
-         mpfr_sqr (q [n], q [n], MPFR_RNDN);
+         fsqr (q [n], q [f.chain [n][2]]);
+         fsqr (q [n], q [n]);
          break;
       case 4:
-         mpfr_sqr (q [n], q [f.chain [n][2]], MPFR_RNDN);
-         mpfr_mul (q [n], q[n], q [f.chain [n][3]], MPFR_RNDN);
+         fsqr (q [n], q [f.chain [n][2]]);
+         fmul (q [n], q[n], q [f.chain [n][3]]);
          break;
       case 5:
-         mpfr_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  MPFR_RNDN);
-         mpfr_sqr (q [n], q[n], MPFR_RNDN);
+         fmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
+         fsqr (q [n], q[n]);
          break;
       case 6:
-         mpfr_mul (q [n], q [f.chain [n][2]], q [f.chain [n][3]],
-                  MPFR_RNDN);
-         mpfr_mul (q [n], q [n], q [f.chain [n][4]], MPFR_RNDN);
+         fmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
+         fmul (q [n], q [n], q [f.chain [n][4]]);
          break;
       }
       if (f.chain [n][5] != 0)
       {
-         mpfr_mul_si (term, q [n], f.chain [n][5], MPFR_RNDN);
-         mpfr_add (rop, rop, term, MPFR_RNDN);
+         fmul_si (term, q [n], f.chain [n][5]);
+         fadd (rop, rop, term);
       }
    }
 
    for (i = 1; i <= n; i++)
-      mpfr_clear (q [i]);
+      fclear (q [i]);
    free (q);
-   mpfr_clear (term);
+   fclear (term);
 }
 
 /*****************************************************************************/
