@@ -35,7 +35,6 @@ AC_DEFUN([MPC_C_CHECK_WARNINGCFLAGS], [
       esac
       MPC_C_CHECK_FLAG(-g)
       MPC_C_CHECK_FLAG(-std=c99)
-      MPC_C_CHECK_FLAG(-pedantic)
       MPC_C_CHECK_FLAG(-Wno-long-long)
       MPC_C_CHECK_FLAG(-Wall)
       MPC_C_CHECK_FLAG(-Wextra)
