@@ -182,7 +182,7 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    mp_prec_t prec;
    long int  local_prec;
    double    delta;
-   ctype     *q, term;
+   ctype     *q, term, tmp1, tmp2;
    int       n, i;
 
    prec = fget_prec (rop->re);
@@ -191,6 +191,8 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    cinit (q [1], prec);
    cset (q [1], q1);
    cinit (term, prec);
+   cinit (tmp1, prec);
+   cinit (tmp2, prec);
 
    cset_si (rop, f.chain [0][4]);
    if (f.chain [1][4] == 1)
@@ -215,14 +217,25 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
       switch (f.chain [n][1])
       {
       case 1:
-         csqr (q [n], q [f.chain [n][2]]);
+         /* Reduce the precision of the argument to save some more time. */
+         cset_prec (tmp1, local_prec);
+         cset (tmp1, q [f.chain [n][2]]);
+         csqr (q [n], tmp1);
          break;
       case 2:
-         cmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
+         cset_prec (tmp1, local_prec);
+         cset_prec (tmp2, local_prec);
+         cset (tmp1, q [f.chain [n][2]]);
+         cset (tmp2, q [f.chain [n][3]]);
+         cmul (q [n], tmp1, tmp2);
          break;
       case 3:
-         csqr (q [n], q [f.chain [n][2]]);
-         cmul (q [n], q[n], q [f.chain [n][3]]);
+         cset_prec (tmp1, local_prec);
+         cset_prec (tmp2, local_prec);
+         cset (tmp1, q [f.chain [n][2]]);
+         cset (tmp2, q [f.chain [n][3]]);
+         csqr (q [n], tmp1);
+         cmul (q [n], q [n], tmp2);
          break;
       }
       if (f.chain [n][4] == 1)
@@ -256,6 +269,8 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
       cclear (q [i]);
    free (q);
    cclear (term);
+   cclear (tmp1);
+   cclear (tmp2);
 }
 
 /*****************************************************************************/
