@@ -2,7 +2,7 @@
 
 cm_common.h - header file for the cm_common library
 
-Copyright (C) 2009, 2010, 2012, 2015 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -71,12 +71,9 @@ typedef struct {
       /*          meaning:                                                   */
       /*          1: 2*i1                                                    */
       /*          2: i1 + i2                                                 */
-      /*          3: 4*i1                                                    */
-      /*          4: 2*(i1 + i2)                                             */
-      /*          5: 2*i1 + i2                                               */
-      /*          6: i1 + i2 + i3                                            */
-      /* entries 2 to 4: the indices i1, i2, i3 yielding this exponent       */
-      /* entry 5: the coefficient with which the term contributes to the     */
+      /*          3: 2*(i1 + i2)                                             */
+      /* entries 2 to 3: the indices i1 and i2 yielding this exponent        */
+      /* entry 4: the coefficient with which the term contributes to the     */
       /*          function (0 if it is only used as an auxiliary term)       */
    int length;
       /* the number of terms actually computed for the addition chain */

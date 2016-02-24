@@ -2,7 +2,7 @@
 
 qdev.c - code handling q-expansions
 
-Copyright (C) 2009, 2015 Andreas Enge
+Copyright (C) 2009, 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -96,8 +96,7 @@ void cm_qdev_init (cm_qdev_t *f, fprec_t prec)
    /* initialises the addition chain for eta */
 
 {
-   int n, i, j, k;
-//    int n1 = 0, n2 = 0, n3 = 0, n4 = 0, n5 = 0, n6 = 0;
+   int n, i, j;
 
    f->length = 2 * ((fprec_t) (sqrt (prec * 0.085) + 1)) + 1;
    /* must be odd                                                        */
@@ -110,23 +109,23 @@ void cm_qdev_init (cm_qdev_t *f, fprec_t prec)
 
    f->chain = (long int **) malloc (f->length * sizeof (long int *));
    for (n = 0; n < f->length; n++)
-      f->chain [n] = (long int *) malloc (6 * sizeof (long int));
+      f->chain [n] = (long int *) malloc (5 * sizeof (long int));
 
    (*f).chain [0][0] = 0;
-   (*f).chain [0][5] = 1;
+   (*f).chain [0][4] = 1;
    for (n = 1; n <= f->length / 2; n++)
    {
       (*f).chain [2*n-1][0] = n*(3*n-1) / 2;
       (*f).chain [2*n][0] = n*(3*n+1) / 2;
       if (n % 2 == 0)
       {
-         (*f).chain [2*n-1][5] = 1;
-         (*f).chain [2*n][5] = 1;
+         (*f).chain [2*n-1][4] = 1;
+         (*f).chain [2*n][4] = 1;
       }
       else
       {
-         (*f).chain [2*n-1][5] = -1;
-         (*f).chain [2*n][5] = -1;
+         (*f).chain [2*n-1][4] = -1;
+         (*f).chain [2*n][4] = -1;
       }
    }
 
@@ -141,7 +140,6 @@ void cm_qdev_init (cm_qdev_t *f, fprec_t prec)
             {
                (*f).chain [n][1] = 1;
                (*f).chain [n][2] = i;
-//                n1++;
             }
       /* try to express the exponent as the sum of two previous ones */
       for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
@@ -150,65 +148,17 @@ void cm_qdev_init (cm_qdev_t *f, fprec_t prec)
                (*f).chain [n][1] = 2;
                (*f).chain [n][2] = i;
                (*f).chain [n][3] = j;
-//                n2++;
             }
-      /* try to express an exponent as four times a previous one      */
-      if ((*f).chain [n][0] % 4 == 0)
-         if (find_in_chain (&i, *f, n, (*f).chain [n][0] / 4))
-            {
-               (*f).chain [n][1] = 3;
-               (*f).chain [n][2] = i;
-//                n3++;
-            }
-      /* try to express an even exponent as twice the sum of two previous */
-      /* ones */
       /* try to express the exponent as twice a previous plus a third one */
       for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
          if (find_in_chain (&j, *f, n, (*f).chain [n][0] - 2 * (*f).chain [i][0]))
       {
-         (*f).chain [n][1] = 4;
+         (*f).chain [n][1] = 3;
          (*f).chain [n][2] = i;
          (*f).chain [n][3] = j;
-//          n4++;
       }
-      if ((*f).chain [n][0] % 2 == 0)
-         for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
-            if (find_in_chain (&j, *f, n, (*f).chain [n][0]/2 - (*f).chain [i][0]))
-               {
-                  (*f).chain [n][1] = 5;
-                  (*f).chain [n][2] = i;
-                  (*f).chain [n][3] = j;
-//                   n5++;
-               }
-      /* try to express the exponent as the sum of three previous ones */
-      for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
-         for (j = i; j < n && (*f).chain [n][1] == 0; j++)
-            if (find_in_chain (&k, *f, n, (*f).chain [n][0] - (*f).chain [i][0]
-                 - (*f).chain [j][0]))
-            {
-               (*f).chain [n][1] = 6;
-               (*f).chain [n][2] = i;
-               (*f).chain [n][3] = j;
-               (*f).chain [n][4] = k;
-//                n6++;
-            }
-      if ((*f).chain [n][1] == 0)
-      {
-         printf ("*** Houston, we have a problem! No success for element ");
-         printf ("%i = %li in the addition chain ", n, (*f).chain [n][0]);
-         printf ("computation in qdev_init. ");
-         printf ("Go back programming!\n");
-         exit (1);
-      }
+      /* This covers all cases for eta, see Enge-Johansson 2016. */
    }
-/*
-   printf ("n1 %i\n", n1);
-   printf ("n2 %i\n", n2);
-   printf ("n3 %i\n", n3);
-   printf ("n4 %i\n", n4);
-   printf ("n5 %i\n", n5);
-   printf ("n6 %i\n", n6);
-*/
 }
 
 /*****************************************************************************/
@@ -229,9 +179,9 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    /* evaluates f in q */
 
 {
-   mp_exp_t prec;
-   ctype    *q, term;
-   int      n, i;
+   mp_prec_t prec;
+   ctype     *q, term;
+   int       n, i;
 
    prec = fget_prec (rop->re);
 
@@ -240,10 +190,10 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    cset (q [1], q1);
    cinit (term, prec);
 
-   cset_si (rop, f.chain [0][5]);
-   if (f.chain [1][5] != 0)
+   cset_si (rop, f.chain [0][4]);
+   if (f.chain [1][4] != 0)
    {
-      cmul_si (term, q [1], f.chain [1][5]);
+      cmul_si (term, q [1], f.chain [1][4]);
       cadd (rop, rop, term);
    }
    n = 1;
@@ -274,24 +224,12 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
          break;
       case 3:
          csqr (q [n], q [f.chain [n][2]]);
-         csqr (q [n], q [n]);
-         break;
-      case 4:
-         csqr (q [n], q [f.chain [n][2]]);
          cmul (q [n], q[n], q [f.chain [n][3]]);
          break;
-      case 5:
-         cmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
-         csqr (q [n], q[n]);
-         break;
-      case 6:
-         cmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
-         cmul (q [n], q [n], q [f.chain [n][4]]);
-         break;
       }
-      if (f.chain [n][5] != 0)
+      if (f.chain [n][4] != 0)
       {
-         cmul_si (term, q [n], f.chain [n][5]);
+         cmul_si (term, q [n], f.chain [n][4]);
          cadd (rop, rop, term);
       }
    }
@@ -308,9 +246,9 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
    /* evaluates f in q */
 
 {
-   mp_exp_t prec;
-   ftype    *q, term;
-   int      n, i;
+   mp_prec_t prec;
+   ftype     *q, term;
+   int       n, i;
 
    prec = fget_prec (rop);
 
@@ -319,8 +257,8 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
    fset (q [1], q1);
    finit (term, prec);
 
-   fset_si (rop, f.chain [0][5]);
-   fmul_si (term, q [1], f.chain [1][5]);
+   fset_si (rop, f.chain [0][4]);
+   fmul_si (term, q [1], f.chain [1][4]);
    fadd (rop, rop, term);
    n = 1;
 
@@ -350,24 +288,12 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
          break;
       case 3:
          fsqr (q [n], q [f.chain [n][2]]);
-         fsqr (q [n], q [n]);
-         break;
-      case 4:
-         fsqr (q [n], q [f.chain [n][2]]);
          fmul (q [n], q[n], q [f.chain [n][3]]);
          break;
-      case 5:
-         fmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
-         fsqr (q [n], q[n]);
-         break;
-      case 6:
-         fmul (q [n], q [f.chain [n][2]], q [f.chain [n][3]]);
-         fmul (q [n], q [n], q [f.chain [n][4]]);
-         break;
       }
-      if (f.chain [n][5] != 0)
+      if (f.chain [n][4] != 0)
       {
-         fmul_si (term, q [n], f.chain [n][5]);
+         fmul_si (term, q [n], f.chain [n][4]);
          fadd (rop, rop, term);
       }
    }
