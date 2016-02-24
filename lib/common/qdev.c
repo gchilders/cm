@@ -193,7 +193,11 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    cinit (term, prec);
 
    cset_si (rop, f.chain [0][4]);
-   if (f.chain [1][4] != 0)
+   if (f.chain [1][4] == 1)
+     cadd (rop, rop, q [1]);
+   else if (f.chain [1][4] == -1)
+     csub (rop, rop, q [1]);
+   else if (f.chain [1][4] != 0)
    {
       cmul_si (term, q [1], f.chain [1][4]);
       cadd (rop, rop, term);
@@ -221,7 +225,11 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
          cmul (q [n], q[n], q [f.chain [n][3]]);
          break;
       }
-      if (f.chain [n][4] != 0)
+      if (f.chain [n][4] == 1)
+        cadd (rop, rop, q [n]);
+      else if (f.chain [n][4] == -1)
+        csub (rop, rop, q [n]);
+      else if (f.chain [n][4] != 0)
       {
 	 cset_prec (term, (mp_prec_t) local_prec);
          cmul_si (term, q [n], f.chain [n][4]);
@@ -272,7 +280,11 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
    finit (term, prec);
 
    fset_si (rop, f.chain [0][4]);
-   if (f.chain [1][4] != 0)
+   if (f.chain [1][4] == 1)
+     fadd (rop, rop, q [1]);
+   else if (f.chain [1][4] == -1)
+     fsub (rop, rop, q [1]);
+   else if (f.chain [1][4] != 0)
    {
       fmul_si (term, q [1], f.chain [1][4]);
       fadd (rop, rop, term);
@@ -300,7 +312,11 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
          fmul (q [n], q[n], q [f.chain [n][3]]);
          break;
       }
-      if (f.chain [n][4] != 0)
+      if (f.chain [n][4] == 1)
+        fadd (rop, rop, q [n]);
+      else if (f.chain [n][4] == -1)
+        fsub (rop, rop, q [n]);
+      else if (f.chain [n][4] != 0)
       {
 	 fset_prec (term, (mp_prec_t) local_prec);
          fmul_si (term, q [n], f.chain [n][4]);
