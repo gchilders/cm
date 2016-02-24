@@ -176,10 +176,12 @@ void cm_qdev_clear (cm_qdev_t *f)
 /*****************************************************************************/
 
 void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
-   /* evaluates f in q */
+   /* evaluates f in q1 */
 
 {
    mp_prec_t prec;
+   long int  local_prec;
+   double    delta;
    ctype     *q, term;
    int       n, i;
 
@@ -196,24 +198,16 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
       cmul_si (term, q [1], f.chain [1][4]);
       cadd (rop, rop, term);
    }
-   n = 1;
 
-   /* take next power of q into account if result is not precise enough */
-   while (lognormmax (q [n]) > -prec)
+   n = 2;
+   /* Estimate the size of q from its exponent. */
+   delta = - lognormmax (q [1]) - 1;
+   /* Adapt the precision for the next term. */
+   local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
+
+   while (local_prec >= 2)
    {
-      n++;
-      if (n >= f.length)
-      {
-         printf ("*** Houston, we have a problem! Addition chain too short ");
-         printf ("in 'qdev_eval'.\n");
-         printf ("n=%i, length=%i\n", n, f.length);
-         printf ("q "); cout_str (stdout, 10, 10, q [1]);
-         printf ("\n");
-         printf ("q^i "); cout_str (stdout, 10, 10, q [n-1]);
-         printf ("\n");
-         exit (1);
-      }
-      cinit (q [n], prec);
+      cinit (q [n], (mp_prec_t) local_prec);
       switch (f.chain [n][1])
       {
       case 1:
@@ -229,12 +223,28 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
       }
       if (f.chain [n][4] != 0)
       {
+	 cset_prec (term, (mp_prec_t) local_prec);
          cmul_si (term, q [n], f.chain [n][4]);
          cadd (rop, rop, term);
       }
+      n++;
+      if (n >= f.length)
+      {
+         printf ("*** Houston, we have a problem! Addition chain too short ");
+         printf ("in 'qdev_eval'.\n");
+         printf ("n=%i, length=%i\n", n, f.length);
+         printf ("q "); cout_str (stdout, 10, 10, q [1]);
+         printf ("\n");
+         printf ("q^i "); cout_str (stdout, 10, 10, q [n-1]);
+         printf ("\n");
+         exit (1);
+      }
+      /* Estimate the size of q more precisely from the exponent of q^i. */
+      delta = ((double) (- lognormmax (q [n-1]) - 1)) / f.chain [n-1][0];
+      local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
    }
 
-   for (i = 1; i <= n; i++)
+   for (i = 1; i < n; i++)
       cclear (q [i]);
    free (q);
    cclear (term);
@@ -243,41 +253,40 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
 /*****************************************************************************/
 
 void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
-   /* evaluates f in q */
+   /* evaluates f in q1 */
 
 {
    mp_prec_t prec;
+   long int  local_prec;
+   double    delta;
    ftype     *q, term;
    int       n, i;
 
    prec = fget_prec (rop);
 
    q = (ftype *) malloc (f.length * sizeof (ftype));
+   /* Compute a crude approximation of |q|, to determine the number
+      of digits to be subtracted from the precision for each power of q. */
    finit (q [1], prec);
    fset (q [1], q1);
    finit (term, prec);
 
    fset_si (rop, f.chain [0][4]);
-   fmul_si (term, q [1], f.chain [1][4]);
-   fadd (rop, rop, term);
-   n = 1;
-
-   /* take next power of q into account if result is not precise enough */
-   while (fget_exp (term) > -prec)
+   if (f.chain [1][4] != 0)
    {
-      n++;
-      if (n >= f.length)
-      {
-         printf ("*** Houston, we have a problem! Addition chain too short ");
-         printf ("in 'qdev_eval_fr'.\n");
-         printf ("n=%i, length=%i\n", n, f.length);
-         printf ("q "); fout_str (stdout, 10, 0, q [1]);
-         printf ("\n");
-         printf ("q^i "); fout_str (stdout, 10, 0, q [n-1]);
-         printf ("\n");
-         exit (1);
-      }
-      finit (q [n], prec);
+      fmul_si (term, q [1], f.chain [1][4]);
+      fadd (rop, rop, term);
+   }
+
+   n = 2;
+   /* Estimate the size of q from its exponent. */
+   delta = - fget_exp (q [1]) - 1;
+   /* Adapt the precision for the next term. */
+   local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
+
+   while (local_prec >= 2)
+   {
+      finit (q [n], (mp_prec_t) local_prec);
       switch (f.chain [n][1])
       {
       case 1:
@@ -293,15 +302,32 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
       }
       if (f.chain [n][4] != 0)
       {
+	 fset_prec (term, (mp_prec_t) local_prec);
          fmul_si (term, q [n], f.chain [n][4]);
          fadd (rop, rop, term);
       }
+      n++;
+      if (n >= f.length)
+      {
+         printf ("*** Houston, we have a problem! Addition chain too short ");
+         printf ("in 'qdev_eval'.\n");
+         printf ("n=%i, length=%i\n", n, f.length);
+         printf ("q "); fout_str (stdout, 10, 10, q [1]);
+         printf ("\n");
+         printf ("q^i "); fout_str (stdout, 10, 10, q [n-1]);
+         printf ("\n");
+         exit (1);
+      }
+      /* Estimate the size of q more precisely from the exponent of q^i. */
+      delta = ((double) (- fget_exp (q [n-1]) - 1)) / f.chain [n-1][0];
+      local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
    }
 
-   for (i = 1; i <= n; i++)
+   for (i = 1; i < n; i++)
       fclear (q [i]);
    free (q);
    fclear (term);
 }
 
 /*****************************************************************************/
+

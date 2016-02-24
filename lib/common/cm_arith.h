@@ -2,7 +2,7 @@
 
 cm_arith.h - macros for arithmetic kernel
 
-Copyright (C) 2015 Andreas Enge
+Copyright (C) 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define csrcptr            mpc_srcptr
 #define cinit(z,n)         mpc_init2((z),(n))
 #define cclear(z)          mpc_clear((z))
+#define cset_prec(z,n)     mpc_set_prec((z),(n))
 #define cget_prec(z)       mpc_get_prec((z))
 #define crealref(z)        mpc_realref((z))
 #define cimagref(z)        mpc_imagref((z))
@@ -66,6 +67,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define finit(z,n)         mpfr_init2((z),(n))
 #define fclear(z)          mpfr_clear((z))
 #define ffree_cache()      mpfr_free_cache()
+#define fset_prec(z,n)     mpfr_set_prec((z),(n))
 #define fget_prec(z)       mpfr_get_prec((z))
 #define fget_exp(z)        mpfr_get_exp((z))
 #define fget_z_exp(z,x)    mpfr_get_z_exp((z),(x))
