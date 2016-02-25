@@ -128,51 +128,51 @@ void cm_qdev_init (cm_qdev_t *f, fprec_t prec)
    for (n = 0; n < f->length; n++)
       f->chain [n] = (long int *) malloc (5 * sizeof (long int));
 
-   (*f).chain [0][0] = 0;
-   (*f).chain [0][4] = 1;
+   f->chain [0][0] = 0;
+   f->chain [0][4] = 1;
    for (n = 1; n <= f->length / 2; n++)
    {
-      (*f).chain [2*n-1][0] = n*(3*n-1) / 2;
-      (*f).chain [2*n][0] = n*(3*n+1) / 2;
+      f->chain [2*n-1][0] = n*(3*n-1) / 2;
+      f->chain [2*n][0] = n*(3*n+1) / 2;
       if (n % 2 == 0)
       {
-         (*f).chain [2*n-1][4] = 1;
-         (*f).chain [2*n][4] = 1;
+         f->chain [2*n-1][4] = 1;
+         f->chain [2*n][4] = 1;
       }
       else
       {
-         (*f).chain [2*n-1][4] = -1;
-         (*f).chain [2*n][4] = -1;
+         f->chain [2*n-1][4] = -1;
+         f->chain [2*n][4] = -1;
       }
    }
 
-   (*f).chain [0][1] = 0;
-   (*f).chain [1][1] = 0;
+   f->chain [0][1] = 0;
+   f->chain [1][1] = 0;
    for (n = 2; n < f->length; n++)
    {
-      (*f).chain [n][1] = 0;
+      f->chain [n][1] = 0;
       /* try to express an even exponent as twice a previous one      */
-      if ((*f).chain [n][0] % 2 == 0)
-         if (find_in_chain (&i, *f, n, (*f).chain [n][0] / 2))
+      if (f->chain [n][0] % 2 == 0)
+         if (find_in_chain (&i, *f, n, f->chain [n][0] / 2))
             {
-               (*f).chain [n][1] = 1;
-               (*f).chain [n][2] = i;
+               f->chain [n][1] = 1;
+               f->chain [n][2] = i;
             }
       /* try to express the exponent as the sum of two previous ones */
-      for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
-         if (find_in_chain (&j, *f, n, (*f).chain [n][0] - (*f).chain [i][0]))
+      for (i = 0; i < n && f->chain [n][1] == 0; i++)
+         if (find_in_chain (&j, *f, n, f->chain [n][0] - f->chain [i][0]))
             {
-               (*f).chain [n][1] = 2;
-               (*f).chain [n][2] = i;
-               (*f).chain [n][3] = j;
+               f->chain [n][1] = 2;
+               f->chain [n][2] = i;
+               f->chain [n][3] = j;
             }
       /* try to express the exponent as twice a previous plus a third one */
-      for (i = 0; i < n && (*f).chain [n][1] == 0; i++)
-         if (find_in_chain (&j, *f, n, (*f).chain [n][0] - 2 * (*f).chain [i][0]))
+      for (i = 0; i < n && f->chain [n][1] == 0; i++)
+         if (find_in_chain (&j, *f, n, f->chain [n][0] - 2 * f->chain [i][0]))
       {
-         (*f).chain [n][1] = 3;
-         (*f).chain [n][2] = i;
-         (*f).chain [n][3] = j;
+         f->chain [n][1] = 3;
+         f->chain [n][2] = i;
+         f->chain [n][3] = j;
       }
       /* This covers all cases for eta, see Enge-Johansson 2016. */
    }
