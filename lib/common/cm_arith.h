@@ -72,6 +72,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define fget_exp(z)        mpfr_get_exp((z))
 #define fget_z_exp(z,x)    mpfr_get_z_exp((z),(x))
 #define fget_si(z)         mpfr_get_si((z),MPFR_RNDN)
+#define fget_d_2exp(n,z)   mpfr_get_d_2exp((n),(z),MPFR_RNDN)
 #define fget_emin()        mpfr_get_emin()
 #define fzero_p(z)         mpfr_zero_p((z))
 #define fsgn(z)            mpfr_sgn((z))

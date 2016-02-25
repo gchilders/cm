@@ -23,10 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm_common-impl.h"
 
-#define MAX(a,b) ((a > b ? a : b))
-
 static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no);
-static long int lognormmax (ctype op);
+static double lognorm2 (ctype op);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -69,21 +67,40 @@ static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no)
 
 /*****************************************************************************/
 
-static long int lognormmax (ctype op)
-   /* computes the logarithm in base 2 (as the exponent of the value) of the */
-   /* max norm of op                                                         */
+static double lognorm2 (ctype op)
+   /* computes the logarithm in base 2 of the complex norm of op */
 
 {
-   if (fsgn (op->re) == 0)
-      if (fsgn (op->im) == 0)
-         return fget_emin ();
-      else
-         return (fget_exp (op->im));
-   else
-      if (fsgn (op->im) == 0)
-         return (fget_exp (op->re));
-      else
-         return MAX(fget_exp (op->re), fget_exp (op->im));
+   double   re, im;
+   long int ere, eim, diff;
+
+   /* Just extracting a double may overflow, so treat the exponents
+      separately. */
+   re = fget_d_2exp (&ere, crealref (op));
+   im = fget_d_2exp (&eim, cimagref (op));
+
+   /* Handle the case of 0 in one part separately, as it may be coupled
+      with another very small exponent; then normalising for the larger
+      exponent yields 0 and a problem with the logarithm. */
+   if (re == 0)
+      return (eim + log2 (fabs (im)));
+   else if (im == 0)
+      return (ere + log2 (fabs (re)));
+
+   /* Normalise to keep the larger exponent; the smaller one may underflow,
+      then the number becomes a harmless 0. */
+   if (ere > eim) {
+      diff = ere - eim;
+      eim = ere;
+      im /= (1ul << diff);
+   }
+   else {
+      diff = eim - ere;
+      ere = eim;
+      re /= (1ul << diff);
+   }
+
+   return (ere + log2 (re*re + im*im) / 2);
 }
 
 /*****************************************************************************/
@@ -186,6 +203,7 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    int       n, i;
 
    prec = fget_prec (rop->re);
+   delta = - lognorm2 (q1);
 
    q = (ctype *) malloc (f.length * sizeof (ctype));
    cinit (q [1], prec);
@@ -206,10 +224,8 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    }
 
    n = 2;
-   /* Estimate the size of q from its exponent. */
-   delta = - lognormmax (q [1]) - 1;
    /* Adapt the precision for the next term. */
-   local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
+   local_prec = (long int) prec - (long int) (f.chain [n][0] * delta);
 
    while (local_prec >= 2)
    {
@@ -260,9 +276,7 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
          printf ("\n");
          exit (1);
       }
-      /* Estimate the size of q more precisely from the exponent of q^i. */
-      delta = ((double) (- lognormmax (q [n-1]) - 1)) / f.chain [n-1][0];
-      local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
+      local_prec = (long int) prec - (long int) (f.chain [n][0] * delta);
    }
 
    for (i = 1; i < n; i++)
@@ -280,16 +294,16 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
 
 {
    mp_prec_t prec;
-   long int  local_prec;
-   double    delta;
+   long int  local_prec, e;
+   double    mantissa, delta;
    ftype     *q, term;
    int       n, i;
 
    prec = fget_prec (rop);
+   mantissa = fget_d_2exp (&e, q1);
+   delta = - (e + log2 (fabs (mantissa)));
 
    q = (ftype *) malloc (f.length * sizeof (ftype));
-   /* Compute a crude approximation of |q|, to determine the number
-      of digits to be subtracted from the precision for each power of q. */
    finit (q [1], prec);
    fset (q [1], q1);
    finit (term, prec);
@@ -306,10 +320,8 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
    }
 
    n = 2;
-   /* Estimate the size of q from its exponent. */
-   delta = - fget_exp (q [1]) - 1;
    /* Adapt the precision for the next term. */
-   local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
+   local_prec = (long int) prec - (long int) (f.chain [n][0] * delta);
 
    while (local_prec >= 2)
    {
@@ -341,7 +353,7 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
       if (n >= f.length)
       {
          printf ("*** Houston, we have a problem! Addition chain too short ");
-         printf ("in 'qdev_eval'.\n");
+         printf ("in 'qdev_eval_fr'.\n");
          printf ("n=%i, length=%i\n", n, f.length);
          printf ("q "); fout_str (stdout, 10, 10, q [1]);
          printf ("\n");
@@ -349,9 +361,7 @@ void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1)
          printf ("\n");
          exit (1);
       }
-      /* Estimate the size of q more precisely from the exponent of q^i. */
-      delta = ((double) (- fget_exp (q [n-1]) - 1)) / f.chain [n-1][0];
-      local_prec = (long int) prec - (long int) f.chain [n][0] * delta;
+      local_prec = (long int) prec - (long int) (f.chain [n][0] * delta);
    }
 
    for (i = 1; i < n; i++)
