@@ -71,7 +71,7 @@ typedef struct {
       /*          meaning:                                                   */
       /*          1: 2*i1                                                    */
       /*          2: i1 + i2                                                 */
-      /*          3: 2*(i1 + i2)                                             */
+      /*          3: 2*i1 + i2                                             */
       /* entries 2 to 3: the indices i1 and i2 yielding this exponent        */
       /* entry 4: the coefficient with which the term contributes to the     */
       /*          function (0 if it is only used as an auxiliary term)       */

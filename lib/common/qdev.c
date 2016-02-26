@@ -25,10 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no);
 static double lognorm2 (ctype op);
+static void qdev_eval_addition_sequence (ctype rop, cm_qdev_t f, ctype q1,
+   double delta, int N);
 
 /*****************************************************************************/
 /*                                                                           */
-/* internal functions                                                        */
+/* helper functions                                                          */
 /*                                                                           */
 /*****************************************************************************/
 
@@ -192,18 +194,20 @@ void cm_qdev_clear (cm_qdev_t *f)
 
 /*****************************************************************************/
 
-void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
-   /* evaluates f in q1 */
+static void qdev_eval_addition_sequence (ctype rop, cm_qdev_t f, ctype q1,
+   double delta, int N)
+   /* Evaluate f in q1 using the optimised addition sequence from f.
+      N is the last index used in the addition chain.
+      delta is the number of bits gained with each power of q.
+      rop and q1 may be the same. */
 
 {
    mp_prec_t prec;
    long int  local_prec;
-   double    delta;
    ctype     *q, term, tmp1, tmp2;
    int       n, i;
 
-   prec = fget_prec (rop->re);
-   delta = - lognorm2 (q1);
+   prec = fget_prec (crealref (rop));
 
    q = (ctype *) malloc (f.length * sizeof (ctype));
    cinit (q [1], prec);
@@ -223,15 +227,10 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
       cadd (rop, rop, term);
    }
 
-   n = 2;
-   /* Adapt the precision for the next term. */
-   local_prec = (long int) prec - (long int) (f.chain [n][0] * delta);
-
-   while (local_prec >= 2)
-   {
+   for (n = 2; n <= N; n++) {
+      local_prec = (long int) prec - (long int) (f.chain [n][0] * delta);
       cinit (q [n], (mp_prec_t) local_prec);
-      switch (f.chain [n][1])
-      {
+      switch (f.chain [n][1]) {
       case 1:
          /* Reduce the precision of the argument to save some more time. */
          cset_prec (tmp1, local_prec);
@@ -258,25 +257,11 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
         cadd (rop, rop, q [n]);
       else if (f.chain [n][4] == -1)
         csub (rop, rop, q [n]);
-      else if (f.chain [n][4] != 0)
-      {
+      else if (f.chain [n][4] != 0) {
 	 cset_prec (term, (mp_prec_t) local_prec);
          cmul_si (term, q [n], f.chain [n][4]);
          cadd (rop, rop, term);
       }
-      n++;
-      if (n >= f.length)
-      {
-         printf ("*** Houston, we have a problem! Addition chain too short ");
-         printf ("in 'qdev_eval'.\n");
-         printf ("n=%i, length=%i\n", n, f.length);
-         printf ("q "); cout_str (stdout, 10, 10, q [1]);
-         printf ("\n");
-         printf ("q^i "); cout_str (stdout, 10, 10, q [n-1]);
-         printf ("\n");
-         exit (1);
-      }
-      local_prec = (long int) prec - (long int) (f.chain [n][0] * delta);
    }
 
    for (i = 1; i < n; i++)
@@ -285,6 +270,34 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    cclear (term);
    cclear (tmp1);
    cclear (tmp2);
+}
+
+/*****************************************************************************/
+
+void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
+   /* Evaluate f in q1. rop and q1 may be the same. */
+
+{
+   mp_prec_t prec;
+   double    delta;
+   long int T;
+   int N;
+
+   /* Compute the last exponent T and its index N in f.chain. */
+   prec = fget_prec (crealref (rop));
+   delta = - lognorm2 (q1);
+   T = (prec - 2) / delta;
+   for (N=0; N < f.length && f.chain [N][0] <= T; N++);
+   if (N == f.length) {
+      printf ("*** Houston, we have a problem! Addition chain too short ");
+      printf ("in 'cm_qdev_eval'.\n");
+      printf ("T=%li, length=%i\n", T, f.length);
+      exit (1);
+   }
+   N--;
+   T = f.chain [N][0];
+
+   qdev_eval_addition_sequence (rop, f, q1, delta, N);
 }
 
 /*****************************************************************************/
