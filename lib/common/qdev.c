@@ -27,11 +27,11 @@ static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no);
 static double lognorm2 (ctype op);
 static void qdev_eval_addition_sequence (ctype rop, cm_qdev_t f, ctype q1,
    double delta, int N);
+static int dense_addition_sequence (long int ** b, int m);
+static int minimal_dense_addition_sequence (long int ** b, int m);
+static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
+   double delta, int N);
 
-/*****************************************************************************/
-/*                                                                           */
-/* helper functions                                                          */
-/*                                                                           */
 /*****************************************************************************/
 
 static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no)
@@ -105,10 +105,6 @@ static double lognorm2 (ctype op)
    return (ere + log2 (re*re + im*im) / 2);
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/* external functions                                                        */
-/*                                                                           */
 /*****************************************************************************/
 
 void cm_qdev_init (cm_qdev_t *f, fprec_t prec)
@@ -274,6 +270,276 @@ static void qdev_eval_addition_sequence (ctype rop, cm_qdev_t f, ctype q1,
 
 /*****************************************************************************/
 
+static int dense_addition_sequence (long int ** b, int m)
+   /* Compute an addition sequence for b and return it via b itself.
+      The return value is the number of additional entries.
+      b is a matrix of m+1 rows and (at least) 2 columns; the row i
+      represents the exponent i. Initially, b [i][0] is expected to be 1
+      if the exponent i occurs, 0 otherwise
+      During the course of the algorithm, new elements are added;
+      these are marked by a 2 in b [i][0].
+      b [i][1] is set to j if the exponent occurs and can be written as
+        j+(i-j) with also occurring exponents j and i-j.
+      The algorithm prefers doublings over other additions. */
+{
+   int i, j, found, added;
+
+   added = 0;
+   for (i = m; i >= 2; i--)
+      if (b [i][0] != 0) {
+         found = 0;
+         /* Search for two existing entries adding to i. */
+         for (j = i / 2; j >= 1 && !found; j--)
+            /* In this way, a doubling is found if it exists. */
+            if (b [j][0] != 0 && b [i-j][0] != 0) {
+               b [i][1] = j;
+               found = 1;
+            }
+         if (!found) {
+            /* Add missing elements. The middle strategy seems to give the
+               best performance; when minimising additionally, all three
+               have a very similar outcome. */
+#if 0
+            /* First strategy: Add floor (i/2) and ceil (i/2). */
+            j = i/2;
+#endif
+#if 1
+            /* Second strategy:
+               If i is even, add i/2.
+               Otherwise, the previous strategy would add two numbers.
+               Instead, add i-j for the largest occurring j less than i. */
+            if (i % 2 == 0)
+               j = i / 2;
+            else
+               for (j = i-1; b [j][0] == 0; j--);
+#endif
+#if 0
+            /* Third strategy: As the second one, but for odd i, add
+               an even i-j for the largest possible j; at the latest, this
+               happens for i-j=1. */
+            if (i % 2 == 0)
+               j = i / 2;
+            else
+               for (j = i-1; j % 2 == 0 || b [j][0] == 0; j--);
+#endif
+            b [i][1] = j;
+            if (b [j][0] == 0) {
+               b [j][0] = 2;
+               added++;
+            }
+            if (b [i-j][0] == 0) {
+               b [i-j][0] = 2;
+               added++;
+            }
+         }
+      }
+
+   return (added);
+}
+
+/*****************************************************************************/
+
+static int minimal_dense_addition_sequence (long int ** b, int m)
+   /* The parameters are the same as for dense_addition_sequence,
+      except that b has three columns: b [i][2] is set to the desired
+      precision if the exponent i occurs.
+      The function returns an addition sequence that is minimal in the sense
+      that none of the added entries may be removed (which does not mean that
+      it is optimal!).
+      Also, if possible it replaces remaining general additions by doublings
+      (the addition sequence computation already privileges doublings, but
+      these may become possible only later using added terms).
+      The precision is also tracked, when writing an element as a sum of two
+      smaller ones, then the precision of the smaller elements may need to be
+      increased to that of the target. */
+{
+   int added, new_added, changed, i, j;
+   long int **bnew;
+
+   added = dense_addition_sequence (b, m);
+   /* We need to work on a copy, since the computation of addition sequences
+      via side effects destroys the previously computed sequence. It may
+      happen that when removing one of the additional terms, three new ones
+      are added in a run! Then we need to simply throw away the new
+      sequence. */
+   bnew = (long int **) malloc ((m + 1) * sizeof (long int *));
+      for (i = 0; i <= m; i++)
+         bnew [i] = (long *) malloc (2 * sizeof (long));
+
+   /* This additional loop does not seem to be needed in practice. */
+   changed = 1;
+   while (changed) {
+      changed = 0;
+      /* Check if any of the added entries may be removed again. */
+      for (i = m; i >= 2; i--)
+         if (b [i][0] == 2) {
+            /* Work on a copy of b with this element cancelled. */
+            for (j = 0; j <= m; j++) {
+               bnew [j][0] = b [j][0];
+               bnew [j][1] = 0;
+            }
+            bnew [i][0] = 0;
+            new_added = dense_addition_sequence (bnew, m);
+            if (new_added == 0) {
+               /* Copy the new addition sequence back. */
+               for (j = 0; j <= m; j++) {
+                  b [j][0] = bnew [j][0];
+                  b [j][1] = bnew [j][1];
+               }
+               added--;
+               changed = 1;
+            }
+         }
+   }
+
+   /* Look for doublings. */
+   for (i = 4; i <= m; i += 2)
+      if (b [i][0] != 0 && b [i/2][0] != 0)
+         b [i][1] = i/2;
+
+   /* Track the precision. */
+   for (i = m; i >= 2; i--)
+      if (b [i][0] != 0) {
+         j = b [i][1];
+         if (b [i][2] > b [j][2])
+            b [j][2] = b [i][2];
+         if (b [i][2] > b [i-j][2])
+            b [i-j][2] = b [i][2];
+      }
+
+   for (i = 0; i <= m; i++)
+      free (bnew [i]);
+   free (bnew);
+
+   return (added);
+}
+
+/*****************************************************************************/
+
+static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
+   double delta, int N)
+   /* Evaluate f in q1 using the optimised addition sequence from f.
+      N is the last index used in the addition chain.
+      delta is the number of bits gained with each power of q.
+      rop and q1 may be the same. */
+{
+   mp_prec_t prec;
+   int mopt [37] = { 2, 5, 7, 11, 13, 17, 19, 23, 55, 65, 77,
+      91, 119, 133, 143, 175, 275, 325, 455, 595, 665, 715, 935, 1001,
+      1309, 1463, 1547, 1729, 2275, 2975, 3325, 3575, 4675,
+      6545, 7315, 7735, 8645 };
+   int p [37] = { 2, 3, 4, 6, 7, 9, 10, 12, 18, 21, 24,
+      28, 36, 40, 42, 44, 66, 77, 84, 108, 120, 126, 162, 168,
+      216, 240, 252, 280, 308, 396, 440, 462, 594,
+      648, 720, 756, 840 };
+   long int T, cost, cost_new;
+   int m, index;
+   long int **bs;
+   mpc_t *q, *c;
+   int i, j, k, J;
+
+   prec = fget_prec (crealref (rop));
+   T = f.chain [N][0];
+   /* Find the optimal m=mopt[i] minimising the theoretical cost function
+      (roughly, T/mopt[i] + p[i]). The function seems to be unimodular,
+      so we take the smallest i before it increases again. */
+   i = 0;
+   cost_new = (T + mopt [0]) / mopt[0] + p[0] - 1;
+   do {
+      cost = cost_new;
+      i++;
+      cost_new = (T + mopt[i]) / mopt[i] + p[i] - 1;
+   } while (cost_new < cost && i < 36);
+   if (i == 36 && cost_new < cost) {
+      printf ("*** Houston, we have a problem!\n");
+      printf ("mopt and p too short in 'qdev_eval_bsgs'.\n");
+      exit (1);
+   }
+   else
+      m = mopt [i-1];
+
+   /* Determine the occurring baby-steps; in practice, these are as
+      many as predicted by p. Also keep track of their required precision. */
+   bs = (long int **) malloc ((m + 1) * sizeof (long int *));
+   for (i = 0; i <= m; i++) {
+      bs [i] = (long *) malloc (3 * sizeof (long));
+      for (j = 0; j < 3; j++)
+         bs [i][j] = 0;
+   }
+   for (i = 0; i <= N; i++) {
+      index = f.chain [i][0] % m;
+      /* Register the precision needed for the term with lowest exponent
+         and not later ones. */
+      if (bs [index][0] == 0) {
+         bs [index][0] = 1;
+         bs [index][2] = (long int) prec
+                         - (long int) (f.chain [i][0] * delta);
+      }
+   }
+   bs [m][0] = 1; /* for the giant steps */
+   bs [m][2] = (long int) prec - (long int) (m * delta);
+   minimal_dense_addition_sequence (bs, m);
+
+   /* Compute the baby-steps. */
+   /* FIXME: Do not use full precision. */
+   q = (mpc_t *) malloc ((m + 1) * sizeof (mpc_t));
+   cinit (q [0], 2);
+   cset_ui (q [0], 1);
+   cinit (q [1], prec);
+   cset (q [1], q1);
+   for (i = 2; i <= m; i++)
+      if (bs [i][0] != 0) {
+         cinit (q [i], prec);
+         j = bs [i][1];
+         k = i - j;
+         if (j == k)
+            csqr (q [i], q [j]);
+         else
+            cmul (q [i], q [j], q [k]);
+      }
+
+   /* Compute the giant steps; we need
+      \sum_{j=0}^{J-1} (\sum_{k=0}^{m-1} c_{k+j*m} q^k) (q^m)^j.
+      First compute the inner coefficients, then use a Horner scheme. */
+   /* FIXME: Do not use full precision. */
+   J = f.chain [N][0] / m + 1;
+   c = (mpc_t *) malloc (J * sizeof (mpc_t));
+   for (j = 0; j < J; j++) {
+      cinit (c [j], prec);
+      cset_ui (c [j], 0);
+   }
+//printf ("m %i  J %i  N %i  e %li  l %i\n", m, j, N, f.chain [N][0], f.length);
+   for (i = 0; i <= N; i++)
+      if (f.chain [i][4] != 0) {
+         j = f.chain [i][0] / m;
+         k = f.chain [i][0] % m; 
+//printf ("i %i  e %li  j %i  k %i\n", i, f.chain [i][0], j, k);
+         /* We assume the coefficients are 1 or -1. */
+         if (f.chain [i][4] == 1)
+            cadd (c [j], c[j], q [k]);
+         else
+            csub (c [j], c[j], q [k]);
+      }
+   cset (rop, c [J-1]);
+   for (j = J-2; j >= 0; j--) {
+      cmul (rop, rop, q [m]);
+      cadd (rop, rop, c [j]);
+   }
+
+   for (i = 0; i <= m; i++) {
+      if (bs [i][0] != 0)
+         cclear (q [i]);
+      free (bs [i]);
+   }
+   for (j = 0; j < J; j++)
+      cclear (c [j]);
+   free (bs);
+   free (q);
+   free (c);
+}
+
+/*****************************************************************************/
+
 void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    /* Evaluate f in q1. rop and q1 may be the same. */
 
@@ -297,7 +563,10 @@ void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1)
    N--;
    T = f.chain [N][0];
 
-   qdev_eval_addition_sequence (rop, f, q1, delta, N);
+   if (N < 20)
+      qdev_eval_addition_sequence (rop, f, q1, delta, N);
+   else
+      qdev_eval_bsgs (rop, f, q1, delta, N);
 }
 
 /*****************************************************************************/
