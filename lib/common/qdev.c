@@ -423,7 +423,7 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
       delta is the number of bits gained with each power of q.
       rop and q1 may be the same. */
 {
-   mp_prec_t prec;
+   mp_prec_t prec, local_prec;
    int mopt [37] = { 2, 5, 7, 11, 13, 17, 19, 23, 55, 65, 77,
       91, 119, 133, 143, 175, 275, 325, 455, 595, 665, 715, 935, 1001,
       1309, 1463, 1547, 1729, 2275, 2975, 3325, 3575, 4675,
@@ -435,10 +435,13 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
    long int T, cost, cost_new;
    int m, index;
    long int **bs;
-   mpc_t *q, *c;
+   mpc_t *q, *c, tmp1, tmp2, tmp3;
    int i, j, k, J;
 
    prec = fget_prec (crealref (rop));
+   cinit (tmp1, prec);
+   cinit (tmp2, prec);
+   cinit (tmp3, prec);
    T = f.chain [N][0];
    /* Find the optimal m=mopt[i] minimising the theoretical cost function
       (roughly, T/mopt[i] + p[i]). The function seems to be unimodular,
@@ -481,17 +484,19 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
    minimal_dense_addition_sequence (bs, m);
 
    /* Compute the baby-steps. */
-   /* FIXME: Do not use full precision. */
    q = (mpc_t *) malloc ((m + 1) * sizeof (mpc_t));
    cinit (q [0], 2);
    cset_ui (q [0], 1);
-   cinit (q [1], prec);
+   cinit (q [1], bs [1][2]);
    cset (q [1], q1);
    for (i = 2; i <= m; i++)
       if (bs [i][0] != 0) {
-         cinit (q [i], prec);
+         cinit (q [i], bs [i][2]);
          j = bs [i][1];
          k = i - j;
+         /* Here decreasing the argument precision to the target precision
+            apparently does not gain time; both are probably too close for
+            it to make a difference. */
          if (j == k)
             csqr (q [i], q [j]);
          else
@@ -501,19 +506,17 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
    /* Compute the giant steps; we need
       \sum_{j=0}^{J-1} (\sum_{k=0}^{m-1} c_{k+j*m} q^k) (q^m)^j.
       First compute the inner coefficients, then use a Horner scheme. */
-   /* FIXME: Do not use full precision. */
    J = f.chain [N][0] / m + 1;
    c = (mpc_t *) malloc (J * sizeof (mpc_t));
    for (j = 0; j < J; j++) {
-      cinit (c [j], prec);
+      local_prec = prec - (mp_prec_t) (j * m * delta);
+      cinit (c [j], local_prec);
       cset_ui (c [j], 0);
    }
-//printf ("m %i  J %i  N %i  e %li  l %i\n", m, j, N, f.chain [N][0], f.length);
    for (i = 0; i <= N; i++)
       if (f.chain [i][4] != 0) {
          j = f.chain [i][0] / m;
          k = f.chain [i][0] % m; 
-//printf ("i %i  e %li  j %i  k %i\n", i, f.chain [i][0], j, k);
          /* We assume the coefficients are 1 or -1. */
          if (f.chain [i][4] == 1)
             cadd (c [j], c[j], q [k]);
@@ -522,8 +525,15 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
       }
    cset (rop, c [J-1]);
    for (j = J-2; j >= 0; j--) {
-      cmul (rop, rop, q [m]);
-      cadd (rop, rop, c [j]);
+      /* Carry out the multiplication at the precision of c [j+1]. */
+      local_prec = prec - (mp_prec_t) ((j+1) * m * delta);
+      cset_prec (tmp1, local_prec);
+      cset_prec (tmp2, local_prec);
+      cset_prec (tmp3, local_prec);
+      cset (tmp1, rop);
+      cset (tmp2, q [m]);
+      cmul (tmp3, tmp1, tmp2);
+      cadd (rop, tmp3, c [j]);
    }
 
    for (i = 0; i <= m; i++) {
@@ -536,6 +546,9 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
    free (bs);
    free (q);
    free (c);
+   cclear (tmp1);
+   cclear (tmp2);
+   cclear (tmp3);
 }
 
 /*****************************************************************************/
