@@ -2,7 +2,7 @@
 
 class.c - code for computing class polynomials
 
-Copyright (C) 2009, 2010, 2011, 2012, 2015 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -737,11 +737,15 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
       switch (c->invariant) {
          case CM_INVARIANT_J:
             b0 = c->d % 2;
-            N = 1;
+            /* An even N makes c even if 2 is split so that during the
+               evaluation of eta(z/2) for f1 all forms can be taken from
+               the precomputed ones. */
+            N = 2;
             break;
          case CM_INVARIANT_GAMMA2:
             b0 = 3 * (c->d % 2);
-            N = 3;
+            /* Use an even N as for j. */
+            N = 6;
             break;
          case CM_INVARIANT_GAMMA3:
             b0 = 1;
