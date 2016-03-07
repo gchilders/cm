@@ -2,7 +2,7 @@
 
 tcm.c - tests for cm
 
-Copyright (C) 2009, 2010, 2011, 2012 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -85,7 +85,10 @@ static void big_test (void)
    test_curve ((int_cl_t) (-16), CM_INVARIANT_J, false);
 
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_J, false);
+   test_curve ((int_cl_t) (-108707), CM_INVARIANT_J, false);
+   test_curve ((int_cl_t) (-108703), CM_INVARIANT_J, false);
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_GAMMA2, false);
+   test_curve ((int_cl_t) (-108703), CM_INVARIANT_GAMMA2, false);
    test_curve ((int_cl_t) (-108711), CM_INVARIANT_GAMMA3, false);
    test_curve ((int_cl_t) (-108708), CM_INVARIANT_ATKIN, false); /* p=71 */
    test_curve ((int_cl_t) (-108707), CM_INVARIANT_ATKIN, false); /* p=47 */
