@@ -2,7 +2,7 @@
 
 modular.c - code for evaluating modular functions in floating point arguments
 
-Copyright (C) 2009, 2010, 2015 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -224,37 +224,49 @@ void cm_modular_eta_transform (cm_modular_t m, ctype rop, ctype z,
 
 {
    long int c1, zeta_exp, lambda;
-   int a = M.a % 48, b = M.b % 24, c = M.c % 24, d = M.d % 24;
-      /* If we do not reduce, then there might be an overflow in zeta_exp.  */
-      /* M.a is reduced modulo 48 since the formula contains (M.a*M.a-1)/2. */
+   int a, b, c, d;
 
-   /* eta (M z) = epsilon (M) sqrt (Mc z + Md) eta (z). */
-   if (M.c == 0) {
-      c1 = 1;
-      lambda = 1;
-   }
+   /* Check the case that M is the identity matrix, which happens quite
+      often (particularly for j). */
+   if (M.a == 1 && M.b == 0 && M.c == 0 && M.d == 1)
+      cset_ui (rop, 1);
    else {
-      c1 = M.c;
-      lambda = 0;
-      while (c1 % 2 == 0) {
-         c1 /= 2;
-         lambda++;
+      /* Reduce the coefficients for the computation of zeta_exp to avoid
+         an overflow.
+         M.a is reduced modulo 48 since the formula contains (M.a*M.a-1)/2. */
+      a = M.a % 48;
+      b = M.b % 24;
+      c = M.c % 24;
+      d = M.d % 24;
+
+      /* eta (M z) = zeta_24^zeta_exp (M) * sqrt (Mc z + Md) * eta (z). */
+      if (M.c == 0) {
+         c1 = 1;
+         lambda = 1;
       }
+      else {
+         c1 = M.c;
+         lambda = 0;
+         while (c1 % 2 == 0) {
+            c1 /= 2;
+            lambda++;
+         }
+      }
+      zeta_exp = a * b + c * (d * (1 - a*a) - a) + 3 * (c1 % 8) * (a - 1)
+            + (3 * lambda * (a*a - 1)) / 2;
+      if (cm_nt_kronecker (M.a, c1) == -1)
+         zeta_exp += 12;
+      zeta_exp %= 24;
+      if (zeta_exp < 0)
+         zeta_exp += 24;
+
+      /* Compute sqrt (M.c * z + M.d). */
+      cmul_si (rop, z, M.c);
+      cadd_si (rop, rop, M.d);
+      csqrt (rop, rop);
+
+      cmul (rop, rop, m.zeta24 [zeta_exp]);
    }
-   zeta_exp = a * b + c * (d * (1 - a*a) - a) + 3 * (c1 % 8) * (a - 1)
-         + (3 * lambda * (a*a - 1)) / 2;
-   if (cm_nt_kronecker (M.a, c1) == -1)
-      zeta_exp += 12;
-   zeta_exp %= 24;
-   if (zeta_exp < 0)
-      zeta_exp += 24;
-
-   /* compute sqrt (M.c * z + M.d) */
-   cmul_si (rop, z, M.c);
-   cadd_si (rop, rop, M.d);
-   csqrt (rop, rop);
-
-   cmul (rop, rop, m.zeta24 [zeta_exp]);
 }
 
 /*****************************************************************************/
