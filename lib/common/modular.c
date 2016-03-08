@@ -217,19 +217,28 @@ void cm_modular_clear (cm_modular_t *m)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_modular_eta_transform (cm_modular_t m, ctype rop, ctype z,
-     cm_matrix_t M)
-   /* computes the value of eta (M z) / eta (z), where M is assumed to be    */
-   /* normalised                                                             */
+int cm_modular_eta_transform (long int *e, ctype czplusd, ctype z,
+   cm_matrix_t M)
+   /* Compute the transformation between eta (Mz) and eta (z), that is,
+      the exponent e and the value c z + d such that
+      eta (Mz) = zeta_24^e * sqrt (c z + d) * eta (z).
+      A previous version computed the complex value eta (Mz) / eta (z);
+      but for quotients of powers of eta functions, it may be more
+      efficient to handle all transformation values together.
+      The return value is 0 if M is the identity matrix and 1 otherwise
+      so that the transformation quotient is different from 1. */
 
 {
-   long int c1, zeta_exp, lambda;
+   long int c1, lambda;
    int a, b, c, d;
 
    /* Check the case that M is the identity matrix, which happens quite
       often (particularly for j). */
-   if (M.a == 1 && M.b == 0 && M.c == 0 && M.d == 1)
-      cset_ui (rop, 1);
+   if (M.a == 1 && M.b == 0 && M.c == 0 && M.d == 1) {
+      *e = 0;
+      cset_ui (czplusd, 1);
+      return (0);
+   }
    else {
       /* Reduce the coefficients for the computation of zeta_exp to avoid
          an overflow.
@@ -239,7 +248,7 @@ void cm_modular_eta_transform (cm_modular_t m, ctype rop, ctype z,
       c = M.c % 24;
       d = M.d % 24;
 
-      /* eta (M z) = zeta_24^zeta_exp (M) * sqrt (Mc z + Md) * eta (z). */
+      /* Compute the exponent. */
       if (M.c == 0) {
          c1 = 1;
          lambda = 1;
@@ -252,20 +261,19 @@ void cm_modular_eta_transform (cm_modular_t m, ctype rop, ctype z,
             lambda++;
          }
       }
-      zeta_exp = a * b + c * (d * (1 - a*a) - a) + 3 * (c1 % 8) * (a - 1)
+      *e = a * b + c * (d * (1 - a*a) - a) + 3 * (c1 % 8) * (a - 1)
             + (3 * lambda * (a*a - 1)) / 2;
       if (cm_nt_kronecker (M.a, c1) == -1)
-         zeta_exp += 12;
-      zeta_exp %= 24;
-      if (zeta_exp < 0)
-         zeta_exp += 24;
+         *e += 12;
+      *e %= 24;
+      if (*e < 0)
+         *e += 24;
 
-      /* Compute sqrt (M.c * z + M.d). */
-      cmul_si (rop, z, M.c);
-      cadd_si (rop, rop, M.d);
-      csqrt (rop, rop);
+      /* Compute M.c * z + M.d. */
+      cmul_si (czplusd, z, M.c);
+      cadd_si (czplusd, czplusd, M.d);
 
-      cmul (rop, rop, m.zeta24 [zeta_exp]);
+      return (1);
    }
 }
 
@@ -298,9 +306,9 @@ void cm_modular_eta_series (cm_modular_t m, ctype rop, ctype q_24)
 /*****************************************************************************/
 
 void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24)
-      /* evaluates the power series for eta with q_24 standing for the 24th     */
-      /* root of q; uses an automatically optimised addition chain.             */
-      /* All computations are carried out with the precision of rop.            */
+   /* evaluates the power series for eta with q_24 standing for the 24th     */
+   /* root of q; uses an automatically optimised addition chain.             */
+   /* All computations are carried out with the precision of rop.            */
 
 {
    ftype factor;
@@ -321,6 +329,8 @@ void cm_modular_eta_eval (cm_modular_t m, ctype rop, ctype op)
 
 {
    cm_matrix_t M;
+   long int e;
+   int transformed;
 
    ctype q24, op_local;
    /* Trick: The transformation into the fundamental domain is carried out   */
@@ -332,7 +342,12 @@ void cm_modular_eta_eval (cm_modular_t m, ctype rop, ctype op)
 
    cset (op_local, op);
    modular_fundamental_domain_matrix (op_local, &M);
-   cm_modular_eta_transform (m, rop, op_local, M);
+   transformed = cm_modular_eta_transform (&e, rop, op_local, M);
+   /* Now rop contains cz+d. */
+   if (transformed) {
+      csqrt (rop, rop);
+      cmul (rop, rop, m.zeta24 [e]);
+   }
    /* workaround to efficiently handle almost real arguments; here, cexp  */
    /* cannot be improved, since the almost zero imaginary part does have an  */
    /* influence on the imaginary part of the result.                         */

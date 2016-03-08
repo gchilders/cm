@@ -134,7 +134,7 @@ extern bool cm_nt_fget_z (mpz_t out, ftype in);
 extern void cm_modular_fundamental_domain (cptr z);
 extern void cm_modular_init (cm_modular_t *m, fprec_t prec);
 extern void cm_modular_clear (cm_modular_t *m);
-extern void cm_modular_eta_transform (cm_modular_t m, ctype rop, ctype z,
+extern int cm_modular_eta_transform (long int *e, ctype czplusd, ctype z,
    cm_matrix_t M);
 extern void cm_modular_eta_series (cm_modular_t m, ctype rop, ctype q_24);
 extern void cm_modular_eta_eval (cm_modular_t m, ctype rop, ctype op);

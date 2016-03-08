@@ -4,5 +4,7 @@ include_HEADERS = cm_common.h cm_arith.h
 
 lib_LTLIBRARIES = libcm_common.la
 
+libcm_common_la_LDFLAGS = -version-info 1:0:0
+
 libcm_common_la_SOURCES = cm_common.h cm_arith.h cm_common-impl.h \
    timer.c file.c nt.c qdev.c modular.c modpol.c fem.c

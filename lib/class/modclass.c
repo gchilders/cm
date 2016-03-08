@@ -2,7 +2,7 @@
 
 modclass.c - code for evaluating modular functions in quadratic arguments
 
-Copyright (C) 2009, 2010, 2011, 2015 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -561,7 +561,8 @@ void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m, cm_classgroup_t cl,
 
 {
    int_cl_t a_local, b_local;
-   int      i, sign;
+   long int e;
+   int      transformed, i, sign;
    cm_matrix_t M;
    ctype    tmp;
 
@@ -569,7 +570,11 @@ void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m, cm_classgroup_t cl,
    b_local = b;
    cm_modclass_fundamental_domain_quad (cl.d, &a_local, &b_local, &M);
    cm_modclass_cset_quadratic (rop, a_local, b_local, root);
-   cm_modular_eta_transform (m, rop, rop, M);
+   transformed = cm_modular_eta_transform (&e, rop, rop, M);
+   if (transformed) {
+      csqrt (rop, rop);
+      cmul (rop, rop, m.zeta24 [e]);
+   }
 
    /* look up the eta value */
    i = 0;
