@@ -904,29 +904,28 @@ static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q)
       break;
    case CM_INVARIANT_WEBER:
       if (c.p [0] == 1) {
-         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-         csqr (rop, rop);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 2);
          cmul_fr (rop, rop, mc.sqrt2_over2);
       }
       else if (c.p [0] == 3)
-         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 1);
       else if (c.p [0] == 5) {
-         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
-         cpow_ui (rop, rop, 4ul);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 2);
+         csqr (rop, rop);
          cdiv_ui (rop, rop, 2ul);
       }
       else if (c.p [0] == 7) {
-         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b);
+         cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 1);
          cmul_fr (rop, rop, mc.sqrt2_over2);
       }
       else if (c.p [0] == 2 || c.p [0] == 6) {
-         cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
+         cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b, 1);
          csqr (rop, rop);
          cmul_fr (rop, rop, mc.sqrt2_over2);
       }
       else {
          /* c.p [0] == 4 */
-         cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b);
+         cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b, 1);
          cpow_ui (rop, rop, 4ul);
          cmul_fr (rop, rop, mc.sqrt2_over4);
       }

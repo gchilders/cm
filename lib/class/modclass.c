@@ -640,17 +640,22 @@ void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m, cm_classgroup_t cl,
 /*****************************************************************************/
 
 void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
-   int_cl_t a, int_cl_t b)
-   /* evaluates the Weber f-function at the quadratic integer                */
-   /* (b + sqrt (d)) / (2*a)                                                 */
+   int_cl_t a, int_cl_t b, int e)
+   /* Evaluate the Weber f-function, raised to the power e, at the quadratic
+     integer (b + sqrt (d)) / (2*a).
+     e may be 1 or 2. */
 
 {
-   ctype tmp;
+   ctype    rop1, czplusd1, czplusd2;
+   long int e1, e2;
    int_cl_t c;
 
-   cinit (tmp, cget_prec (rop));
+   cinit (rop1, cget_prec (rop));
+   cinit (czplusd1, cget_prec (rop));
+   cinit (czplusd2, cget_prec (rop));
 
-   cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a, b, mc.root);
+   cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc.m, mc.cl, 
+      mc.eta, a, b, mc.root);
 
    /* The argument (z+1)/2 of the numerator corresponds to the quadratic     */
    /* form [2*a, b+2*a, (a+b+c)/2]. Here, (a+b+c)/2 need not be integral;    */
@@ -659,11 +664,12 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    c = a + b + cm_classgroup_compute_c (a, b, mc.cl.d);
    if (c % 2 == 0)
       if (b % 2 != 0 || c % 4 != 0)
-         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta,
-            2*a, b + 2*a, mc.root);
+         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m, mc.cl,
+            mc.eta, 2*a, b + 2*a, mc.root);
       else {
          assert (mc.cl2.d == mc.cl.d / 4);
-         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl2, mc.eta2, a, b/2 + a, mc.root2);
+         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m, mc.cl2,
+         mc.eta2, a, b/2 + a, mc.root2);
       }
    else {
       ctype z;
@@ -673,38 +679,67 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
       cdiv_ui (rop, rop, 2ul);
       cm_modular_eta_eval (mc.m, rop, rop);
       cclear (z);
+      e2 = 0;
+      cset_ui (czplusd2, 1ul);
    }
 
-   cdiv (rop, rop, tmp);
-   cmul (rop, rop, mc.m.zeta48inv);
+   if (e == 2) {
+      csqr (rop1, rop1);
+      csqr (rop, rop);
+      e2 = (2 * (e2 + (24 - e1)) + 23) % 24;
+         /* Force a positive result; 23 stands for the -1 coming from the
+            square of zeta48inv. */
+   }
+   else /* e == 1 */ {
+      cmul (rop, rop, mc.m.zeta48inv);
+      csqrt (czplusd1, czplusd1);
+      csqrt (czplusd2, czplusd2);
+      e2 = (e2 + (24 - e1)) % 24;
+   }
+   cmul (rop1, rop1, czplusd1);
+   cmul (rop, rop, czplusd2);
+   if (e2 != 0)
+      cmul (rop, rop, mc.m.zeta24 [e2]);
 
-   cclear (tmp);
+   cdiv (rop, rop, rop1);
+
+   cclear (rop1);
+   cclear (czplusd1);
+   cclear (czplusd2);
 }
 
 /*****************************************************************************/
 
 void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
-   int_cl_t a, int_cl_t b)
-   /* evaluates the Weber f1-function at the quadratic integer               */
-   /* (b + sqrt (d)) / (2*a); the same comments as for f apply.              */
+   int_cl_t a, int_cl_t b, int e)
+   /* Evaluate the Weber f-function, raised to the power e, at the quadratic
+     integer (b + sqrt (d)) / (2*a).
+     e may be 1 or 2. */
 
 {
-   ctype tmp;
+   ctype    rop1, czplusd1, czplusd2;
+   long int e1, e2;
    int_cl_t c;
 
-   cinit (tmp, cget_prec (rop));
+   cinit (rop1, cget_prec (rop));
+   cinit (czplusd1, cget_prec (rop));
+   cinit (czplusd2, cget_prec (rop));
 
-   cm_modclass_eta_eval_quad (tmp, mc.m, mc.cl, mc.eta, a, b, mc.root);
+   cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc.m, mc.cl,
+      mc.eta, a, b, mc.root);
+
    /* The argument z/2 of the numerator corresponds to the quadratic form    */
    /* [2*a, b, c/2]. Here, c/2 need not be integral; if it is, the form need */
    /* not be primitive any more, but may have a common divisor 2.            */
    c = cm_classgroup_compute_c (a, b, mc.cl.d);
    if (c % 2 == 0)
       if (b % 2 != 0 || c % 4 != 0)
-         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl, mc.eta, 2*a, b, mc.root);
+         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m,
+            mc.cl, mc.eta, 2*a, b, mc.root);
       else {
          assert (mc.cl2.d == mc.cl.d / 4);
-         cm_modclass_eta_eval_quad (rop, mc.m, mc.cl2, mc.eta2, a, b/2, mc.root2);
+         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m,
+            mc.cl2, mc.eta2, a, b/2, mc.root2);
       }
    else {
       ctype z;
@@ -713,10 +748,30 @@ void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
       cdiv_ui (rop, z, 2ul);
       cm_modular_eta_eval (mc.m, rop, rop);
       cclear (z);
+      e2 = 0;
+      cset_ui (czplusd2, 1ul);
    }
-   cdiv (rop, rop, tmp);
 
-   cclear (tmp);
+   if (e == 2) {
+      csqr (rop1, rop1);
+      csqr (rop, rop);
+      e2 = (2 * (e2 + (24 - e1))) % 24;
+   }
+   else /* e == 1 */ {
+      csqrt (czplusd1, czplusd1);
+      csqrt (czplusd2, czplusd2);
+      e2 = (e2 + (24 - e1)) % 24;
+   }
+   cmul (rop1, rop1, czplusd1);
+   cmul (rop, rop, czplusd2);
+   if (e2 != 0)
+      cmul (rop, rop, mc.m.zeta24 [e2]);
+
+   cdiv (rop, rop, rop1);
+
+   cclear (rop1);
+   cclear (czplusd1);
+   cclear (czplusd2);
 }
 
 /*****************************************************************************/
@@ -729,8 +784,8 @@ void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, ctype rop,
 
    cinit (f, cget_prec (rop));
 
-   cm_modclass_f1_eval_quad (mc, f, a, b);
-   cpow_ui (f, f, 8ul);
+   cm_modclass_f1_eval_quad (mc, f, a, b, 2);
+   cpow_ui (f, f, 4ul);
    csqr (rop, f);
    cui_div (f, 16ul, f);
    cadd (rop, rop, f);
@@ -751,10 +806,10 @@ void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, ctype rop,
    cinit (f, cget_prec (rop));
    cinit (tmp, cget_prec (rop));
 
-   cm_modclass_f_eval_quad (mc, f, a, b);
-   cpow_ui (f, f, 8ul);
-   cm_modclass_f1_eval_quad (mc, rop, a, b);
-   cpow_ui (rop, rop, 8ul);
+   cm_modclass_f_eval_quad (mc, f, a, b, 2);
+   cpow_ui (f, f, 4ul);
+   cm_modclass_f1_eval_quad (mc, rop, a, b, 2);
+   cpow_ui (rop, rop, 4ul);
 
    cmul_ui (rop, rop, 2ul);
    csub (rop, rop, f);

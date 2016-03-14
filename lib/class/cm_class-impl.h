@@ -2,7 +2,7 @@
 
 cm_class-impl.h - header file for internal use of the cm_class library
 
-Copyright (C) 2009, 2010, 2015 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -144,9 +144,9 @@ extern void cm_modclass_clear (cm_modclass_t *mc);
 extern void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m,
    cm_classgroup_t cl, ctype *eta, int_cl_t a, int_cl_t b, ftype root);
 extern void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
-   int_cl_t a, int_cl_t b);
+   int_cl_t a, int_cl_t b, int e);
 extern void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
-   int_cl_t a, int_cl_t b);
+   int_cl_t a, int_cl_t b, int e);
 extern void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b);
 extern void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, ctype rop,
