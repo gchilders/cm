@@ -29,6 +29,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static void cm_modclass_cset_quadratic (ctype rop,
    int_cl_t a, int_cl_t b, ftype root);
+static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
+   ctype czplusd, cm_modular_t m, cm_classgroup_t cl,
+   ctype *eta, int_cl_t a, int_cl_t b, ftype root);
 static void write_q24eta (ctype *q24eta, cm_classgroup_t cl,
    fprec_t prec, char *type);
 static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
@@ -546,6 +549,66 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
 }
 
 /*****************************************************************************/
+
+static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
+   ctype czplusd, cm_modular_t m, cm_classgroup_t cl,
+   ctype *eta, int_cl_t a, int_cl_t b, ftype root)
+   /* Transform the quadratic integer op = (b + sqrt (cl.d)) / (2a) into the
+      element op1 in the fundamental domain.
+      Returns eta (op1) in rop and e and czplusd such that
+      eta (op) = zeta_24^e * sqrt (czplusd) * rop.
+      This can be used to decide at a higher level what to do with the
+      transformation data (for instance, if an even exponent is to be
+      applied, the square root can be saved).
+      Returns 0 if op itself is already in the fundamental domain,
+      1 otherwise.
+      root needs to be set to sqrt (|d|).
+      eta is a list of precomputed values, indexed in the same way as the
+      list of reduced quadratic forms in cl. */
+
+{
+   int_cl_t    a_local, b_local;
+   int         transformed, i, sign;
+   cm_matrix_t M;
+
+   a_local = a;
+   b_local = b;
+   cm_modclass_fundamental_domain_quad (cl.d, &a_local, &b_local, &M);
+   cm_modclass_cset_quadratic (czplusd, a_local, b_local, root);
+   transformed = cm_modular_eta_transform (e, czplusd, czplusd, M);
+
+   /* look up the eta value */
+   if (b_local < 0) {
+      b_local = -b_local;
+      sign = -1;
+   }
+   else
+      sign = 1;
+   for (i = 0;
+      i < cl.h12 && (cl.form [i].a != a_local || cl.form [i].b != b_local);
+      i++);
+   if (i == cl.h12) {
+      /* eta value not found, compute it. May happen when the level of the   */
+      /* modular function and the conductor have a common factor. This case  */
+      /* is rare, and the following computations are not optimised.          */
+      printf ("Q");
+      if (sign == 1)
+         cm_modclass_cset_quadratic (rop, a_local, b_local, root);
+      else
+         cm_modclass_cset_quadratic (rop, a_local, -b_local, root);
+      cm_modular_eta_eval (m, rop, rop);
+   }
+   else {
+      if (sign == 1)
+         cset (rop, eta [i]);
+      else
+         cconj (rop, eta [i]);
+   }
+
+   return (transformed);
+}
+
+/*****************************************************************************/
 /*                                                                           */
 /* external functions                                                        */
 /*                                                                           */
@@ -553,62 +616,24 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
 
 void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m, cm_classgroup_t cl,
    ctype *eta, int_cl_t a, int_cl_t b, ftype root)
-   /* evaluates the eta function at the quadratic integer                    */
-   /* (b + sqrt (cl.d)) / (2a)                                               */
-   /* root needs to be set to sqrt (|d|).                                    */
-   /* eta is a list of precomputed values, indexed in the same way as the    */
-   /* list of reduced quadratic forms in cl.                                 */
+   /* Evaluate the eta function at the quadratic integer
+      (b + sqrt (cl.d)) / (2a)
+      root needs to be set to sqrt (|d|).
+      eta is a list of precomputed values, indexed in the same way as the
+      list of reduced quadratic forms in cl. */
 
 {
-   int_cl_t a_local, b_local;
+   ctype    czplusd;
    long int e;
-   int      transformed, i, sign;
-   cm_matrix_t M;
-   ctype    tmp;
+   int      transformed;
 
-   a_local = a;
-   b_local = b;
-   cm_modclass_fundamental_domain_quad (cl.d, &a_local, &b_local, &M);
-   cm_modclass_cset_quadratic (rop, a_local, b_local, root);
-   transformed = cm_modular_eta_transform (&e, rop, rop, M);
+   cinit (czplusd, cget_prec (rop));
+   transformed = cm_modclass_eta_transform_eval_quad (rop, &e, czplusd, m, cl,
+      eta, a, b, root);
    if (transformed) {
-      csqrt (rop, rop);
+      csqrt (czplusd, czplusd);
+      cmul (rop, rop, czplusd);
       cmul (rop, rop, m.zeta24 [e]);
-   }
-
-   /* look up the eta value */
-   i = 0;
-   if (b_local < 0) {
-      b_local = -b_local;
-      sign = -1;
-   }
-   else
-      sign = 1;
-   while ((i < cl.h12)
-     && (cl.form [i].a != a_local || cl.form [i].b != b_local))
-      i++;
-   if (i == cl.h12) {
-      /* eta value not found, compute it. May happen when the level of the   */
-      /* modular function and the conductor have a common factor. This case  */
-      /* is rare, and the following computations are not optimised.          */
-      printf ("Q");
-      cinit (tmp, cget_prec (rop));
-      if (sign == 1)
-         cm_modclass_cset_quadratic (tmp, a_local, b_local, root);
-      else
-         cm_modclass_cset_quadratic (tmp, a_local, -b_local, root);
-      cm_modular_eta_eval (m, tmp, tmp);
-      cmul (rop, rop, tmp);
-      cclear (tmp);
-   }
-   else {
-      if (sign == 1)
-         cmul (rop, rop, eta [i]);
-      else {
-         cconj (eta [i], eta [i]);
-         cmul (rop, rop, eta [i]);
-         cconj (eta [i], eta [i]);
-      }
    }
 }
 
