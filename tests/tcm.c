@@ -96,6 +96,11 @@ static void big_test (void)
    test_curve ((int_cl_t) (-58767),  CM_INVARIANT_ATKIN, false); /* p=131 */
    test_curve ((int_cl_t) (-299),    CM_INVARIANT_SIMPLEETA, false);
    test_curve ((int_cl_t) (-105131), CM_INVARIANT_MULTIETA, false); /* N=3*5*7 */
+
+   test_curve ((int_cl_t) (-108735), CM_INVARIANT_DOUBLEETA, false); /* N=2*73 */
+   test_curve ((int_cl_t) (-108719), CM_INVARIANT_DOUBLEETA, false); /* N=2*97 */
+   test_curve ((int_cl_t) (-108783), CM_INVARIANT_DOUBLEETA, false); /* N=2*193 */
+   test_curve ((int_cl_t) (-108711), CM_INVARIANT_DOUBLEETA, false); /* N=2*241 */
 }
 
 /*****************************************************************************/
