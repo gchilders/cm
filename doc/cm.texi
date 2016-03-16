@@ -3,7 +3,7 @@
 
 cm.texi - texinfo documentation for cm
 
-Copyright (C) 2009, 2010, 2012, 2013, 2015 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2013, 2015, 2016 Andreas Enge
 
 This file is part of CM.
 
@@ -35,7 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 @set MINMPFRCX 0.4
 @set MINPARI 2.7.0
 @set AUTHORS Andreas Enge
-@set COPYRIGHTDATES 2009, 2010, 2012, 2013, 2015
+@set COPYRIGHTDATES 2009, 2010, 2012, 2013, 2015, 2016
 @syncodeindex fn cp
 @syncodeindex tp cp
 

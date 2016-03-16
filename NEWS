@@ -1,4 +1,14 @@
-Recent changes:
+Changes in version 0.3 ("Wurstebrei"):
+  - Features
+    - use the baby-step giant-step algorithm of Enge-Hart-Johansson 2016 to
+      compute the eta series
+    - use a 2-system for j and a 6-system for gamma2, which increases the
+      chances of staying in the same order for the numerator of the Weber
+      function
+  - Miscellanea
+    - switch to GPL3+ license
+
+Changes in version 0.2.1 ("Blindhühnchen"):
   - Features
     - enable precision beyond 300000 bits
   - Dependencies
