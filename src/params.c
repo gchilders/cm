@@ -151,7 +151,7 @@ bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
             mpc_get_version ());
       printf ("MPFRCX: include %s, lib %s\n", MPFRCX_VERSION_STRING,
             mpfrcx_get_version ());
-      pari_init (100, 0);
+      pari_init (100000, 0);
       v = pari_version ();
       printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
             PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
