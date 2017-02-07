@@ -3,7 +3,7 @@
 
 mpfpx.c - mpfpx library
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2017 Andreas Enge
 
 This file is part of CM.
 
@@ -351,7 +351,7 @@ void mpfpx_mul (mpfpx_t rop, mpfpx_t op1, mpfpx_t op2)
       /* copy b (X^2) X and w (X^2) and clear further coefficients */
       for (i = 0; i <= b->deg; i++)
          mpfp_set (rop->coeff [2*i+1], b->coeff [i]);
-      for (i = 2 * b->deg + 3; i <= rop->deg; i += 2);
+      for (i = 2 * b->deg + 3; i <= rop->deg; i += 2)
          mpfp_set_ui (rop->coeff [i], 0ul);
       for (i = 0; i <= w->deg; i++)
          mpfp_set (rop->coeff [2*i], w->coeff [i]);
@@ -611,7 +611,7 @@ void mpfpx_sqr (mpfpx_t rop, mpfpx_t op)
          mpfpx_sub (b, u, a);
          for (i = 0; i <= b->deg; i++)
             mpfp_set (rop->coeff [2*i+1], b->coeff [i]);
-         for (i = 2 * b->deg + 3; i <= rop->deg; i += 2);
+         for (i = 2 * b->deg + 3; i <= rop->deg; i += 2)
             mpfp_set_ui (rop->coeff [i], 0ul);
          for (i = 0; i <= w->deg; i++)
             mpfp_set (rop->coeff [2*i], w->coeff [i]);
