@@ -2,7 +2,7 @@
 
 class.c - code for computing class polynomials
 
-Copyright (C) 2009, 2010, 2011, 2012, 2015, 2016 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2015, 2016, 2017 Andreas Enge
 
 This file is part of CM.
 
@@ -365,7 +365,7 @@ void cm_class_write (cm_class_t c)
    /* + ".dat"                                                               */
 
 {
-   char filename [255];
+   char filename [400];
    FILE *f;
    int i;
 
@@ -398,7 +398,7 @@ bool cm_class_read (cm_class_t c)
    /* If an error occurs, the return value is false.                         */
 
 {
-   char filename [255];
+   char filename [400];
    FILE* f;
    int i;
    char inv;
@@ -463,7 +463,7 @@ static void write_conjugates (cm_class_t c, ctype *conjugate)
    /* + prec + "_conjugates.dat"                                             */
 
 {
-   char filename [255];
+   char filename [400];
    FILE *f;
    int i;
 
@@ -488,7 +488,7 @@ static bool read_conjugates (cm_class_t c, ctype *conjugate)
    /* reads the conjugates from a file written by write_conjugates           */
    /* If the file could not be openend, the return value is false.           */
 {
-   char filename [255];
+   char filename [400];
    FILE *f;
    int i;
 
