@@ -2,7 +2,7 @@
 
 classgroup.c - computations with class groups and quadratic forms
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2018 Andreas Enge
 
 This file is part of CM.
 
@@ -23,14 +23,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm_class-impl.h"
 
+typedef struct avl_t {
+   struct avl_t *l, *r; /* left and right subtrees */
+   signed char     b; /* balance factor; -1, 0 or 1 */
+   cm_form_t       c; /* content */
+} avl_t;
+
+
 static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
    int_cl_t b);
 static int_cl_t classgroup_tonelli (int_cl_t a, int_cl_t p);
 static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
    uint_cl_t *cond_primes, unsigned int *cond_exp);
 static int avl_cmp (cm_form_t P, cm_form_t Q);
-static bool avl_insert_rec (cm_avl_t **t, cm_form_t c, bool *ok);
-static int avl_flatten_rec (cm_form_t **list, cm_avl_t *t, int pos);
+static bool avl_insert_rec (avl_t **t, cm_form_t c, bool *ok);
+static bool avl_insert (avl_t **t, cm_form_t c);
+static int avl_flatten_rec (cm_form_t *list, avl_t *t, int pos);
+static void avl_flatten (cm_form_t *list, avl_t *t);
+static void avl_delete (avl_t *t);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -100,7 +110,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    int h;
    cm_form_t *Cl;
       /* class number and class group as far as they are already computed */
-   cm_avl_t *t;
+   avl_t *t;
       /* avl tree of forms in Cl */
    int_cl_t p;
    cm_form_t P, Ppow;
@@ -132,7 +142,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    P.a = 1;
    P.b = (disc % 2 == 0 ? 0 : 1);
    t = NULL;
-   cm_classgroup_avl_insert (&t, P);
+   avl_insert (&t, P);
    h = 1;
    Cl [0] = P;
 
@@ -152,7 +162,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       /* the tree                                                         */
       Ppow = P;
       relo = 1;
-      while (cm_classgroup_avl_insert (&t, Ppow)) {
+      while (avl_insert (&t, Ppow)) {
          cm_classgroup_compose (&Ppow, Ppow, P, disc);
          relo++;
       }
@@ -166,13 +176,13 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
          Ppow = Cl [i];
          for (j = 1; j < relo; j++) {
             cm_classgroup_compose (&Ppow, Ppow, P, disc);
-            cm_classgroup_avl_insert (&t, Ppow);
+            avl_insert (&t, Ppow);
          }
       }
 
       h *= relo;
       /* copy tree content into array */
-      cm_classgroup_avl_flatten (&Cl, t);
+      avl_flatten (Cl, t);
    }
 
    /* Copy one representative of each form pair into cl->form and         */
@@ -191,7 +201,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       j++;
    }
 
-   cm_classgroup_avl_delete (t);
+   avl_delete (t);
    free (Cl);
 }
 
@@ -673,19 +683,19 @@ static int avl_cmp (cm_form_t P, cm_form_t Q)
 
 /*****************************************************************************/
 
-static bool avl_insert_rec (cm_avl_t **t, cm_form_t c, bool *ok)
+static bool avl_insert_rec (avl_t **t, cm_form_t c, bool *ok)
    /* Recursive function doing the work; the return value indicates whether  */
    /* the branch has become longer, so that rebalancing is needed.           */
 
 {
    bool rebalance;
    int cmp;
-   cm_avl_t *y, *x, *w;
+   avl_t *y, *x, *w;
       /* notations as in the GNU libavl book by Ben Pfaff */
 
    y = *t;
    if (y == NULL) {
-      *t = (cm_avl_t *) malloc (sizeof (cm_avl_t));
+      *t = (avl_t *) malloc (sizeof (avl_t));
       (*t)->l = NULL;
       (*t)->r = NULL;
       (*t)->b = 0;
@@ -794,7 +804,7 @@ static bool avl_insert_rec (cm_avl_t **t, cm_form_t c, bool *ok)
 
 /*****************************************************************************/
 
-bool cm_classgroup_avl_insert (cm_avl_t **t, cm_form_t c)
+static bool avl_insert (avl_t **t, cm_form_t c)
    /* Tries to insert a new element c into the tree t; returns FALSE if the  */
    /* element is already contained in the tree, TRUE otherwise (indicating   */
    /* that an insertion has indeed taken place).                             */
@@ -807,20 +817,7 @@ bool cm_classgroup_avl_insert (cm_avl_t **t, cm_form_t c)
 
 /*****************************************************************************/
 
-int cm_classgroup_avl_count (cm_avl_t *t)
-   /* returns the number of entries in t */
-
-{
-   if (t == NULL)
-      return 0;
-   else
-      return cm_classgroup_avl_count (t->l)
-         + cm_classgroup_avl_count (t->r) + 1;
-}
-
-/*****************************************************************************/
-
-static int avl_flatten_rec (cm_form_t **list, cm_avl_t *t, int pos)
+static int avl_flatten_rec (cm_form_t *list, avl_t *t, int pos)
    /* Returns the content of t as an ordered array from position pos in      */
    /* list, which needs to provide the necessary space. The return value is  */
    /* the next free index.                                                   */
@@ -830,7 +827,7 @@ static int avl_flatten_rec (cm_form_t **list, cm_avl_t *t, int pos)
       return pos;
    else {
       pos = avl_flatten_rec (list, t->l, pos);
-      (*list)[pos] = t->c;
+      list [pos] = t->c;
       pos++;
       return avl_flatten_rec (list, t->r, pos);
    }
@@ -838,7 +835,7 @@ static int avl_flatten_rec (cm_form_t **list, cm_avl_t *t, int pos)
 
 /*****************************************************************************/
 
-void cm_classgroup_avl_flatten (cm_form_t **list, cm_avl_t *t)
+static void avl_flatten (cm_form_t *list, avl_t *t)
    /* Returns the content of t as an ordered array in list, which needs to   */
    /* provide the necessary space.                                           */
 
@@ -848,12 +845,12 @@ void cm_classgroup_avl_flatten (cm_form_t **list, cm_avl_t *t)
 
 /*****************************************************************************/
 
-void cm_classgroup_avl_delete (cm_avl_t *t)
+static void avl_delete (avl_t *t)
 
 {
    if (t != NULL) {
-      cm_classgroup_avl_delete (t->l);
-      cm_classgroup_avl_delete (t->r);
+      avl_delete (t->l);
+      avl_delete (t->r);
       free (t);
    }
 }

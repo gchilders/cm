@@ -2,7 +2,7 @@
 
 cm_class-impl.h - header file for internal use of the cm_class library
 
-Copyright (C) 2009, 2010, 2015, 2016 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2016, 2018 Andreas Enge
 
 This file is part of CM.
 
@@ -42,10 +42,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 typedef enum {real, complex, drop}
    cm_embedding_t;
    /* When applied to class group entries, "real" indicates an ambiguous     */
-   /* form, "complex" a non-ambiguous form with b > 0 and "conj" a           */
+   /* form, "complex" a non-ambiguous form with b > 0 and "drop" a           */
    /* non-ambiguous form with b < 0. The terminology is explained by the     */
    /* fact that for j, these forms yield real and complex values, with       */
-   /* "conj" being the complex conjugate of a corresponding "complex".       */
+   /* "drop" being the complex conjugate of a corresponding "complex", which */
+   /* can usually be dropped during computations.                            */
    /* When applied to an N-system for other functions than j,                */
    /* "real" and "complex" indicate a real or complex conjugate. "drop" is   */
    /* used only in the case of a real class polynomial; it means that the    */
@@ -56,12 +57,6 @@ typedef struct {
    int_cl_t a, b;
    cm_embedding_t emb;
 } cm_form_t;
-
-typedef struct cm_avl_t {
-   struct cm_avl_t *l, *r; /* left and right subtrees */
-   signed char     b; /* balance factor; -1, 0 or 1 */
-   cm_form_t       c; /* content */
-} cm_avl_t;
 
 typedef struct {
    int_cl_t d;
@@ -121,11 +116,6 @@ extern void cm_classgroup_factor (int_cl_t d,
       uint_cl_t *factors, unsigned int *exponents);
 extern int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d);
 extern int cm_classgroup_h (int *h1, int *h2, int_cl_t d);
-
-extern bool cm_classgroup_avl_insert (cm_avl_t **t, cm_form_t c);
-extern int cm_classgroup_avl_count (cm_avl_t *t);
-extern void cm_classgroup_avl_flatten (cm_form_t **list, cm_avl_t *t);
-extern void cm_classgroup_avl_delete (cm_avl_t *t);
 
 extern int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d);
 extern void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d);
