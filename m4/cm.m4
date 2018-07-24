@@ -38,7 +38,6 @@ AC_DEFUN([MPC_C_CHECK_WARNINGCFLAGS], [
       MPC_C_CHECK_FLAG(-Wno-long-long)
       MPC_C_CHECK_FLAG(-Wall)
       MPC_C_CHECK_FLAG(-Wextra)
-      MPC_C_CHECK_FLAG(-Werror)
       MPC_C_CHECK_FLAG(-Wdeclaration-after-statement)
       MPC_C_CHECK_FLAG(-Wshadow)
       MPC_C_CHECK_FLAG(-Wstrict-prototypes)
