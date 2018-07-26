@@ -2,7 +2,7 @@
 
 modclass.c - code for evaluating modular functions in quadratic arguments
 
-Copyright (C) 2009, 2010, 2011, 2015, 2016 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2015, 2016, 2018 Andreas Enge
 
 This file is part of CM.
 
@@ -74,8 +74,8 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    finit (mc->sqrt2_over4, prec);
    fdiv_2ui (mc->sqrt2_over4, mc->sqrt2_over2, 1ul);
 
-   mc->eta = (ctype *) malloc (mc->cl.h12 * sizeof (ctype));
-   for (i = 0; i < mc->cl.h12; i++)
+   mc->eta = (ctype *) malloc (mc->cl.h * sizeof (ctype));
+   for (i = 0; i < mc->cl.h; i++)
       cinit (mc->eta [i], prec);
    if (!checkpoints || !read_q24eta (mc->eta, mc->cl, prec, "eta"))
       compute_eta (mc->m, mc->cl, mc->root, mc->eta, CM_FEM, checkpoints, verbose);
@@ -85,8 +85,8 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
       cm_classgroup_mpz_set_icl (tmp_z, -cl2.d);
       fset_z (mc->root2, tmp_z);
       fsqrt (mc->root2, mc->root2);
-      mc->eta2 = (ctype *) malloc (mc->cl2.h12 * sizeof (ctype));
-      for (i = 0; i < mc->cl2.h12; i++)
+      mc->eta2 = (ctype *) malloc (mc->cl2.h * sizeof (ctype));
+      for (i = 0; i < mc->cl2.h; i++)
          cinit (mc->eta2 [i], prec);
       if (!checkpoints || !read_q24eta (mc->eta2, mc->cl2, prec, "eta"))
          compute_eta (mc->m, mc->cl2, mc->root2, mc->eta2, CM_FEM, checkpoints,
@@ -106,12 +106,12 @@ void cm_modclass_clear (cm_modclass_t *mc)
    fclear (mc->root);
    fclear (mc->sqrt2_over2);
    fclear (mc->sqrt2_over4);
-   for (i = 0; i < mc->cl.h12; i++)
+   for (i = 0; i < mc->cl.h; i++)
       cclear (mc->eta [i]);
    free (mc->eta);
    if (mc->cl2.d != 0) {
       fclear (mc->root2);
-      for (i = 0; i < mc->cl2.h12; i++)
+      for (i = 0; i < mc->cl2.h; i++)
          cclear (mc->eta2 [i]);
       free (mc->eta2);
    }
@@ -142,7 +142,7 @@ static void write_q24eta (ctype *q24eta, cm_classgroup_t cl,
    if (!cm_file_open_write (&f, filename))
       exit (1);
 
-   for (i = 0; i < cl.h12; i++) {
+   for (i = 0; i < cl.h; i++) {
       cout_str (f, 16, 0, q24eta [i]);
       fprintf (f, "\n");
    }
@@ -169,7 +169,7 @@ static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
    if (!cm_file_open_read (&f, filename))
       return false;
 
-   for (i = 0; i < cl.h12; i++) {
+   for (i = 0; i < cl.h; i++) {
       cinp_str (q24eta [i], f, NULL, 16);
    }
 
@@ -186,7 +186,8 @@ static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
 
 static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    ctype *q24, bool verbose)
-   /* Computes the q^(1/24) for all forms of cl; root contains sqrt(-d).     */
+   /* Computes the q^(1/24) for all forms of cl with non-negative b;
+      root contains sqrt(-d).     */
 {
    int i, j, tmp_int;
    int_cl_t tmp_cli;
@@ -203,12 +204,12 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    fdiv_ui (Pi24, m.pi, 24ul);
    fmul (Pi24_root, root, Pi24);
 
-   A_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
-   B_red = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
-   order = (unsigned long int *) malloc (cl.h12 * sizeof (unsigned long int));
-   q_real = (ftype *) malloc (cl.h12 * sizeof (ftype));
+   A_red = (unsigned long int *) malloc (cl.h * sizeof (unsigned long int));
+   B_red = (unsigned long int *) malloc (cl.h * sizeof (unsigned long int));
+   order = (unsigned long int *) malloc (cl.h * sizeof (unsigned long int));
+   q_real = (ftype *) malloc (cl.h * sizeof (ftype));
 
-   for (i = 0; i < cl.h12; i++)
+   for (i = 0; i < cl.h; i++)
       finit (q_real [i], m.prec);
 
    cm_timer_start (clock2);
@@ -217,13 +218,13 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_start (clock3);
    counter1 = 0;
    counter2 = 0;
-   for (i = cl.h12 - 1; i >= 0; i--) {
+   for (i = cl.h - 1; i >= 0; i--) {
       /* Check whether the current A is a divisor of a previous one; */
       /* if so, take the previous one which is closest.              */
       /* Notice that the A's are in increasing order.                */
       for (j = i+1;
-           j < cl.h12 && cl.form [j].a % cl.form [i].a != 0; j++);
-      if (j < cl.h12) {
+           j < cl.h && cl.form [j].a % cl.form [i].a != 0; j++);
+      if (j < cl.h) {
          if (cl.form [i].a == cl.form [j].a)
             fset (q_real [i], q_real [j]);
          else {
@@ -259,7 +260,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_start (clock3);
    counter1 = 0;
    counter2 = 0;
-   for (i = 0; i < cl.h12; i++) {
+   for (i = 0; i < cl.h; i++) {
       tmp_cli = cm_classgroup_gcd (cl.form [i].a, cl.form [i].b);
       A_red [i] = cl.form [i].a / tmp_cli;
       B_red [i] = cl.form [i].b / tmp_cli;
@@ -267,9 +268,9 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    }
 
    /* sort by insertion */
-   for (i = 0; i < cl.h12 - 1; i++) {
+   for (i = 0; i < cl.h - 1; i++) {
       tmp_int = i;
-      for (j = tmp_int + 1; j < cl.h12; j++)
+      for (j = tmp_int + 1; j < cl.h; j++)
          if (A_red [order [j]] < A_red [order [tmp_int]]
              || (   A_red [order [j]] == A_red [order [tmp_int]]
              && B_red [order [j]] > B_red [order [tmp_int]]))
@@ -281,14 +282,14 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
 
    /* put q24 [] = exp (- pi/24 i / A_red), i.e. the primitive root  */
    /* of unity                                                       */
-   for (i = cl.h12 - 1; i >= 0; i--) {
+   for (i = cl.h - 1; i >= 0; i--) {
       /* Check whether the current A is a divisor of a previous one; */
       /* if so, take the previous one which is closest.              */
       /* Notice that the A's are in increasing order.                */
       for (j = i+1;
-           j < cl.h12 && A_red [order [j]] % A_red [order [i]] != 0;
+           j < cl.h && A_red [order [j]] % A_red [order [i]] != 0;
            j++);
-      if (j < cl.h12) {
+      if (j < cl.h) {
          if (A_red [order [i]] == A_red [order [j]])
             cset (q24 [order [i]], q24 [order [j]]);
          else {
@@ -320,7 +321,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_start (clock3);
    counter1 = 0;
    counter2 = 0;
-   for (i = cl.h12 - 1; i >= 0; i--)
+   for (i = cl.h - 1; i >= 0; i--)
    {
       if (B_red [order [i]] == 0)
          cset_ui_ui (q24 [order [i]], 1ul, 0ul);
@@ -328,11 +329,11 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
          /* Check whether the current B is a multiple of a previous one with */
          /* the same A; if so, take the previous one which is closest.       */
          for (j = i+1;
-              j < cl.h12 && A_red [order [j]] == A_red [order [i]]
+              j < cl.h && A_red [order [j]] == A_red [order [i]]
                     && B_red [order [j]] > 0
                     && B_red [order [i]] % B_red [order [j]] != 0;
               j++);
-         if (j < cl.h12 && A_red [order [j]] == A_red [order [i]]
+         if (j < cl.h && A_red [order [j]] == A_red [order [i]]
              && B_red [order [j]] > 0) {
             if (B_red [order [i]] == B_red [order [j]])
                cset (q24 [order [i]], q24 [order [j]]);
@@ -357,13 +358,13 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    }
 
    /* Compute the q^(1/24) in q24 */
-   for (i = 0; i < cl.h12; i++)
+   for (i = 0; i < cl.h; i++)
       cmul_fr (q24 [i], q24 [i], q_real [i]);
    cm_timer_stop (clock2);
    if (verbose)
       printf ("- Time for q^(1/24):              %.1f\n", cm_timer_get (clock2));
 
-   for (i = 0; i < cl.h12; i++)
+   for (i = 0; i < cl.h; i++)
       fclear (q_real [i]);
 
    free (A_red);
@@ -395,8 +396,8 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
       ctype *q24;
       cm_timer clock2;
 
-      q24 = (ctype *) malloc (cl.h12 * sizeof (ctype));
-      for (i = 0; i < cl.h12; i++) {
+      q24 = (ctype *) malloc (cl.h * sizeof (ctype));
+      for (i = 0; i < cl.h; i++) {
          cinit (q24 [i], prec);
       }
 
@@ -407,7 +408,7 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
       }
 
       cm_timer_start (clock2);
-      for (i = 0; i < cl.h12; i++) {
+      for (i = 0; i < cl.h; i++) {
          cm_modular_eta_series (m, eta [i], q24 [i]);
          if (verbose && i % 200 == 0) {
             printf (".");
@@ -422,7 +423,7 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
       if (checkpoints)
          write_q24eta (eta, cl, prec, "eta");
 
-      for (i = 0; i < cl.h12; i++)
+      for (i = 0; i < cl.h; i++)
          cclear (q24 [i]);
       free (q24);
    }
@@ -431,7 +432,7 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
 
       cinit (tau, prec);
 
-      for (i = 0; i < cl.h12; i++) {
+      for (i = 0; i < cl.h; i++) {
          cm_modclass_cset_quadratic (tau, cl.form [i].a, cl.form [i].b,
             root);
          cm_fem_eta_eval (m, eta [i], tau);
@@ -585,9 +586,9 @@ static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
    else
       sign = 1;
    for (i = 0;
-      i < cl.h12 && (cl.form [i].a != a_local || cl.form [i].b != b_local);
+      i < cl.h && (cl.form [i].a != a_local || cl.form [i].b != b_local);
       i++);
-   if (i == cl.h12) {
+   if (i == cl.h) {
       /* eta value not found, compute it. May happen when the level of the   */
       /* modular function and the conductor have a common factor. This case  */
       /* is rare, and the following computations are not optimised.          */

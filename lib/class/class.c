@@ -804,15 +804,9 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    c->h1 = 0;
    c->h2 = 0;
 
-   for (i = 0; i < cl.h12; i++) {
+   for (i = 0; i < cl.h; i++) {
       nsystem [c->h12] = cl.form [i];
       correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, c);
-      /* possibly include the inverse form */
-      if (cl.form [i].emb != real) {
-         nsystem [c->h12].a = cl.form [i].a;
-         nsystem [c->h12].b = -cl.form [i].b;
-         correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, c);
-      }
    }
    if (verbose)
       printf ("h = %i, h1 = %i, h2 = %i\n", c->h, c->h1, c->h2);
@@ -832,25 +826,19 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    fprec_t precision;
 
    /* heuristic formula: log (height) = pi * sqrt (|d|) * \sum 1/A */
-   for (i = 0; i < cl.h12; i++)
-      if (cl.form [i].emb == real)
-         simpleprec += 1.0 / cl.form [i].a;
-      else
-         simpleprec += 2.0 / cl.form [i].a;
+   for (i = 0; i < cl.h; i++)
+      simpleprec += 1.0 / cl.form [i].a;
    simpleprec = ceil (simpleprec * pisqrtd / log (2.0) * cf);
 
    /* formula of Lemma 8 of [Sutherland10]; assumes that the A values in cl  */
    /* are sorted in increasing order                                         */
-   for (i = 0; i < cl.h12; i++) {
+   for (i = 0; i < cl.h; i++) {
       x = pisqrtd / cl.form [i].a;
       if (x < 42)
          M = log (exp (x) + C);
       else /* prevent overflow in exponential without changing the result */
          M = x;
-      if (cl.form [i].emb == real)
-         prec += M;
-      else
-         prec += 2*M;
+      prec += M;
    }
    M = exp (pisqrtd / cl.form [cl.h12 - 1].a) + C;
    m = (int) ((cl.h + 1) / (M + 1));

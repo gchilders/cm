@@ -132,7 +132,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
 
    cl->h = cm_classgroup_h (&(cl->h1), &(cl->h2), cl->d);
    cl->h12 = cl->h1 + cl->h2;
-   cl->form = (cm_form_t *) malloc (cl->h12 * sizeof (cm_form_t));
+   cl->form = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
    if (verbose)
       printf ("Class numbers: h = %d, h1 = %d, h2 = %d\n",
          cl->h, cl->h1, cl->h2);
@@ -185,21 +185,8 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       avl_flatten (Cl, t);
    }
 
-   /* Copy one representative of each form pair into cl->form and         */
-   /* determine the embeddings; by the way forms are ordered, conjugate   */
-   /* forms are consecutive, and the one with negative b comes first.     */
-   j = 0;
-   for (i = 0; i < h; i++) {
-      if (Cl [i].b < 0) {
-         /* pair of conjugate forms, skip the one with negative b */
-         i++;
-         Cl [i].emb = complex;
-      }
-      else
-         Cl [i].emb = real;
-      cl->form [j] = Cl [i];
-      j++;
-   }
+   for (i = 0; i < h; i++)
+      cl->form [i] = Cl [i];
 
    avl_delete (t);
    free (Cl);
@@ -657,7 +644,7 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
 static int avl_cmp (cm_form_t P, cm_form_t Q)
    /* Returns -1, 0 or 1, depending on whether P is smaller than, equal to   */
    /* or larger than Q. Uses the lexicographical order on (a, |b|), and      */
-   /* breaks ties by putting the negative b first.                           */
+   /* breaks ties by putting the positive b first.                           */
 
 {
    if (P.a < Q.a)
@@ -675,9 +662,9 @@ static int avl_cmp (cm_form_t P, cm_form_t Q)
       else if (Pbabs > Qbabs)
          return 1;
       else if (P.b < 0 && Q.b > 0)
-         return -1;
-      else /* P.b > 0 && Q.b < 0 */
          return 1;
+      else /* P.b > 0 && Q.b < 0 */
+         return -1;
    }
 }
 
@@ -897,7 +884,7 @@ int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d)
 
 void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
    /* reduces the quadratic form Q without checking if it belongs indeed to */
-   /* the discriminant d and without computing Q.emb.                       */
+   /* the discriminant d.                                                   */
 
 {
    int_cl_t c, a_minus_b, two_a, offset;
@@ -942,7 +929,7 @@ void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d)
 void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1, cm_form_t Q2,
    int_cl_t d)
    /* computes the reduced form Q corresponding to the composition of Q1 and */
-   /* without computing Q.emb                                                */
+   /* Q2.                                                                     */
 
 {
    int_cl_t s, t, v1, v, w, a2t;
@@ -989,11 +976,6 @@ cm_form_t cm_classgroup_prime_form (int_cl_t p, int_cl_t d)
       if ((d + Q.b) % 2 != 0)
          Q.b += p;
    }
-
-   if (d % p == 0)
-      Q.emb = real;
-   else
-      Q.emb = complex;
 
    cm_classgroup_reduce (&Q, d);
 
