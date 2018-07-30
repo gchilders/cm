@@ -32,9 +32,10 @@ static int class_get_height (cm_class_t c);
    /* coefficient with respect to the decomposition over an integral basis   */
 
 static bool cm_class_compute_parameter (cm_class_t *c, bool verbose);
-static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
-   cm_form_t neutral_class, cm_class_t *cl);
-   /* changes Q to obtain an N-system                                        */
+static int correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
+   cm_form_t neutral_class, cm_class_t cl);
+   /* changes Q to obtain an N-system and returns the number of conjugates
+      represented by the form */
 static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    cm_classgroup_t cl, bool verbose);
    /* computes and returns an N-system of forms, including the embeddings    */
@@ -600,60 +601,49 @@ static int class_get_height (cm_class_t c)
 /*                                                                           */
 /*****************************************************************************/
 
-static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
-   cm_form_t neutral, cm_class_t *cl)
-   /* Changes the form Q by a unimodular transformation so that Q.a is       */
-   /* coprime to N and Q.b is congruent to b0 modulo 2*N                     */
-   /* Furthermore, determines and returns via Q.emb how many conjugates      */
-   /* (real or complex conjugate ones) correspond to the form.               */
-   /* In the real case, forms whose product is equivalent to neutral_class   */
-   /* correspond to conjugate complex values. The lexicographically smaller  */
-   /* one of two such forms gets Q.emb = complex, cl.h2 and cl.h12 are       */
-   /* incremented; the other one gets Q.emb = drop, is in fact not corrected */
-   /* to the N-system condition and shall be dropped. If the square of a     */
-   /* form equals the neutral class, then the conjugate is real, Q.emb=real  */
-   /* and cl.h1 and cl.h12 are incremented.                                  */
-   /* In the complex case, Q.emb=complex, and cl.h1 and cl.h12 are           */
-   /* incremented.                                                           */
-   /* So in all cases, cl.h1+2*cl.h2 equals the class number, and cl.h12 is  */
-   /* the number of conjugates to compute.                                   */
+static int correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
+   cm_form_t neutral, cm_class_t cl)
+   /* Changes the form Q by a unimodular transformation so that Q.a is
+      coprime to N and Q.b is congruent to b0 modulo 2*N.
+      Furthermore, determines and returns how many conjugates (real or
+      complex conjugate ones) correspond to the form.
+      In the real case, forms whose product is equivalent to neutral_class
+      correspond to conjugate complex values. If the square of a form equals
+      the neutral class, then the conjugate is real, and the value 1 is
+      returned. Otherwise, for the lexicographically smaller one of them the
+      value 2 and for the other one the value 0 is returned.
+      In the complex case, the return value is 1 for each form.
+      So in all cases, the sum of all the return values is equal to the
+      class number of cl. */
 
 {
    int_cl_t c, tmp;
    cm_form_t inverse;
+   int emb;
 
-   if (cl->field == CM_FIELD_REAL) {
+   if (cl.field == CM_FIELD_REAL) {
       /* check for the inverse of the form with respect to */
       /* neutral_class                                     */
       Q->b = -Q->b;
-      cm_classgroup_compose (&inverse, neutral, *Q, cl->d);
+      cm_classgroup_compose (&inverse, neutral, *Q, cl.d);
       Q->b = -Q->b;
-      if (Q->a == inverse.a && Q->b == inverse.b) {
+      if (Q->a == inverse.a && Q->b == inverse.b)
          /* the conjugate is real */
-         Q->emb = real;
-         cl->h1++;
-         cl->h12++;
-      }
+         emb = 1;
       /* the conjugate is complex, test whether its form is the */
       /* lexicographically smaller one                          */
-      else if (Q->a < inverse.a || (Q->a == inverse.a && Q->b < inverse.b)) {
-         Q->emb = complex;
-         cl->h2++;
-         cl->h12++;
-      }
+      else if (Q->a < inverse.a || (Q->a == inverse.a && Q->b < inverse.b))
+         emb = 2;
       else
-         Q->emb = drop;
+         emb = 0;
    }
-   else {
-      Q->emb = complex;
-      cl->h1++;
-      cl->h12++;
-   }
+   else
+      emb = 1;
 
-   if (Q->emb != drop)
+   if (emb != 0)
    {
       /* First achieve gcd (Q->a, N) = 1, which is likely to hold already.   */
-      c = (Q->b * Q->b - cl->d) / (4 * Q->a) ;
+      c = (Q->b * Q->b - cl.d) / (4 * Q->a) ;
       if (cm_classgroup_gcd (Q->a, N) != 1) {
          /* Translation by k yields C' = A k^2 + B k + C; we wish to reach   */
          /* gcd (C', N) = 1, so for each prime p dividing N, this excludes   */
@@ -682,11 +672,9 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
          c += Q->a + Q->b;
          Q->b += 2 * Q->a;
       }
-#if 0
-      printf ("[%"PRIicl" %"PRIicl"]: %i\n", Q->a,
-         Q->b, Q->emb);
-#endif
    }
+
+   return emb;
 }
 
 /*****************************************************************************/
@@ -700,6 +688,7 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 {
    int_cl_t b0, N;
    cm_form_t neutral;
+   int emb;
    int i;
 
    if (c->invariant == CM_INVARIANT_SIMPLEETA) {
@@ -806,7 +795,17 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 
    for (i = 0; i < cl.h; i++) {
       nsystem [c->h12] = cl.form [i];
-      correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, c);
+      emb = correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, *c);
+      if (emb == 2) {
+         nsystem [c->h12].emb = complex;
+         c->h2++;
+         c->h12++;
+      }
+      else if (emb == 1) {
+         nsystem [c->h12].emb = real;
+         c->h1++;
+         c->h12++;
+      }
    }
    if (verbose)
       printf ("h = %i, h1 = %i, h2 = %i\n", c->h, c->h1, c->h2);
