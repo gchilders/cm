@@ -647,18 +647,13 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
    /* Compute an N-system, or to be more precise, some part of an N-system
       that yields all different conjugates up to complex conjugation;
       this information is passed in conj as follows:
-      The usual semantics would imply that conj [i] == j if form j in
-      nsystem yields the complex conjugate of form i.
-      For the time being, we do not really need this information;
-      we let conj [i] = i if the conjugate is real, conj [i] = i+1
-      if it corresponds to one of the forms in a pair, and conj [i] = i-1
-      if it corresponds to the other form.
-      In the case of a complex class polynomial, we let conj [i] = i. */
+      If the class polynomial is real, then conj [i] == j if form j in
+      If the class polynomial is complex, then conj [i] = i. */
 
 {
    int_cl_t b0, N;
    cm_form_t neutral, inverse;
-   int i;
+   int i, j;
 
    /* Compute the targeted b0 for the N-system and (in the real case) the
       neutral form. */
@@ -767,40 +762,47 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
    for (i = 0; i < cl.h; i++) {
       nsystem [i] = cl.form [i];
 
-      /* Compute the embedding type. */
+      /* Pair forms yielding complex conjugate roots. */
       if (c->field == CM_FIELD_REAL) {
-         /* check for the inverse of the form with respect to
+         /* look for the inverse of the form with respect to
             neutral_class */
          nsystem [i].b = -nsystem [i].b;
          cm_classgroup_compose (&inverse, neutral, nsystem [i], c->d);
          nsystem [i].b = -nsystem [i].b;
-         if (nsystem [i].a == inverse.a && nsystem [i].b == inverse.b) {
-            /* the conjugate is real */
-            conj [i] = i;
-            c->h1++;
-            c->h12++;
-         }
-         /* the conjugate is complex, test whether its form is the 
-            lexicographically smaller one */
-         else if (nsystem [i].a < inverse.a
-                  || (nsystem [i].a == inverse.a
-                      && nsystem [i].b < inverse.b)) {
-            conj [i] = i+1;
-            c->h2++;
-            c->h12++;
-         }
-         else
-            conj [i] = i-1;
+         j = 0;
+         /* So far, nsystem still contains the reduced forms, so we may look
+            for the inverse form. While this sounds counter-intuitive, it
+            might not be found: In the case of the Weber invariants (and
+            by extension also the j-invariant), we work with a subset of
+            h forms inside the class group of twice the conductor). Then
+            we let conj [i] point forward, so the root is computed. */
+         while (j < cl.h
+                && (nsystem [j].a != inverse.a
+                    || nsystem [j].b != inverse.b))
+            j++;
+         if (j == cl.h)
+            printf ("YYY %i\n", i);
+         conj [i] = j;
       }
-      else {
+      else
          conj [i] = i;
+
+      if (conj [i] == i) {
          c->h1++;
          c->h12++;
       }
+      else if (conj [i] > i) {
+         c->h2++;
+         c->h12++;
+      }
+      printf ("X %i %i\n", i, conj [i]);
+   }
 
+   /* Now modify the entries of nsystem. */
+   for (i = 0; i < cl.h; i++)
       if (conj [i] >= i)
          correct_nsystem_entry (&(nsystem [i]), N, b0, c->d);
-   }
+
    if (verbose)
       printf ("h = %i, h1 = %i, h2 = %i\n", c->h, c->h1, c->h2);
 }
