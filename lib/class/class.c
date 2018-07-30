@@ -35,20 +35,18 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose);
 static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    int_cl_t d);
    /* changes Q to be compatible with the N-system condition */
-static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
+static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
    cm_classgroup_t cl, bool verbose);
-   /* computes and returns an N-system of forms, including the embeddings    */
-   /* (real or complex) of the conjugates                                    */
+   /* computes and returns an N-system of forms, together with information
+      on the embeddings in the case of real class polynomials in conj */
 static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    bool verbose);
 
 static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q);
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
-   cm_class_t c, cm_modclass_t mc, bool verbose);
-static void write_conjugates (cm_class_t c, ctype *conjugates,
-   cm_form_t *nsystem);
-static bool read_conjugates (cm_class_t c, ctype *conjugates,
-   cm_form_t *nsystem);
+   int *conj, cm_class_t c, cm_modclass_t mc, bool verbose);
+static void write_conjugates (cm_class_t c, ctype *conjugates, int *conj);
+static bool read_conjugates (cm_class_t c, ctype *conjugates, int *conj);
 
 static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d);
 
@@ -57,8 +55,8 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
 
 /* the remaining functions are put separately as their code is quite long    */
-static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
-   cm_form_t *nsystem, bool print);
+static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
+   bool print);
 static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    bool print);
 static bool doubleeta_compute_parameter (cm_class_t *c);
@@ -458,11 +456,10 @@ bool cm_class_read (cm_class_t c)
 
 /*****************************************************************************/
 
-static void write_conjugates (cm_class_t c, ctype *conjugate,
-   cm_form_t *nsystem)
-   /* writes the conjugates to the file                                      */
-   /* CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + "_" + paramstr + "_" */
-   /* + prec + "_conjugates.dat"                                             */
+static void write_conjugates (cm_class_t c, ctype *conjugate, int *conj)
+   /* writes the conjugates to the file
+      CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + "_" + paramstr + "_"
+      + prec + "_conjugates.dat" */
 
 {
    char filename [400];
@@ -477,7 +474,7 @@ static void write_conjugates (cm_class_t c, ctype *conjugate,
       exit (1);
 
    for (i = 0; i < c.h; i++)
-      if (nsystem [i].emb != drop) {
+      if (conj [i] >= i) {
          cout_str (f, 16, 0, conjugate [i]);
          fprintf (f, "\n");
       }
@@ -487,10 +484,9 @@ static void write_conjugates (cm_class_t c, ctype *conjugate,
 
 /*****************************************************************************/
 
-static bool read_conjugates (cm_class_t c, ctype *conjugate,
-   cm_form_t *nsystem)
-   /* reads the conjugates from a file written by write_conjugates           */
-   /* If the file could not be openend, the return value is false.           */
+static bool read_conjugates (cm_class_t c, ctype *conjugate, int *conj)
+   /* reads the conjugates from a file written by write_conjugates
+      If the file could not be openend, the return value is false. */
 {
    char filename [400];
    FILE *f;
@@ -504,7 +500,7 @@ static bool read_conjugates (cm_class_t c, ctype *conjugate,
       return false;
 
    for (i = 0; i < c.h; i++)
-      if (nsystem [i].emb != drop)
+      if (conj [i] >= i)
          cinp_str (conjugate [i], f, NULL, 16);
 
    cm_file_close (f);
@@ -646,16 +642,22 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
 
 /*****************************************************************************/
 
-static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
+static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
    cm_classgroup_t cl, bool verbose)
-   /* computes an N-system, or to be more precise, some part of an N-system  */
-   /* that yields all different conjugates up to complex conjugation, as     */
-   /* well as the nature (real/complex) of the corresponding conjugates      */
+   /* Compute an N-system, or to be more precise, some part of an N-system
+      that yields all different conjugates up to complex conjugation;
+      this information is passed in conj as follows:
+      The usual semantics would imply that conj [i] == j if form j in
+      nsystem yields the complex conjugate of form i.
+      For the time being, we do not really need this information;
+      we let conj [i] = i if the conjugate is real, conj [i] = i+1
+      if it corresponds to one of the forms in a pair, and conj [i] = i-1
+      if it corresponds to the other form.
+      In the case of a complex class polynomial, we let conj [i] = i. */
 
 {
    int_cl_t b0, N;
    cm_form_t neutral, inverse;
-   int emb;
    int i;
 
    /* Compute the targeted b0 for the N-system and (in the real case) the
@@ -767,39 +769,37 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
 
       /* Compute the embedding type. */
       if (c->field == CM_FIELD_REAL) {
-         /* check for the inverse of the form with respect to */
-         /* neutral_class                                     */
+         /* check for the inverse of the form with respect to
+            neutral_class */
          nsystem [i].b = -nsystem [i].b;
          cm_classgroup_compose (&inverse, neutral, nsystem [i], c->d);
          nsystem [i].b = -nsystem [i].b;
-         if (nsystem [i].a == inverse.a && nsystem [i].b == inverse.b)
+         if (nsystem [i].a == inverse.a && nsystem [i].b == inverse.b) {
             /* the conjugate is real */
-            emb = 1;
+            conj [i] = i;
+            c->h1++;
+            c->h12++;
+         }
          /* the conjugate is complex, test whether its form is the 
             lexicographically smaller one */
          else if (nsystem [i].a < inverse.a
-                  || (nsystem [i].a == inverse.a && nsystem [i].b < inverse.b))
-            emb = 2;
+                  || (nsystem [i].a == inverse.a
+                      && nsystem [i].b < inverse.b)) {
+            conj [i] = i+1;
+            c->h2++;
+            c->h12++;
+         }
          else
-            emb = 0;
+            conj [i] = i-1;
       }
-      else
-         emb = 1;
-
-      if (emb != 0)
-         correct_nsystem_entry (&(nsystem [i]), N, b0, c->d);
-      if (emb == 2) {
-         nsystem [i].emb = complex;
-         c->h2++;
-         c->h12++;
-      }
-      else if (emb == 1) {
-         nsystem [i].emb = real;
+      else {
+         conj [i] = i;
          c->h1++;
          c->h12++;
       }
-      else
-         nsystem [i].emb = drop;
+
+      if (conj [i] >= i)
+         correct_nsystem_entry (&(nsystem [i]), N, b0, c->d);
    }
    if (verbose)
       printf ("h = %i, h1 = %i, h2 = %i\n", c->h, c->h1, c->h2);
@@ -931,14 +931,14 @@ static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q)
 /*****************************************************************************/
 
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
-   cm_class_t c, cm_modclass_t mc, bool verbose)
+   int *conj, cm_class_t c, cm_modclass_t mc, bool verbose)
    /* computes the conjugates of the singular value over Q */
 
 {
    int i;
 
    for (i = 0; i < c.h; i++) {
-      if (nsystem [i].emb != drop)
+      if (conj [i] >= i)
          eval (c, mc, conjugate [i], nsystem [i]);
       if (verbose && i % 100 == 0) {
          printf (".");
@@ -960,6 +960,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 {
    cm_classgroup_t cl, cl2;
    cm_form_t *nsystem;
+   int *conj;
    fprec_t prec;
    cm_modclass_t mc;
    ctype *conjugate;
@@ -991,8 +992,9 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
       cl2.d = 0;
 
    nsystem = (cm_form_t *) malloc (c.h * sizeof (cm_form_t));
+   conj = (int *) malloc (c.h * sizeof (int));
    cm_timer_start (clock_local);
-   compute_nsystem (nsystem, &c, cl, verbose);
+   compute_nsystem (nsystem, conj, &c, cl, verbose);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
@@ -1003,14 +1005,14 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 
    conjugate = (ctype *) malloc (c.h * sizeof (ctype));
    for (int i = 0; i < c.h; i++)
-      if (nsystem [i].emb != drop)
+      if (conj [i] >= i)
          cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
-   if (!checkpoints || !read_conjugates (c, conjugate, nsystem)) {
+   if (!checkpoints || !read_conjugates (c, conjugate, conj)) {
       cm_modclass_init (&mc, cl, cl2, prec, checkpoints, verbose);
-      compute_conjugates (conjugate, nsystem, c, mc, verbose);
+      compute_conjugates (conjugate, nsystem, conj, c, mc, verbose);
       if (checkpoints)
-         write_conjugates (c, conjugate, nsystem);
+         write_conjugates (c, conjugate, conj);
       cm_modclass_clear (&mc);
    }
    cm_timer_stop (clock_local);
@@ -1019,7 +1021,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 
    cm_timer_start (clock_local);
    if (c.field == CM_FIELD_REAL)
-      real_compute_minpoly (c, conjugate, nsystem, print);
+      real_compute_minpoly (c, conjugate, conj, print);
    else
       complex_compute_minpoly (c, conjugate, print);
    cm_timer_stop (clock_local);
@@ -1030,11 +1032,12 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
    /* is done in real_compute_minpoly or complex_compute_minpoly */
    /*
    for (i = 0; i < c.h; i++)
-      if (nsystem [i].emb != drop)
+      if (conj [i] >= i)
          cclear (conjugate [i]);
    free (conjugate);
    */
    free (nsystem);
+   free (conj);
    cm_classgroup_clear (&cl);
 
    cm_timer_stop (clock_global);
@@ -1049,8 +1052,8 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 
 /*****************************************************************************/
 
-static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
-   cm_form_t *nsystem, bool print)
+static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
+   bool print)
    /* computes the minimal polynomial of the function over Q                 */
    /* frees conjugates                                                       */
 
@@ -1070,7 +1073,7 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
    /* To save memory, free the conjugates at the same time.                  */
    factors = (mpfrx_t*) malloc (c.h12 * sizeof (mpfrx_t));
    for (i = 0; i < c.h; i++) {
-      if (nsystem [i].emb == real) {
+      if (conj [i] == i) {
          mpfrx_init (factors [right], 2, fget_prec (conjugate [i]->re));
          factors [right]->deg = 1;
          fset_ui (factors [right]->coeff [1], 1ul);
@@ -1078,7 +1081,7 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
          right--;
          cclear (conjugate [i]);
       }
-      else if (nsystem [i].emb == complex) {
+      else if (conj [i] > i) {
          mpfrx_init (factors [left], 3, fget_prec (conjugate [i]->re));
          factors [left]->deg = 2;
          fset_ui (factors [left]->coeff [2], 1ul);

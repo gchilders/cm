@@ -39,17 +39,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_FIELD_COMPLEX 2
 
 
-typedef enum {real, complex, drop}
-   cm_embedding_t;
-   /* When applied to an N-system,                                           */
-   /* "real" and "complex" indicate a real or complex conjugate. "drop" is   */
-   /* used only in the case of a real class polynomial; it means that the    */
-   /* conjugate is the complex conjugate of another one and can thus be      */
-   /* dropped.                                                               */
-
 typedef struct {
    int_cl_t a, b;
-   cm_embedding_t emb;
 } cm_form_t;
 
 typedef struct {
@@ -72,8 +63,8 @@ typedef struct {
       /* sqrt (-cl.d); */
    ftype sqrt2_over2, sqrt2_over4;
    ctype *eta;
-      /* contains the values of eta with respect to the entries of           */
-      /* cl.form with the same row index. So only cl.h12 values are stored.  */
+      /* contains the values of eta with respect to the entries of
+         cl.form with the same row index. */
    cm_classgroup_t cl2;
    ctype *eta2;
    ftype root2;
