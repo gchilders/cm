@@ -2,7 +2,7 @@
 
 class.c - code for computing class polynomials
 
-Copyright (C) 2009, 2010, 2011, 2012, 2015, 2016, 2017 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2015, 2016, 2017, 2018 Andreas Enge
 
 This file is part of CM.
 
@@ -943,7 +943,7 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
    for (i = 0; i < c.h12; i++) {
       eval (c, mc, conjugate [i], nsystem [i]);
-      if (verbose && i % 200 == 0) {
+      if (verbose && i % 100 == 0) {
          printf (".");
          fflush (stdout);
       }

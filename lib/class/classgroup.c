@@ -118,6 +118,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    int relo;
       /* relative order of the prime form modulo Cl */
    int i, j;
+   int_cl_t c;
 
    if (disc >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -133,6 +134,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    cl->h = cm_classgroup_h (&(cl->h1), &(cl->h2), cl->d);
    cl->h12 = cl->h1 + cl->h2;
    cl->form = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
+   cl->conj = (int *) malloc (cl->h * sizeof (int));
    if (verbose)
       printf ("Class numbers: h = %d, h1 = %d, h2 = %d\n",
          cl->h, cl->h1, cl->h2);
@@ -185,8 +187,19 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       avl_flatten (Cl, t);
    }
 
-   for (i = 0; i < h; i++)
+   for (i = 0; i < h; i++) {
       cl->form [i] = Cl [i];
+      c = cm_classgroup_compute_c (cl->form [i].a, cl->form [i].b, disc);
+      if (   cl->form [i].b == 0
+          || cl->form [i].b == cl->form [i].a
+          || cl->form [i].b == c)
+         cl->conj [i] = i;
+      /* inverse forms are consecutive, with the positive b coming first */
+      else if (cl->form [i].b > 0)
+         cl->conj [i] = i+1;
+      else
+         cl->conj [i] = i-1;
+   }
 
    avl_delete (t);
    free (Cl);
@@ -198,6 +211,7 @@ void cm_classgroup_clear (cm_classgroup_t *cl)
 
 {
    free (cl->form);
+   free (cl->conj);
 }
 
 /*****************************************************************************/
