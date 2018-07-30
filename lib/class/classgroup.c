@@ -131,13 +131,11 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    else
       cl->d = disc;
 
-   cl->h = cm_classgroup_h (&(cl->h1), &(cl->h2), cl->d);
-   cl->h12 = cl->h1 + cl->h2;
+   cl->h = cm_classgroup_h (cl->d);
    cl->form = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
    cl->conj = (int *) malloc (cl->h * sizeof (int));
    if (verbose)
-      printf ("Class numbers: h = %d, h1 = %d, h2 = %d\n",
-         cl->h, cl->h1, cl->h2);
+      printf ("Class number: h = %d\n", cl->h);
 
    /* computation of the class group */
    Cl = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
@@ -528,18 +526,15 @@ int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d)
 
 /*****************************************************************************/
 
-int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
+int cm_classgroup_h (int_cl_t d)
    /* computes the class number of the imaginary quadratic order with        */
    /* discriminant d using Louboutin's formula [Lou02] for the maximal part  */
    /* and the class number formula for non-maximal orders.                   */
-   /* If h1 is not the NULL pointer, the numbers of ambiguous reduced forms  */
-   /* and of pairs of non-ambiguous ones are returned via h1 and h2.         */
 
 {
    int_cl_t fund;
    uint_cl_t cond_primes [17];
    unsigned int cond_exp [17];
-   uint_cl_t factors [17];
    double   pi, a2, a, en, enp1, fn, deltaf, sum1, sum2;
       /* en stands for e_n = exp (- n^2 a2), enp1 for e_{n+1},               */
       /* deltaf for exp (-2 a2) and  fn for exp (- (2n+3) a2),               */
@@ -603,47 +598,6 @@ int cm_classgroup_h (int *h1, int *h2, int_cl_t d)
          h /= 3;
       else if (fund == -4)
          h /= 2;
-   }
-
-   if (h1 != NULL) {
-      /* compute the number of ambiguous forms; factors the discriminant     */
-      /* again, which is not very elegant, but fast enough                   */
-      m = 0;
-      fund = d;
-      while (fund % 4 == 0) {
-         fund /= 4;
-         m++;
-      }
-      if ((fund - 1) % 4 == 0) {
-         if (m <= 1)
-            *h1 = 1;
-         else if (m == 2)
-            *h1 = 2;
-         else
-            *h1 = 4;
-      }
-      else if ((fund - 3) % 4 == 0) {
-         if (m <= 2)
-            *h1 = 2;
-         else
-            *h1 = 4;
-      }
-      else {
-         if (m <= 1)
-            *h1 = 1;
-         else
-            *h1 = 2;
-      }
-
-      if (fund != -1) {
-         cm_classgroup_factor (fund, factors, cond_exp);
-         for (i = 1; factors [i] != 0; i++)
-            *h1 *= 2;
-      }
-      else
-         *h1 /= 2;
-
-      *h2 = (h - *h1) / 2;
    }
 
    return h;

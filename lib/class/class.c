@@ -113,7 +113,7 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
    else
       c->field = CM_FIELD_REAL;
 
-   c->h = cm_classgroup_h (NULL, NULL, c->d);
+   c->h = cm_classgroup_h (c->d);
    c->minpoly_deg = c->h;
    c->minpoly = (mpz_t *) malloc ((c->minpoly_deg + 1) * sizeof (mpz_t));
    for (i = 0; i <= c->minpoly_deg; i++)
@@ -830,8 +830,7 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       simpleprec += 1.0 / cl.form [i].a;
    simpleprec = ceil (simpleprec * pisqrtd / log (2.0) * cf);
 
-   /* formula of Lemma 8 of [Sutherland10]; assumes that the A values in cl  */
-   /* are sorted in increasing order                                         */
+   /* formula of Lemma 8 of [Sutherland11] */
    for (i = 0; i < cl.h; i++) {
       x = pisqrtd / cl.form [i].a;
       if (x < 42)
@@ -840,7 +839,7 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
          M = x;
       prec += M;
    }
-   M = exp (pisqrtd / cl.form [cl.h12 - 1].a) + C;
+   M = exp (pisqrtd / cl.form [cl.h - 1].a) + C;
    m = (int) ((cl.h + 1) / (M + 1));
    for (i = 1; i <= m; i++)
       binom *= (double) (cl.h - 1 + i) / i / M;

@@ -61,9 +61,8 @@ typedef struct {
       /* references how the forms in form are related by "conjugation",
          that is, negation; conj [i] == j if and only if form [j] is the
          inverse of form [i] */
-   int h1, h2, h12, h;
-      /* the numbers of ambiguous reduced forms, pairs of non-ambiguous      */
-      /* reduced forms, h1+h2 and the class number                           */
+   int h;
+      /* the class number */
 } cm_classgroup_t;
 
 typedef struct {
@@ -112,7 +111,7 @@ extern int cm_classgroup_kronecker (int_cl_t a, int_cl_t b);
 extern void cm_classgroup_factor (int_cl_t d,
       uint_cl_t *factors, unsigned int *exponents);
 extern int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d);
-extern int cm_classgroup_h (int *h1, int *h2, int_cl_t d);
+extern int cm_classgroup_h (int_cl_t d);
 
 extern int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d);
 extern void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d);
