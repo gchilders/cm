@@ -46,9 +46,10 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
 static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q);
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
    cm_class_t c, cm_modclass_t mc, bool verbose);
-   /* computes and returns the h12 conjugates                                */
-static void write_conjugates (cm_class_t c, ctype *conjugates);
-static bool read_conjugates (cm_class_t c, ctype *conjugates);
+static void write_conjugates (cm_class_t c, ctype *conjugates,
+   cm_form_t *nsystem);
+static bool read_conjugates (cm_class_t c, ctype *conjugates,
+   cm_form_t *nsystem);
 
 static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d);
 
@@ -458,7 +459,8 @@ bool cm_class_read (cm_class_t c)
 
 /*****************************************************************************/
 
-static void write_conjugates (cm_class_t c, ctype *conjugate)
+static void write_conjugates (cm_class_t c, ctype *conjugate,
+   cm_form_t *nsystem)
    /* writes the conjugates to the file                                      */
    /* CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + "_" + paramstr + "_" */
    /* + prec + "_conjugates.dat"                                             */
@@ -475,17 +477,19 @@ static void write_conjugates (cm_class_t c, ctype *conjugate)
    if (!cm_file_open_write (&f, filename))
       exit (1);
 
-   for (i = 0; i < c.h12; i++) {
-      cout_str (f, 16, 0, conjugate [i]);
-      fprintf (f, "\n");
-   }
+   for (i = 0; i < c.h; i++)
+      if (nsystem [i].emb != drop) {
+         cout_str (f, 16, 0, conjugate [i]);
+         fprintf (f, "\n");
+      }
 
    cm_file_close (f);
 }
 
 /*****************************************************************************/
 
-static bool read_conjugates (cm_class_t c, ctype *conjugate)
+static bool read_conjugates (cm_class_t c, ctype *conjugate,
+   cm_form_t *nsystem)
    /* reads the conjugates from a file written by write_conjugates           */
    /* If the file could not be openend, the return value is false.           */
 {
@@ -500,9 +504,9 @@ static bool read_conjugates (cm_class_t c, ctype *conjugate)
    if (!cm_file_open_read (&f, filename))
       return false;
 
-   for (i = 0; i < c.h12; i++) {
-      cinp_str (conjugate [i], f, NULL, 16);
-   }
+   for (i = 0; i < c.h; i++)
+      if (nsystem [i].emb != drop)
+         cinp_str (conjugate [i], f, NULL, 16);
 
    cm_file_close (f);
 
@@ -794,18 +798,20 @@ static void compute_nsystem (cm_form_t *nsystem, cm_class_t *c,
    c->h2 = 0;
 
    for (i = 0; i < cl.h; i++) {
-      nsystem [c->h12] = cl.form [i];
-      emb = correct_nsystem_entry (&(nsystem [c->h12]), N, b0, neutral, *c);
+      nsystem [i] = cl.form [i];
+      emb = correct_nsystem_entry (&(nsystem [i]), N, b0, neutral, *c);
       if (emb == 2) {
-         nsystem [c->h12].emb = complex;
+         nsystem [i].emb = complex;
          c->h2++;
          c->h12++;
       }
       else if (emb == 1) {
-         nsystem [c->h12].emb = real;
+         nsystem [i].emb = real;
          c->h1++;
          c->h12++;
       }
+      else
+         nsystem [i].emb = drop;
    }
    if (verbose)
       printf ("h = %i, h1 = %i, h2 = %i\n", c->h, c->h1, c->h2);
@@ -943,16 +949,13 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 {
    int i;
 
-   for (i = 0; i < c.h12; i++) {
-      eval (c, mc, conjugate [i], nsystem [i]);
+   for (i = 0; i < c.h; i++) {
+      if (nsystem [i].emb != drop)
+         eval (c, mc, conjugate [i], nsystem [i]);
       if (verbose && i % 100 == 0) {
          printf (".");
          fflush (stdout);
       }
-#if 0
-      cout_str (stdout, 10, 0, conjugate[i]);
-      printf ("\n");
-#endif
    }
    if (verbose)
       printf ("\n");
@@ -1005,21 +1008,21 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
-   nsystem = (cm_form_t *) realloc (nsystem, c.h12 * sizeof (cm_form_t));
    if (c.invariant == CM_INVARIANT_WEBER && c.p [0] % 100 == 17)
       prec = compute_precision (c, cl2, verbose);
    else
       prec = compute_precision (c, cl, verbose);
 
-   conjugate = (ctype *) malloc (c.h12 * sizeof (ctype));
-   for (int i = 0; i < c.h12; i++)
-      cinit (conjugate [i], prec);
+   conjugate = (ctype *) malloc (c.h * sizeof (ctype));
+   for (int i = 0; i < c.h; i++)
+      if (nsystem [i].emb != drop)
+         cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
-   if (!checkpoints || !read_conjugates (c, conjugate)) {
+   if (!checkpoints || !read_conjugates (c, conjugate, nsystem)) {
       cm_modclass_init (&mc, cl, cl2, prec, checkpoints, verbose);
       compute_conjugates (conjugate, nsystem, c, mc, verbose);
       if (checkpoints)
-         write_conjugates (c, conjugate);
+         write_conjugates (c, conjugate, nsystem);
       cm_modclass_clear (&mc);
    }
    cm_timer_stop (clock_local);
@@ -1038,8 +1041,9 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 
    /* is done in real_compute_minpoly or complex_compute_minpoly */
    /*
-   for (i = 0; i < c.h12; i++)
-      cclear (conjugate [i]);
+   for (i = 0; i < c.h; i++)
+      if (nsystem [i].emb != drop)
+         cclear (conjugate [i]);
    free (conjugate);
    */
    free (nsystem);
@@ -1077,15 +1081,16 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
    /* Put the real ones to the right, the complex ones to the left.          */
    /* To save memory, free the conjugates at the same time.                  */
    factors = (mpfrx_t*) malloc (c.h12 * sizeof (mpfrx_t));
-   for (i = 0; i < c.h12; i++) {
+   for (i = 0; i < c.h; i++) {
       if (nsystem [i].emb == real) {
          mpfrx_init (factors [right], 2, fget_prec (conjugate [i]->re));
          factors [right]->deg = 1;
          fset_ui (factors [right]->coeff [1], 1ul);
          fneg (factors [right]->coeff [0], conjugate [i]->re);
          right--;
+         cclear (conjugate [i]);
       }
-      else {
+      else if (nsystem [i].emb == complex) {
          mpfrx_init (factors [left], 3, fget_prec (conjugate [i]->re));
          factors [left]->deg = 2;
          fset_ui (factors [left]->coeff [2], 1ul);
@@ -1093,8 +1098,8 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate,
          fneg (factors [left]->coeff [1], factors [left]->coeff [1]);
          cnorm (factors [left]->coeff [0], conjugate [i]);
          left++;
+         cclear (conjugate [i]);
       }
-      cclear (conjugate [i]);
    }
    free (conjugate);
 
