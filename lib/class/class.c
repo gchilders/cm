@@ -821,6 +821,7 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    const double pisqrtd = 3.14159265358979323846 * sqrt ((double) (-cl.d));
    const double cf = class_get_valuation (c);
    double x, binom = 1.0, simpleprec = 0, prec = 0, M;
+   int_cl_t amax;
    int i, m;
    fprec_t precision;
 
@@ -830,6 +831,7 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    simpleprec = ceil (simpleprec * pisqrtd / log (2.0) * cf);
 
    /* formula of Lemma 8 of [Sutherland11] */
+   amax = 0;
    for (i = 0; i < cl.h; i++) {
       x = pisqrtd / cl.form [i].a;
       if (x < 42)
@@ -837,8 +839,10 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
       else /* prevent overflow in exponential without changing the result */
          M = x;
       prec += M;
+      if (cl.form [i].a > amax)
+         amax = cl.form [i].a;
    }
-   M = exp (pisqrtd / cl.form [cl.h - 1].a) + C;
+   M = exp (pisqrtd / amax) + C;
    m = (int) ((cl.h + 1) / (M + 1));
    for (i = 1; i <= m; i++)
       binom *= (double) (cl.h - 1 + i) / i / M;
