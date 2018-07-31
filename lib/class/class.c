@@ -759,9 +759,10 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
    c->h1 = 0;
    c->h2 = 0;
 
-   for (i = 0; i < cl.h; i++) {
+   for (i = 0; i < cl.h; i++)
       nsystem [i] = cl.form [i];
 
+   for (i = 0; i < cl.h; i++) {
       /* Pair forms yielding complex conjugate roots. */
       if (c->field == CM_FIELD_REAL) {
          /* look for the inverse of the form with respect to
@@ -771,17 +772,9 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
          nsystem [i].b = -nsystem [i].b;
          j = 0;
          /* So far, nsystem still contains the reduced forms, so we may look
-            for the inverse form. While this sounds counter-intuitive, it
-            might not be found: In the case of the Weber invariants (and
-            by extension also the j-invariant), we work with a subset of
-            h forms inside the class group of twice the conductor). Then
-            we let conj [i] point forward, so the root is computed. */
-         while (j < cl.h
-                && (nsystem [j].a != inverse.a
-                    || nsystem [j].b != inverse.b))
+            for the inverse form. */
+         while (nsystem [j].a != inverse.a || nsystem [j].b != inverse.b)
             j++;
-         if (j == cl.h)
-            printf ("YYY %i\n", i);
          conj [i] = j;
       }
       else
@@ -795,7 +788,6 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
          c->h2++;
          c->h12++;
       }
-      printf ("X %i %i\n", i, conj [i]);
    }
 
    /* Now modify the entries of nsystem. */
