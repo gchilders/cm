@@ -935,7 +935,7 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
    for (i = 0; i < c.h; i++) {
       if (conj [i] >= i)
          eval (c, mc, conjugate [i], nsystem [i]);
-      if (verbose && i % 100 == 0) {
+      if (verbose && i % 200 == 0) {
          printf (".");
          fflush (stdout);
       }
