@@ -959,6 +959,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
    fprec_t prec;
    cm_modclass_t mc;
    ctype *conjugate;
+   int i;
    cm_timer  clock_global, clock_local;
 
    cm_timer_start (clock_global);
@@ -999,7 +1000,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
       prec = compute_precision (c, cl, verbose);
 
    conjugate = (ctype *) malloc (c.h * sizeof (ctype));
-   for (int i = 0; i < c.h; i++)
+   for (i = 0; i < c.h; i++)
       if (conj [i] >= i)
          cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
@@ -1024,13 +1025,10 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
       printf ("--- Time for polynomial reconstruction: %.1f\n",
               cm_timer_get (clock_local));
 
-   /* is done in real_compute_minpoly or complex_compute_minpoly */
-   /*
    for (i = 0; i < c.h; i++)
       if (conj [i] >= i)
          cclear (conjugate [i]);
    free (conjugate);
-   */
    free (nsystem);
    free (conj);
    cm_classgroup_clear (&cl);
@@ -1049,70 +1047,17 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
 
 static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
    bool print)
-   /* computes the minimal polynomial of the function over Q                 */
-   /* frees conjugates                                                       */
+   /* computes the minimal polynomial of the function over Q */
 
 {
-   mpfrx_t *factors;
-      /* holds the small factors which must be multiplied together to obtain */
-      /* the minimal polynomial.                                             */
    mpfrx_t mpol;
-   int h1, h2, h12;
-   int left, right;
-      /* the next free places in the array of factors, from the left and     */
-      /* from the right                                                      */
+   mpfr_prec_t prec;
    int i;
 
-   /* Compute the number of real and complex roots. */
-   h1 = 0;
-   h2 = 0;
-   for (i = 0; i < c.h; i++)
-      if (conj [i] == i)
-         h1++;
-      else if (conj [i] > i)
-         h2++;
-   h12 = h1 + h2;
-         
-   /* Copy the real conjugates and the pairs of complex ones into            */
-   /* polynomials over the reals.                                            */
-   /* Put the real ones to the right, the complex ones to the left.          */
-   /* To save memory, free the conjugates at the same time.                  */
-   left = 0;
-   right = h12 - 1;
-   factors = (mpfrx_t*) malloc (h12 * sizeof (mpfrx_t));
-   for (i = 0; i < c.h; i++) {
-      if (conj [i] == i) {
-         mpfrx_init (factors [right], 2, fget_prec (conjugate [i]->re));
-         factors [right]->deg = 1;
-         fset_ui (factors [right]->coeff [1], 1ul);
-         fneg (factors [right]->coeff [0], conjugate [i]->re);
-         right--;
-         cclear (conjugate [i]);
-      }
-      else if (conj [i] > i) {
-         mpfrx_init (factors [left], 3, fget_prec (conjugate [i]->re));
-         factors [left]->deg = 2;
-         fset_ui (factors [left]->coeff [2], 1ul);
-         fmul_2ui (factors [left]->coeff [1], conjugate [i]->re, 1ul);
-         fneg (factors [left]->coeff [1], factors [left]->coeff [1]);
-         cnorm (factors [left]->coeff [0], conjugate [i]);
-         left++;
-         cclear (conjugate [i]);
-      }
-   }
-   free (conjugate);
-
-   /* Group the linear polynomials by pairs. */
-   for (i = 0; i < h1/2; i++) {
-      mpfrx_mul (factors [h2+i], factors [h2+i], factors [h12-1-i]);
-      mpfrx_clear (factors [h12-1-i]);
-   }
-
-   mpfrx_init (mpol, c.minpoly_deg + 1, factors [0]->prec);
-   mpfrx_reconstruct (mpol, factors, (h1+1)/2 + h2);
-   for (i = 0; i < (h1+1)/2 + h2; i++)
-      mpfrx_clear (factors [i]);
-   free (factors);
+   for (i = 0; conj [i] < i; i++);
+   prec = cget_prec (conjugate [i]);
+   mpfrx_init (mpol, c.minpoly_deg + 1, prec);
+   mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly_deg);
 
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
    for (i = 0; i < c.minpoly_deg; i++)
@@ -1191,37 +1136,19 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
 
 static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    bool print)
-   /* computes the minimal polynomial of the function over Q (sqrt D)        */
-   /* frees conjugates                                                       */
+   /* computes the minimal polynomial of the function over Q (sqrt D) */
 
 {
    int_cl_t fund;
    int i;
-   mpcx_t *factors, mpol;
-      /* holds the small factors which must be multiplied together to obtain */
-      /* the minimal polynomial.                                             */
+   mpfr_prec_t prec;
+   mpcx_t mpol;
 
-   /* copy the conjugates into polynomials over the complex numbers */
-   /* To save memory, free the conjugates at the same time.         */
-   factors = (mpcx_t*) malloc (c.h * sizeof (mpcx_t));
-   for (i = 0; i < c.h; i++) {
-      mpcx_init (factors [i], 2, fget_prec (conjugate [i]->re));
-      factors [i]->deg = 1;
-      cset_ui (factors [i]->coeff [1], 1ul);
-      cset (factors [i]->coeff [0], conjugate [i]);
-      cneg (factors [i]->coeff [0], factors [i]->coeff[0]);
-      cclear (conjugate [i]);
-   }
-   free (conjugate);
+   prec = cget_prec (conjugate [0]);
+   mpcx_init (mpol, c.minpoly_deg + 1, prec);
+   mpcx_reconstruct_from_roots (mpol, conjugate, c.minpoly_deg);
 
-   mpcx_init (mpol, c.minpoly_deg + 1, factors [0]->prec);
-   mpcx_reconstruct (mpol, factors, c.h);
-   for (i = 0; i < c.h; i++)
-      mpcx_clear (factors [i]);
-   free (factors);
-
-   /* the minimal polynomial is now in mpol */
-   /* rounding to integral polynomial       */
+   /* the minimal polynomial is now in mpol; round to integral polynomial */
    fund = cm_classgroup_fundamental_discriminant (c.d);
    for (i = 0; i < c.h; i++) {
       if (!get_quadratic (c.minpoly [i], c.minpoly_complex [i],

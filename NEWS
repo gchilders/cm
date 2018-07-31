@@ -1,6 +1,9 @@
+Recent changes:
+  - increase minimal version number for mpfrcx to 0.5
+
 Changes in version 0.3 ("Wurstebrei"):
   - Features
-    - use the baby-step giant-step algorithm of Enge-Hart-Johansson 2016 to
+    - use the baby-step giant-step algorithm of Enge-Hart-Johansson 2018 to
       compute the eta series
     - use a 2-system for j and a 6-system for gamma2, which increases the
       chances of staying in the same order for the numerator of the Weber
