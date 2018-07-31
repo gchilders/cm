@@ -761,25 +761,26 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
       conj [i] = -1;
    }
 
-   for (i = 0; i < cl.h; i++) {
+   for (i = 0; i < cl.h; i++)
       /* Pair forms yielding complex conjugate roots. */
       if (c->field == CM_FIELD_REAL) {
-         /* look for the inverse of the form with respect to
-            neutral_class */
-         nsystem [i].b = -nsystem [i].b;
-         cm_classgroup_compose (&inverse, neutral, nsystem [i], c->d);
-         nsystem [i].b = -nsystem [i].b;
-         j = 0;
-         /* So far, nsystem still contains the reduced forms, so we may look
-            for the inverse form. */
-         while (nsystem [j].a != inverse.a || nsystem [j].b != inverse.b)
-            j++;
-         conj [i] = j;
-         conj [j] = i;
+         if (conj [i] == -1) {
+            /* form did not yet occur in a pair; look for its inverse
+               with respect to neutral_class */
+            nsystem [i].b = -nsystem [i].b;
+            cm_classgroup_compose (&inverse, neutral, nsystem [i], c->d);
+            nsystem [i].b = -nsystem [i].b;
+            j = 0;
+            /* So far, nsystem still contains the reduced forms, so we may look
+               for the inverse form. */
+            while (nsystem [j].a != inverse.a || nsystem [j].b != inverse.b)
+               j++;
+            conj [i] = j;
+            conj [j] = i;
+         }
       }
-      else
+      else /* c->field == CM_FIELD_COMPLEX */
          conj [i] = i;
-   }
 
    /* Now modify the entries of nsystem. */
    for (i = 0; i < cl.h; i++)
