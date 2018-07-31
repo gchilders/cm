@@ -1051,7 +1051,7 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
 
 {
    mpfrx_t mpol;
-   mpfr_prec_t prec;
+   fprec_t prec;
    int i;
 
    for (i = 0; conj [i] < i; i++);
@@ -1141,7 +1141,7 @@ static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
 {
    int_cl_t fund;
    int i;
-   mpfr_prec_t prec;
+   fprec_t prec;
    mpcx_t mpol;
 
    prec = cget_prec (conjugate [0]);

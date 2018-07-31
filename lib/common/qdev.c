@@ -2,7 +2,7 @@
 
 qdev.c - code handling q-expansions
 
-Copyright (C) 2009, 2015, 2016 Andreas Enge
+Copyright (C) 2009, 2015, 2016, 2018 Andreas Enge
 
 This file is part of CM.
 
@@ -435,7 +435,7 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
    long int T, cost, cost_new;
    int m, index;
    long int **bs;
-   mpc_t *q, *c, tmp1, tmp2, tmp3;
+   ctype *q, *c, tmp1, tmp2, tmp3;
    int i, j, k, J;
 
    prec = fget_prec (crealref (rop));
@@ -484,7 +484,7 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
    minimal_dense_addition_sequence (bs, m);
 
    /* Compute the baby-steps. */
-   q = (mpc_t *) malloc ((m + 1) * sizeof (mpc_t));
+   q = (ctype *) malloc ((m + 1) * sizeof (ctype));
    cinit (q [0], 2);
    cset_ui (q [0], 1);
    cinit (q [1], bs [1][2]);
@@ -507,7 +507,7 @@ static void qdev_eval_bsgs (ctype rop, cm_qdev_t f, ctype q1,
       \sum_{j=0}^{J-1} (\sum_{k=0}^{m-1} c_{k+j*m} q^k) (q^m)^j.
       First compute the inner coefficients, then use a Horner scheme. */
    J = f.chain [N][0] / m + 1;
-   c = (mpc_t *) malloc (J * sizeof (mpc_t));
+   c = (ctype *) malloc (J * sizeof (ctype));
    for (j = 0; j < J; j++) {
       local_prec = prec - (mp_prec_t) (j * m * delta);
       cinit (c [j], local_prec);
