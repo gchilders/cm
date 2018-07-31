@@ -2,7 +2,7 @@
 
 pari.c - functions for factoring polynomials using pari
 
-Copyright (C) 2010, 2015 Andreas Enge
+Copyright (C) 2010, 2015, 2018 Andreas Enge
 
 This file is part of CM.
 
@@ -113,7 +113,7 @@ static int ZX_get_mpzx (mpz_t *res, GEN f)
 /*****************************************************************************/
 
 static GEN good_root_of_unity (int *n, const GEN p, const int deg,
-   const int deg_factor, bool verbose)
+   const int deg_factor)
    /* returns a root of unity in F_p that is suitable for finding a factor   */
    /* of degree deg_factor of a polynomial of degree deg; the order is       */
    /* returned in n                                                          */
@@ -127,8 +127,6 @@ static GEN good_root_of_unity (int *n, const GEN p, const int deg,
 
    pm = subis (p, 1ul);
    for (*n = deg / 2 / deg_factor + 1; !dvdiu (pm, *n); (*n)--);
-   if (verbose)
-      printf ("n %i\n", *n);
 
    factn = Z_factor (stoi (*n));
    power = diviuexact (pm, *n);
@@ -155,7 +153,7 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
 
 {
    GEN pp;
-   int n, deg_f, i;
+   int n, deg_f, target, i;
    GEN prim, expo, fact, minfactor, xplusa, zeta, xpow, tmp;
    cm_timer clock, clock2;
 
@@ -169,44 +167,48 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
    fact = mpzx_get_FpX (f, deg, p);
    minfactor = fact; /* factor of minimal degree found so far */
 
-   prim = good_root_of_unity (&n,pp, deg, deg_factor, verbose);
-   expo = diviuexact (subis (powiu (pp, (unsigned long int) deg_factor), 1),
-            (unsigned long int) n);
-
    xplusa = pol_x (varn (fact));
-   zeta = gen_1;
    while (degpol (minfactor) != deg_factor) {
-      /* split minfactor by computing its gcd with (X+a)^exp-zeta, where    */
-      /* zeta varies over the roots of unity in F_p                         */
+      /* split minfactor by computing its gcd with (X+a)^exp-zeta, where
+         zeta varies over the n-th roots of unity in F_p for a suitable n */
       fact = FpX_normalize (minfactor, pp);
       deg_f = degpol (fact);
+      prim = good_root_of_unity (&n, pp, deg_f, deg_factor);
+      expo = diviuexact (subis (powiu (pp, (unsigned long int) deg_factor), 1),
+                         (unsigned long int) n);
       /* update X+a, avoid a=0 */
       gel (xplusa, 2) = addis (gel (xplusa, 2), 1);
       cm_timer_start (clock2);
       xpow = FpXQ_pow (xplusa, expo, fact, pp);
       cm_timer_stop (clock2);
       if (verbose)
-         printf ("- Time for pow: %.1f in degree %i\n", cm_timer_get (clock2),
-                 deg_f);
-      for (i = 0; i < n; i++) {
-         cm_timer_start (clock2);
-         tmp = FpX_gcd (FpX_Fp_sub (xpow, zeta, pp), fact, pp);
-         cm_timer_stop (clock2);
-         if (verbose)
-            printf ("- Time for gcd of degrees %li, %li -> %li: %.1f\n",
-               degpol (fact), degpol (xpow), degpol (tmp),
-               cm_timer_get (clock2));
-         if (degpol (tmp) > 0 && degpol (tmp) < degpol (fact)) {
-            fact = FpX_div (fact, tmp, pp);
-            if (degpol (tmp) < degpol (minfactor)) {
-               minfactor = tmp;
-               if (degree (minfactor) == deg_factor ||
-                   degree (minfactor) <= deg_f / (n / 2) + 1)
-                  /* stop early to avoid too many gcds */
-                  break;
+         printf ("- Time for pow with n=%i in degree %i: %.1f\n",
+                 n, deg_f, cm_timer_get (clock2));
+      if (degpol (xpow) > 0 && degpol (xpow) < deg_f) {
+         /* Fix a target for early abort, depending on n and deg_f, to
+            avoid computing too many gcds; we stop as soon as a degree of
+            at most target is reached. It is necessary to have
+            target <= deg_f - 1. */
+         target = (2 * deg_f) / n - 1;
+         for (i = 0, zeta = gen_1;
+            i < n
+               && degree (minfactor) > deg_factor
+               /* stop early to avoid too many gcds */
+               && degree (minfactor) > target;
+            i++, zeta = Fp_mul (zeta, prim, pp)) {
+            cm_timer_start (clock2);
+            tmp = FpX_gcd (FpX_Fp_sub (xpow, zeta, pp), fact, pp);
+            cm_timer_stop (clock2);
+            if (verbose)
+               printf ("- Time for gcd of degrees %li, %li -> %li: %.1f\n",
+                  degpol (fact), degpol (xpow), degpol (tmp),
+                  cm_timer_get (clock2));
+            if (degpol (tmp) > 0 && degpol (tmp) < degpol (fact)) {
+               fact = FpX_div (fact, tmp, pp);
+               if (degpol (tmp) < degpol (minfactor))
+                  minfactor = tmp;
             }
          }
-         zeta = Fp_mul (zeta, prim, pp);
       }
     }
 
