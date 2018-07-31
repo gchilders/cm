@@ -2,7 +2,7 @@
 
 cm_class.h - header file for the cm_class library
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2018 Andreas Enge
 
 This file is part of CM.
 
@@ -61,11 +61,10 @@ typedef struct {
       /* names                                                                  */
    int_cl_t d;
       /* the discriminant                                                       */
-   int h, h1, h2, h12;
-      /* the class number, the number of forms leading to one or two            */
-      /* conjugates, and h1+h2                                                  */
+   int h;
+      /* the class number */
    int minpoly_deg;
-      /* the degree of the minimal polynomial; usually h, always h1 + 2 * h2    */
+      /* the degree of the minimal polynomial; usually h */
    mpz_t *minpoly;
       /* real part of the minimal polynomial of the function over Q             */
    mpz_t *minpoly_complex;
