@@ -209,15 +209,15 @@ AC_COMPILE_IFELSE(
         [AC_LANG_SOURCE(
         [[
 #include "mpfrcx.h"
-#if (100*MPFRCX_VERSION_MAJOR + 100*MPFRCX_VERSION_MINOR + MPFRCX_VERSION_PATCHLEVEL < 40)
-# error "Minimal MPFRCX version is 0.4"
+#if (100*MPFRCX_VERSION_MAJOR + 100*MPFRCX_VERSION_MINOR + MPFRCX_VERSION_PATCHLEVEL < 50)
+# error "Minimal MPFRCX version is 0.5"
 error
 #endif
         ]])],
         [AC_MSG_RESULT(yes)],
         [
          AC_MSG_RESULT(no)
-         AC_MSG_ERROR([MPFRCX version >= 0.4 required])
+         AC_MSG_ERROR([MPFRCX version >= 0.5 required])
          ])
 
 # Pari
