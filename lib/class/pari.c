@@ -161,7 +161,8 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
    if (verbose)
       printf ("--- Factor finding, degree %i out of %i\n", deg_factor, deg);
 
-   pari_init (2000 * deg * mpz_sizeinbase (p, 2) / 8 + 1000000, 0);
+   pari_init (500000, 0);
+   paristack_setsize (500000, 500000000);
 
    pp = mpz_get_Z (p);
    fact = mpzx_get_FpX (f, deg, p);
