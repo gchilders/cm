@@ -118,7 +118,6 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    int relo;
       /* relative order of the prime form modulo Cl */
    int i, j;
-   int_cl_t c;
 
    if (disc >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -169,10 +168,9 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       if (verbose && relo > 1)
          printf ("   [%"PRIicl", %"PRIicl"]: %i\n", P.a, P.b, relo);
 
-      /* Multiply all other forms by the powers of P and insert them into  */
-      /* the tree. Cl[0] contains the principal form, which is already     */
-      /* handled.                                                          */
-      for (i = 1; i < h; i++) {
+      /* Multiply all other forms by the powers of P and insert them into
+         the tree. */
+      for (i = 0; i < h; i++) {
          Ppow = Cl [i];
          for (j = 1; j < relo; j++) {
             cm_classgroup_compose (&Ppow, Ppow, P, disc);
@@ -185,18 +183,20 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       avl_flatten (Cl, t);
    }
 
-   for (i = 0; i < h; i++) {
+   for (i = 0; i < h; i++)
       cl->form [i] = Cl [i];
-      c = cm_classgroup_compute_c (cl->form [i].a, cl->form [i].b, disc);
-      if (   cl->form [i].b == 0
-          || cl->form [i].b == cl->form [i].a
-          || cl->form [i].b == c)
+
+   /* Pair up inverse forms. */
+   for (i = 0; i < cl->h; i++) {
+      for (j = i;
+           j < cl->h && cl->form [j].b != -cl->form [i].b;
+           j++);
+      if (j == cl->h && cl->form [i].b == 0)
          cl->conj [i] = i;
-      /* inverse forms are consecutive, with the positive b coming first */
-      else if (cl->form [i].b > 0)
-         cl->conj [i] = i+1;
-      else
-         cl->conj [i] = i-1;
+      else {
+         cl->conj [i] = j;
+         cl->conj [j] = i;
+      }
    }
 
    avl_delete (t);
@@ -610,29 +610,21 @@ int cm_classgroup_h (int_cl_t d)
 /*****************************************************************************/
 
 static int avl_cmp (cm_form_t P, cm_form_t Q)
-   /* Returns -1, 0 or 1, depending on whether P is smaller than, equal to   */
-   /* or larger than Q. Uses the lexicographical order on (a, |b|), and      */
-   /* breaks ties by putting the positive b first.                           */
+   /* Return -1, 0 or 1, depending on whether P is smaller than, equal to
+      or larger than Q. Uses the lexicographical order on (a, b). */
 
 {
    if (P.a < Q.a)
-      return -1;
-   else if (P.a > Q.a)
       return 1;
-   else if (P.b == Q.b)
-      return 0;
+   else if (P.a > Q.a)
+      return -1;
    else {
-      /* the same a, different b */
-      int_cl_t Pbabs = (P.b < 0 ? -P.b : P.b);
-      int_cl_t Qbabs = (Q.b < 0 ? -Q.b : Q.b);
-      if (Pbabs < Qbabs)
+      if (P.b < Q.b)
          return -1;
-      else if (Pbabs > Qbabs)
+      else if (P.b > Q.b)
          return 1;
-      else if (P.b < 0 && Q.b > 0)
-         return 1;
-      else /* P.b > 0 && Q.b < 0 */
-         return -1;
+      else
+         return 0;
    }
 }
 

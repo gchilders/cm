@@ -226,36 +226,55 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_start (clock3);
    counter1 = 0;
    counter2 = 0;
-   for (i = cl.h - 1; i >= 0; i--) {
+
+   /* Sort the forms by insertion by decreasing A, then by increasing B;
+      the variable order keeps track of the permutation: So order [0] = j
+      means that the A in form j has the largest A, and so on. */
+   for (i = 0; i < cl.h; i++)
+      order [i] = i;
+   for (i = 0; i < cl.h - 1; i++) {
+      /* Look for the form with the largest A, and among these for the
+         one with the smallest B. */
+      tmp_int = i;
+      for (j = tmp_int + 1; j < cl.h; j++)
+         if (cl.form [order [j]].a > cl.form [order [tmp_int]].a
+             || (   cl.form [order [j]].a == cl.form [order [tmp_int]].a
+                 && cl.form [order [j]].b < cl.form [order [tmp_int]].b))
+            tmp_int = j;
+      /* Swap the element with the found one. */
+      j = order [i];
+      order [i] = order [tmp_int];
+      order [tmp_int] = j;
+   }
+
+   for (i = 0; i < cl.h; i++) {
       /* Compute q_real only for the first form in each pair of
          inverse forms. */
-      if (cl.conj [i] >= i) {
-         /* Check whether the current A is a divisor of a higher one, then
-            take the higher one which is closest.
-            Notice that the A's are in increasing order, and that pairs of
-            inverse forms are consecutive with the positive B coming first;
-            so either one is found that is computed, or we find a backwards
-            pointing form (which is actually the inverse of the considered
-            one). */
-         for (j = i+1;
-              j < cl.h &&
-                 (cl.conj [j] < j || cl.form [j].a % cl.form [i].a != 0);
-              j++);
-         if (j < cl.h) {
-            if (cl.form [i].a == cl.form [j].a)
-               fset (q_real [i], q_real [j]);
+      if (cl.conj [order [i]] >= order [i]) {
+         /* Check whether the current A is a divisor of a previous one;
+            if yes, choose the closest one. Since the B are ordered
+            increasingly, we find a non-negative one, corresponding to an
+            element that has been computed. */
+         for (j = i-1;
+              j >= 0 &&
+                 (cl.conj [order [j]] < order [j]
+                  || cl.form [order [j]].a % cl.form [order [i]].a != 0);
+              j--);
+         if (j >= 0) {
+            if (cl.form [order [i]].a == cl.form [order [j]].a)
+               fset (q_real [order [i]], q_real [order [j]]);
             else {
                counter1++;
-               fpow_ui (q_real [i], q_real [j],
-                            cl.form [j].a / cl.form [i].a);
+               fpow_ui (q_real [order [i]], q_real [order [j]],
+                            cl.form [order [j]].a / cl.form [order [i]].a);
             }
          }
          else {
             counter1++;
             counter2++;
-            fdiv_ui (q_real [i], Pi24_root, cl.form [i].a);
-            fneg (q_real [i], q_real [i]);
-            fexp (q_real [i], q_real [i]);
+            fdiv_ui (q_real [order [i]], Pi24_root, cl.form [order [i]].a);
+            fneg (q_real [order [i]], q_real [order [i]]);
+            fexp (q_real [order [i]], q_real [order [i]]);
          }
       }
       if (verbose && i % 200 == 0) {
