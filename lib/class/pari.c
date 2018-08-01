@@ -1,6 +1,7 @@
 /*
 
-pari.c - functions for factoring polynomials using pari
+pari.c - functions using pari; for factoring polynomials and for computing
+generators of class groups
 
 Copyright (C) 2010, 2015, 2018 Andreas Enge
 
@@ -156,6 +157,7 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
    int n, deg_f, target, i;
    GEN prim, expo, fact, minfactor, xplusa, zeta, xpow, tmp;
    cm_timer clock, clock2;
+   pari_sp av;
 
    cm_timer_start (clock);
    if (verbose)
@@ -163,6 +165,7 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
 
    pari_init (500000, 0);
    paristack_setsize (500000, 500000000);
+   av = avma;
 
    pp = mpz_get_Z (p);
    fact = mpzx_get_FpX (f, deg, p);
@@ -215,6 +218,7 @@ void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
 
    ZX_get_mpzx (res, FpX_normalize (minfactor, pp));
 
+   avma = av;
    pari_close ();
 
    cm_timer_stop (clock);
