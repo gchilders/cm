@@ -238,8 +238,8 @@ AC_COMPILE_IFELSE(
         [AC_LANG_SOURCE(
         [[
 #include "pari/pari.h"
-#if PARI_VERSION_CODE < PARI_VERSION (2,7,0)
-# error "Minimal PARI version is 2.7.0"
+#if PARI_VERSION_CODE < PARI_VERSION (2,9,0)
+# error "Minimal PARI version is 2.9.0"
 error
 #endif
         ]])],
