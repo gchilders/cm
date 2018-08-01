@@ -28,6 +28,8 @@ config.h
 config.status
 configure
 doc/cm.info
+doc/cm.pdf
+doc/cm.t2p
 doc/stamp-vti
 libtool
 m4/libtool.m4
