@@ -183,7 +183,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       avl_flatten (Cl, t);
    }
 
-   for (i = 0; i < h; i++)
+   for (i = 0; i < cl->h; i++)
       cl->form [i] = Cl [i];
 
    /* Pair up inverse forms. */
@@ -191,7 +191,7 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       for (j = i;
            j < cl->h && cl->form [j].b != -cl->form [i].b;
            j++);
-      if (j == cl->h && cl->form [i].b == 0)
+      if (j == cl->h || cl->form [i].b == 0)
          cl->conj [i] = i;
       else {
          cl->conj [i] = j;
