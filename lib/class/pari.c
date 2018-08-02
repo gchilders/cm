@@ -30,6 +30,10 @@ static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p);
 static int ZX_get_mpzx (mpz_t *res, GEN f);
 
 /*****************************************************************************/
+/*                                                                           */
+/* Conversion functions between PARI, GMP and internal types.                */
+/*                                                                           */
+/*****************************************************************************/
 
 static GEN mpz_get_Z (mpz_t z)
    /* returns the GEN of type t_INT corresponding to z */
@@ -60,6 +64,43 @@ static void Z_get_mpz (mpz_t z, GEN x)
    z->_mp_size = (signe (x) > 0 ? l : -l);
    for (i = 0; i < l; i++)
       (z->_mp_d) [i] = *int_W (x, i);
+}
+
+/*****************************************************************************/
+
+static GEN icl_get_Z (int_cl_t z)
+   /* returns the GEN of type t_INT corresponding to z; for the time being,
+      we use a quick and dirty implementation int_cl_t -> mpz_t -> GEN,
+      while it should be easier to move the 64 bits around... */
+
+{
+   mpz_t zz;
+   GEN x;
+
+   mpz_init (zz);
+   cm_classgroup_mpz_set_icl (zz, z);
+   x = mpz_get_Z (zz);
+   mpz_clear (zz);
+
+   return x;
+}
+
+/*****************************************************************************/
+
+static int_cl_t Z_get_icl (GEN x)
+   /* returns the int_cl_t correspondong to x, again using a quick and
+      dirty implementation */
+
+{
+   mpz_t zz;
+   int_cl_t i;
+
+   mpz_init (zz);
+   Z_get_mpz (zz, x);
+   i = cm_classgroup_mpz_get_icl (zz);
+   mpz_clear (zz);
+
+   return i;
 }
 
 /*****************************************************************************/
@@ -111,6 +152,10 @@ static int ZX_get_mpzx (mpz_t *res, GEN f)
    return deg;
 }
 
+/*****************************************************************************/
+/*                                                                           */
+/* Functions for finding factors of polynomials.                             */
+/*                                                                           */
 /*****************************************************************************/
 
 static GEN good_root_of_unity (int *n, const GEN p, const int deg,
@@ -307,5 +352,47 @@ mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no)
 
    return res;
 }
+
+/*****************************************************************************/
+/*                                                                           */
+/* Functions for computing class groups.                                     */
+/*                                                                           */
+/*****************************************************************************/
+
+int cm_pari_classgroup (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
+   /* Given a negative discriminant, compute its ideal class group as a
+      product of cyclic groups with their orders and generators. The orders
+      are returned in ord and the generators in gen; their number is the
+      return value. ord and gen must have been initialised with sufficient
+      space to hold the result. */
+
+{
+   pari_sp av;
+   int length;
+   GEN d, cl, orders, gens, qfb;
+   int i;
+
+   pari_init (500000, 0);
+   paristack_setsize (500000, 500000000);
+   av = avma;
+
+   d = icl_get_Z (disc);
+   cl = quadclassunit0 (d, 0, NULL, 0);
+   orders = gel (cl, 2);
+   gens = gel (cl, 3);
+   length = glength (orders);
+   for (i = 0; i < length; i++) {
+      ord [i] = Z_get_icl (gel (orders, i+1));
+      qfb = gel (gens, i+1);
+      gen [i].a = Z_get_icl (gel (qfb, 1));
+      gen [i].b = Z_get_icl (gel (qfb, 2));
+   }
+
+   avma = av;
+   pari_close ();
+
+   return length;
+}
+
 
 /*****************************************************************************/

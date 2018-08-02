@@ -79,12 +79,13 @@ typedef struct {
 extern "C" {
 #endif
 
-/* functions depending on PARI                                               */
+/* functions depending on PARI */
 extern void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
    mpz_t p, bool verbose);
 extern void cm_pari_oneroot (mpz_t root, mpz_t *f, int deg, mpz_t p,
    bool verbose);
 extern mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no);
+extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
 
 
 /* functions for classgroups of imaginary-quadratic number fields */

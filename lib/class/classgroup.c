@@ -201,6 +201,22 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
 
    avl_delete (t);
    free (Cl);
+
+#if 0
+   int length;
+   int_cl_t *clgp;
+   cm_form_t *gen;
+   /* Nobody will ever need a class group with more than 64 components.
+      More precisely, this is the limit imposed by the class number encoded
+      in 64 bits. */
+   clgp = (int_cl_t *) malloc (64 * sizeof (int_cl_t));
+   gen = (cm_form_t *) malloc (64 * sizeof (cm_form_t));
+   length = cm_pari_classgroup (disc, clgp, gen);
+   for (i = 0; i < length; i++)
+      printf ("%"PRIicl" [%"PRIicl", %"PRIicl"]\n", clgp [i], gen [i].a, gen [i].b);
+   free (clgp);
+   free (gen);
+#endif
 }
 
 /*****************************************************************************/
