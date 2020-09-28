@@ -1,4 +1,4 @@
-Recent changes:
+Changes in version 0.3.1 ("Wurstebrei"):
   - increase minimal version number for mpfrcx to 0.5 and for pari to 2.9.
   - many internal rewrites
   - bug fixes
