@@ -2,7 +2,7 @@
 
 qdev.c - code handling q-expansions
 
-Copyright (C) 2009, 2015, 2016, 2018 Andreas Enge
+Copyright (C) 2009, 2015, 2016, 2018, 2020 Andreas Enge
 
 This file is part of CM.
 
@@ -92,14 +92,14 @@ static double lognorm2 (ctype op)
    /* Normalise to keep the larger exponent; the smaller one may underflow,
       then the number becomes a harmless 0. */
    if (ere > eim) {
-      diff = ere - eim;
+      diff = eim - ere;
       eim = ere;
-      im /= (1ul << diff);
+      im *= exp2 (diff);
    }
    else {
-      diff = eim - ere;
+      diff = ere - eim;
       ere = eim;
-      re /= (1ul << diff);
+      re *= exp2 (diff);
    }
 
    return (ere + log2 (re*re + im*im) / 2);
