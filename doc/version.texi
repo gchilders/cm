@@ -1,4 +1,4 @@
 @set UPDATED 28 September 2020
 @set UPDATED-MONTH September 2020
-@set EDITION 0.3.1
-@set VERSION 0.3.1
+@set EDITION 0.3.2dev
+@set VERSION 0.3.2dev
