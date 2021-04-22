@@ -109,6 +109,8 @@ extern int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d);
 extern void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d);
 extern void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1,
    cm_form_t Q2, int_cl_t d);
+extern void cm_classgroup_pow (cm_form_t *Q, cm_form_t P, uint_cl_t n,
+   int_cl_t d);
 
 
 /* functions for evaluating modular functions at quadratic integers via

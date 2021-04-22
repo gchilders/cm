@@ -647,4 +647,28 @@ void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1, cm_form_t Q2,
 }
 
 /*****************************************************************************/
+
+void cm_classgroup_pow (cm_form_t *Q, cm_form_t P, uint_cl_t n, int_cl_t d)
+   /* Compute the reduced form Q corresponding to the n-th power of P. */
+
+{
+   cm_form_t R;
+
+   if (n == 0) {
+      Q->a = 1;
+      Q->b = cm_classgroup_mod (d, 2);
+   }
+   else if (n % 2 == 0) {
+      cm_classgroup_pow (&R, P, n/2, d);
+      cm_classgroup_compose (Q, R, R, d);
+         /* For more efficiency, which is not an issue here, we could use
+            a dedicated squaring function. */
+   }
+   else /* n odd */ {
+      cm_classgroup_pow (&R, P, n-1, d);
+      cm_classgroup_compose (Q, R, P, d);
+   }
+}
+
+/*****************************************************************************/
 /*****************************************************************************/
