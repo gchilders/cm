@@ -112,6 +112,9 @@ extern void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1,
 extern void cm_classgroup_pow (cm_form_t *Q, cm_form_t P, uint_cl_t n,
    int_cl_t d);
 
+extern int cm_classgroup_normalseries (int_cl_t disc, int_cl_t *ord,
+   cm_form_t *gen);
+
 
 /* functions for evaluating modular functions at quadratic integers via
    precomputations */
