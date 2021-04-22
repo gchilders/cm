@@ -2,7 +2,7 @@
 
 cm_class-impl.h - header file for internal use of the cm_class library
 
-Copyright (C) 2009, 2010, 2015, 2016, 2018 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2016, 2018, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -109,7 +109,6 @@ extern int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d);
 extern void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d);
 extern void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1,
    cm_form_t Q2, int_cl_t d);
-extern cm_form_t cm_classgroup_prime_form (int_cl_t p, int_cl_t d);
 
 
 /* functions for evaluating modular functions at quadratic integers via

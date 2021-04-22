@@ -2,7 +2,7 @@
 
 classgroup.c - computations with class groups and quadratic forms
 
-Copyright (C) 2009, 2010, 2018 Andreas Enge
+Copyright (C) 2009, 2010, 2018, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -25,7 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
    int_cl_t b);
-static int_cl_t classgroup_tonelli (int_cl_t a, int_cl_t p);
 static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
    uint_cl_t *cond_primes, unsigned int *cond_exp);
 
@@ -330,28 +329,6 @@ int cm_classgroup_kronecker (int_cl_t a, int_cl_t b)
       return k;
 }
 
-/*****************************************************************************/
-
-static int_cl_t classgroup_tonelli (int_cl_t a, int_cl_t p)
-{
-   mpz_t az, pz, rz;
-   int_cl_t r;
-
-   mpz_init (az);
-   mpz_init (pz);
-   mpz_init (rz);
-
-   cm_classgroup_mpz_set_icl (az, a);
-   cm_classgroup_mpz_set_icl (pz, p);
-   cm_nt_mpz_tonelli_z (rz, az, pz);
-   r = cm_classgroup_mpz_get_icl (rz);
-
-   mpz_clear (az);
-   mpz_clear (pz);
-   mpz_clear (rz);
-
-   return r;
-}
 
 /*****************************************************************************/
 /*                                                                           */
@@ -667,35 +644,6 @@ void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1, cm_form_t Q2,
       Q->b = (Q2.b + 2 * Q->b * a2t) % (2 * Q->a);
    }
    cm_classgroup_reduce (Q, d);
-}
-
-/*****************************************************************************/
-
-cm_form_t cm_classgroup_prime_form (int_cl_t p, int_cl_t d)
-   /* Assumes that p is a ramified or split prime and returns the reduction  */
-   /* of the prime form above p with non-negative b.                         */
-
-{
-   cm_form_t Q;
-
-   Q.a = p;
-   if (p == 2)
-      if (d % 8 == 0)
-         Q.b = 0;
-      else if ((d - 4) % 8 == 0)
-         Q.b = 2;
-      else
-         Q.b = 1;
-   else {
-      Q.b = classgroup_tonelli (d, p);
-      /* fix parity of b */
-      if ((d + Q.b) % 2 != 0)
-         Q.b += p;
-   }
-
-   cm_classgroup_reduce (&Q, d);
-
-   return Q;
 }
 
 /*****************************************************************************/
