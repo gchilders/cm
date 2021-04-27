@@ -54,6 +54,12 @@ typedef struct {
          inverse of form [i] */
    int h;
       /* the class number */
+   int levels;
+   int *deg;
+      /* Number of entries and their cardinalities (from back to front) in
+         the normal series associated to the ordering of the quadratic
+         forms, or equivalently the sequence of degrees (from bottom to
+         top) in a Galois tower decomposition of the class field. */
 } cm_classgroup_t;
 
 typedef struct {

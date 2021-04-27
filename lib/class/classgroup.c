@@ -121,6 +121,10 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       printf ("Class number: h = %d\n", cl->h);
 
    length = cm_classgroup_normalseries (disc, ord, gen);
+   cl->levels = length;
+   cl->deg = (int *) malloc (length * sizeof (int));
+   for (i = 0; i < length; i++)
+      cl->deg [i] = ord [length - 1 - i];
    if (verbose)
       for (i = 0; i < length; i++)
          printf ("%"PRIicl" [%"PRIicl", %"PRIicl"]\n",
@@ -163,6 +167,7 @@ void cm_classgroup_clear (cm_classgroup_t *cl)
 {
    free (cl->form);
    free (cl->conj);
+   free (cl->deg);
 }
 
 /*****************************************************************************/
