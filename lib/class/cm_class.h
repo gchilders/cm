@@ -2,7 +2,7 @@
 
 cm_class.h - header file for the cm_class library
 
-Copyright (C) 2009, 2010, 2018 Andreas Enge
+Copyright (C) 2009, 2010, 2018, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -72,6 +72,20 @@ typedef struct {
       /* decomposed into two parts over the integral basis                      */
       /* [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in      */
       /* minpoly, the second one in this variable.                              */
+   int tower_levels;
+   int *tower_d;
+   mpz_t ***tower;
+      /* These fields are meaningful only when the class field is
+         decomposed as a tower; they represent the number of levels in the
+         tower, the degree sequence (from bottom to top) and the
+         polynomials defining the extension. Hereby, tower [i][j] encodes
+         the rounded polynomial W [i][j] in an mpfrx_tower_t, with
+         tower [i][j][k] being the coefficient of degree k. The degrees are
+         not stored separately, but can be derived from tower_d: The degree
+         of tower [0][0] is d [0] (with leading coefficient 1 that is also
+         stored), that of tower [i][j] for i >= 1 is
+         d [0] * ... * d [i-1] - 1, with potentially leading coefficients 0
+         that are also stored. */
 } cm_class_t;
 
 
@@ -83,8 +97,8 @@ extern "C" {
 extern void cm_class_init (cm_class_t *c, int_cl_t d, char inv,
    bool verbose);
 extern void cm_class_clear (cm_class_t *c);
-extern void cm_class_compute_minpoly (cm_class_t c, bool checkpoints,
-   bool disk, bool print, bool verbose);
+extern void cm_class_compute_minpoly (cm_class_t c, bool tower,
+   bool checkpoints, bool disk, bool print, bool verbose);
 
 /* functions for computing parameters of a complex multiplication curve      */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,

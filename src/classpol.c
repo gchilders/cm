@@ -2,7 +2,7 @@
 
 classpol.c - executable computing a ring class polynomial
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -39,7 +39,7 @@ int main (int argc, char* argv [])
       invariant = CM_INVARIANT_J;
 
    cm_class_init (&c, d, invariant, verbose);
-   cm_class_compute_minpoly (c, false, false, true, verbose);
+   cm_class_compute_minpoly (c, true, false, false, true, verbose);
    cm_class_clear (&c);
 
    cm_timer_stop (clock);

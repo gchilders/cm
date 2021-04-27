@@ -2,7 +2,7 @@
 
 class.c - code for computing class polynomials
 
-Copyright (C) 2009, 2010, 2011, 2012, 2015, 2016, 2017, 2018 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2015, 2016, 2017, 2018, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -74,7 +74,9 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
 void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
 
 {
-   int i;
+   cm_classgroup_t cl;
+   int deg;
+   int i, j, k;
 
    if (d >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -122,6 +124,28 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       for (i = 0; i < c->minpoly_deg; i++)
          mpz_init (c->minpoly_complex [i]);
    }
+
+   cm_classgroup_init (&cl, c->d, false);
+   c->tower_levels = cl.levels;
+   c->tower_d = (int *) malloc (cl.levels * sizeof (int));
+   c->tower = (mpz_t ***) malloc (cl.levels * sizeof (mpz_t **));
+   deg = cl.deg [0];
+   c->tower_d [0] = deg;
+   c->tower [0] = (mpz_t **) malloc (1 * sizeof (mpz_t *));
+   c->tower [0][0] = (mpz_t *) malloc ((deg + 1) * sizeof (mpz_t));
+   for (k = 0; k <= deg; k++)
+      mpz_init (c->tower [0][0][k]);
+   for (i = 1; i < cl.levels; i++) {
+      c->tower_d [i] = cl.deg [i];
+      c->tower [i] = (mpz_t **) malloc ((cl.deg [i] + 1) * sizeof (mpz_t *));
+      for (j = 0; j <= cl.deg [i]; j++) {
+         c->tower [i][j] = (mpz_t *) malloc (deg * sizeof (mpz_t));
+         for (k = 0; k < deg; k++)
+            mpz_init (c->tower [i][j][k]);
+      }
+      deg *= cl.deg [i];
+   }
+   cm_classgroup_clear (&cl);
 }
 
 /*****************************************************************************/
@@ -129,7 +153,8 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
 void cm_class_clear (cm_class_t *c)
 
 {
-   int i;
+   int d;
+   int i, j, k;
 
    for (i = 0; i <= c->minpoly_deg; i++)
       mpz_clear (c->minpoly [i]);
@@ -139,6 +164,24 @@ void cm_class_clear (cm_class_t *c)
          mpz_clear (c->minpoly_complex [i]);
       free (c->minpoly_complex);
    }
+
+   d = c->tower_d [0];
+   for (k = 0; k <= d; k++)
+      mpz_clear (c->tower [0][0][k]);
+   free (c->tower [0][0]);
+   free (c->tower [0]);
+   for (i = 1; i < c->tower_levels; i++) {
+      for (j = 0; j <= c->tower_d [i]; j++) {
+         for (k = 0; k < d; k++)
+            mpz_clear (c->tower [i][j][k]);
+         free (c->tower [i][j]);
+      }
+      d *= c->tower_d [i];
+         /* total degree of the level over \Q */
+      free (c->tower [i]);
+   }
+   free (c->tower);
+   free (c->tower_d);
 
    ffree_cache ();
 }
@@ -946,12 +989,88 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
-   bool print, bool verbose)
-   /* checkpoints indicates whether intermediate results are to be kept in   */
-   /* and potentially read from files.                                       */
-   /* disk indicates whether the result should be written to disk.           */
-   /* print indicates whether the result should be printed on screen.        */
+static void get_int (mpz_ptr z, mpfr_ptr c)
+{
+   if (!cm_nt_fget_z (z, c)) {
+       printf ("***** Error in rounding: ");
+       fout_str (stdout, 10, 0ul, c);
+       printf ("\n");
+       mpz_out_str (stdout, 10, z);
+       printf ("\n");
+       exit (1);
+   }
+}
+
+/*****************************************************************************/
+
+static void round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t)
+/* TODO: This function is part of a proof of concept solution; in the
+   longer run, the code should be made more modular. */
+{
+   mpz_t z;
+   int i, j, k;
+   int l = t->levels;
+   int *d = t->d;
+   mpfrx_srcptr f;
+
+   mpz_init (z);
+
+   f = t->W [0][0];
+   mpz_set_ui (c.tower [0][0][mpfrx_get_deg (f)], 1);
+   printf ("f1 = x1^%i", mpfrx_get_deg (f));
+   for (k = mpfrx_get_deg (f) - 1; k >= 0; k--) {
+      get_int (z, mpfrx_get_coeff (f, k));
+      mpz_set (c.tower [0][0][k], z);
+      if (mpz_cmp_ui (z, 0) > 0)
+         printf ("+");
+      mpz_out_str (stdout, 10, z);
+      if (k >= 2)
+         printf ("*x1^%i", k);
+      else if (k == 1)
+         printf ("*x1");
+   }
+   printf (";\n");
+   for (i = 1; i < l; i++) {
+      printf ("f%i = ", i+1);
+      for (j = d [i]; j >= 0; j--) {
+         f = t->W [i][j];
+         if (j < d [i])
+            printf ("+");
+         printf ("(");
+         for (k = mpfrx_get_deg (f); k >= 0; k--) {
+            get_int (z, mpfrx_get_coeff (f, k));
+            mpz_set (c.tower [i][j][k], z);
+            if (k < mpfrx_get_deg (f) && mpz_cmp_ui (z, 0) > 0)
+               printf ("+");
+            mpz_out_str (stdout, 10, z);
+            if (k >= 2)
+               printf ("*x%i^%i", i, k);
+            else if (k == 1)
+               printf ("*x%i", i);
+         }
+         if (j >= 2)
+            printf (")*x%i^%i", i+1, j);
+         else if (j == 1)
+            printf (")*x%i", i+1);
+         else
+            printf (")");
+      }
+      printf (";\n");
+   }
+
+   mpz_clear (z);
+}
+
+/*****************************************************************************/
+
+void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
+   bool disk, bool print, bool verbose)
+   /* tower indicates whether the class polynomial should be decomposed as
+      a Galois tower.
+      checkpoints indicates whether intermediate results are to be kept in
+      and potentially read from files.
+      disk indicates whether the result should be written to disk.
+      print indicates whether the result should be printed on screen. */
 {
    cm_classgroup_t cl, cl2;
    cm_form_t *nsystem;
@@ -959,6 +1078,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
    fprec_t prec;
    cm_modclass_t mc;
    ctype *conjugate;
+   mpfrx_tower_t t;
    int i;
    cm_timer  clock_global, clock_local;
 
@@ -1016,8 +1136,18 @@ void cm_class_compute_minpoly (cm_class_t c, bool checkpoints, bool disk,
       printf ("--- Time for conjugates: %.1f\n", cm_timer_get (clock_local));
 
    cm_timer_start (clock_local);
-   if (c.field == CM_FIELD_REAL)
+   if (c.field == CM_FIELD_REAL) {
       real_compute_minpoly (c, conjugate, conj, print);
+         /* Printing the full polynomial could be made optional when the
+            tower is computed. */
+      if (tower) {
+         mpfrx_tower_init (t, cl.levels, cl.deg, prec);
+         mpfrcx_tower_decomposition (t, conjugate, conj);
+         /* Printing should be optional here, and there should also be a
+            possibility to save the field tower on disk. */
+         round_and_print_tower (c, t);
+      }
+   }
    else
       complex_compute_minpoly (c, conjugate, print);
    cm_timer_stop (clock_local);
@@ -1163,14 +1293,11 @@ static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    mpcx_clear (mpol);
 
    if (print) {
-      printf ("Minimal polynomial:\nx^%i", c.minpoly_deg);
+      printf ("Minimal polynomial:\ng = x^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
          mpz_out_str (stdout, 10, c.minpoly [i]);
-         if (mpz_cmp_ui (c.minpoly_complex [i], 0) >= 0)
-            printf ("+");
-         mpz_out_str (stdout, 10, c.minpoly_complex [i]);
-         printf ("*omega) * x^%i", i);
+         printf (") * x^%i", i);
       }
       printf ("\n");
    }
@@ -1261,7 +1388,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 
    cm_class_init (&c, d, inv, verbose);
    if (!readwrite || !cm_class_read (c))
-      cm_class_compute_minpoly (c, false, readwrite, false, verbose);
+      cm_class_compute_minpoly (c, false, false, readwrite, false, verbose);
 
    cm_timer_start (clock);
    mpz_init (root);
