@@ -256,7 +256,7 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
             return false;
          break;
       case CM_INVARIANT_SIMPLEETA:
-         c->p [0] = 25;
+         c->p [0] = 3;
          if (cm_classgroup_kronecker (c->d, (int_cl_t) (c->p [0])) == -1) {
             if (verbose)
                printf ("*** Unsuited discriminant\n\n");
@@ -264,8 +264,8 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          }
 
          c->p [1] = 0;
-         c->s = 1;
-         c->e = 1;
+         c->s = 12;
+         c->e = 12;
          break;
       default: /* should not occur */
          printf ("class_compute_parameter called for "
