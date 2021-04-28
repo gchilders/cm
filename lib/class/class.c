@@ -145,6 +145,26 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       }
       deg *= cl.deg [i];
    }
+   if (c->field == CM_FIELD_COMPLEX) {
+      c->tower_complex = (mpz_t ***) malloc (cl.levels * sizeof (mpz_t **));
+      deg = cl.deg [0];
+      c->tower_complex [0] = (mpz_t **) malloc (1 * sizeof (mpz_t *));
+      c->tower_complex [0][0]
+         = (mpz_t *) malloc ((deg + 1) * sizeof (mpz_t));
+      for (k = 0; k <= deg; k++)
+         mpz_init (c->tower_complex [0][0][k]);
+      for (i = 1; i < cl.levels; i++) {
+         c->tower_complex [i]
+            = (mpz_t **) malloc ((cl.deg [i] + 1) * sizeof (mpz_t *));
+         for (j = 0; j <= cl.deg [i]; j++) {
+            c->tower_complex [i][j]
+               = (mpz_t *) malloc (deg * sizeof (mpz_t));
+            for (k = 0; k < deg; k++)
+               mpz_init (c->tower_complex [i][j][k]);
+         }
+         deg *= cl.deg [i];
+      }
+   }
    cm_classgroup_clear (&cl);
 }
 
@@ -163,6 +183,25 @@ void cm_class_clear (cm_class_t *c)
       for (i = 0; i < c->minpoly_deg; i++)
          mpz_clear (c->minpoly_complex [i]);
       free (c->minpoly_complex);
+   }
+
+   if (c->field == CM_FIELD_COMPLEX) {
+      d = c->tower_d [0];
+      for (k = 0; k <= d; k++)
+         mpz_clear (c->tower_complex [0][0][k]);
+      free (c->tower_complex [0][0]);
+      free (c->tower_complex [0]);
+      for (i = 1; i < c->tower_levels; i++) {
+         for (j = 0; j <= c->tower_d [i]; j++) {
+            for (k = 0; k < d; k++)
+               mpz_clear (c->tower_complex [i][j][k]);
+            free (c->tower_complex [i][j]);
+         }
+         d *= c->tower_d [i];
+            /* total degree of the level over \Q */
+         free (c->tower_complex [i]);
+      }
+      free (c->tower_complex);
    }
 
    d = c->tower_d [0];
@@ -1003,6 +1042,46 @@ static void get_int (mpz_ptr z, mpfr_ptr c)
 
 /*****************************************************************************/
 
+static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
+   /* tries to round the complex number to an integer in the quadratic order */
+   /* of discriminant d by decomposing it over the integral basis [1, omega] */
+   /* with omega = sqrt (d/4) or omega = (1 + sqrt (d)) / 2                  */
+   /* The return value reflects the success of the operation.                */
+   /* out1 and out2 are changed.                                             */
+
+{
+   ftype   omega_i, tmp;
+   bool     div4, ok;
+
+   finit (omega_i, cget_prec (in));
+   finit (tmp, cget_prec (in));
+
+   div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
+   fsqrt_ui (omega_i, -d);
+   fdiv_2ui (omega_i, omega_i, 1ul);
+
+   fdiv (tmp, in->im, omega_i);
+   ok = cm_nt_fget_z (out2, tmp);
+
+   if (ok) {
+      if (div4)
+         fset (tmp, in->re);
+      else {
+         fset_z (tmp, out2);
+         fdiv_2ui (tmp, tmp, 1ul);
+         fsub (tmp, in->re, tmp);
+      }
+      ok = cm_nt_fget_z (out1, tmp);
+   }
+
+   fclear (omega_i);
+   fclear (tmp);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
 static void round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t)
 /* TODO: This function is part of a proof of concept solution; in the
    longer run, the code should be made more modular. */
@@ -1063,6 +1142,75 @@ static void round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t)
 
 /*****************************************************************************/
 
+static void round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t)
+/* TODO: This function is part of a proof of concept solution; in the
+   longer run, the code should be made more modular. */
+{
+   mpz_t z1, z2;
+   int i, j, k;
+   int l = t->levels;
+   int *d = t->d;
+   mpcx_srcptr f;
+
+   mpz_init (z1);
+   mpz_init (z2);
+
+   f = t->W [0][0];
+   mpz_set_ui (c.tower [0][0][mpfrx_get_deg (f)], 1);
+   mpz_set_ui (c.tower_complex [0][0][mpfrx_get_deg (f)], 0);
+   printf ("f1 = x1^%i", mpcx_get_deg (f));
+   for (k = mpcx_get_deg (f) - 1; k >= 0; k--) {
+      get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+      mpz_set (c.tower [0][0][k], z1);
+      mpz_set (c.tower_complex [0][0][k], z2);
+      printf ("+ (");
+      mpz_out_str (stdout, 10, z1);
+      printf ("+(");
+      mpz_out_str (stdout, 10, z2);
+      printf ("*omega))");
+      if (k >= 2)
+         printf ("*x1^%i", k);
+      else if (k == 1)
+         printf ("*x1");
+   }
+   printf (";\n");
+   for (i = 1; i < l; i++) {
+      printf ("f%i = ", i+1);
+      for (j = d [i]; j >= 0; j--) {
+         f = t->W [i][j];
+         if (j < d [i])
+            printf ("+");
+         printf ("(");
+         for (k = mpfrx_get_deg (f); k >= 0; k--) {
+            get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+            mpz_set (c.tower [i][j][k], z1);
+            mpz_set (c.tower_complex [i][j][k], z2);
+            printf ("+(");
+            mpz_out_str (stdout, 10, z1);
+            printf ("+(");
+            mpz_out_str (stdout, 10, z2);
+            printf ("*omega))");
+            if (k >= 2)
+               printf ("*x%i^%i", i, k);
+            else if (k == 1)
+               printf ("*x%i", i);
+         }
+         if (j >= 2)
+            printf (")*x%i^%i", i+1, j);
+         else if (j == 1)
+            printf (")*x%i", i+1);
+         else
+            printf (")");
+      }
+      printf (";\n");
+   }
+
+   mpz_clear (z1);
+   mpz_clear (z2);
+}
+
+/*****************************************************************************/
+
 void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    bool disk, bool print, bool verbose)
    /* tower indicates whether the class polynomial should be decomposed as
@@ -1079,6 +1227,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    cm_modclass_t mc;
    ctype *conjugate;
    mpfrx_tower_t t;
+   mpcx_tower_t tc;
    int i;
    cm_timer  clock_global, clock_local;
 
@@ -1148,8 +1297,14 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
          round_and_print_tower (c, t);
       }
    }
-   else
+   else {
       complex_compute_minpoly (c, conjugate, print);
+      if (tower) {
+         mpcx_tower_init (tc, cl.levels, cl.deg, prec);
+         mpcx_tower_decomposition (tc, conjugate);
+         round_and_print_complex_tower (c, tc);
+      }
+   }
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for polynomial reconstruction: %.1f\n",
@@ -1220,46 +1375,6 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
    }
 
    mpfrx_clear (mpol);
-}
-
-/*****************************************************************************/
-
-static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
-   /* tries to round the complex number to an integer in the quadratic order */
-   /* of discriminant d by decomposing it over the integral basis [1, omega] */
-   /* with omega = sqrt (d/4) or omega = (1 + sqrt (d)) / 2                  */
-   /* The return value reflects the success of the operation.                */
-   /* out1 and out2 are changed.                                             */
-
-{
-   ftype   omega_i, tmp;
-   bool     div4, ok;
-
-   finit (omega_i, cget_prec (in));
-   finit (tmp, cget_prec (in));
-
-   div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
-   fsqrt_ui (omega_i, -d);
-   fdiv_2ui (omega_i, omega_i, 1ul);
-
-   fdiv (tmp, in->im, omega_i);
-   ok = cm_nt_fget_z (out2, tmp);
-
-   if (ok) {
-      if (div4)
-         fset (tmp, in->re);
-      else {
-         fset_z (tmp, out2);
-         fdiv_2ui (tmp, tmp, 1ul);
-         fsub (tmp, in->re, tmp);
-      }
-      ok = cm_nt_fget_z (out1, tmp);
-   }
-
-   fclear (omega_i);
-   fclear (tmp);
-
-   return ok;
 }
 
 /*****************************************************************************/

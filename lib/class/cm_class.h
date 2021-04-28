@@ -86,6 +86,11 @@ typedef struct {
          stored), that of tower [i][j] for i >= 1 is
          d [0] * ... * d [i-1] - 1, with potentially leading coefficients 0
          that are also stored. */
+   mpz_t ***tower_complex;
+      /* This field is meaningful only in the complex case and when the
+         class field is decomposed as a tower; it contains the entries of
+         the defining polynomials in the second element of the integral
+         basis as explained for minpoly_complex. */
 } cm_class_t;
 
 
