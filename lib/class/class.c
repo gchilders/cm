@@ -1293,11 +1293,14 @@ static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    mpcx_clear (mpol);
 
    if (print) {
-      printf ("Minimal polynomial:\ng = x^%i", c.minpoly_deg);
+      printf ("Minimal polynomial:\nx^%i", c.minpoly_deg);
       for (i = c.minpoly_deg - 1; i >= 0; i--) {
          printf (" + (");
          mpz_out_str (stdout, 10, c.minpoly [i]);
-         printf (") * x^%i", i);
+         if (mpz_cmp_ui (c.minpoly_complex [i], 0) >= 0)
+            printf ("+");
+         mpz_out_str (stdout, 10, c.minpoly_complex [i]);
+         printf ("*omega) * x^%i", i);
       }
       printf ("\n");
    }
