@@ -126,16 +126,22 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
    }
 
    cm_classgroup_init (&cl, c->d, false);
-   c->tower_levels = cl.levels;
-   c->tower_d = (int *) malloc (cl.levels * sizeof (int));
-   c->tower = (mpz_t ***) malloc (cl.levels * sizeof (mpz_t **));
-   deg = cl.deg [0];
+   if (cl.levels == 0) {
+      deg = 1;
+      c->tower_levels = 1;
+   }
+   else {
+      deg = cl.deg [0];
+      c->tower_levels = cl.levels;
+   }
+   c->tower_d = (int *) malloc (c->tower_levels * sizeof (int));
+   c->tower = (mpz_t ***) malloc (c->tower_levels * sizeof (mpz_t **));
    c->tower_d [0] = deg;
    c->tower [0] = (mpz_t **) malloc (1 * sizeof (mpz_t *));
    c->tower [0][0] = (mpz_t *) malloc ((deg + 1) * sizeof (mpz_t));
    for (k = 0; k <= deg; k++)
       mpz_init (c->tower [0][0][k]);
-   for (i = 1; i < cl.levels; i++) {
+   for (i = 1; i < c->tower_levels; i++) {
       c->tower_d [i] = cl.deg [i];
       c->tower [i] = (mpz_t **) malloc ((cl.deg [i] + 1) * sizeof (mpz_t *));
       for (j = 0; j <= cl.deg [i]; j++) {
@@ -146,8 +152,11 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       deg *= cl.deg [i];
    }
    if (c->field == CM_FIELD_COMPLEX) {
-      c->tower_complex = (mpz_t ***) malloc (cl.levels * sizeof (mpz_t **));
-      deg = cl.deg [0];
+      c->tower_complex = (mpz_t ***) malloc (c->tower_levels * sizeof (mpz_t **));
+      if (cl.levels == 0)
+         deg = 1;
+      else
+         deg = cl.deg [0];
       c->tower_complex [0] = (mpz_t **) malloc (1 * sizeof (mpz_t *));
       c->tower_complex [0][0]
          = (mpz_t *) malloc ((deg + 1) * sizeof (mpz_t));
@@ -1290,7 +1299,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
          /* Printing the full polynomial could be made optional when the
             tower is computed. */
       if (tower) {
-         mpfrx_tower_init (t, cl.levels, cl.deg, prec);
+         mpfrx_tower_init (t, c.tower_levels, c.tower_d, prec);
          mpfrcx_tower_decomposition (t, conjugate, conj);
          /* Printing should be optional here, and there should also be a
             possibility to save the field tower on disk. */
@@ -1300,7 +1309,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    else {
       complex_compute_minpoly (c, conjugate, print);
       if (tower) {
-         mpcx_tower_init (tc, cl.levels, cl.deg, prec);
+         mpcx_tower_init (tc, c.tower_levels, c.tower_d, prec);
          mpcx_tower_decomposition (tc, conjugate);
          round_and_print_complex_tower (c, tc);
       }

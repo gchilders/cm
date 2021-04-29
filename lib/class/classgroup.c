@@ -706,31 +706,37 @@ int cm_classgroup_normalseries (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
    int l, p_l, length, i;
 
    l = cm_pari_classgroup (disc, o, g);
-   h = 1;
-   for (i = 0; i < l; i++)
-      h *= o [i];
 
-   cm_nt_factor ((long int) h, factors, exponents);
-   for (p_l = 1; factors [p_l] != 0; p_l++);
+   if (l == 0) {
+      length = 0;
+   }
+   else {
+      h = 1;
+      for (i = 0; i < l; i++)
+         h *= o [i];
 
-   length = 0;
-   /* Loop over all primes p dividing h. */
-   for (p_l--; p_l >= 0; p_l--) {
-      p = factors [p_l];
-      /* Taking care of prime power factors requires a second loop. */
-      while (h % p == 0) {
-         /* From the first to the last cyclic factor of the classgroup,
-            look for a cyclic subfactor of order p. */
-         for (i = 0; i < l; i++)
-            if (o [i] % p == 0) {
-               /* Record the cyclic subfactor. */
-               cm_classgroup_pow (&(gen [length]), g [i], o [i] / p, disc);
-               ord [length] = p;
-               length++;
-               /* Quotient by the cyclic subfactor. */
-               o [i] /= p;
-               h /= p;
-            }
+      cm_nt_factor ((long int) h, factors, exponents);
+      for (p_l = 1; factors [p_l] != 0; p_l++);
+
+      length = 0;
+      /* Loop over all primes p dividing h. */
+      for (p_l--; p_l >= 0; p_l--) {
+         p = factors [p_l];
+         /* Taking care of prime power factors requires a second loop. */
+         while (h % p == 0) {
+            /* From the first to the last cyclic factor of the classgroup,
+               look for a cyclic subfactor of order p. */
+            for (i = 0; i < l; i++)
+               if (o [i] % p == 0) {
+                  /* Record the cyclic subfactor. */
+                  cm_classgroup_pow (&(gen [length]), g [i], o [i] / p, disc);
+                  ord [length] = p;
+                  length++;
+                  /* Quotient by the cyclic subfactor. */
+                  o [i] /= p;
+                  h /= p;
+               }
+         }
       }
    }
 
