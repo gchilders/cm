@@ -2,7 +2,7 @@
 
 modular.c - code for evaluating modular functions in floating point arguments
 
-Copyright (C) 2009, 2010, 2015, 2016 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2016, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -130,7 +130,7 @@ static void modular_fundamental_domain_matrix (ctype z, cm_matrix_t *M)
 
 /*****************************************************************************/
 
-void cm_modular_fundamental_domain (ctype z)
+void cm_modular_fundamental_domain (cptr z)
    /* transforms z into the fundamental domain                               */
 
 {
