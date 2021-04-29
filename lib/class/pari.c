@@ -3,7 +3,7 @@
 pari.c - functions using pari; for factoring polynomials and for computing
 generators of class groups
 
-Copyright (C) 2010, 2015, 2018 Andreas Enge
+Copyright (C) 2010, 2015, 2018, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -28,6 +28,8 @@ static GEN mpz_get_Z (mpz_t z);
 static void Z_get_mpz (mpz_t z, GEN x);
 static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p);
 static int ZX_get_mpzx (mpz_t *res, GEN f);
+static void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
+   mpz_t p, bool verbose);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -191,7 +193,7 @@ static GEN good_root_of_unity (int *n, const GEN p, const int deg,
 
 /*****************************************************************************/
 
-void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
+static void cm_pari_onefactor (mpz_t *res, mpz_t *f, int deg, int deg_factor,
    mpz_t p, bool verbose)
    /* Assuming that deg_factor is the minimal degree of a factor of f, finds */
    /* such a factor and returns it in res. The coefficients of res need to   */

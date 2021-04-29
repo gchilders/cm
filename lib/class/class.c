@@ -60,8 +60,6 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
 static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    bool print);
 static bool doubleeta_compute_parameter (cm_class_t *c);
-static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
-   int *no, bool verbose);
 static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
    int *no);
 
@@ -91,12 +89,6 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       c->d = d;
       if (!cm_class_compute_parameter (c, verbose))
          exit (1);
-      if (inv == CM_INVARIANT_WEBER && c->p [1] == 1)
-         /* special case Weber with d=1 (4): compute ring class field for 4d */
-         /* If d=1 (8), this is the same as the Hilbert class field;         */
-         /* if d=5 (8), it is a degree 3 relative extension, which will be   */
-         /* corrected when computing a CM curve by applying a 2-isogeny/     */
-         c->d = 4 * d;
    }
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
@@ -289,18 +281,28 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
             }
             return false;
          }
+         else if (cm_classgroup_mod (c->d, 8) == 5) {
+            if (verbose)
+               printf ("\n*** %"PRIicl" is 5 mod 8; the Weber function "
+                  "cannot be used directly, but you\nmay compute the ring "
+                  "class field for the discriminant %"PRIicl" and apply\n"
+                  "a 2-isogeny when computing the elliptic curve.\n",
+                  c->d, 4*c->d);
+            return false;
+         }
+         else if (cm_classgroup_mod (c->d, 8) == 1) {
+            if (verbose)
+               printf ("\n*** %"PRIicl" is 1 mod 8; the Weber function "
+                  "cannot be used directly, but you\nmay compute the ring "
+                  "class field for the discriminant %"PRIicl", which is\n"
+                  "the same as the Hilbert class field\n",
+                  c->d, 4*c->d);
+            return false;
+         }
 
-         /* If disc is even, let m = -disc and p [0] = m % 8; if disc is  */
-         /* odd, compute p [0] for 4*disc and let p [1] = 1.              */
-         if (c->d % 4 == 0) {
-            c->p [0] = ((-(c->d)) / 4) % 8;
-            c->p [1] = 0;
-         }
-         else {
-            c->p [0] = (-(c->d)) % 8;
-            c->p [1] = 1;
-            c->p [2] = 0;
-         }
+         /* Let m = -disc/4 and p [0] = m % 8. */
+         c->p [0] = ((-(c->d)) / 4) % 8;
+         c->p [1] = 0;
          c->s = 24;
          c->e = 1;
          if (c->p [0] == 1 || c->p [0] == 2 || c->p [0] == 6)
@@ -1249,8 +1251,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
       printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
 
    if (   (c.invariant == CM_INVARIANT_WEBER
-           && (   (c.p [0] / 10) % 10 == 1
-               || c.p [0] % 10 == 3 || c.p [0] % 10 == 4 || c.p [0] % 10 == 7))
+           && (c.p [0] == 3 || c.p [0] == 4 || c.p [0] == 7))
        || (   (c.invariant == CM_INVARIANT_J || c.invariant == CM_INVARIANT_GAMMA2)
            && c.d % 4 == 0
            && ((c.d / 4) % 4 == 0 || ((c.d / 4) - 1) % 4 == 0))) {
@@ -1272,10 +1273,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
-   if (c.invariant == CM_INVARIANT_WEBER && c.p [0] % 100 == 17)
-      prec = compute_precision (c, cl2, verbose);
-   else
-      prec = compute_precision (c, cl, verbose);
+   prec = compute_precision (c, cl, verbose);
 
    conjugate = (ctype *) malloc (c.h * sizeof (ctype));
    for (i = 0; i < c.h; i++)
@@ -1510,7 +1508,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 {
    cm_class_t c;
    mpz_t *j;
-   mpz_t root, d_mpz, tmp, tmp2;
+   mpz_t root, d_mpz, tmp, tmp2, f24;
    cm_timer clock;
 
    cm_class_init (&c, d, inv, verbose);
@@ -1519,10 +1517,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 
    cm_timer_start (clock);
    mpz_init (root);
-   if (inv != CM_INVARIANT_WEBER || c.p [0] != 3 || c.p [1] != 1)
-      /* avoid special case of Weber polynomial factoring over extension */
-      /* of degree 3; handled in weber_cm_get_j_mod_P                    */
-      get_root_mod_P (c, root, P, verbose);
+   get_root_mod_P (c, root, P, verbose);
    switch (inv)
    {
       case CM_INVARIANT_J:
@@ -1557,7 +1552,80 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
          mpz_clear (tmp2);
          break;
       case CM_INVARIANT_WEBER:
-         j = weber_cm_get_j_mod_P (c, root, P, no, verbose);
+         j = (mpz_t*) malloc (sizeof (mpz_t));
+
+         mpz_init (j [0]);
+         mpz_init (f24);
+         mpz_init (tmp);
+
+         if (c.d % 3 == 0)
+            mpz_powm_ui (f24, root, 2ul, P);
+         else
+            mpz_powm_ui (f24, root, 6ul, P);
+
+         if (c.p [0] == 1) {
+            mpz_mul_2exp (tmp, f24, 3ul);
+            mpz_mod (tmp, tmp, P);
+            mpz_powm_ui (f24, tmp, 2ul, P);
+            mpz_sub_ui (j [0], f24, 16ul);
+            mpz_powm_ui (j [0], j [0], 3ul, P);
+            mpz_invert (tmp, f24, P);
+            mpz_mul (j [0], j [0], tmp);
+            mpz_mod (j [0], j [0], P);
+         }
+         else if (c.p [0] == 3) {
+            mpz_powm_ui (tmp, f24, 4ul, P);
+            mpz_set (f24, tmp);
+            mpz_sub_ui (j [0], f24, 16ul);
+            mpz_powm_ui (j [0], j [0], 3ul, P);
+            mpz_invert (tmp, f24, P);
+            mpz_mul (j [0], j [0], tmp);
+            mpz_mod (j [0], j [0], P);
+         }
+         else if (c.p [0] == 5) {
+            mpz_mul_2exp (tmp, f24, 6ul);
+            mpz_set (f24, tmp);
+            mpz_sub_ui (j [0], f24, 16ul);
+            mpz_powm_ui (j [0], j [0], 3ul, P);
+            mpz_invert (tmp, f24, P);
+            mpz_mul (j [0], j [0], tmp);
+            mpz_mod (j [0], j [0], P);
+         }
+         else if (c.p [0] == 7) {
+            mpz_mul_2exp (tmp, f24, 3ul);
+            mpz_mod (tmp, tmp, P);
+            mpz_powm_ui (f24, tmp, 4ul, P);
+            mpz_sub_ui (j [0], f24, 16ul);
+            mpz_powm_ui (j [0], j [0], 3ul, P);
+            mpz_invert (tmp, f24, P);
+            mpz_mul (j [0], j [0], tmp);
+            mpz_mod (j [0], j [0], P);
+         }
+         else if (c.p [0] == 2 || c.p [0] == 6) {
+            mpz_mul_2exp (tmp, f24, 3ul);
+            mpz_mod (tmp, tmp, P);
+            mpz_powm_ui (f24, tmp, 2ul, P);
+            mpz_add_ui (j [0], f24, 16ul);
+            mpz_powm_ui (j [0], j [0], 3ul, P);
+            mpz_invert (tmp, f24, P);
+            mpz_mul (j [0], j [0], tmp);
+            mpz_mod (j [0], j [0], P);
+         }
+         else {
+            /* c.p [0] == 4 */
+            mpz_mul_2exp (tmp, f24, 9ul);
+            mpz_set (f24, tmp);
+            mpz_add_ui (j [0], f24, 16ul);
+            mpz_powm_ui (j [0], j [0], 3ul, P);
+            mpz_invert (tmp, f24, P);
+            mpz_mul (j [0], j [0], tmp);
+            mpz_mod (j [0], j [0], P);
+         }
+
+         *no = 1;
+
+         mpz_clear (f24);
+         mpz_clear (tmp);
          break;
       case CM_INVARIANT_DOUBLEETA:
 #if 0
@@ -1632,163 +1700,6 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
    for (i = 0; i <= n; i++)
       mpz_clear (poly_j [i]);
    free (poly_j);
-
-   return j;
-}
-
-/*****************************************************************************/
-
-static mpz_t* weber_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P, int *no,
-   bool verbose)
-
-{
-   mpz_t* j = (mpz_t*) malloc (sizeof (mpz_t));
-   mpz_t f24, tmp;
-   mpfp_t one;
-
-   mpz_init (j [0]);
-   mpz_init (f24);
-   mpz_init (tmp);
-
-   if (c.p [0] != 3 || c.p [1] != 1) {
-      if (c.d % 3 == 0)
-         mpz_powm_ui (f24, root, 2ul, P);
-      else
-         mpz_powm_ui (f24, root, 6ul, P);
-
-      if (c.p [0] != 7 || c.p [1] != 1) {
-         if (c.p [0] == 1) {
-            mpz_mul_2exp (tmp, f24, 3ul);
-            mpz_mod (tmp, tmp, P);
-            mpz_powm_ui (f24, tmp, 2ul, P);
-            mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
-            mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
-         }
-         else if (c.p [0] == 3) {
-            mpz_powm_ui (tmp, f24, 4ul, P);
-            mpz_set (f24, tmp);
-            mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
-            mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
-         }
-         else if (c.p [0] == 5) {
-            mpz_mul_2exp (tmp, f24, 6ul);
-            mpz_set (f24, tmp);
-            mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
-            mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
-         }
-         else if (c.p [0] == 7) {
-            mpz_mul_2exp (tmp, f24, 3ul);
-            mpz_mod (tmp, tmp, P);
-            mpz_powm_ui (f24, tmp, 4ul, P);
-            mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
-            mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
-         }
-         else if (c.p [0] == 2 || c.p [0] == 6) {
-            mpz_mul_2exp (tmp, f24, 3ul);
-            mpz_mod (tmp, tmp, P);
-            mpz_powm_ui (f24, tmp, 2ul, P);
-            mpz_add_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
-            mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
-         }
-         else {
-            /* c.p [0] == 4 */
-            mpz_mul_2exp (tmp, f24, 9ul);
-            mpz_set (f24, tmp);
-            mpz_add_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
-            mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
-         }
-      }
-      else {
-         /* d/4 = 1 (mod 8), where d/4 is the real complex multiplication */
-         /* discriminant                                                  */
-         mpz_invert (tmp, f24, P);
-         mpz_powm_ui (f24, tmp, 4ul, P);
-         mpz_sub_ui (j [0], f24, 16ul);
-         mpz_powm_ui (j [0], j [0], 3ul, P);
-         mpz_invert (tmp, f24, P);
-         mpz_mul (j [0], j [0], tmp);
-         mpz_mod (j [0], j [0], P);
-      }
-   }
-   else {
-      /* d/4 = 5 (mod 8), we need to factor over an extension of degree 3 */
-      mpz_t factor [4];
-      int   i;
-      mpfpx_t root_poly, f24_poly, tmp_poly, tmp2_poly;
-      const unsigned long int x2 [] = {0, 0, 1};
-      const unsigned long int x6 [] = {0, 0, 0, 0, 0, 0, 1};
-
-      for (i = 0; i <= 3; i++)
-         mpz_init (factor [i]);
-      mpfpx_type_init (P, MPFPX_KARATSUBA);
-      mpfpx_init (root_poly);
-      mpfpx_init (f24_poly);
-      mpfpx_init (tmp_poly);
-      mpfpx_init (tmp2_poly);
-      mpfp_init (one);
-      mpfp_set_ui (one, 1ul);
-
-      cm_pari_onefactor (factor, c.minpoly, c.minpoly_deg, 3, P, verbose);
-      mpfpx_set_z_array (root_poly, factor, 4);
-      if (verbose) {
-         printf ("Root: ");
-         mpfpx_out (root_poly);
-      }
-
-      if (c.d % 3 == 0)
-         mpfpx_set_ui_array (f24_poly, x2, 3);
-      else {
-         mpfpx_set_ui_array (f24_poly, x6, 7);
-         mpfpx_div_r (f24_poly, f24_poly, root_poly, one);
-      }
-
-      mpfpx_invert (f24_poly, f24_poly, root_poly, one);
-      mpfpx_mul_ui (f24_poly, f24_poly, 8ul);
-      mpfpx_sqr (f24_poly, f24_poly);
-      mpfpx_div_r (f24_poly, f24_poly, root_poly, one);
-      mpfpx_sqr (f24_poly, f24_poly);
-      mpfpx_div_r (f24_poly, f24_poly, root_poly, one);
-      mpfpx_invert (tmp_poly, f24_poly, root_poly, one);
-      mpfpx_sub_ui (f24_poly, f24_poly, 16ul);
-      mpfpx_sqr (tmp2_poly, f24_poly);
-      mpfpx_div_r (tmp2_poly, tmp2_poly, root_poly, one);
-      mpfpx_mul (f24_poly, tmp2_poly, f24_poly);
-      mpfpx_div_r (f24_poly, f24_poly, root_poly, one);
-      mpfpx_mul (f24_poly, f24_poly, tmp_poly);
-      mpfpx_div_r (f24_poly, f24_poly, root_poly, one);
-      mpfpx_coeff_get_z (j [0], f24_poly, 0);
-
-      for (i = 0; i <= 3; i++)
-         mpz_clear (factor [i]);
-      mpfpx_clear (root_poly);
-      mpfpx_clear (f24_poly);
-      mpfpx_clear (tmp_poly);
-      mpfpx_clear (tmp2_poly);
-      mpfp_clear (one);
-   }
-
-   *no = 1;
-
-   mpz_clear (f24);
-   mpz_clear (tmp);
 
    return j;
 }

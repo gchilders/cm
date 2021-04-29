@@ -2,7 +2,7 @@
 
 tcm.c - tests for cm
 
-Copyright (C) 2009, 2010, 2011, 2012, 2016 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2016, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -72,14 +72,6 @@ static void big_test (void)
    test_curve ((int_cl_t) (-108756), CM_INVARIANT_WEBER, false);
    test_curve ((int_cl_t) (-108780), CM_INVARIANT_WEBER, false);
    test_curve ((int_cl_t) (-108792), CM_INVARIANT_WEBER, false);
-   /* Weber: d=1 (8), not divisible by 3 */
-   test_curve ((int_cl_t) (-108703), CM_INVARIANT_WEBER, false);
-   /* Weber: d=1 (8), divisible by 3 */
-   test_curve ((int_cl_t) (-108711), CM_INVARIANT_WEBER, false);
-   /* Weber: d=5 (8), not divisible by 3 */
-   test_curve ((int_cl_t) (-108707), CM_INVARIANT_WEBER, false);
-   /* Weber: d=5 (8), divisible by 3 */
-   test_curve ((int_cl_t) (-108723), CM_INVARIANT_WEBER, false);
 
    /* d==-16, corresponds to fixed bug */
    test_curve ((int_cl_t) (-16), CM_INVARIANT_J, false);
