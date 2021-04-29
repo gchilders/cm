@@ -413,7 +413,6 @@ to create a name space proper to CM.
 @menu
 * cm_class::
 * cm_common::
-* mpfpx::
 @end menu
 
 @node cm_class
@@ -509,15 +508,6 @@ This library is split off from @code{cm_class} and contains functions that
 can be seen as internal to the class polynomial computation, but that can
 also be useful in a broader context (notably, the computation of modular
 polynomials).
-
-
-@node mpfpx
-@section @code{mpfpx}
-@cindex mpfpx
-
-This library is used for low degree polynomials over prime fields,
-the characteristic of which is stored in a global variable.
-It is in a very rudimentary state.
 
 
 @node References

@@ -16,7 +16,6 @@ Makefile
 
 lib/class/libcm_class.la
 lib/common/libcm_common.la
-lib/mpfpx/libmpfpx.la
 
 src/classpol
 src/cm

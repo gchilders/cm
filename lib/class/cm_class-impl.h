@@ -24,9 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef __CM_CLASS_IMPL_H
 #define __CM_CLASS_IMPL_H
 
-#include "mpfpx.h"
-#include "cm_class.h"
 #include <stdio.h>
+#include "cm_class.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
