@@ -2,7 +2,7 @@
 
 cm_common.h - header file for the cm_common library
 
-Copyright (C) 2009, 2010, 2012, 2015, 2016 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -110,13 +110,9 @@ extern void cm_file_gzclose (gzFile f);
 
 /* different functions for number theoretic computations */
 extern int cm_nt_is_prime (mpz_t a);
-extern int cm_nt_is_prime_l (const unsigned long int prime);
 extern unsigned long int cm_nt_next_prime (const unsigned long int n);
 extern long int cm_nt_gcd (long int a, long int b);
-extern long int cm_nt_gcdext (long int *u, long int *v, long int a,
-   long int b);
 extern int cm_nt_kronecker (long int a, long int b);
-extern long int cm_nt_sqrt (const unsigned long int n);
 extern void cm_nt_factor (long int d, unsigned long int *factors,
    unsigned int *exponents);
 

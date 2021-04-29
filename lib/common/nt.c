@@ -2,7 +2,7 @@
 
 nt.c - number theoretic helper functions
 
-Copyright (C) 2009, 2010, 2015 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -27,33 +27,6 @@ static void nt_elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
    mpz_t a, mpz_t p);
 static void nt_elliptic_curve_add (mpz_t P_x,  mpz_t P_y, bool *P_infty,
    mpz_t Q_x, mpz_t Q_y, const bool Q_infty, mpz_t a, mpz_t p);
-
-/*****************************************************************************/
-
-long int cm_nt_mod (const long int a, const long int p)
-   /* returns a representative of a % p in [0, p-1[ */
-
-{
-   long int res = a % p;
-   return (res < 0 ? res + p : res);
-}
-
-/*****************************************************************************/
-
-long int cm_nt_sqrt (const unsigned long int n)
-   /* returns the positive root of n if it is a perfect square, -1 otherwise */
-
-{
-   double   root;
-   unsigned long int s;
-
-   root = sqrt ((double) n);
-   s = (unsigned long int) (root + 0.5);
-   if (s * s == n)
-      return (long int) s;
-   else
-      return -1;
-}
 
 /*****************************************************************************/
 
@@ -86,90 +59,6 @@ long int cm_nt_gcd (long int a, long int b)
       }
       return b_local;
    }
-}
-
-/*****************************************************************************/
-
-long int cm_nt_gcdext (long int *u, long int *v, long int a, long int b)
-   /* returns the positive gcd d of a and b and u, v such that u a + v b = d */
-
-{
-   long int r0, r1, r2, u0, u1, u2, v0, v1, v2, q;
-   int sgn_a, sgn_b;
-
-   if (a < 0) {
-      sgn_a = -1;
-      r0 = -a;
-   }
-   else {
-      sgn_a = 1;
-      r0 = a;
-   }
-   if (b < 0) {
-      sgn_b = -1;
-      r1 = -b;
-   }
-   else {
-      sgn_b = 1;
-      r1 = b;
-   }
-   u0 = 1;
-   u1 = 0;
-   v0 = 0;
-   v1 = 1;
-
-   while (r1 != 0) {
-      q = r0 / r1;
-      r2 = r0 % r1;
-      r0 = r1;
-      r1 = r2;
-      u2 = u0 - q * u1;
-      u0 = u1;
-      u1 = u2;
-      v2 = v0 - q * v1;
-      v0 = v1;
-      v1 = v2;
-   }
-
-   *u = sgn_a * u0;
-   *v = sgn_b * v0;
-
-   return r0;
-}
-
-/*****************************************************************************/
-
-long int cm_nt_invert (long int a, const long int p)
-   /* returns a^(-1) mod p */
-
-{
-   long int r, a_local, b_local, u0, u1, u2;
-
-   if (a == 0)
-   {
-      printf ("*** nt_invert called with 0\n");
-      exit (1);
-   }
-   else if (a < 0)
-      /* we assume that a is reduced mod p by the C function */
-      a += p;
-
-   a_local = a;
-   b_local = p;
-   u0 = 1;
-   u1 = 0;
-   /* loop invariant: u0 * a + something * p = a_local */
-   /* loop invariant: u1 * a + something * p = b_local */
-   while (b_local > 0)
-   {
-      u2 = u0 - (a_local / b_local) * u1;
-      r = a_local % b_local;
-      u0 = u1;
-      u1 = u2;
-      a_local = b_local;
-      b_local = r;
-   }
-   return u0;
 }
 
 /*****************************************************************************/
@@ -254,22 +143,6 @@ int cm_nt_is_prime (mpz_t a)
 
 {
    return (mpz_probab_prime_p (a, 10) > 0);
-}
-
-/*****************************************************************************/
-
-int cm_nt_is_prime_l (const unsigned long int prime)
-
-{
-   int res;
-   mpz_t a;
-
-   mpz_init_set_ui (a, prime);
-   res = cm_nt_is_prime (a);
-
-   mpz_clear (a);
-
-   return res;
 }
 
 /*****************************************************************************/

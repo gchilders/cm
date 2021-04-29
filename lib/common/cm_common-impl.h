@@ -2,7 +2,7 @@
 
 cm_common-impl.h - header file for internal use of the cm_common library
 
-Copyright (C) 2009, 2012, 2015 Andreas Enge
+Copyright (C) 2009, 2012, 2015, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -38,15 +38,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-/* different functions for number theoretic computations */
-extern long int cm_nt_mod (const long int a, const long int p);
-extern long int cm_nt_invert (long int a, const long int p);
-
-extern void cm_nt_elliptic_curve_double_multiply_l (long int *Qx, long int *Rx,
-   long int Px, long int Py, long int m, long int n, long int a, long int p);
-extern void cm_nt_elliptic_curve_random_l (long int *P_x, long int *P_y,
-   long int a, long int b, long int p);
 
 /* functions for computing q expansions of modular functions and addition
    chains */
