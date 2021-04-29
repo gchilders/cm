@@ -114,13 +114,15 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    else
       cl->d = disc;
 
-   cl->h = cm_classgroup_h (cl->d);
+   length = cm_classgroup_normalseries (disc, ord, gen);
+   cl->h = 1;
+   for (i = 0; i < length; i++)
+      cl->h *= ord [i];
    cl->form = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
    cl->conj = (int *) malloc (cl->h * sizeof (int));
    if (verbose)
       printf ("Class number: h = %d\n", cl->h);
 
-   length = cm_classgroup_normalseries (disc, ord, gen);
    cl->levels = length;
    cl->deg = (int *) malloc (length * sizeof (int));
    for (i = 0; i < length; i++)
@@ -458,85 +460,6 @@ int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d)
 
    return classgroup_fundamental_discriminant_conductor (d, cond_primes,
              cond_exp);
-}
-
-/*****************************************************************************/
-
-int cm_classgroup_h (int_cl_t d)
-   /* computes the class number of the imaginary quadratic order with        */
-   /* discriminant d using Louboutin's formula [Lou02] for the maximal part  */
-   /* and the class number formula for non-maximal orders.                   */
-
-{
-   int_cl_t fund;
-   uint_cl_t cond_primes [17];
-   unsigned int cond_exp [17];
-   double   pi, a2, a, en, enp1, fn, deltaf, sum1, sum2;
-      /* en stands for e_n = exp (- n^2 a2), enp1 for e_{n+1},               */
-      /* deltaf for exp (-2 a2) and  fn for exp (- (2n+3) a2),               */
-      /* so that e_{n+2} = e_{n+1} * fn.                                     */
-      /* sum1 contains the sum of chi (n) * e_n / n;                         */
-      /* sum2 contains the sum of (e_n + e_{n+1}) S_n.                       */
-   int m, n, S, h;
-   int chi, i;
-
-   fund = classgroup_fundamental_discriminant_conductor (d, cond_primes,
-      cond_exp);
-
-   if (fund == -3 || fund == -4)
-      h = 1;
-   else
-   {
-      pi = 2 * asin (1.0);
-      a2 = pi / (-fund);
-      a = sqrt (a2);
-      m = (int) ceil (sqrt (-fund / (2 * pi) * log (-fund / pi) + 6));
-
-      /* initialisation for n = 1 */
-      chi = 1;
-      S = 1;
-      en = exp (-a2);
-      deltaf = en * en;
-      enp1 = deltaf * deltaf;
-      fn = enp1 * en;
-      sum1 = en;
-      sum2 = en + enp1;
-
-      for (n = 2; n <= m; n++)
-      {
-         chi = cm_classgroup_kronecker (fund, (int_cl_t) n);
-         S += chi;
-         en = enp1;
-         enp1 *= fn;
-         fn *= deltaf;
-         sum1 += chi * en / (double) n;
-         sum2 += (en + enp1) * S;
-      }
-
-      h = (int) ((sum1 / a + sum2 * a) / sqrt (pi) + 0.5);
-   }
-
-   /* correct for the conductor */
-   for (i = 0; cond_primes [i] != 0; i++)
-   {
-      h *=   cond_primes [i]
-           - cm_classgroup_kronecker (fund, (int_cl_t) cond_primes [i]);
-      while (cond_exp [i] > 1)
-      {
-         h *= cond_primes [i];
-         cond_exp [i]--;
-      }
-   }
-
-   /* correct for the units */
-   if (cond_primes [0] != 0) {
-      if (fund == -3)
-         h /= 3;
-      else if (fund == -4)
-         h /= 2;
-   }
-
-   return h;
 }
 
 

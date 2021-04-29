@@ -109,7 +109,6 @@ extern int cm_classgroup_kronecker (int_cl_t a, int_cl_t b);
 extern void cm_classgroup_factor (int_cl_t d,
       uint_cl_t *factors, unsigned int *exponents);
 extern int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d);
-extern int cm_classgroup_h (int_cl_t d);
 
 extern int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d);
 extern void cm_classgroup_reduce (cm_form_t *Q, int_cl_t d);

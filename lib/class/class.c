@@ -114,7 +114,8 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
    else
       c->field = CM_FIELD_REAL;
 
-   c->h = cm_classgroup_h (c->d);
+   cm_classgroup_init (&cl, c->d, false);
+   c->h = cl.h;
    c->minpoly_deg = c->h;
    c->minpoly = (mpz_t *) malloc ((c->minpoly_deg + 1) * sizeof (mpz_t));
    for (i = 0; i <= c->minpoly_deg; i++)
@@ -125,7 +126,6 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
          mpz_init (c->minpoly_complex [i]);
    }
 
-   cm_classgroup_init (&cl, c->d, false);
    if (cl.levels == 0) {
       deg = 1;
       c->tower_levels = 1;
