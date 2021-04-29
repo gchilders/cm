@@ -456,12 +456,16 @@ If @var{verbose} is set to @code{true}, some information is printed on
 screen during execution.
 @end deftypefun
 
-@deftypefun void cm_class_compute_minpoly (cm_class_t @var{c}, bool @var{checkpoints},   bool @var{write}, bool @var{print}, bool @var{verbose})
+@deftypefun void cm_class_compute_minpoly (cm_class_t @var{c}, bool @var{tower}, bool @var{checkpoints},   bool @var{write}, bool @var{print}, bool @var{verbose})
 
 Takes a previously initialised @code{cm_class_t} object @var{c} and computes
 the corresponding class polynomial. If @var{print} is @code{true}, the
 polynomial is printed on screen, if @var{write} is @code{true}, it is
 written to disc into the subdirectory @code{cp}.
+If @var{tower} is @code{true}, then the class polynomial is moreover
+decomposed as a tower of number field extensions of prime degree,
+which are printed on screen if @var{print} is @code{true} (writing
+towers to disk is not yet implemented).
 
 The variable @var{checkpoints} is only relevant for record computations; if
 set to @code{true}, intermediate results are written to disk and read in
