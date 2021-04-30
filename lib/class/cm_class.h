@@ -85,19 +85,17 @@ typedef struct {
       /* minpoly, the second one in this variable.                              */
    int tower_levels;
    int *tower_d;
-   mpz_t ***tower;
+   mpzx_t **tower;
       /* These fields are meaningful only when the class field is
          decomposed as a tower; they represent the number of levels in the
          tower, the degree sequence (from bottom to top) and the
          polynomials defining the extension. Hereby, tower [i][j] encodes
-         the rounded polynomial W [i][j] in an mpfrx_tower_t, with
-         tower [i][j][k] being the coefficient of degree k. The degrees are
-         not stored separately, but can be derived from tower_d: The degree
-         of tower [0][0] is d [0] (with leading coefficient 1 that is also
-         stored), that of tower [i][j] for i >= 1 is
-         d [0] * ... * d [i-1] - 1, with potentially leading coefficients 0
-         that are also stored. */
-   mpz_t ***tower_complex;
+         the rounded polynomial W [i][j] in an mpfrx_tower_t. Their degrees
+         can also be derived from tower_d: The degree of tower [0][0] is
+         d [0] (with leading coefficient 1), that of tower [i][j] for
+         i >= 1 is d [0] * ... * d [i-1] - 1, with potentially leading
+         coefficients 0 that are also stored. */
+   mpzx_t **tower_complex;
       /* This field is meaningful only in the complex case and when the
          class field is decomposed as a tower; it contains the entries of
          the defining polynomials in the second element of the integral

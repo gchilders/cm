@@ -74,7 +74,7 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
 {
    cm_classgroup_t cl;
    int deg;
-   int i, j, k;
+   int i, j;
 
    if (d >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -121,42 +121,30 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
       c->tower_levels = cl.levels;
    }
    c->tower_d = (int *) malloc (c->tower_levels * sizeof (int));
-   c->tower = (mpz_t ***) malloc (c->tower_levels * sizeof (mpz_t **));
+   c->tower = (mpzx_t **) malloc (c->tower_levels * sizeof (mpzx_t *));
    c->tower_d [0] = deg;
-   c->tower [0] = (mpz_t **) malloc (1 * sizeof (mpz_t *));
-   c->tower [0][0] = (mpz_t *) malloc ((deg + 1) * sizeof (mpz_t));
-   for (k = 0; k <= deg; k++)
-      mpz_init (c->tower [0][0][k]);
+   c->tower [0] = (mpzx_t *) malloc (1 * sizeof (mpzx_t));
+   mpzx_init (c->tower [0][0], deg);
    for (i = 1; i < c->tower_levels; i++) {
       c->tower_d [i] = cl.deg [i];
-      c->tower [i] = (mpz_t **) malloc ((cl.deg [i] + 1) * sizeof (mpz_t *));
-      for (j = 0; j <= cl.deg [i]; j++) {
-         c->tower [i][j] = (mpz_t *) malloc (deg * sizeof (mpz_t));
-         for (k = 0; k < deg; k++)
-            mpz_init (c->tower [i][j][k]);
-      }
+      c->tower [i] = (mpzx_t *) malloc ((cl.deg [i] + 1) * sizeof (mpzx_t));
+      for (j = 0; j <= cl.deg [i]; j++)
+         mpzx_init (c->tower [i][j], deg - 1);
       deg *= cl.deg [i];
    }
    if (c->field == CM_FIELD_COMPLEX) {
-      c->tower_complex = (mpz_t ***) malloc (c->tower_levels * sizeof (mpz_t **));
+      c->tower_complex = (mpzx_t **) malloc (c->tower_levels * sizeof (mpzx_t *));
       if (cl.levels == 0)
          deg = 1;
       else
          deg = cl.deg [0];
-      c->tower_complex [0] = (mpz_t **) malloc (1 * sizeof (mpz_t *));
-      c->tower_complex [0][0]
-         = (mpz_t *) malloc ((deg + 1) * sizeof (mpz_t));
-      for (k = 0; k <= deg; k++)
-         mpz_init (c->tower_complex [0][0][k]);
+      c->tower_complex [0] = (mpzx_t *) malloc (1 * sizeof (mpzx_t));
+      mpzx_init (c->tower_complex [0][0], deg);
       for (i = 1; i < cl.levels; i++) {
          c->tower_complex [i]
-            = (mpz_t **) malloc ((cl.deg [i] + 1) * sizeof (mpz_t *));
-         for (j = 0; j <= cl.deg [i]; j++) {
-            c->tower_complex [i][j]
-               = (mpz_t *) malloc (deg * sizeof (mpz_t));
-            for (k = 0; k < deg; k++)
-               mpz_init (c->tower_complex [i][j][k]);
-         }
+            = (mpzx_t *) malloc ((cl.deg [i] + 1) * sizeof (mpzx_t));
+         for (j = 0; j <= cl.deg [i]; j++)
+            mpzx_init (c->tower_complex [i][j], deg - 1);
          deg *= cl.deg [i];
       }
    }
@@ -169,7 +157,7 @@ void cm_class_clear (cm_class_t *c)
 
 {
    int d;
-   int i, j, k;
+   int i, j;
 
    mpzx_clear (c->minpoly);
    if (c->field == CM_FIELD_COMPLEX)
@@ -177,16 +165,11 @@ void cm_class_clear (cm_class_t *c)
 
    if (c->field == CM_FIELD_COMPLEX) {
       d = c->tower_d [0];
-      for (k = 0; k <= d; k++)
-         mpz_clear (c->tower_complex [0][0][k]);
-      free (c->tower_complex [0][0]);
+      mpzx_clear (c->tower_complex [0][0]);
       free (c->tower_complex [0]);
       for (i = 1; i < c->tower_levels; i++) {
-         for (j = 0; j <= c->tower_d [i]; j++) {
-            for (k = 0; k < d; k++)
-               mpz_clear (c->tower_complex [i][j][k]);
-            free (c->tower_complex [i][j]);
-         }
+         for (j = 0; j <= c->tower_d [i]; j++)
+            mpzx_clear (c->tower_complex [i][j]);
          d *= c->tower_d [i];
             /* total degree of the level over \Q */
          free (c->tower_complex [i]);
@@ -195,16 +178,11 @@ void cm_class_clear (cm_class_t *c)
    }
 
    d = c->tower_d [0];
-   for (k = 0; k <= d; k++)
-      mpz_clear (c->tower [0][0][k]);
-   free (c->tower [0][0]);
+   mpzx_clear (c->tower [0][0]);
    free (c->tower [0]);
    for (i = 1; i < c->tower_levels; i++) {
-      for (j = 0; j <= c->tower_d [i]; j++) {
-         for (k = 0; k < d; k++)
-            mpz_clear (c->tower [i][j][k]);
-         free (c->tower [i][j]);
-      }
+      for (j = 0; j <= c->tower_d [i]; j++)
+         mpzx_clear (c->tower [i][j]);
       d *= c->tower_d [i];
          /* total degree of the level over \Q */
       free (c->tower [i]);
@@ -1083,50 +1061,43 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
 /*****************************************************************************/
 
 static void round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t)
-/* TODO: This function is part of a proof of concept solution; in the
-   longer run, the code should be made more modular. */
 {
    mpz_t z;
    int i, j, k;
    int l = t->levels;
    int *d = t->d;
    mpfrx_srcptr f;
+   char x [22]; /* long enough to hold x18446744073709551615 */
 
    mpz_init (z);
 
    f = t->W [0][0];
-   mpz_set_ui (c.tower [0][0][mpfrx_get_deg (f)], 1);
-   printf ("f1 = x1^%i", mpfrx_get_deg (f));
+   mpz_set_ui (c.tower [0][0]->coeff [mpfrx_get_deg (f)], 1);
    for (k = mpfrx_get_deg (f) - 1; k >= 0; k--) {
       get_int (z, mpfrx_get_coeff (f, k));
-      mpz_set (c.tower [0][0][k], z);
-      if (mpz_cmp_ui (z, 0) > 0)
-         printf ("+");
-      mpz_out_str (stdout, 10, z);
-      if (k >= 2)
-         printf ("*x1^%i", k);
-      else if (k == 1)
-         printf ("*x1");
+      mpz_set (c.tower [0][0]->coeff [k], z);
    }
+   for (i = 1; i < l; i++)
+      for (j = d [i]; j >= 0; j--) {
+         f = t->W [i][j];
+         for (k = mpfrx_get_deg (f); k >= 0; k--) {
+            get_int (z, mpfrx_get_coeff (f, k));
+            mpz_set (c.tower [i][j]->coeff [k], z);
+         }
+      }
+
+   printf ("f1 = ");
+   sprintf (x, "x1");
+   mpzx_print_pari (stdout, c.tower [0][0], x);
    printf (";\n");
    for (i = 1; i < l; i++) {
       printf ("f%i = ", i+1);
+      sprintf (x, "x%u", (unsigned int) i);
       for (j = d [i]; j >= 0; j--) {
-         f = t->W [i][j];
          if (j < d [i])
             printf ("+");
          printf ("(");
-         for (k = mpfrx_get_deg (f); k >= 0; k--) {
-            get_int (z, mpfrx_get_coeff (f, k));
-            mpz_set (c.tower [i][j][k], z);
-            if (k < mpfrx_get_deg (f) && mpz_cmp_ui (z, 0) > 0)
-               printf ("+");
-            mpz_out_str (stdout, 10, z);
-            if (k >= 2)
-               printf ("*x%i^%i", i, k);
-            else if (k == 1)
-               printf ("*x%i", i);
-         }
+         mpzx_print_pari (stdout, c.tower [i][j], x);
          if (j >= 2)
             printf (")*x%i^%i", i+1, j);
          else if (j == 1)
@@ -1143,64 +1114,56 @@ static void round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t)
 /*****************************************************************************/
 
 static void round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t)
-/* TODO: This function is part of a proof of concept solution; in the
-   longer run, the code should be made more modular. */
 {
    mpz_t z1, z2;
    int i, j, k;
    int l = t->levels;
    int *d = t->d;
    mpcx_srcptr f;
+   char x [22]; /* long enough to hold x18446744073709551615 */
 
    mpz_init (z1);
    mpz_init (z2);
 
    f = t->W [0][0];
-   mpz_set_ui (c.tower [0][0][mpfrx_get_deg (f)], 1);
-   mpz_set_ui (c.tower_complex [0][0][mpfrx_get_deg (f)], 0);
-   printf ("f1 = x1^%i", mpcx_get_deg (f));
+   mpz_set_ui (c.tower [0][0]->coeff [mpfrx_get_deg (f)], 1);
+   mpz_set_ui (c.tower_complex [0][0]->coeff [mpfrx_get_deg (f)], 0);
    for (k = mpcx_get_deg (f) - 1; k >= 0; k--) {
       get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
-      mpz_set (c.tower [0][0][k], z1);
-      mpz_set (c.tower_complex [0][0][k], z2);
-      printf ("+ (");
-      mpz_out_str (stdout, 10, z1);
-      printf ("+(");
-      mpz_out_str (stdout, 10, z2);
-      printf ("*omega))");
-      if (k >= 2)
-         printf ("*x1^%i", k);
-      else if (k == 1)
-         printf ("*x1");
+      mpz_set (c.tower [0][0]->coeff [k], z1);
+      mpz_set (c.tower_complex [0][0]->coeff [k], z2);
    }
-   printf (";\n");
-   for (i = 1; i < l; i++) {
-      printf ("f%i = ", i+1);
+   for (i = 1; i < l; i++)
       for (j = d [i]; j >= 0; j--) {
          f = t->W [i][j];
-         if (j < d [i])
-            printf ("+");
-         printf ("(");
          for (k = mpfrx_get_deg (f); k >= 0; k--) {
             get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
-            mpz_set (c.tower [i][j][k], z1);
-            mpz_set (c.tower_complex [i][j][k], z2);
-            printf ("+(");
-            mpz_out_str (stdout, 10, z1);
-            printf ("+(");
-            mpz_out_str (stdout, 10, z2);
-            printf ("*omega))");
-            if (k >= 2)
-               printf ("*x%i^%i", i, k);
-            else if (k == 1)
-               printf ("*x%i", i);
+            mpz_set (c.tower [i][j]->coeff [k], z1);
+            mpz_set (c.tower_complex [i][j]->coeff [k], z2);
          }
+      }
+
+   printf ("f1 = (");
+   sprintf (x, "x1");
+   mpzx_print_pari (stdout, c.tower [0][0], x);
+   printf (")+o*(");
+   mpzx_print_pari (stdout, c.tower_complex [0][0], x);
+   printf (");\n");
+   for (i = 1; i < l; i++) {
+      printf ("f%i = ", i+1);
+      sprintf (x, "x%u", (unsigned int) i);
+      for (j = d [i]; j >= 0; j--) {
+         if (j < d [i])
+            printf ("+");
+         printf ("((");
+         mpzx_print_pari (stdout, c.tower [i][j], x);
+         printf (")+o*(");
+         mpzx_print_pari (stdout, c.tower_complex [i][j], x);
+         printf ("))");
+         if (j >= 1)
+            printf ("*x%i", i+1);
          if (j >= 2)
-            printf (")*x%i^%i", i+1, j);
-         else if (j == 1)
-            printf (")*x%i", i+1);
-         else
-            printf (")");
+            printf ("^%i", j);
       }
       printf (";\n");
    }
