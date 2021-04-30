@@ -42,6 +42,7 @@ typedef struct {
    int_cl_t a, b;
 } cm_form_t;
 
+
 typedef struct {
    int_cl_t d;
    cm_form_t *form;
@@ -60,6 +61,7 @@ typedef struct {
          forms, or equivalently the sequence of degrees (from bottom to
          top) in a Galois tower decomposition of the class field. */
 } cm_classgroup_t;
+
 
 typedef struct {
    cm_modular_t m;
@@ -85,10 +87,16 @@ extern "C" {
 #endif
 
 /* functions depending on PARI */
-extern void cm_pari_oneroot (mpz_t root, mpz_t *f, int deg, mpz_t p,
-   bool verbose);
+extern void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose);
 extern mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
+
+
+/* functions for integral polynomials */
+extern void mpzx_init (mpzx_ptr f, int deg);
+extern void mpzx_clear (mpzx_ptr f);
+extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);
+extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 
 
 /* functions for classgroups of imaginary-quadratic number fields */

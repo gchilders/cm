@@ -46,6 +46,19 @@ typedef uint_fast64_t uint_cl_t;
 #define PRIucl PRIuFAST64
 #define SCNicl SCNiFAST64
 
+
+typedef struct {
+   int deg;
+      /* A degree of -1 indicates the zero polynomial. */
+   mpz_t *coeff;
+}
+__mpzx_struct;
+
+typedef __mpzx_struct mpzx_t[1];
+typedef __mpzx_struct *mpzx_ptr;
+typedef const __mpzx_struct *mpzx_srcptr;
+
+
 typedef struct {
    char invariant;
       /* a constant describing which invariant is actually used                 */
@@ -63,11 +76,9 @@ typedef struct {
       /* the discriminant                                                       */
    int h;
       /* the class number */
-   int minpoly_deg;
-      /* the degree of the minimal polynomial; usually h */
-   mpz_t *minpoly;
+   mpzx_t minpoly;
       /* real part of the minimal polynomial of the function over Q             */
-   mpz_t *minpoly_complex;
+   mpzx_t minpoly_complex;
       /* Only meaningful in the complex case; then the minimal polynomial is    */
       /* decomposed into two parts over the integral basis                      */
       /* [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in      */

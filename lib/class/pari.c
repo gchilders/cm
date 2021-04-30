@@ -140,10 +140,10 @@ static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_pari_oneroot (mpz_t root, mpz_t *f, int deg, mpz_t p, bool verbose)
-   /* finds a root of the polynomial f of degree deg over the prime field of */
-   /* characteristic p, assuming that such a root exists, and returns it in  */
-   /* the variable of the same name                                          */
+void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose)
+   /* Find a root of the polynomial f over the prime field of
+      characteristic p, assuming that f splits completely, and return it
+      in the variable of the same name. */
 
 {
    GEN fp, pp, rootp;
@@ -151,12 +151,12 @@ void cm_pari_oneroot (mpz_t root, mpz_t *f, int deg, mpz_t p, bool verbose)
 
    cm_timer_start (clock);
    if (verbose)
-      printf ("--- Root finding in degree %i\n", deg);
+      printf ("--- Root finding in degree %i\n", f->deg);
 
-   pari_init (2000 * deg * mpz_sizeinbase (p, 2) / 8 + 1000000, 0);
+   pari_init (2000 * f->deg * mpz_sizeinbase (p, 2) / 8 + 1000000, 0);
 
    pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f, deg, p);
+   fp = mpzx_get_FpX (f->coeff, f->deg, p);
 
    rootp = FpX_oneroot_split (fp, pp);
    Z_get_mpz (root, rootp);

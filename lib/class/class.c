@@ -108,15 +108,9 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
 
    cm_classgroup_init (&cl, c->d, false);
    c->h = cl.h;
-   c->minpoly_deg = c->h;
-   c->minpoly = (mpz_t *) malloc ((c->minpoly_deg + 1) * sizeof (mpz_t));
-   for (i = 0; i <= c->minpoly_deg; i++)
-      mpz_init (c->minpoly [i]);
-   if (c->field == CM_FIELD_COMPLEX) {
-      c->minpoly_complex = (mpz_t *) malloc (c->minpoly_deg * sizeof (mpz_t));
-      for (i = 0; i < c->minpoly_deg; i++)
-         mpz_init (c->minpoly_complex [i]);
-   }
+   mpzx_init (c->minpoly, cl.h);
+   if (c->field == CM_FIELD_COMPLEX)
+      mpzx_init (c->minpoly_complex, cl.h);
 
    if (cl.levels == 0) {
       deg = 1;
@@ -177,14 +171,9 @@ void cm_class_clear (cm_class_t *c)
    int d;
    int i, j, k;
 
-   for (i = 0; i <= c->minpoly_deg; i++)
-      mpz_clear (c->minpoly [i]);
-   free (c->minpoly);
-   if (c->field == CM_FIELD_COMPLEX) {
-      for (i = 0; i < c->minpoly_deg; i++)
-         mpz_clear (c->minpoly_complex [i]);
-      free (c->minpoly_complex);
-   }
+   mpzx_clear (c->minpoly);
+   if (c->field == CM_FIELD_COMPLEX)
+      mpzx_clear (c->minpoly_complex);
 
    if (c->field == CM_FIELD_COMPLEX) {
       d = c->tower_d [0];
@@ -470,12 +459,12 @@ void cm_class_write (cm_class_t c)
    fprintf (f, "%"PRIicl"\n", -c.d);
    fprintf (f, "%c\n", c.invariant);
    fprintf (f, "%s\n", c.paramstr);
-   fprintf (f, "%i\n", c.minpoly_deg);
-   for (i = c.minpoly_deg; i >= 0; i--) {
-      mpz_out_str (f, 10, c.minpoly [i]);
+   fprintf (f, "%i\n", c.minpoly->deg);
+   for (i = c.minpoly->deg; i >= 0; i--) {
+      mpz_out_str (f, 10, c.minpoly->coeff [i]);
       if (c.field == CM_FIELD_COMPLEX) {
          fprintf (f, " ");
-         mpz_out_str (f, 10, c.minpoly_complex [i]);
+         mpz_out_str (f, 10, c.minpoly_complex->coeff [i]);
       }
       fprintf (f, "\n");
    }
@@ -529,17 +518,17 @@ bool cm_class_read (cm_class_t c)
    }
    if (!fscanf (f, "%i", &i))
       return false;
-   if (i != c.minpoly_deg) {
+   if (i != c.minpoly->deg) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** degree %i instead of %i\n", i, c.minpoly_deg);
+      printf ("*** degree %i instead of %i\n", i, c.minpoly->deg);
       exit (1);
    }
 
-   for (i = c.minpoly_deg; i >= 0; i--) {
-      mpz_inp_str (c.minpoly [i], f, 10);
+   for (i = c.minpoly->deg; i >= 0; i--) {
+      mpz_inp_str (c.minpoly->coeff [i], f, 10);
       if (c.field == CM_FIELD_COMPLEX)
-         mpz_inp_str (c.minpoly_complex [i], f, 10);
+         mpz_inp_str (c.minpoly_complex->coeff [i], f, 10);
    }
 
    cm_file_close (f);
@@ -678,8 +667,8 @@ static int class_get_height (cm_class_t c)
    int   i, height, cand;
 
    height = -1;
-   for (i = 0; i < c.minpoly_deg; i++) {
-      cand = mpz_sizeinbase (c.minpoly [i], 2);
+   for (i = 0; i < c.minpoly->deg; i++) {
+      cand = mpz_sizeinbase (c.minpoly->coeff [i], 2);
       if (cand > height)
          height = cand;
    }
@@ -1348,36 +1337,21 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
 
    for (i = 0; conj [i] < i; i++);
    prec = cget_prec (conjugate [i]);
-   mpfrx_init (mpol, c.minpoly_deg + 1, prec);
-   mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly_deg);
+   mpfrx_init (mpol, c.minpoly->deg + 1, prec);
+   mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly->deg);
 
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
-   for (i = 0; i < c.minpoly_deg; i++)
-      if (!cm_nt_fget_z (c.minpoly [i], mpol->coeff [i])) {
+   for (i = 0; i < c.minpoly->deg; i++)
+      if (!cm_nt_fget_z (c.minpoly->coeff [i], mpol->coeff [i])) {
          printf ("*** Accuracy not sufficient for coefficient of X^%d = ", i);
          fout_str (stdout, 10, 0ul, mpol->coeff [i]);
          printf ("\n");
          exit (1);
       }
-   mpz_set_ui (c.minpoly [c.minpoly_deg], 1ul);
+   mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
 
    if (print) {
-      printf ("x^%i", c.minpoly_deg);
-      for (i = c.minpoly_deg - 1; i >= 0; i--) {
-         int cmp = mpz_cmp_ui (c.minpoly [i], 0);
-         if (cmp != 0) {
-            if (cmp > 0) {
-               printf (" +");
-               mpz_out_str (stdout, 10, c.minpoly [i]);
-            }
-            else
-               mpz_out_str (stdout, 10, c.minpoly [i]);
-            if (i >= 2)
-               printf ("*x^%i", i);
-            else if (i == 1)
-               printf ("*x");
-         }
-      }
+      mpzx_print_pari (stdout, c.minpoly, NULL);
       printf ("\n");
    }
 
@@ -1397,13 +1371,13 @@ static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    mpcx_t mpol;
 
    prec = cget_prec (conjugate [0]);
-   mpcx_init (mpol, c.minpoly_deg + 1, prec);
-   mpcx_reconstruct_from_roots (mpol, conjugate, c.minpoly_deg);
+   mpcx_init (mpol, c.minpoly->deg + 1, prec);
+   mpcx_reconstruct_from_roots (mpol, conjugate, c.minpoly->deg);
 
    /* the minimal polynomial is now in mpol; round to integral polynomial */
    fund = cm_classgroup_fundamental_discriminant (c.d);
    for (i = 0; i < c.h; i++) {
-      if (!get_quadratic (c.minpoly [i], c.minpoly_complex [i],
+      if (!get_quadratic (c.minpoly->coeff [i], c.minpoly_complex->coeff [i],
          mpol->coeff[i], fund)) {
          printf ("*** accuracy not sufficient for coefficient of X^%d = ", i);
          cout_str (stdout, 10, 0ul, mpol->coeff [i]);
@@ -1411,20 +1385,16 @@ static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
          exit (1);
       }
    }
+   mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
 
    mpcx_clear (mpol);
 
    if (print) {
-      printf ("Minimal polynomial:\nx^%i", c.minpoly_deg);
-      for (i = c.minpoly_deg - 1; i >= 0; i--) {
-         printf (" + (");
-         mpz_out_str (stdout, 10, c.minpoly [i]);
-         if (mpz_cmp_ui (c.minpoly_complex [i], 0) >= 0)
-            printf ("+");
-         mpz_out_str (stdout, 10, c.minpoly_complex [i]);
-         printf ("*omega) * x^%i", i);
-      }
-      printf ("\n");
+      printf ("(");
+      mpzx_print_pari (stdout, c.minpoly, NULL);
+      printf (")+o*(");
+      mpzx_print_pari (stdout, c.minpoly_complex, NULL);
+      printf (")\n");
    }
 }
 
@@ -1442,21 +1412,19 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
    /* The local variables are needed only for the complex case. */
    int_cl_t fund;
    cm_timer clock;
-   mpz_t *minpoly_P;
+   mpzx_t minpoly_P;
    int i;
    mpz_t omega, tmp;
    /* the second element of the integral basis of the maximal order */
    /* modulo P                                                      */
 
    if (c.field == CM_FIELD_REAL)
-      cm_pari_oneroot (root, c.minpoly, c.minpoly_deg, P, verbose);
+      cm_pari_oneroot (root, c.minpoly, P, verbose);
    else {
       mpz_init (omega);
       mpz_init (tmp);
 
-      minpoly_P = (mpz_t*) malloc ((c.minpoly_deg + 1) * sizeof (mpz_t));
-      for (i = 0; i <= c.minpoly_deg; i++)
-         mpz_init (minpoly_P [i]);
+      mpzx_init (minpoly_P, c.minpoly->deg);
 
       /* compute the second element of the integral basis modulo P */
       cm_timer_start (clock);
@@ -1473,22 +1441,20 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
       mpz_mod (omega, omega, P);
 
       /* create the minimal polynomial modulo P */
-      for (i = 0; i < c.minpoly_deg; i++) {
-         mpz_mod (minpoly_P [i], c.minpoly_complex [i], P);
-         mpz_mul (tmp, minpoly_P [i], omega);
-         mpz_mod (minpoly_P [i], tmp, P);
-         mpz_add (tmp, minpoly_P [i], c.minpoly [i]);
-         mpz_mod (minpoly_P [i], tmp, P);
+      for (i = 0; i < c.minpoly->deg; i++) {
+         mpz_mod (minpoly_P->coeff [i], c.minpoly_complex->coeff [i], P);
+         mpz_mul (tmp, minpoly_P->coeff [i], omega);
+         mpz_mod (minpoly_P->coeff [i], tmp, P);
+         mpz_add (tmp, minpoly_P->coeff [i], c.minpoly->coeff [i]);
+         mpz_mod (minpoly_P->coeff [i], tmp, P);
       }
-      mpz_set_ui (minpoly_P [c.minpoly_deg], 1ul);
+      mpz_set_ui (minpoly_P->coeff [c.minpoly->deg], 1ul);
 
-      cm_pari_oneroot (root, minpoly_P, c.minpoly_deg, P, verbose);
+      cm_pari_oneroot (root, minpoly_P, P, verbose);
 
       mpz_clear (omega);
       mpz_clear (tmp);
-      for (i = 0; i <= c.minpoly_deg; i++)
-         mpz_clear (minpoly_P [i]);
-      free (minpoly_P);
+      mpzx_clear (minpoly_P);
    }
 
    if (verbose) {
