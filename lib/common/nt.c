@@ -588,8 +588,9 @@ void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
 /*****************************************************************************/
 
 bool cm_nt_fget_z (mpz_t out, ftype in)
-   /* tries to round the real to an integer value                            */
-   /* The return value reflects the success of the operation.                */
+   /* Tries to round the real value in to an integer value out. The return
+      value reflects the success of the operation. If debug is true, then
+      on failure a warning message is printed. */
 
 {
    ftype rounded, diff;
@@ -614,6 +615,14 @@ bool cm_nt_fget_z (mpz_t out, ftype in)
    }
    else
       ok = false;
+
+   if (!ok) {
+      printf ("***** Error in rounding:\n");
+      fout_str (stdout, 10, 0ul, in);
+      printf ("\n");
+      fout_str (stdout, 10, 0ul, rounded);
+      printf ("\n");
+   }
 
    fclear (rounded);
    fclear (diff);

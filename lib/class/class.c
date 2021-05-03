@@ -55,9 +55,9 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
 
 /* the remaining functions are put separately as their code is quite long    */
-static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
+static bool real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
    bool print);
-static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
+static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    bool print);
 static bool doubleeta_compute_parameter (cm_class_t *c);
 static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
@@ -952,20 +952,6 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-static void get_int (mpz_ptr z, mpfr_ptr c)
-{
-   if (!cm_nt_fget_z (z, c)) {
-       printf ("***** Error in rounding: ");
-       fout_str (stdout, 10, 0ul, c);
-       printf ("\n");
-       mpz_out_str (stdout, 10, z);
-       printf ("\n");
-       exit (1);
-   }
-}
-
-/*****************************************************************************/
-
 static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
    /* tries to round the complex number to an integer in the quadratic order */
    /* of discriminant d by decomposing it over the integral basis [1, omega] */
@@ -1006,45 +992,52 @@ static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
 
 /*****************************************************************************/
 
-static void round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t)
+static bool round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t,
+   bool print)
 {
    mpz_t z;
    int i, j, k;
    int l = t->levels;
    int *d = t->d;
    mpfrx_srcptr f;
+   bool ok = true;
 
    mpz_init (z);
 
    f = t->W [0][0];
    mpz_set_ui (c.tower->W [0][0]->coeff [mpfrx_get_deg (f)], 1);
    for (k = mpfrx_get_deg (f) - 1; k >= 0; k--) {
-      get_int (z, mpfrx_get_coeff (f, k));
+      ok &= cm_nt_fget_z (z, mpfrx_get_coeff (f, k));
       mpz_set (c.tower->W [0][0]->coeff [k], z);
    }
    for (i = 1; i < l; i++)
       for (j = d [i]; j >= 0; j--) {
          f = t->W [i][j];
          for (k = mpfrx_get_deg (f); k >= 0; k--) {
-            get_int (z, mpfrx_get_coeff (f, k));
+            ok &= cm_nt_fget_z (z, mpfrx_get_coeff (f, k));
             mpz_set (c.tower->W [i][j]->coeff [k], z);
          }
       }
 
-   mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
+   if (print && ok)
+      mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
 
    mpz_clear (z);
+
+   return ok;
 }
 
 /*****************************************************************************/
 
-static void round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t)
+static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
+   bool print)
 {
    mpz_t z1, z2;
    int i, j, k;
    int l = t->levels;
    int *d = t->d;
    mpcx_srcptr f;
+   bool ok = true;
 
    mpz_init (z1);
    mpz_init (z2);
@@ -1053,7 +1046,7 @@ static void round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t)
    mpz_set_ui (c.tower->W [0][0]->coeff [mpfrx_get_deg (f)], 1);
    mpz_set_ui (c.tower_complex->W [0][0]->coeff [mpfrx_get_deg (f)], 0);
    for (k = mpcx_get_deg (f) - 1; k >= 0; k--) {
-      get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+      ok &= get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
       mpz_set (c.tower->W [0][0]->coeff [k], z1);
       mpz_set (c.tower_complex->W [0][0]->coeff [k], z2);
    }
@@ -1061,22 +1054,26 @@ static void round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t)
       for (j = d [i]; j >= 0; j--) {
          f = t->W [i][j];
          for (k = mpfrx_get_deg (f); k >= 0; k--) {
-            get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+            ok &= get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
             mpz_set (c.tower->W [i][j]->coeff [k], z1);
             mpz_set (c.tower_complex->W [i][j]->coeff [k], z2);
          }
       }
 
-   mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
-   mpzx_tower_print_pari (stdout, c.tower_complex, "g", NULL);
+   if (print && ok) {
+      mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
+      mpzx_tower_print_pari (stdout, c.tower_complex, "g", NULL);
+   }
 
    mpz_clear (z1);
    mpz_clear (z2);
+
+   return ok;
 }
 
 /*****************************************************************************/
 
-void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
+bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    bool disk, bool print, bool verbose)
    /* tower indicates whether the class polynomial should be decomposed as
       a Galois tower.
@@ -1094,7 +1091,8 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    mpfrx_tower_t t;
    mpcx_tower_t tc;
    int i;
-   cm_timer  clock_global, clock_local;
+   bool ok = true;
+   cm_timer clock_global, clock_local;
 
    cm_timer_start (clock_global);
 
@@ -1147,7 +1145,7 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
 
    cm_timer_start (clock_local);
    if (c.field == CM_FIELD_REAL) {
-      real_compute_minpoly (c, conjugate, conj, print);
+      ok &= real_compute_minpoly (c, conjugate, conj, print);
          /* Printing the full polynomial could be made optional when the
             tower is computed. */
       if (tower) {
@@ -1155,15 +1153,15 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
          mpfrcx_tower_decomposition (t, conjugate, conj);
          /* Printing should be optional here, and there should also be a
             possibility to save the field tower on disk. */
-         round_and_print_tower (c, t);
+         ok &= round_and_print_tower (c, t, print);
       }
    }
    else {
-      complex_compute_minpoly (c, conjugate, print);
+      ok &= complex_compute_minpoly (c, conjugate, print);
       if (tower) {
          mpcx_tower_init (tc, c.tower->levels, c.tower->d, prec);
          mpcx_tower_decomposition (tc, conjugate);
-         round_and_print_complex_tower (c, tc);
+         ok &= round_and_print_complex_tower (c, tc, print);
       }
    }
    cm_timer_stop (clock_local);
@@ -1185,13 +1183,15 @@ void cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
             cm_timer_get (clock_global));
       printf ("Height of minimal polynomial: %d\n", class_get_height (c));
    }
-   if (disk)
+   if (disk && ok)
       cm_class_write (c);
+
+   return ok;
 }
 
 /*****************************************************************************/
 
-static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
+static bool real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
    bool print)
    /* computes the minimal polynomial of the function over Q */
 
@@ -1199,6 +1199,7 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
    mpfrx_t mpol;
    fprec_t prec;
    int i;
+   bool ok = true;
 
    for (i = 0; conj [i] < i; i++);
    prec = cget_prec (conjugate [i]);
@@ -1207,25 +1208,22 @@ static void real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
 
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
    for (i = 0; i < c.minpoly->deg; i++)
-      if (!cm_nt_fget_z (c.minpoly->coeff [i], mpol->coeff [i])) {
-         printf ("*** Accuracy not sufficient for coefficient of X^%d = ", i);
-         fout_str (stdout, 10, 0ul, mpol->coeff [i]);
-         printf ("\n");
-         exit (1);
-      }
+      ok &= cm_nt_fget_z (c.minpoly->coeff [i], mpol->coeff [i]);
    mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
 
-   if (print) {
+   if (print && ok) {
       mpzx_print_pari (stdout, c.minpoly, NULL);
       printf ("\n");
    }
 
    mpfrx_clear (mpol);
+
+   return ok;
 }
 
 /*****************************************************************************/
 
-static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
+static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    bool print)
    /* computes the minimal polynomial of the function over Q (sqrt D) */
 
@@ -1234,6 +1232,7 @@ static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    int i;
    fprec_t prec;
    mpcx_t mpol;
+   bool ok = true;
 
    prec = cget_prec (conjugate [0]);
    mpcx_init (mpol, c.minpoly->deg + 1, prec);
@@ -1241,26 +1240,22 @@ static void complex_compute_minpoly (cm_class_t c, ctype *conjugate,
 
    /* the minimal polynomial is now in mpol; round to integral polynomial */
    fund = cm_classgroup_fundamental_discriminant (c.d);
-   for (i = 0; i < c.h; i++) {
-      if (!get_quadratic (c.minpoly->coeff [i], c.minpoly_complex->coeff [i],
-         mpol->coeff[i], fund)) {
-         printf ("*** accuracy not sufficient for coefficient of X^%d = ", i);
-         cout_str (stdout, 10, 0ul, mpol->coeff [i]);
-         printf ("\n");
-         exit (1);
-      }
-   }
+   for (i = 0; i < c.h; i++)
+      ok &= get_quadratic (c.minpoly->coeff [i],
+         c.minpoly_complex->coeff [i], mpol->coeff[i], fund); 
    mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
 
    mpcx_clear (mpol);
 
-   if (print) {
+   if (print && ok) {
       printf ("(");
       mpzx_print_pari (stdout, c.minpoly, NULL);
       printf (")+o*(");
       mpzx_print_pari (stdout, c.minpoly_complex, NULL);
       printf (")\n");
    }
+
+   return (ok);
 }
 
 /*****************************************************************************/

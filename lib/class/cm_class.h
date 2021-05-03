@@ -122,7 +122,7 @@ extern "C" {
 extern void cm_class_init (cm_class_t *c, int_cl_t d, char inv,
    bool verbose);
 extern void cm_class_clear (cm_class_t *c);
-extern void cm_class_compute_minpoly (cm_class_t c, bool tower,
+extern bool cm_class_compute_minpoly (cm_class_t c, bool tower,
    bool checkpoints, bool disk, bool print, bool verbose);
 
 /* functions for computing parameters of a complex multiplication curve      */
