@@ -98,6 +98,12 @@ extern void mpzx_clear (mpzx_ptr f);
 extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);
 extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 
+/* functions for number field towers */
+extern void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d);
+extern void mpzx_tower_clear (mpzx_tower_ptr twr);
+extern void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr,
+   char *fun, char *var);
+
 
 /* functions for classgroups of imaginary-quadratic number fields */
 

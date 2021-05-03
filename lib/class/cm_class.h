@@ -47,6 +47,10 @@ typedef uint_fast64_t uint_cl_t;
 #define SCNicl SCNiFAST64
 
 
+/* Type for polynomials, modelled after mpfrx and mpcx, except that the
+   size and the degree are not handled separately; this does not matter
+   for our application, where all variables are essentially "final" and
+   only assigned once by rounding from a floating point polynomial. */
 typedef struct {
    int deg;
       /* A degree of -1 indicates the zero polynomial. */
@@ -57,6 +61,21 @@ __mpzx_struct;
 typedef __mpzx_struct mpzx_t[1];
 typedef __mpzx_struct *mpzx_ptr;
 typedef const __mpzx_struct *mpzx_srcptr;
+
+
+/* Type for the definition of number field towers, modelled after
+   mpfrx_tower and mpcx_tower. */
+typedef struct {
+   int levels;
+   int* d;
+   int deg;
+   mpzx_t** W;
+}
+__mpzx_tower_struct;
+
+typedef __mpzx_tower_struct mpzx_tower_t [1];
+typedef __mpzx_tower_struct *mpzx_tower_ptr;
+typedef const __mpzx_tower_struct *mpzx_tower_srcptr;
 
 
 typedef struct {
@@ -83,19 +102,11 @@ typedef struct {
       /* decomposed into two parts over the integral basis                      */
       /* [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in      */
       /* minpoly, the second one in this variable.                              */
-   int tower_levels;
-   int *tower_d;
-   mpzx_t **tower;
-      /* These fields are meaningful only when the class field is
-         decomposed as a tower; they represent the number of levels in the
-         tower, the degree sequence (from bottom to top) and the
-         polynomials defining the extension. Hereby, tower [i][j] encodes
-         the rounded polynomial W [i][j] in an mpfrx_tower_t. Their degrees
-         can also be derived from tower_d: The degree of tower [0][0] is
-         d [0] (with leading coefficient 1), that of tower [i][j] for
-         i >= 1 is d [0] * ... * d [i-1] - 1, with potentially leading
-         coefficients 0 that are also stored. */
-   mpzx_t **tower_complex;
+   mpzx_tower_t tower;
+      /* This field is meaningful only when the class field is decomposed
+         as a tower; it represents the polynomials defining the extensions,
+         in the same format as an mpfrx_tower or an mpcx_tower. */
+   mpzx_tower_t tower_complex;
       /* This field is meaningful only in the complex case and when the
          class field is decomposed as a tower; it contains the entries of
          the defining polynomials in the second element of the integral

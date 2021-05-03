@@ -124,3 +124,85 @@ void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *var)
 
 /*****************************************************************************/
 
+void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d)
+{
+   int i, j, deg;
+
+   twr->levels = levels;
+   twr->d = (int *) malloc (levels * sizeof (int));
+   deg = 1;
+   for (i = 0; i < levels; i++) {
+      twr->d [i] = d [i];
+      deg *= d [i];
+   }
+   twr->deg = deg;
+   twr->W = (mpzx_t **) malloc (levels * sizeof (mpzx_t *));
+   twr->W [0] = (mpzx_t *) malloc (1 * sizeof (mpzx_t));
+   mpzx_init (twr->W [0][0], d [0]);
+   deg = 1;
+   for (i = 1; i < levels; i++) {
+      twr->W [i] = (mpzx_t *) malloc ((d [i] + 1) * sizeof (mpzx_t));
+      deg *= d [i - 1];
+      for (j = 0; j <= d [i]; j++)
+         mpzx_init (twr->W [i][j], deg-1);
+   }
+}
+
+/*****************************************************************************/
+
+void mpzx_tower_clear (mpzx_tower_ptr twr)
+{
+   int i, j;
+
+   mpzx_clear (twr->W [0][0]);
+   free (twr->W [0]);
+   for (i = 1; i < twr->levels; i++) {
+      for (j = 0; j <= twr->d [i]; j++)
+         mpzx_clear (twr->W [i][j]);
+      free (twr->W [i]);
+   }
+   free (twr->W);
+   free (twr->d);
+}
+
+/*****************************************************************************/
+
+void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr, char *fun,
+   char *var)
+   /* Print the number field tower twr in a format understood by PARI.
+      fun contains the base name used for the polynomials; if it is NULL,
+      the function uses "f". var contains the base name for the variables;
+      if it is NULL, the function uses "x". */
+
+{
+   const char *f = (fun == NULL ? "f" : fun);
+   const char *x = (var == NULL ? "x" : var);
+   int i, j;
+   char xi [22]; /* long enough to hold x18446744073709551615; assumes that
+                    var contains only one character */
+
+   fprintf (file, "%s1 = ", f);
+   sprintf (xi, "%s1", x);
+   mpzx_print_pari (file, twr->W [0][0], xi);
+   printf (";\n");
+   for (i = 1; i < twr->levels; i++) {
+      printf ("%s%i = ", f, i+1);
+      sprintf (xi, "%s%u", x, (unsigned int) i);
+      for (j = twr->d [i]; j >= 0; j--) {
+         if (j < twr->d [i])
+            printf ("+");
+         printf ("(");
+         mpzx_print_pari (file, twr->W [i][j], xi);
+         if (j >= 2)
+            printf (")*%s%i^%i", x, i+1, j);
+         else if (j == 1)
+            printf (")*%s%i", x, i+1);
+         else
+            printf (")");
+      }
+      printf (";\n");
+   }
+}
+
+/*****************************************************************************/
+
