@@ -93,6 +93,9 @@ typedef struct {
       /* names                                                                  */
    int_cl_t d;
       /* the discriminant                                                       */
+   int_cl_t dfund;
+      /* The fundamental discriminant attached to d, needed for rounding to
+         quadratic integers in the complex case. */
    int h;
       /* the class number */
    mpzx_t minpoly;

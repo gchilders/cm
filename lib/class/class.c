@@ -85,6 +85,7 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
    else {
       c->invariant = inv;
       c->d = d;
+      c->dfund = cm_classgroup_fundamental_discriminant (d);
       if (!cm_class_compute_parameter (c, verbose))
          exit (1);
    }
@@ -303,7 +304,7 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
    /* Let p = 1000*p2 + p1.                                                */
 
 {
-   int_cl_t cond2 = c->d / cm_classgroup_fundamental_discriminant (c->d);
+   int_cl_t cond2 = c->d / c->dfund;
       /* square of conductor */
    const unsigned long int maxprime = 997;
    unsigned long int primelist [169];
@@ -1004,7 +1005,7 @@ static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
    mpz_set_ui (c.tower->W [0][0]->coeff [mpfrx_get_deg (f)], 1);
    mpz_set_ui (c.tower_complex->W [0][0]->coeff [mpfrx_get_deg (f)], 0);
    for (k = mpcx_get_deg (f) - 1; k >= 0; k--) {
-      ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+      ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k), c.dfund);
       mpz_set (c.tower->W [0][0]->coeff [k], z1);
       mpz_set (c.tower_complex->W [0][0]->coeff [k], z2);
    }
@@ -1012,7 +1013,8 @@ static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
       for (j = d [i]; j >= 0; j--) {
          f = t->W [i][j];
          for (k = mpfrx_get_deg (f); k >= 0; k--) {
-            ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+            ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k),
+               c.dfund);
             mpz_set (c.tower->W [i][j]->coeff [k], z1);
             mpz_set (c.tower_complex->W [i][j]->coeff [k], z2);
          }
@@ -1186,7 +1188,6 @@ static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    /* computes the minimal polynomial of the function over Q (sqrt D) */
 
 {
-   int_cl_t fund;
    int i;
    fprec_t prec;
    mpcx_t mpol;
@@ -1197,10 +1198,9 @@ static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    mpcx_reconstruct_from_roots (mpol, conjugate, c.minpoly->deg);
 
    /* the minimal polynomial is now in mpol; round to integral polynomial */
-   fund = cm_classgroup_fundamental_discriminant (c.d);
    for (i = 0; i < c.h; i++)
       ok &= cm_nt_cget_quadratic (c.minpoly->coeff [i],
-         c.minpoly_complex->coeff [i], mpol->coeff[i], fund); 
+         c.minpoly_complex->coeff [i], mpol->coeff[i], c.dfund);
    mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
 
    mpcx_clear (mpol);
@@ -1228,7 +1228,6 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
 
 {
    /* The local variables are needed only for the complex case. */
-   int_cl_t fund;
    cm_timer clock;
    mpzx_t minpoly_P;
    int i;
@@ -1246,12 +1245,11 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
 
       /* compute the second element of the integral basis modulo P */
       cm_timer_start (clock);
-      fund = cm_classgroup_fundamental_discriminant (c.d);
-      cm_nt_mpz_tonelli (omega, fund, P);
+      cm_nt_mpz_tonelli (omega, c.dfund, P);
       cm_timer_stop (clock);
       if (verbose)
          printf ("--- Time for square root: %.1f\n", cm_timer_get (clock));
-      if (fund % 4 != 0)
+      if (c.dfund % 4 != 0)
          mpz_add_ui (omega, omega, 1ul);
       mpz_set_ui (tmp, 2ul);
       mpz_invert (tmp, tmp, P);
