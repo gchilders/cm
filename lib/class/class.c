@@ -954,34 +954,16 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 static bool round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t,
    bool print)
 {
-   mpz_t z;
-   int i, j, k;
-   int l = t->levels;
-   int *d = t->d;
-   mpfrx_srcptr f;
-   bool ok = true;
+   int i, j;
+   bool ok;
 
-   mpz_init (z);
-
-   f = t->W [0][0];
-   mpz_set_ui (c.tower->W [0][0]->coeff [mpfrx_get_deg (f)], 1);
-   for (k = mpfrx_get_deg (f) - 1; k >= 0; k--) {
-      ok &= cm_nt_fget_z (z, mpfrx_get_coeff (f, k));
-      mpz_set (c.tower->W [0][0]->coeff [k], z);
-   }
-   for (i = 1; i < l; i++)
-      for (j = d [i]; j >= 0; j--) {
-         f = t->W [i][j];
-         for (k = mpfrx_get_deg (f); k >= 0; k--) {
-            ok &= cm_nt_fget_z (z, mpfrx_get_coeff (f, k));
-            mpz_set (c.tower->W [i][j]->coeff [k], z);
-         }
-      }
+   ok = cm_mpfrx_get_mpzx (c.tower->W [0][0], t->W [0][0]);
+   for (i = 1; i < t->levels; i++)
+      for (j = t->d [i]; j >= 0; j--)
+         ok &= cm_mpfrx_get_mpzx (c.tower->W [i][j], t->W [i][j]);
 
    if (print && ok)
       mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
-
-   mpz_clear (z);
 
    return ok;
 }
@@ -991,42 +973,20 @@ static bool round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t,
 static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
    bool print)
 {
-   mpz_t z1, z2;
-   int i, j, k;
-   int l = t->levels;
-   int *d = t->d;
-   mpcx_srcptr f;
-   bool ok = true;
+   int i, j;
+   bool ok;
 
-   mpz_init (z1);
-   mpz_init (z2);
-
-   f = t->W [0][0];
-   mpz_set_ui (c.tower->W [0][0]->coeff [mpfrx_get_deg (f)], 1);
-   mpz_set_ui (c.tower_complex->W [0][0]->coeff [mpfrx_get_deg (f)], 0);
-   for (k = mpcx_get_deg (f) - 1; k >= 0; k--) {
-      ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k), c.dfund);
-      mpz_set (c.tower->W [0][0]->coeff [k], z1);
-      mpz_set (c.tower_complex->W [0][0]->coeff [k], z2);
-   }
-   for (i = 1; i < l; i++)
-      for (j = d [i]; j >= 0; j--) {
-         f = t->W [i][j];
-         for (k = mpfrx_get_deg (f); k >= 0; k--) {
-            ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k),
-               c.dfund);
-            mpz_set (c.tower->W [i][j]->coeff [k], z1);
-            mpz_set (c.tower_complex->W [i][j]->coeff [k], z2);
-         }
-      }
+   ok = cm_mpcx_get_quadraticx (c.tower->W [0][0],
+      c.tower_complex->W [0][0], t->W [0][0], c.dfund);
+   for (i = 1; i < t->levels; i++)
+      for (j = t->d [i]; j >= 0; j--)
+         ok = cm_mpcx_get_quadraticx (c.tower->W [i][j],
+            c.tower_complex->W [i][j], t->W [i][j], c.dfund);
 
    if (print && ok) {
       mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
       mpzx_tower_print_pari (stdout, c.tower_complex, "g", NULL);
    }
-
-   mpz_clear (z1);
-   mpz_clear (z2);
 
    return ok;
 }
@@ -1159,7 +1119,7 @@ static bool real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
    mpfrx_t mpol;
    fprec_t prec;
    int i;
-   bool ok = true;
+   bool ok;
 
    for (i = 0; conj [i] < i; i++);
    prec = cget_prec (conjugate [i]);
@@ -1167,9 +1127,7 @@ static bool real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
    mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly->deg);
 
    /* the minimal polynomial is now in mpol, rounding to integral polynomial */
-   for (i = 0; i < c.minpoly->deg; i++)
-      ok &= cm_nt_fget_z (c.minpoly->coeff [i], mpol->coeff [i]);
-   mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
+   ok = cm_mpfrx_get_mpzx (c.minpoly, mpol);
 
    if (print && ok) {
       mpzx_print_pari (stdout, c.minpoly, NULL);
@@ -1188,20 +1146,16 @@ static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    /* computes the minimal polynomial of the function over Q (sqrt D) */
 
 {
-   int i;
    fprec_t prec;
    mpcx_t mpol;
-   bool ok = true;
+   bool ok;
 
    prec = cget_prec (conjugate [0]);
    mpcx_init (mpol, c.minpoly->deg + 1, prec);
    mpcx_reconstruct_from_roots (mpol, conjugate, c.minpoly->deg);
 
    /* the minimal polynomial is now in mpol; round to integral polynomial */
-   for (i = 0; i < c.h; i++)
-      ok &= cm_nt_cget_quadratic (c.minpoly->coeff [i],
-         c.minpoly_complex->coeff [i], mpol->coeff[i], c.dfund);
-   mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
+   ok = cm_mpcx_get_quadraticx (c.minpoly, c.minpoly_complex, mpol, c.dfund);
 
    mpcx_clear (mpol);
 

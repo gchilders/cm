@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 /*****************************************************************************/
 
 static void quadratic_basis (ctype omega, int_cl_t d);
+static bool mpcx_get_mpzxx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
+   ctype omega);
 
 /*****************************************************************************/
 
@@ -46,20 +48,6 @@ static void quadratic_basis (ctype omega, int_cl_t d)
 }
 
 /*****************************************************************************/
-
-bool cm_nt_cget_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
-{
-   ctype omega;
-   bool ok;
-
-   cinit (omega, cget_prec (in));
-   quadratic_basis (omega, d);
-
-   ok = cm_nt_cget_zz (out1, out2, in, omega);
-
-   return ok;
-}
-
 /*****************************************************************************/
 
 void mpzx_init (mpzx_ptr f, int deg)
@@ -86,6 +74,61 @@ void mpzx_clear (mpzx_ptr f)
    for (i = 0; i <= f->deg; i++)
       mpz_clear (f->coeff [i]);
    free (f->coeff);
+}
+
+/*****************************************************************************/
+
+bool cm_mpfrx_get_mpzx (mpzx_ptr g, mpfrx_srcptr f)
+   /* Try to round f to g; the return value reflects the success of the
+      operation. It is assumed that g already has the same degree as f. */
+{
+   int k;
+   bool ok = true;
+
+   for (k = 0; k <= mpfrx_get_deg (f); k++)
+      ok &= cm_nt_fget_z (g->coeff [k], mpfrx_get_coeff (f, k));
+
+   return ok;
+}
+
+/*****************************************************************************/
+
+static bool mpcx_get_mpzxx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
+   ctype omega)
+   /* Try to round f such that f = g + omega*h. It is assumed that g and h
+      already have the same degree as f. The return value reflects the
+      success of the operation. */
+{
+   int k;
+   bool ok = true;
+
+   for (k = 0; k <= mpcx_get_deg (f); k++)
+      ok &= cm_nt_cget_zz (g->coeff [k], h->coeff [k],
+         mpcx_get_coeff (f, k), omega);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
+bool cm_mpcx_get_quadraticx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
+   int_cl_t d)
+   /* Try to round f such that f = g + omega*h, where omega is the second
+      element of the standard basis attached to the fundamental
+      discriminant d. It is assumed that g and h already have the same
+      degree as f. The return value reflects the success of the operation. */
+{
+   ctype omega;
+   bool ok;
+
+   cinit (omega, cget_prec (mpcx_get_coeff (f, 0)));
+   quadratic_basis (omega, d);
+
+   ok = mpcx_get_mpzxx (g, h, f, omega);
+
+   cclear (omega);
+
+   return ok;
 }
 
 /*****************************************************************************/
@@ -157,6 +200,7 @@ void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *var)
 }
 
 
+/*****************************************************************************/
 /*****************************************************************************/
 
 void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d)
@@ -240,4 +284,4 @@ void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr, char *fun,
 }
 
 /*****************************************************************************/
-
+/*****************************************************************************/
