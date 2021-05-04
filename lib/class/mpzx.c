@@ -27,6 +27,40 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /*****************************************************************************/
 
+bool cm_nt_cget_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
+{
+   ftype omega_i, tmp;
+   bool div4, ok;
+
+   finit (omega_i, cget_prec (in));
+   finit (tmp, cget_prec (in));
+
+   div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
+   fsqrt_ui (omega_i, -d);
+   fdiv_2ui (omega_i, omega_i, 1ul);
+
+   fdiv (tmp, in->im, omega_i);
+   ok = cm_nt_fget_z (out2, tmp);
+
+   if (ok) {
+      if (div4)
+         fset (tmp, in->re);
+      else {
+         fset_z (tmp, out2);
+         fdiv_2ui (tmp, tmp, 1ul);
+         fsub (tmp, in->re, tmp);
+      }
+      ok = cm_nt_fget_z (out1, tmp);
+   }
+
+   fclear (omega_i);
+   fclear (tmp);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
 void mpzx_init (mpzx_ptr f, int deg)
    /* Initialise a polynomial of degree deg, that is, with deg+1
       coefficients, and also set its degree. Unlike for mpfrx, for

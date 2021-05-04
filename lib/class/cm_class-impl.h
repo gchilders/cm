@@ -93,6 +93,10 @@ extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
 
 
 /* functions for integral polynomials */
+extern bool cm_nt_cget_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d);
+   /* TODO: Put here for the time being since the cm_common library does
+      not know about the int_cl_t type; once the libraries are united, it
+      should move into the nt module. */
 extern void mpzx_init (mpzx_ptr f, int deg);
 extern void mpzx_clear (mpzx_ptr f);
 extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);

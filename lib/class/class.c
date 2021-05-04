@@ -48,8 +48,6 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 static void write_conjugates (cm_class_t c, ctype *conjugates, int *conj);
 static bool read_conjugates (cm_class_t c, ctype *conjugates, int *conj);
 
-static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d);
-
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
 static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
@@ -952,46 +950,6 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-static bool get_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
-   /* tries to round the complex number to an integer in the quadratic order */
-   /* of discriminant d by decomposing it over the integral basis [1, omega] */
-   /* with omega = sqrt (d/4) or omega = (1 + sqrt (d)) / 2                  */
-   /* The return value reflects the success of the operation.                */
-   /* out1 and out2 are changed.                                             */
-
-{
-   ftype   omega_i, tmp;
-   bool     div4, ok;
-
-   finit (omega_i, cget_prec (in));
-   finit (tmp, cget_prec (in));
-
-   div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
-   fsqrt_ui (omega_i, -d);
-   fdiv_2ui (omega_i, omega_i, 1ul);
-
-   fdiv (tmp, in->im, omega_i);
-   ok = cm_nt_fget_z (out2, tmp);
-
-   if (ok) {
-      if (div4)
-         fset (tmp, in->re);
-      else {
-         fset_z (tmp, out2);
-         fdiv_2ui (tmp, tmp, 1ul);
-         fsub (tmp, in->re, tmp);
-      }
-      ok = cm_nt_fget_z (out1, tmp);
-   }
-
-   fclear (omega_i);
-   fclear (tmp);
-
-   return ok;
-}
-
-/*****************************************************************************/
-
 static bool round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t,
    bool print)
 {
@@ -1046,7 +1004,7 @@ static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
    mpz_set_ui (c.tower->W [0][0]->coeff [mpfrx_get_deg (f)], 1);
    mpz_set_ui (c.tower_complex->W [0][0]->coeff [mpfrx_get_deg (f)], 0);
    for (k = mpcx_get_deg (f) - 1; k >= 0; k--) {
-      ok &= get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+      ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
       mpz_set (c.tower->W [0][0]->coeff [k], z1);
       mpz_set (c.tower_complex->W [0][0]->coeff [k], z2);
    }
@@ -1054,7 +1012,7 @@ static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
       for (j = d [i]; j >= 0; j--) {
          f = t->W [i][j];
          for (k = mpfrx_get_deg (f); k >= 0; k--) {
-            ok &= get_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
+            ok &= cm_nt_cget_quadratic (z1, z2, mpcx_get_coeff (f, k), c.d);
             mpz_set (c.tower->W [i][j]->coeff [k], z1);
             mpz_set (c.tower_complex->W [i][j]->coeff [k], z2);
          }
@@ -1241,7 +1199,7 @@ static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
    /* the minimal polynomial is now in mpol; round to integral polynomial */
    fund = cm_classgroup_fundamental_discriminant (c.d);
    for (i = 0; i < c.h; i++)
-      ok &= get_quadratic (c.minpoly->coeff [i],
+      ok &= cm_nt_cget_quadratic (c.minpoly->coeff [i],
          c.minpoly_complex->coeff [i], mpol->coeff[i], fund); 
    mpz_set_ui (c.minpoly->coeff [c.minpoly->deg], 1ul);
 
