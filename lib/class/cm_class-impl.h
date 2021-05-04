@@ -104,6 +104,10 @@ extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 /* functions for number field towers */
 extern void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d);
 extern void mpzx_tower_clear (mpzx_tower_ptr twr);
+extern bool cm_mpfrx_tower_get_mpzx_tower (mpzx_tower_ptr tz,
+   mpfrx_tower_srcptr tf);
+extern bool cm_mpcx_tower_get_quadratic_tower (mpzx_tower_ptr t1,
+   mpzx_tower_ptr t2, mpcx_tower_srcptr tc, int_cl_t d);
 extern void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr,
    char *fun, char *var);
 

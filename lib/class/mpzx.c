@@ -246,6 +246,52 @@ void mpzx_tower_clear (mpzx_tower_ptr twr)
 
 /*****************************************************************************/
 
+bool cm_mpfrx_tower_get_mpzx_tower (mpzx_tower_ptr tz, mpfrx_tower_srcptr tf)
+   /* Try to round the floating point field tower tf to the integral tower
+      tz, assuming that tz is already initialised with the correct degrees.
+      The return value reflects the success of the operation. */
+{
+   int i, j;
+   bool ok;
+
+   ok = cm_mpfrx_get_mpzx (tz->W [0][0], tf->W [0][0]);
+   for (i = 1; i < tf->levels; i++)
+      for (j = tf->d [i]; j >= 0; j--)
+         ok &= cm_mpfrx_get_mpzx (tz->W [i][j], tf->W [i][j]);
+
+   return ok;
+}
+
+/*****************************************************************************/
+bool cm_mpcx_tower_get_quadratic_tower (mpzx_tower_ptr t1,
+   mpzx_tower_ptr t2, mpcx_tower_srcptr tc, int_cl_t d)
+   /* Try to round the complex floating point field tower tc as
+      "tc = t1 + omega*t2", where omega is the second basis element of the
+      standard basis for the imaginary-quadratic number field of
+      discriminant d. t1 and t2 are assumed to be initialised with the
+      correct degree sequence. The return value reflects the success of
+      the operation. */
+{
+   int i, j;
+   ctype omega;
+   bool ok;
+
+   cinit (omega, cget_prec (mpcx_get_coeff (tc->W [0][0], 0)));
+   quadratic_basis (omega, d);
+
+   ok = cm_mpcx_get_quadraticx (t1->W [0][0], t2->W [0][0], tc->W [0][0], d);
+   for (i = 1; i < tc->levels; i++)
+      for (j = tc->d [i]; j >= 0; j--)
+         ok = cm_mpcx_get_quadraticx (t1->W [i][j], t2->W [i][j], tc->W [i][j], d);
+
+   cclear (omega);
+
+   return ok;
+
+}
+
+/*****************************************************************************/
+
 void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr, char *fun,
    char *var)
    /* Print the number field tower twr in a format understood by PARI.

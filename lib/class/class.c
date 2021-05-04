@@ -954,13 +954,9 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 static bool round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t,
    bool print)
 {
-   int i, j;
    bool ok;
 
-   ok = cm_mpfrx_get_mpzx (c.tower->W [0][0], t->W [0][0]);
-   for (i = 1; i < t->levels; i++)
-      for (j = t->d [i]; j >= 0; j--)
-         ok &= cm_mpfrx_get_mpzx (c.tower->W [i][j], t->W [i][j]);
+   ok = cm_mpfrx_tower_get_mpzx_tower (c.tower, t);
 
    if (print && ok)
       mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
@@ -973,15 +969,10 @@ static bool round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t,
 static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
    bool print)
 {
-   int i, j;
    bool ok;
 
-   ok = cm_mpcx_get_quadraticx (c.tower->W [0][0],
-      c.tower_complex->W [0][0], t->W [0][0], c.dfund);
-   for (i = 1; i < t->levels; i++)
-      for (j = t->d [i]; j >= 0; j--)
-         ok = cm_mpcx_get_quadraticx (c.tower->W [i][j],
-            c.tower_complex->W [i][j], t->W [i][j], c.dfund);
+   ok = cm_mpcx_tower_get_quadratic_tower (c.tower, c.tower_complex, t,
+      c.dfund);
 
    if (print && ok) {
       mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
