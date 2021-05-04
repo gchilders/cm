@@ -124,7 +124,10 @@ extern void cm_nt_elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
 extern void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
    mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p);
 
+/* functions for rounding floating point numbers to rational or quadratic
+   integers */
 extern bool cm_nt_fget_z (mpz_t out, ftype in);
+extern bool cm_nt_cget_zz (mpz_ptr out1, mpz_ptr out2, ctype in, ctype omega);
 
 /* functions for evaluating modular functions */
 extern void cm_modular_fundamental_domain (cptr z);

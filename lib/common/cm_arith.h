@@ -2,7 +2,7 @@
 
 cm_arith.h - macros for arithmetic kernel
 
-Copyright (C) 2015, 2016 Andreas Enge
+Copyright (C) 2015, 2016, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -52,6 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define csqr(z,x)          mpc_sqr((z),(x),MPC_RNDNN)
 #define cdiv(z,x,y)        mpc_div((z),(x),(y),MPC_RNDNN)
 #define cdiv_ui(z,x,y)     mpc_div_ui((z),(x),(y),MPC_RNDNN)
+#define cdiv_2ui(z,x,y)    mpc_div_2ui((z),(x),(y),MPC_RNDNN)
 #define cui_div(z,x,y)     mpc_ui_div((z),(x),(y),MPC_RNDNN)
 #define csqrt(z,x)         mpc_sqrt((z),(x),MPC_RNDNN)
 #define cnorm(z,x)         mpc_norm((z),(x),MPC_RNDNN)
@@ -88,6 +89,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define fmul(z,x,y)        mpfr_mul((z),(x),(y),MPFR_RNDN)
 #define fmul_si(z,x,y)     mpfr_mul_si((z),(x),(y),MPFR_RNDN)
 #define fmul_2ui(z,x,y)    mpfr_mul_2ui((z),(x),(y),MPFR_RNDN)
+#define fmul_z(z,x,y)      mpfr_mul_z((z),(x),(y),MPFR_RNDN)
 #define fsqr(z,x)          mpfr_sqr((z),(x),MPFR_RNDN)
 #define fdiv(z,x,y)        mpfr_div((z),(x),(y),MPFR_RNDN)
 #define fdiv_ui(z,x,y)     mpfr_div_ui((z),(x),(y),MPFR_RNDN)

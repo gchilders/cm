@@ -589,8 +589,7 @@ void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
 
 bool cm_nt_fget_z (mpz_t out, ftype in)
    /* Tries to round the real value in to an integer value out. The return
-      value reflects the success of the operation. If debug is true, then
-      on failure a warning message is printed. */
+      value reflects the success of the operation. */
 
 {
    ftype rounded, diff;
@@ -626,6 +625,33 @@ bool cm_nt_fget_z (mpz_t out, ftype in)
 
    fclear (rounded);
    fclear (diff);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
+bool cm_nt_cget_zz (mpz_ptr out1, mpz_ptr out2, ctype in, ctype omega)
+   /* Tries to round the complex value to an imaginary-quadratic integer
+      out1+out2*omega, where omega is the second element of an integral
+      basis (or more generally, a non-real complex number). The return
+      value reflects the success of the operation. */
+{
+   ftype tmp;
+   bool ok;
+
+   finit (tmp, cget_prec (in));
+
+   fdiv (tmp, cimagref (in), cimagref (omega));
+   ok = cm_nt_fget_z (out2, tmp);
+
+   if (ok) {
+      fmul_z (tmp, crealref (omega), out2);
+      fsub (tmp, crealref (in), tmp);
+      ok = cm_nt_fget_z (out1, tmp);
+   }
+
+   fclear (tmp);
 
    return ok;
 }

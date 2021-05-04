@@ -27,34 +27,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /*****************************************************************************/
 
+static void quadratic_basis (ctype omega, int_cl_t d);
+
+/*****************************************************************************/
+
+static void quadratic_basis (ctype omega, int_cl_t d)
+   /* Compute the standard omega such that [1, omega] is an integral basis
+      of the imaginary quadratic order with discriminant d, that is,
+      omega = sqrt(d)/2 if d is divisible by 4,
+      omega = (1+sqrt(d))/2 otherwise. */
+{
+   fsqrt_ui (cimagref (omega), (unsigned long int) (-d));
+   if (cm_classgroup_mod (d, (uint_cl_t) 4) == 0)
+      fset_ui (crealref (omega), 0);
+   else
+      fset_ui (crealref (omega), 1);
+   cdiv_2ui (omega, omega, 1);
+}
+
+/*****************************************************************************/
+
 bool cm_nt_cget_quadratic (mpz_t out1, mpz_t out2, ctype in, int_cl_t d)
 {
-   ftype omega_i, tmp;
-   bool div4, ok;
+   ctype omega;
+   bool ok;
 
-   finit (omega_i, cget_prec (in));
-   finit (tmp, cget_prec (in));
+   cinit (omega, cget_prec (in));
+   quadratic_basis (omega, d);
 
-   div4 = (cm_classgroup_mod (d, (uint_cl_t) 4) == 0);
-   fsqrt_ui (omega_i, -d);
-   fdiv_2ui (omega_i, omega_i, 1ul);
-
-   fdiv (tmp, in->im, omega_i);
-   ok = cm_nt_fget_z (out2, tmp);
-
-   if (ok) {
-      if (div4)
-         fset (tmp, in->re);
-      else {
-         fset_z (tmp, out2);
-         fdiv_2ui (tmp, tmp, 1ul);
-         fsub (tmp, in->re, tmp);
-      }
-      ok = cm_nt_fget_z (out1, tmp);
-   }
-
-   fclear (omega_i);
-   fclear (tmp);
+   ok = cm_nt_cget_zz (out1, out2, in, omega);
 
    return ok;
 }
