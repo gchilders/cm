@@ -53,10 +53,6 @@ static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
 
 /* the remaining functions are put separately as their code is quite long    */
-static bool real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
-   bool print);
-static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
-   bool print);
 static bool doubleeta_compute_parameter (cm_class_t *c);
 static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
    int *no);
@@ -951,39 +947,6 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-static bool round_and_print_tower (cm_class_t c, mpfrx_tower_srcptr t,
-   bool print)
-{
-   bool ok;
-
-   ok = cm_mpfrx_tower_get_mpzx_tower (c.tower, t);
-
-   if (print && ok)
-      mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
-
-   return ok;
-}
-
-/*****************************************************************************/
-
-static bool round_and_print_complex_tower (cm_class_t c, mpcx_tower_srcptr t,
-   bool print)
-{
-   bool ok;
-
-   ok = cm_mpcx_tower_get_quadratic_tower (c.tower, c.tower_complex, t,
-      c.dfund);
-
-   if (print && ok) {
-      mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
-      mpzx_tower_print_pari (stdout, c.tower_complex, "g", NULL);
-   }
-
-   return ok;
-}
-
-/*****************************************************************************/
-
 bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    bool disk, bool print, bool verbose)
    /* tower indicates whether the class polynomial should be decomposed as
@@ -999,6 +962,8 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    fprec_t prec;
    cm_modclass_t mc;
    ctype *conjugate;
+   mpfrx_t mpol;
+   mpcx_t mpolc;
    mpfrx_tower_t t;
    mpcx_tower_t tc;
    int i;
@@ -1056,23 +1021,48 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
 
    cm_timer_start (clock_local);
    if (c.field == CM_FIELD_REAL) {
-      ok &= real_compute_minpoly (c, conjugate, conj, print);
-         /* Printing the full polynomial could be made optional when the
-            tower is computed. */
-      if (tower) {
+      /* Compute the minimal polynomial. */
+      mpfrx_init (mpol, c.minpoly->deg + 1, prec);
+      mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly->deg);
+      ok &= cm_mpfrx_get_mpzx (c.minpoly, mpol);
+      if (print && ok) {
+         mpzx_print_pari (stdout, c.minpoly, NULL);
+         printf ("\n");
+      }
+      mpfrx_clear (mpol);
+      if (tower && ok) {
          mpfrx_tower_init (t, c.tower->levels, c.tower->d, prec);
          mpfrcx_tower_decomposition (t, conjugate, conj);
-         /* Printing should be optional here, and there should also be a
-            possibility to save the field tower on disk. */
-         ok &= round_and_print_tower (c, t, print);
+         /* There should be a possibility to save the field tower on disk. */
+         ok &= cm_mpfrx_tower_get_mpzx_tower (c.tower, t);
+         if (print && ok)
+            mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
+         mpfrx_tower_clear (t);
       }
    }
    else {
-      ok &= complex_compute_minpoly (c, conjugate, print);
-      if (tower) {
+      mpcx_init (mpolc, c.minpoly->deg + 1, prec);
+      mpcx_reconstruct_from_roots (mpolc, conjugate, c.minpoly->deg);
+      ok &= cm_mpcx_get_quadraticx (c.minpoly, c.minpoly_complex, mpolc,
+         c.dfund);
+      mpcx_clear (mpolc);
+      if (print && ok) {
+         printf ("(");
+         mpzx_print_pari (stdout, c.minpoly, NULL);
+         printf (")+o*(");
+         mpzx_print_pari (stdout, c.minpoly_complex, NULL);
+         printf (")\n");
+      }
+      if (tower && ok) {
          mpcx_tower_init (tc, c.tower->levels, c.tower->d, prec);
          mpcx_tower_decomposition (tc, conjugate);
-         ok &= round_and_print_complex_tower (c, tc, print);
+         ok = cm_mpcx_tower_get_quadratic_tower (c.tower, c.tower_complex,
+            tc, c.dfund);
+         mpcx_tower_clear (tc);
+         if (print && ok) {
+            mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
+            mpzx_tower_print_pari (stdout, c.tower_complex, "g", NULL);
+         }
       }
    }
    cm_timer_stop (clock_local);
@@ -1098,67 +1088,6 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
       cm_class_write (c);
 
    return ok;
-}
-
-/*****************************************************************************/
-
-static bool real_compute_minpoly (cm_class_t c, ctype *conjugate, int *conj,
-   bool print)
-   /* computes the minimal polynomial of the function over Q */
-
-{
-   mpfrx_t mpol;
-   fprec_t prec;
-   int i;
-   bool ok;
-
-   for (i = 0; conj [i] < i; i++);
-   prec = cget_prec (conjugate [i]);
-   mpfrx_init (mpol, c.minpoly->deg + 1, prec);
-   mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly->deg);
-
-   /* the minimal polynomial is now in mpol, rounding to integral polynomial */
-   ok = cm_mpfrx_get_mpzx (c.minpoly, mpol);
-
-   if (print && ok) {
-      mpzx_print_pari (stdout, c.minpoly, NULL);
-      printf ("\n");
-   }
-
-   mpfrx_clear (mpol);
-
-   return ok;
-}
-
-/*****************************************************************************/
-
-static bool complex_compute_minpoly (cm_class_t c, ctype *conjugate,
-   bool print)
-   /* computes the minimal polynomial of the function over Q (sqrt D) */
-
-{
-   fprec_t prec;
-   mpcx_t mpol;
-   bool ok;
-
-   prec = cget_prec (conjugate [0]);
-   mpcx_init (mpol, c.minpoly->deg + 1, prec);
-   mpcx_reconstruct_from_roots (mpol, conjugate, c.minpoly->deg);
-
-   /* the minimal polynomial is now in mpol; round to integral polynomial */
-   ok = cm_mpcx_get_quadraticx (c.minpoly, c.minpoly_complex, mpol, c.dfund);
-
-   mpcx_clear (mpol);
-
-   if (print && ok) {
-      printf ("(");
-      mpzx_print_pari (stdout, c.minpoly, NULL);
-      printf (")+o*(");
-      mpzx_print_pari (stdout, c.minpoly_complex, NULL);
-      printf (")\n");
-   }
-
-   return (ok);
 }
 
 /*****************************************************************************/
