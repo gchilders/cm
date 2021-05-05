@@ -351,108 +351,6 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
    return ok;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/* functions handling files                                                  */
-/*                                                                           */
-/*****************************************************************************/
-
-void cm_class_write (cm_class_t c)
-   /* writes the class polynomial to the file                                */
-   /* CM_CLASS_DATADIR + "/cp_" + d + "_" + invariant + "_" + paramstr       */
-   /* + ".dat"                                                               */
-
-{
-   char filename [400];
-   FILE *f;
-   int i;
-
-   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.d,
-            c.invariant, c.paramstr);
-
-   if (!cm_file_open_write (&f, filename))
-      exit (1);
-
-   fprintf (f, "%"PRIicl"\n", -c.d);
-   fprintf (f, "%c\n", c.invariant);
-   fprintf (f, "%s\n", c.paramstr);
-   fprintf (f, "%i\n", c.minpoly->deg);
-   for (i = c.minpoly->deg; i >= 0; i--) {
-      mpz_out_str (f, 10, c.minpoly->coeff [i]);
-      if (c.field == CM_FIELD_COMPLEX) {
-         fprintf (f, " ");
-         mpz_out_str (f, 10, c.minpoly_complex->coeff [i]);
-      }
-      fprintf (f, "\n");
-   }
-
-   cm_file_close (f);
-}
-
-/*****************************************************************************/
-
-bool cm_class_read (cm_class_t c)
-   /* reads the class polynomial from a file written by cm_class_write       */
-   /* If an error occurs, the return value is false.                         */
-
-{
-   char filename [400];
-   FILE* f;
-   int i;
-   char inv;
-   char pars [255];
-   int_cl_t disc;
-
-   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.d,
-            c.invariant, c.paramstr);
-
-   if (!cm_file_open_read (&f, filename))
-      return false;
-
-   if (!fscanf (f, "%"SCNicl"\n", &disc))
-      return false;
-   if (-disc != c.d) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** discriminant %"PRIicl" instead of %"PRIicl"\n", -disc, c.d);
-      exit (1);
-   }
-   if (!fscanf (f, "%c", &inv))
-      return false;
-   if (inv != c.invariant) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** invariant '%c' instead of '%c'\n", inv, c.invariant);
-      exit (1);
-   }
-   if (!fscanf (f, "%254s", pars))
-      return false;
-   if (strcmp (pars, c.paramstr)) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** parameter %s instead of %s\n", pars, c.paramstr);
-      exit (1);
-   }
-   if (!fscanf (f, "%i", &i))
-      return false;
-   if (i != c.minpoly->deg) {
-      printf ("*** Inconsistency between file '%s' ", filename);
-      printf ("and internal data:\n");
-      printf ("*** degree %i instead of %i\n", i, c.minpoly->deg);
-      exit (1);
-   }
-
-   for (i = c.minpoly->deg; i >= 0; i--) {
-      mpz_inp_str (c.minpoly->coeff [i], f, 10);
-      if (c.field == CM_FIELD_COMPLEX)
-         mpz_inp_str (c.minpoly_complex->coeff [i], f, 10);
-   }
-
-   cm_file_close (f);
-
-   return true;
-}
-
 
 /*****************************************************************************/
 /*                                                                           */
@@ -1008,7 +906,7 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool disk,
       printf ("Height of minimal polynomial: %d\n", class_get_height (c));
    }
    if (disk && ok)
-      cm_class_write (c);
+      ok &= cm_class_write (c);
 
    return ok;
 }

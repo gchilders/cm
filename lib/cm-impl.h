@@ -167,7 +167,7 @@ extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
 
 
 /* functions for class polynomials */
-extern void cm_class_write (cm_class_t c);
+extern bool cm_class_write (cm_class_t c);
 extern bool cm_class_read (cm_class_t c);
 
 extern mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
