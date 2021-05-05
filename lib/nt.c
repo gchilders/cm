@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_common-impl.h"
+#include "cm-impl.h"
 
 static void nt_elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
    mpz_t a, mpz_t p);

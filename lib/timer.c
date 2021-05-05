@@ -2,7 +2,7 @@
 
 timer.c - helper functions for measuring elapsed cpu time
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_common-impl.h"
+#include "cm-impl.h"
 
 /*****************************************************************************/
 

@@ -2,7 +2,7 @@
 
 curve.c - code for computing cm curves
 
-Copyright (C) 2009 Andreas Enge
+Copyright (C) 2009, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_class-impl.h"
+#include "cm-impl.h"
 
 static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
    mpz_t p, bool verbose);

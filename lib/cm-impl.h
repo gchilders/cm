@@ -1,8 +1,8 @@
 /*
 
-cm_class-impl.h - header file for internal use of the cm_class library
+cm-impl.h - header file for internal use of the cm library
 
-Copyright (C) 2009, 2010, 2015, 2016, 2018, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -21,15 +21,16 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#ifndef __CM_CLASS_IMPL_H
-#define __CM_CLASS_IMPL_H
+#ifndef __CM_IMPL_H
+#define __CM_IMPL_H
 
 #include <stdio.h>
-#include "cm_class.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#include <ctype.h>
+#include "cm.h"
 
 #define CM_CLASS_DATADIR "."
 #define CM_CLASS_TMPDIR "."
@@ -86,11 +87,20 @@ typedef struct {
 extern "C" {
 #endif
 
+/* functions for computing q expansions of modular functions and addition
+   chains */
+extern void cm_qdev_init (cm_qdev_t *f, fprec_t prec);
+extern void cm_qdev_clear (cm_qdev_t *f);
+extern void cm_qdev_eval (ctype rop, cm_qdev_t f, ctype q1);
+extern void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1);
+
+/* function for evaluating modular functions */
+extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
+
 /* functions depending on PARI */
 extern void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose);
 extern mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
-
 
 /* functions for integral polynomials */
 extern void mpzx_init (mpzx_ptr f, int deg);
@@ -171,8 +181,7 @@ extern bool cm_class_read (cm_class_t c);
 extern mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    const char* modpoldir, bool readwrite, bool verbose);
 
-
 #if defined (__cplusplus)
 }
 #endif
-#endif /* ifndef __CM_CLASS_IMPL_H */
+#endif /* ifndef __CM_IMPL_H */

@@ -2,7 +2,7 @@
 
 fem.c - code for evaluating modular functions using the AGM
 
-Copyright (C) 2010, 2015 Andreas Enge
+Copyright (C) 2010, 2015, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_common-impl.h"
+#include "cm-impl.h"
 
 /* dummy code to be replaced by R\'egis Dupont's routines */
 void cm_fem_eta_eval (cm_modular_t m, ctype rop, ctype op) {

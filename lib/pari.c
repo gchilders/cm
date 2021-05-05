@@ -22,7 +22,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #include <pari/pari.h>
-#include "cm_class-impl.h"
+#include "cm-impl.h"
 
 static GEN mpz_get_Z (mpz_t z);
 static void Z_get_mpz (mpz_t z, GEN x);

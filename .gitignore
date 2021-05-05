@@ -14,8 +14,7 @@
 .libs
 Makefile
 
-lib/class/libcm_class.la
-lib/common/libcm_common.la
+lib/libcm.la
 
 src/classpol
 src/cm

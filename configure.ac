@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 AC_PREREQ(2.61)
 AC_INIT(cm, 0.3.2dev, andreas.enge@inria.fr)
 AC_CONFIG_AUX_DIR([config])
-AC_CONFIG_SRCDIR([lib/cm_common.h])
+AC_CONFIG_SRCDIR([lib/cm.h])
 AC_CONFIG_HEADER([config.h])
 
 AM_INIT_AUTOMAKE([1.9])

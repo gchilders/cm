@@ -2,7 +2,7 @@
 
 modclass.c - code for evaluating modular functions in quadratic arguments
 
-Copyright (C) 2009, 2010, 2011, 2015, 2016, 2018 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2015, 2016, 2018, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_class-impl.h"
+#include "cm-impl.h"
 
 #define mpz_sub_si(c, a, b) \
    (b >= 0) ? mpz_sub_ui (c, a, (unsigned long int) b) \

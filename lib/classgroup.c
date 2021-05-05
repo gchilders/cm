@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_class-impl.h"
+#include "cm-impl.h"
 
 static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
    int_cl_t b);

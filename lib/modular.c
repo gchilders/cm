@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_common-impl.h"
+#include "cm-impl.h"
 
 static void modular_fundamental_matrix (csrcptr z,cm_matrix_t *M);
 static void modular_fundamental_domain_matrix (ctype z, cm_matrix_t *M);

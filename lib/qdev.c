@@ -2,7 +2,7 @@
 
 qdev.c - code handling q-expansions
 
-Copyright (C) 2009, 2015, 2016, 2018, 2020 Andreas Enge
+Copyright (C) 2009, 2015, 2016, 2018, 2020, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "cm_common-impl.h"
+#include "cm-impl.h"
 
 static bool find_in_chain (int* index, cm_qdev_t f, int length, long int no);
 static double lognorm2 (ctype op);
