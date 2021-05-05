@@ -54,7 +54,8 @@ static bool doubleeta_compute_parameter (cm_class_t *c);
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
+void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool pari,
+   bool verbose)
 
 {
    cm_classgroup_t cl;
@@ -92,6 +93,12 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool verbose)
    else
       c->field = CM_FIELD_REAL;
 
+   c->pari = pari;
+   if (pari) {
+      pari_init (1000000, 0);
+      paristack_setsize (1000000, 1000000000);
+   }
+
    cm_classgroup_init (&cl, c->d, false);
    c->h = cl.h;
    mpzx_init (c->minpoly, cl.h);
@@ -121,6 +128,9 @@ void cm_class_clear (cm_class_t *c)
    if (c->field == CM_FIELD_COMPLEX) {
       mpzx_tower_clear (c->tower_complex);
    }
+
+   if (c->pari)
+      pari_close ();
 
    ffree_cache ();
 }

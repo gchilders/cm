@@ -38,8 +38,12 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
-   cm_class_init (&c, d, invariant, verbose);
-   cm_class_compute_minpoly (c, true, false, true, verbose);
+   cm_class_init (&c, d, invariant, true /* pari */, verbose);
+   cm_class_compute_minpoly (c,
+      true /* tower */,
+      false /* disk */,
+      true /* print */,
+      verbose);
    cm_class_clear (&c);
 
    cm_timer_stop (clock);

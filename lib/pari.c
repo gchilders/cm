@@ -21,7 +21,6 @@ You should have received a copy of the GNU General Public License along
 with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
-#include <pari/pari.h>
 #include "cm-impl.h"
 
 static GEN mpz_get_Z (mpz_t z);
@@ -136,7 +135,7 @@ static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p)
 
 /*****************************************************************************/
 /*                                                                           */
-/* Functions for finding factors of polynomials.                             */
+/* Functions for finding roots of polynomials.                               */
 /*                                                                           */
 /*****************************************************************************/
 
@@ -146,14 +145,15 @@ void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose)
       in the variable of the same name. */
 
 {
+   pari_sp av;
    GEN fp, pp, rootp;
    cm_timer clock;
+
+   av = avma;
 
    cm_timer_start (clock);
    if (verbose)
       printf ("--- Root finding in degree %i\n", f->deg);
-
-   pari_init (2000 * f->deg * mpz_sizeinbase (p, 2) / 8 + 1000000, 0);
 
    pp = mpz_get_Z (p);
    fp = mpzx_get_FpX (f->coeff, f->deg, p);
@@ -161,11 +161,11 @@ void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose)
    rootp = FpX_oneroot_split (fp, pp);
    Z_get_mpz (root, rootp);
 
-   pari_close ();
-
    cm_timer_stop (clock);
    if (verbose)
       printf ("-- Time for root: %.1f\n", cm_timer_get (clock));
+
+   avma = av;
 }
 
 /*****************************************************************************/
@@ -176,11 +176,12 @@ mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no)
    /* no is the number of found roots                                        */
 
 {
+   pari_sp av;
    mpz_t *res;
    GEN fp, pp, rootsp;
    int i;
 
-   pari_init (2000 * deg * mpz_sizeinbase (p, 2) / 8 + 1000000, 0);
+   av = avma;
 
    pp = mpz_get_Z (p);
    fp = mpzx_get_FpX (f, deg, p);
@@ -192,7 +193,7 @@ mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no)
       Z_get_mpz (res [i], gel (rootsp, i+1));
    }
 
-   pari_close ();
+   avma = av;
 
    return res;
 }
@@ -216,8 +217,6 @@ int cm_pari_classgroup (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
    GEN d, cl, orders, gens, qfb;
    int i;
 
-   pari_init (500000, 0);
-   paristack_setsize (500000, 500000000);
    av = avma;
 
    d = icl_get_Z (disc);
@@ -233,7 +232,6 @@ int cm_pari_classgroup (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
    }
 
    avma = av;
-   pari_close ();
 
    return length;
 }

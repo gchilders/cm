@@ -220,10 +220,13 @@ static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
 /*****************************************************************************/
 
 void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool readwrite, bool print, bool verbose)
+   const char* modpoldir, bool pari, bool readwrite, bool print,
+   bool verbose)
    /* computes a curve with the good number of points, using the given       */
    /* invariant                                                              */
-   /* If readwrite is true, tries to read the polynomial from a file, and    */
+   /* pari indicates whether the pari stack should be initialised; if set
+      to false, this is the responsability of the calling function.
+      If readwrite is true, tries to read the polynomial from a file, and    */
    /* computes it and writes it to the file if it is not yet present.        */
    /* print indicates whether the curve parameters shall be displayed on     */
    /* screen                                                                 */
@@ -270,7 +273,8 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    if (verbose)
       printf ("--- Time for P: %.1f\n\n", cm_timer_get (clock));
 
-   j = cm_class_get_j_mod_P (d, inv, p, &no_j, modpoldir, readwrite, verbose);
+   j = cm_class_get_j_mod_P (d, inv, p, &no_j, modpoldir, pari, readwrite,
+      verbose);
 
    cm_timer_start (clock);
    for (i = 0; i < no_j && !ok; i++)

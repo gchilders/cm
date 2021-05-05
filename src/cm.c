@@ -2,7 +2,7 @@
 
 cm.c - executable computing a cryptographically suitable cm curve
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -37,7 +37,11 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, true, verbose);
+   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR,
+      true /* pari */,
+      false /* readwrite */,
+      true /* print */,
+      verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
 

@@ -1,5 +1,4 @@
 /*
-
 cm.h - header file for the cm library
 
 Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021 Andreas Enge
@@ -148,6 +147,9 @@ typedef struct {
    int field;
       /* a constant describing whether we are working over the real or the      */
       /* complex numbers                                                        */
+   bool pari;
+      /* Indicates whether the pari stack has been initialised during the
+         call to cm_class_init. */
    int p [6], e, s;
       /* some parameters of the class invariant                                 */
       /* p is a 0-terminated list of integers (often the primes dividing the    */
@@ -241,14 +243,15 @@ extern void cm_modpol_print_magma (int level, char type, const char* datadir);
 
 /* functions for class polynomials */
 extern void cm_class_init (cm_class_t *c, int_cl_t d, char inv,
-   bool verbose);
+   bool pari, bool verbose);
 extern void cm_class_clear (cm_class_t *c);
 extern bool cm_class_compute_minpoly (cm_class_t c, bool tower,
    bool disk, bool print, bool verbose);
 
 /* functions for computing parameters of a complex multiplication curve      */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool readwrite, bool print, bool verbose);
+   const char* modpoldir, bool pari, bool readwrite, bool print,
+   bool verbose);
 
 #if defined (__cplusplus)
 }
