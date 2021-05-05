@@ -659,15 +659,10 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    const double C = 2114.567;
    const double pisqrtd = 3.14159265358979323846 * sqrt ((double) (-cl.d));
    const double cf = class_get_valuation (c);
-   double x, binom = 1.0, simpleprec = 0, prec = 0, M;
+   double x, binom = 1.0, prec = 0, M;
    int_cl_t amax;
    int i, m;
    fprec_t precision;
-
-   /* heuristic formula: log (height) = pi * sqrt (|d|) * \sum 1/A */
-   for (i = 0; i < cl.h; i++)
-      simpleprec += 1.0 / cl.form [i].a;
-   simpleprec = ceil (simpleprec * pisqrtd / log (2.0) * cf);
 
    /* formula of Lemma 8 of [Sutherland11] */
    amax = 0;
@@ -686,11 +681,6 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
    for (i = 1; i <= m; i++)
       binom *= (double) (cl.h - 1 + i) / i / M;
    prec = ceil ((prec + log (binom)) / log (2.0) * cf);
-
-   if (verbose) {
-      printf ("Heuristic precision bound:      %ld\n", (long int) simpleprec);
-      printf ("Less heuristic precision bound: %ld\n", (long int) prec);
-   }
 
    if (c.invariant == CM_INVARIANT_GAMMA3) {
       /* increase height estimate by bit size of sqrt (|D|)^h in constant    */
