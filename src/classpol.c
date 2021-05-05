@@ -40,6 +40,7 @@ int main (int argc, char* argv [])
 
    cm_class_init (&c, d, invariant, true /* pari */, verbose);
    cm_class_compute_minpoly (c,
+      true /* classpol */,
       true /* tower */,
       false /* disk */,
       true /* print */,

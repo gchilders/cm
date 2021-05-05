@@ -282,7 +282,8 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 
    cm_class_init (&c, d, inv, pari, verbose);
    if (!readwrite || !cm_class_read (c))
-      cm_class_compute_minpoly (c, false, readwrite, false, verbose);
+      /* Here one could also enable the tower decomposition. */
+      cm_class_compute_minpoly (c, true, false, readwrite, false, verbose);
 
    cm_timer_start (clock);
    mpz_init (root);

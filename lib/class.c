@@ -789,12 +789,15 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool disk,
-   bool print, bool verbose)
-   /* tower indicates whether the class polynomial should be decomposed as
-      a Galois tower.
+bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
+   bool disk, bool print, bool verbose)
+   /* At least one of classpol and tower needs to be set to true:
+      classpol insicates whether the (absolute) class polynomial should be
+      computed; tower indicates whether the class polynomial should be
+      decomposed as a Galois tower.
       disk indicates whether the result should be written to disk.
-      print indicates whether the result should be printed on screen. */
+      print indicates whether the result should be printed on screen.
+      The return value reflects the success of the computation. */
 {
    cm_classgroup_t cl;
    cm_form_t *nsystem;
@@ -809,6 +812,12 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool disk,
    int i;
    bool ok = true;
    cm_timer clock_global, clock_local;
+
+   if (!classpol && !tower) {
+      printf ("***** Error: cm_class_compute_minpoly called with nothing "
+              "to compute\n");
+      return false;
+   }
 
    cm_timer_start (clock_global);
 
@@ -841,15 +850,17 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool disk,
 
    cm_timer_start (clock_local);
    if (c.field == CM_FIELD_REAL) {
-      /* Compute the minimal polynomial. */
-      mpfrx_init (mpol, c.minpoly->deg + 1, prec);
-      mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly->deg);
-      ok &= cm_mpfrx_get_mpzx (c.minpoly, mpol);
-      if (print && ok) {
-         mpzx_print_pari (stdout, c.minpoly, NULL);
-         printf ("\n");
+      if (classpol) {
+         /* Compute the minimal polynomial. */
+         mpfrx_init (mpol, c.minpoly->deg + 1, prec);
+         mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly->deg);
+         ok &= cm_mpfrx_get_mpzx (c.minpoly, mpol);
+         if (print && ok) {
+            mpzx_print_pari (stdout, c.minpoly, NULL);
+            printf ("\n");
+         }
+         mpfrx_clear (mpol);
       }
-      mpfrx_clear (mpol);
       if (tower && ok) {
          mpfrx_tower_init (t, c.tower->levels, c.tower->d, prec);
          mpfrcx_tower_decomposition (t, conjugate, conj);
@@ -861,17 +872,19 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool disk,
       }
    }
    else {
-      mpcx_init (mpolc, c.minpoly->deg + 1, prec);
-      mpcx_reconstruct_from_roots (mpolc, conjugate, c.minpoly->deg);
-      ok &= cm_mpcx_get_quadraticx (c.minpoly, c.minpoly_complex, mpolc,
-         c.dfund);
-      mpcx_clear (mpolc);
-      if (print && ok) {
-         printf ("(");
-         mpzx_print_pari (stdout, c.minpoly, NULL);
-         printf (")+o*(");
-         mpzx_print_pari (stdout, c.minpoly_complex, NULL);
-         printf (")\n");
+      if (classpol) {
+         mpcx_init (mpolc, c.minpoly->deg + 1, prec);
+         mpcx_reconstruct_from_roots (mpolc, conjugate, c.minpoly->deg);
+         ok &= cm_mpcx_get_quadraticx (c.minpoly, c.minpoly_complex, mpolc,
+            c.dfund);
+         mpcx_clear (mpolc);
+         if (print && ok) {
+            printf ("(");
+            mpzx_print_pari (stdout, c.minpoly, NULL);
+            printf (")+o*(");
+            mpzx_print_pari (stdout, c.minpoly_complex, NULL);
+            printf (")\n");
+         }
       }
       if (tower && ok) {
          mpcx_tower_init (tc, c.tower->levels, c.tower->d, prec);
