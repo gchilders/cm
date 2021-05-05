@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 AC_PREREQ(2.61)
 AC_INIT(cm, 0.3.2dev, andreas.enge@inria.fr)
 AC_CONFIG_AUX_DIR([config])
-AC_CONFIG_SRCDIR([lib/common/cm_common.h])
+AC_CONFIG_SRCDIR([lib/cm_common.h])
 AC_CONFIG_HEADER([config.h])
 
 AM_INIT_AUTOMAKE([1.9])
@@ -256,5 +256,5 @@ AC_DEFINE_UNQUOTED([CM_CC], ["$CC"], [C compiler])
 AC_DEFINE_UNQUOTED([CM_GCC_VERSION], ["$GCC_VERSION"], [Version of gcc])
 
 
-AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile lib/common/Makefile lib/class/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
+AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT
