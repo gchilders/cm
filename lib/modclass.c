@@ -32,14 +32,10 @@ static void cm_modclass_cset_quadratic (ctype rop,
 static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
    ctype czplusd, cm_modular_t m, cm_classgroup_t cl,
    ctype *eta, int_cl_t a, int_cl_t b, ftype root);
-static void write_q24eta (ctype *q24eta, cm_classgroup_t cl,
-   fprec_t prec, char *type);
-static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
-   char *type);
 static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    ctype *q24, bool verbose);
 static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *eta, bool checkpoints, bool verbose);
+   ctype *eta, bool verbose);
 static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
    ctype rop_den, int_cl_t a, int_cl_t b, int *p);
 
@@ -50,7 +46,7 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
 /*****************************************************************************/
 
 void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   fprec_t prec, bool checkpoints, bool verbose)
+   fprec_t prec, bool verbose)
 
 {
    int i;
@@ -76,8 +72,7 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    for (i = 0; i < mc->cl.h; i++)
       if (cl.conj [i] >= i)
          cinit (mc->eta [i], prec);
-   if (!checkpoints || !read_q24eta (mc->eta, mc->cl, prec, "eta"))
-      compute_eta (mc->m, mc->cl, mc->root, mc->eta, checkpoints, verbose);
+   compute_eta (mc->m, mc->cl, mc->root, mc->eta, verbose);
 
    mpz_clear (tmp_z);
 }
@@ -100,65 +95,6 @@ void cm_modclass_clear (cm_modclass_t *mc)
    cm_modular_clear (&(mc->m));
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/* file handling functions                                                   */
-/*                                                                           */
-/*****************************************************************************/
-
-static void write_q24eta (ctype *q24eta, cm_classgroup_t cl,
-   fprec_t prec, char *type)
-   /* writes the values of q24eta to the file                                */
-   /* CLASS_TMPDIR + "/tmp_" + -cl.d + "_" + prec + "_" + type + ".dat"      */
-   /* type should be one of "q24" or "eta"                                   */
-
-{
-   char filename [255];
-   FILE *f;
-   int i;
-
-   sprintf (filename, "%s/tmp_%"PRIicl"_%d_%s.dat", CM_CLASS_TMPDIR, -cl.d,
-      (int) prec, type);
-
-   if (!cm_file_open_write (&f, filename))
-      exit (1);
-
-   for (i = 0; i < cl.h; i++)
-      if (cl.conj [i] >= i) {
-         cout_str (f, 16, 0, q24eta [i]);
-         fprintf (f, "\n");
-      }
-
-   cm_file_close (f);
-}
-
-/*****************************************************************************/
-
-static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
-   char *type)
-   /* reads the values of q24eta from the file                               */
-   /* CLASS_TMPDIR + "/tmp_" + -cl.d + "_" + prec + "_" + type + ".dat"      */
-   /* type should be one of "q24" or "eta"                                   */
-
-{
-   char filename [255];
-   FILE *f;
-   int i;
-
-   sprintf (filename, "%s/tmp_%"PRIicl"_%d_%s.dat", CM_CLASS_TMPDIR, -cl.d,
-            (int) prec, type);
-
-   if (!cm_file_open_read (&f, filename))
-      return false;
-
-   for (i = 0; i < cl.h; i++)
-      if (cl.conj [i] >= i)
-         cinp_str (q24eta [i], f, NULL, 16);
-
-   cm_file_close (f);
-
-   return true;
-}
 
 /*****************************************************************************/
 /*                                                                           */
@@ -406,7 +342,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
 /*****************************************************************************/
 
 static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *eta, bool checkpoints, bool verbose)
+   ctype *eta, bool verbose)
    /* computes the values of the Dedekind eta function for all reduced forms */
    /* of the class group cl and stores them in eta; the precision is taken   */
    /* from eta [0], and root contains sqrt(-d).                              */
@@ -425,11 +361,7 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
       if (cl.conj [i] >= i)
          cinit (q24 [i], prec);
 
-   if (!checkpoints || !read_q24eta (q24, cl, prec, "q24")) {
-      compute_q24 (m, cl, root, q24, verbose);
-      if (checkpoints)
-         write_q24eta (q24, cl, prec, "q24");
-   }
+   compute_q24 (m, cl, root, q24, verbose);
 
    cm_timer_start (clock2);
    for (i = 0; i < cl.h; i++) {
@@ -445,8 +377,6 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
       printf ("\n- Time for series:                %.1f",
                cm_timer_get (clock2));
    cm_timer_stop (clock2);
-   if (checkpoints)
-      write_q24eta (eta, cl, prec, "eta");
 
    for (i = 0; i < cl.h; i++)
       if (cl.conj [i] >= i)

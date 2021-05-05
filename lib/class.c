@@ -45,8 +45,6 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
 static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q);
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
    int *conj, cm_class_t c, cm_modclass_t mc, bool verbose);
-static void write_conjugates (cm_class_t c, ctype *conjugates, int *conj);
-static bool read_conjugates (cm_class_t c, ctype *conjugates, int *conj);
 
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
 static mpz_t* cm_get_j_mod_P_from_modular (int *no, const char* modpoldir,
@@ -455,59 +453,6 @@ bool cm_class_read (cm_class_t c)
    return true;
 }
 
-/*****************************************************************************/
-
-static void write_conjugates (cm_class_t c, ctype *conjugate, int *conj)
-   /* writes the conjugates to the file
-      CM_CLASS_TMPDIR + "/tmp_" + d + "_" + invariant + "_" + paramstr + "_"
-      + prec + "_conjugates.dat" */
-
-{
-   char filename [400];
-   FILE *f;
-   int i;
-
-   sprintf (filename, "%s/tmp_%"PRIicl"_%c_%s_%i_conjugates.dat",
-      CM_CLASS_TMPDIR, -c.d, c.invariant, c.paramstr,
-      (int) cget_prec (conjugate [0]));
-
-   if (!cm_file_open_write (&f, filename))
-      exit (1);
-
-   for (i = 0; i < c.h; i++)
-      if (conj [i] >= i) {
-         cout_str (f, 16, 0, conjugate [i]);
-         fprintf (f, "\n");
-      }
-
-   cm_file_close (f);
-}
-
-/*****************************************************************************/
-
-static bool read_conjugates (cm_class_t c, ctype *conjugate, int *conj)
-   /* reads the conjugates from a file written by write_conjugates
-      If the file could not be openend, the return value is false. */
-{
-   char filename [400];
-   FILE *f;
-   int i;
-
-   sprintf (filename, "%s/tmp_%"PRIicl"_%c_%s_%i_conjugates.dat",
-      CM_CLASS_TMPDIR, -c.d, c.invariant, c.paramstr,
-      (int) cget_prec (conjugate [0]));
-
-   if (!cm_file_open_read (&f, filename))
-      return false;
-
-   for (i = 0; i < c.h; i++)
-      if (conj [i] >= i)
-         cinp_str (conjugate [i], f, NULL, 16);
-
-   cm_file_close (f);
-
-   return true;
-}
 
 /*****************************************************************************/
 /*                                                                           */
@@ -947,12 +892,10 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
-   bool disk, bool print, bool verbose)
+bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool disk,
+   bool print, bool verbose)
    /* tower indicates whether the class polynomial should be decomposed as
       a Galois tower.
-      checkpoints indicates whether intermediate results are to be kept in
-      and potentially read from files.
       disk indicates whether the result should be written to disk.
       print indicates whether the result should be printed on screen. */
 {
@@ -992,13 +935,9 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
       if (conj [i] >= i)
          cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
-   if (!checkpoints || !read_conjugates (c, conjugate, conj)) {
-      cm_modclass_init (&mc, cl, prec, checkpoints, verbose);
-      compute_conjugates (conjugate, nsystem, conj, c, mc, verbose);
-      if (checkpoints)
-         write_conjugates (c, conjugate, conj);
-      cm_modclass_clear (&mc);
-   }
+   cm_modclass_init (&mc, cl, prec, verbose);
+   compute_conjugates (conjugate, nsystem, conj, c, mc, verbose);
+   cm_modclass_clear (&mc);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for conjugates: %.1f\n", cm_timer_get (clock_local));
@@ -1153,7 +1092,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 
    cm_class_init (&c, d, inv, verbose);
    if (!readwrite || !cm_class_read (c))
-      cm_class_compute_minpoly (c, false, false, readwrite, false, verbose);
+      cm_class_compute_minpoly (c, false, readwrite, false, verbose);
 
    cm_timer_start (clock);
    mpz_init (root);

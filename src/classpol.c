@@ -39,7 +39,7 @@ int main (int argc, char* argv [])
       invariant = CM_INVARIANT_J;
 
    cm_class_init (&c, d, invariant, verbose);
-   cm_class_compute_minpoly (c, true, false, false, true, verbose);
+   cm_class_compute_minpoly (c, true, false, true, verbose);
    cm_class_clear (&c);
 
    cm_timer_stop (clock);
