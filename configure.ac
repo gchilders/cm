@@ -20,13 +20,13 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-AC_PREREQ(2.61)
-AC_INIT(cm, 0.4.0dev, andreas.enge@inria.fr)
+AC_PREREQ([2.69])
+AC_INIT([cm],[0.4.0dev],[andreas.enge@inria.fr])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/cm.h])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE([1.9])
+AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
 
 AC_CANONICAL_HOST
@@ -34,42 +34,42 @@ AC_CONFIG_MACRO_DIR([m4])
 
 # Extra arguments to configure
 AC_ARG_WITH([gmp],
-            [AC_HELP_STRING([--with-gmp=DIR],
+            [AS_HELP_STRING([--with-gmp=DIR],
                            [GMP install directory])],
             [
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib"
             ])
 AC_ARG_WITH([mpfr],
-            [AC_HELP_STRING([--with-mpfr=DIR],
+            [AS_HELP_STRING([--with-mpfr=DIR],
                            [MPFR install directory])],
             [
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib"
             ])
 AC_ARG_WITH([mpc],
-            [AC_HELP_STRING([--with-mpc=DIR],
+            [AS_HELP_STRING([--with-mpc=DIR],
                            [MPC install directory])],
             [
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib"
             ])
 AC_ARG_WITH([mpfrcx],
-            [AC_HELP_STRING([--with-mpfrcx=DIR],
+            [AS_HELP_STRING([--with-mpfrcx=DIR],
                            [MPFRCX install directory])],
             [
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib"
             ])
 AC_ARG_WITH([pari],
-            [AC_HELP_STRING([--with-pari=DIR],
+            [AS_HELP_STRING([--with-pari=DIR],
                            [PARI install directory])],
             [
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib -Wl,-rpath -Wl,$withval/lib"
             ])
 AC_ARG_ENABLE([valgrind-tests],
-             [AC_HELP_STRING([--enable-valgrind-tests],
+             [AS_HELP_STRING([--enable-valgrind-tests],
                              [run checks through valgrind (default = no)])],
              [case $enableval in
                  yes) gl_VALGRIND_TESTS ;;
@@ -84,7 +84,7 @@ AC_PROG_CC
 AC_LANG(C)
 
 # Set up LibTool
-AC_PROG_LIBTOOL
+LT_INIT
 
 # Check GMP Header
 AC_MSG_CHECKING(for gmp.h)
@@ -96,7 +96,6 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 ])
 
 # Checks for header files.
-AC_HEADER_STDC
 AC_CHECK_HEADERS([inttypes.h stdlib.h string.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
