@@ -28,7 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <assert.h>
 #include <ctype.h>
 #include "cm.h"
 
@@ -73,13 +72,6 @@ typedef struct {
    ctype *eta;
       /* contains the values of eta with respect to the entries of
          cl.form with the same row index. */
-   cm_classgroup_t cl2;
-   ctype *eta2;
-   ftype root2;
-      /* Space for a second class group and associated eta values; intended  */
-      /* to be filled with an order of smaller conductor. Currently, is is   */
-      /* used for the Weber function with odd discriminant D; then cl.d==4*D */
-      /* and cl2.d==D.                                                       */
 } cm_modclass_t;
 
 
@@ -153,7 +145,7 @@ extern int cm_classgroup_normalseries (int_cl_t disc, int_cl_t *ord,
    precomputations */
 
 extern void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   cm_classgroup_t cl2, fprec_t prec, bool checkpoints, bool verbose);
+   fprec_t prec, bool checkpoints, bool verbose);
 extern void cm_modclass_clear (cm_modclass_t *mc);
 
 extern void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m,

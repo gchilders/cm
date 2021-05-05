@@ -50,8 +50,7 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
 /*****************************************************************************/
 
 void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   cm_classgroup_t cl2, fprec_t prec, bool checkpoints, bool verbose)
-   /* cl2.d may be 0, in which case mc->eta2 is not computed                 */
+   fprec_t prec, bool checkpoints, bool verbose)
 
 {
    int i;
@@ -61,7 +60,6 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
 
    cm_modular_init (&(mc->m), prec);
    mc->cl = cl;
-   mc->cl2 = cl2;
 
    finit (mc->root, prec);
    cm_classgroup_mpz_set_icl (tmp_z, -cl.d);
@@ -81,20 +79,6 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    if (!checkpoints || !read_q24eta (mc->eta, mc->cl, prec, "eta"))
       compute_eta (mc->m, mc->cl, mc->root, mc->eta, checkpoints, verbose);
 
-   if (cl2.d != 0) {
-      finit (mc->root2, prec);
-      cm_classgroup_mpz_set_icl (tmp_z, -cl2.d);
-      fset_z (mc->root2, tmp_z);
-      fsqrt (mc->root2, mc->root2);
-      mc->eta2 = (ctype *) malloc (mc->cl2.h * sizeof (ctype));
-      for (i = 0; i < mc->cl2.h; i++)
-         if (cl2.conj [i] >= i)
-            cinit (mc->eta2 [i], prec);
-      if (!checkpoints || !read_q24eta (mc->eta2, mc->cl2, prec, "eta"))
-         compute_eta (mc->m, mc->cl2, mc->root2, mc->eta2, checkpoints,
-            verbose);
-   }
-
    mpz_clear (tmp_z);
 }
 
@@ -112,13 +96,6 @@ void cm_modclass_clear (cm_modclass_t *mc)
       if (mc->cl.conj [i] >= i)
          cclear (mc->eta [i]);
    free (mc->eta);
-   if (mc->cl2.d != 0) {
-      fclear (mc->root2);
-      for (i = 0; i < mc->cl2.h; i++)
-         if (mc->cl2.conj [i] >= i)
-            cclear (mc->eta2 [i]);
-      free (mc->eta2);
-   }
 
    cm_modular_clear (&(mc->m));
 }
@@ -689,20 +666,14 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc.m, mc.cl, 
       mc.eta, a, b, mc.root);
 
-   /* The argument (z+1)/2 of the numerator corresponds to the quadratic     */
-   /* form [2*a, b+2*a, (a+b+c)/2]. Here, (a+b+c)/2 need not be integral;    */
-   /* if it is, the form need not be primitive any more, but may have a      */
-   /* common divisor 2.                                                      */
+   /* The argument (z+1)/2 of the numerator corresponds to the quadratic
+      form [2*a, b+2*a, (a+b+c)/2]. Here, (a+b+c)/2 need not be integral;
+      if it is, the form need not be primitive any more, but may have a
+      common divisor 2. */
    c = a + b + cm_classgroup_compute_c (a, b, mc.cl.d);
-   if (c % 2 == 0)
-      if (b % 2 != 0 || c % 4 != 0)
+   if (c % 2 == 0 && (b % 2 != 0 || c % 4 != 0))
          cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m, mc.cl,
             mc.eta, 2*a, b + 2*a, mc.root);
-      else {
-         assert (mc.cl2.d == mc.cl.d / 4);
-         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m, mc.cl2,
-         mc.eta2, a, b/2 + a, mc.root2);
-      }
    else {
       ctype z;
       cinit (z, cget_prec (rop));
@@ -760,19 +731,13 @@ void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
    cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc.m, mc.cl,
       mc.eta, a, b, mc.root);
 
-   /* The argument z/2 of the numerator corresponds to the quadratic form    */
-   /* [2*a, b, c/2]. Here, c/2 need not be integral; if it is, the form need */
-   /* not be primitive any more, but may have a common divisor 2.            */
+   /* The argument z/2 of the numerator corresponds to the quadratic form
+      [2*a, b, c/2]. Here, c/2 need not be integral; if it is, the form need
+      not be primitive any more, but may have a common divisor 2. */
    c = cm_classgroup_compute_c (a, b, mc.cl.d);
-   if (c % 2 == 0)
-      if (b % 2 != 0 || c % 4 != 0)
+   if (c % 2 == 0 && (b % 2 != 0 || c % 4 != 0))
          cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m,
             mc.cl, mc.eta, 2*a, b, mc.root);
-      else {
-         assert (mc.cl2.d == mc.cl.d / 4);
-         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m,
-            mc.cl2, mc.eta2, a, b/2, mc.root2);
-      }
    else {
       ctype z;
       cinit (z, cget_prec (rop));

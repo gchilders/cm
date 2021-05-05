@@ -956,7 +956,7 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
       disk indicates whether the result should be written to disk.
       print indicates whether the result should be printed on screen. */
 {
-   cm_classgroup_t cl, cl2;
+   cm_classgroup_t cl;
    cm_form_t *nsystem;
    int *conj;
    fprec_t prec;
@@ -978,22 +978,6 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
    if (verbose)
       printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
 
-   if (   (c.invariant == CM_INVARIANT_WEBER
-           && (c.p [0] == 3 || c.p [0] == 4 || c.p [0] == 7))
-       || (   (c.invariant == CM_INVARIANT_J || c.invariant == CM_INVARIANT_GAMMA2)
-           && c.d % 4 == 0
-           && ((c.d / 4) % 4 == 0 || ((c.d / 4) - 1) % 4 == 0))) {
-      /* also compute class group for order of conductor less by a factor    */
-      /* of 2                                                                */
-      cm_timer_start (clock_local);
-      cm_classgroup_init (&cl2, c.d / 4, verbose);
-      cm_timer_stop (clock_local);
-      if (verbose)
-         printf ("--- Time for class group2: %.1f\n", cm_timer_get (clock_local));
-   }
-   else
-      cl2.d = 0;
-
    nsystem = (cm_form_t *) malloc (c.h * sizeof (cm_form_t));
    conj = (int *) malloc (c.h * sizeof (int));
    cm_timer_start (clock_local);
@@ -1009,7 +993,7 @@ bool cm_class_compute_minpoly (cm_class_t c, bool tower, bool checkpoints,
          cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
    if (!checkpoints || !read_conjugates (c, conjugate, conj)) {
-      cm_modclass_init (&mc, cl, cl2, prec, checkpoints, verbose);
+      cm_modclass_init (&mc, cl, prec, checkpoints, verbose);
       compute_conjugates (conjugate, nsystem, conj, c, mc, verbose);
       if (checkpoints)
          write_conjugates (c, conjugate, conj);
