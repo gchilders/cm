@@ -420,13 +420,12 @@ static double class_get_valuation (cm_class_t c)
 /*****************************************************************************/
 
 static int class_get_height (cm_class_t c)
-   /* in the real case, returns the binary length of the largest             */
-   /* coefficient of the minimal polynomial                                  */
-   /* in the complex case, returns the binary length of the largest          */
-   /* coefficient with respect to the decomposition over an integral basis   */
-
+   /* In the real case, return the binary length of the largest coefficient
+      of the minimal polynomial; in the complex case, return the binary
+      length of the largest coefficient with respect to the decomposition
+      over an integral basis of the imaginary-quadratic field. */
 {
-   int   i, height, cand;
+   int i, height, cand;
 
    height = -1;
    for (i = 0; i < c.minpoly->deg; i++) {
@@ -434,6 +433,13 @@ static int class_get_height (cm_class_t c)
       if (cand > height)
          height = cand;
    }
+   if (c.field == CM_FIELD_COMPLEX)
+      for (i = 0; i < c.minpoly_complex->deg; i++) {
+         cand = mpz_sizeinbase (c.minpoly_complex->coeff [i], 2);
+         if (cand > height)
+            height = cand;
+   }
+
 
    return height;
 }
