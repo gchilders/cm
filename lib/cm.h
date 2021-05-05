@@ -233,9 +233,6 @@ extern void cm_modular_atkinhecke_eval (cm_modular_t m, ctype rop, ctype op,
 extern void cm_modular_atkinhecke_level_eval (cm_modular_t m, ctype rop,
    ctype op, unsigned long int l);
 
-/* functions for evaluating modular functions using the AGM */
-extern void cm_fem_eta_eval (cm_modular_t m, ctype rop, ctype op);
-
 /* functions reading modular polynomials */
 extern mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type,
    mpz_t p, mpz_t x, const char * datadir);

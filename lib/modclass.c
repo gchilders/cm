@@ -39,7 +39,7 @@ static bool read_q24eta (ctype *q24eta, cm_classgroup_t cl, fprec_t prec,
 static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    ctype *q24, bool verbose);
 static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *eta, bool fem, bool checkpoints, bool verbose);
+   ctype *eta, bool checkpoints, bool verbose);
 static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
    ctype rop_den, int_cl_t a, int_cl_t b, int *p);
 
@@ -49,7 +49,6 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
 /*                                                                           */
 /*****************************************************************************/
 
-#define CM_FEM false
 void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    cm_classgroup_t cl2, fprec_t prec, bool checkpoints, bool verbose)
    /* cl2.d may be 0, in which case mc->eta2 is not computed                 */
@@ -80,7 +79,7 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
       if (cl.conj [i] >= i)
          cinit (mc->eta [i], prec);
    if (!checkpoints || !read_q24eta (mc->eta, mc->cl, prec, "eta"))
-      compute_eta (mc->m, mc->cl, mc->root, mc->eta, CM_FEM, checkpoints, verbose);
+      compute_eta (mc->m, mc->cl, mc->root, mc->eta, checkpoints, verbose);
 
    if (cl2.d != 0) {
       finit (mc->root2, prec);
@@ -92,7 +91,7 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
          if (cl2.conj [i] >= i)
             cinit (mc->eta2 [i], prec);
       if (!checkpoints || !read_q24eta (mc->eta2, mc->cl2, prec, "eta"))
-         compute_eta (mc->m, mc->cl2, mc->root2, mc->eta2, CM_FEM, checkpoints,
+         compute_eta (mc->m, mc->cl2, mc->root2, mc->eta2, checkpoints,
             verbose);
    }
 
@@ -430,74 +429,52 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
 /*****************************************************************************/
 
 static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *eta, bool fem, bool checkpoints, bool verbose)
+   ctype *eta, bool checkpoints, bool verbose)
    /* computes the values of the Dedekind eta function for all reduced forms */
    /* of the class group cl and stores them in eta; the precision is taken   */
    /* from eta [0], and root contains sqrt(-d).                              */
-   /* If fem is true, then evaluation via the AGM is activated.              */
 
 {
    int i;
    cm_timer clock1;
    fprec_t prec = cget_prec (eta [0]);
+
+   ctype *q24;
+   cm_timer clock2;
+
    cm_timer_start (clock1);
+   q24 = (ctype *) malloc (cl.h * sizeof (ctype));
+   for (i = 0; i < cl.h; i++)
+      if (cl.conj [i] >= i)
+         cinit (q24 [i], prec);
 
-   if (!fem) {
-      ctype *q24;
-      cm_timer clock2;
-
-      q24 = (ctype *) malloc (cl.h * sizeof (ctype));
-      for (i = 0; i < cl.h; i++)
-         if (cl.conj [i] >= i)
-            cinit (q24 [i], prec);
-
-      if (!checkpoints || !read_q24eta (q24, cl, prec, "q24")) {
-         compute_q24 (m, cl, root, q24, verbose);
-         if (checkpoints)
-            write_q24eta (q24, cl, prec, "q24");
-      }
-
-      cm_timer_start (clock2);
-      for (i = 0; i < cl.h; i++) {
-         if (cl.conj [i] >= i)
-            cm_modular_eta_series (m, eta [i], q24 [i]);
-         if (verbose && i % 200 == 0) {
-            printf (".");
-            fflush (stdout);
-         }
-      }
-      cm_timer_stop (clock2);
-      if (verbose)
-         printf ("\n- Time for series:                %.1f",
-                  cm_timer_get (clock2));
-      cm_timer_stop (clock2);
+   if (!checkpoints || !read_q24eta (q24, cl, prec, "q24")) {
+      compute_q24 (m, cl, root, q24, verbose);
       if (checkpoints)
-         write_q24eta (eta, cl, prec, "eta");
-
-      for (i = 0; i < cl.h; i++)
-         if (cl.conj [i] >= i)
-            cclear (q24 [i]);
-      free (q24);
+         write_q24eta (q24, cl, prec, "q24");
    }
-   else {
-      ctype tau;
 
-      cinit (tau, prec);
-
-      for (i = 0; i < cl.h; i++) {
-         if (cl.conj [i] >= i) {
-            cm_modclass_cset_quadratic (tau, cl.form [i].a, cl.form [i].b,
-               root);
-            cm_fem_eta_eval (m, eta [i], tau);
-         }
-         if (verbose && i % 200 == 0) {
-            printf (".");
-            fflush (stdout);
-         }
+   cm_timer_start (clock2);
+   for (i = 0; i < cl.h; i++) {
+      if (cl.conj [i] >= i)
+         cm_modular_eta_series (m, eta [i], q24 [i]);
+      if (verbose && i % 200 == 0) {
+         printf (".");
+         fflush (stdout);
       }
-
-      cclear (tau);
    }
+   cm_timer_stop (clock2);
+   if (verbose)
+      printf ("\n- Time for series:                %.1f",
+               cm_timer_get (clock2));
+   cm_timer_stop (clock2);
+   if (checkpoints)
+      write_q24eta (eta, cl, prec, "eta");
+
+   for (i = 0; i < cl.h; i++)
+      if (cl.conj [i] >= i)
+         cclear (q24 [i]);
+   free (q24);
 
    cm_timer_stop (clock1);
    if (verbose)
