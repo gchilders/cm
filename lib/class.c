@@ -95,7 +95,8 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool pari,
 
    c->pari = pari;
    if (pari) {
-      pari_init (1000000, 0);
+      pari_init_opts (1000000, 0, INIT_JMPm | INIT_DFTm);
+         /* Do not capture SIGSEGV. */
       paristack_setsize (1000000, 1000000000);
    }
 
