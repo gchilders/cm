@@ -848,10 +848,9 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
    if (verbose)
       printf ("--- Time for conjugates: %.1f\n", cm_timer_get (clock_local));
 
-   cm_timer_start (clock_local);
-   if (c.field == CM_FIELD_REAL) {
-      if (classpol) {
-         /* Compute the minimal polynomial. */
+   if (classpol) {
+      cm_timer_start (clock_local);
+      if (c.field == CM_FIELD_REAL) {
          mpfrx_init (mpol, c.minpoly->deg + 1, prec);
          mpfrcx_reconstruct_from_roots (mpol, conjugate, conj, c.minpoly->deg);
          ok &= cm_mpfrx_get_mpzx (c.minpoly, mpol);
@@ -861,18 +860,7 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
          }
          mpfrx_clear (mpol);
       }
-      if (tower && ok) {
-         mpfrx_tower_init (t, c.tower->levels, c.tower->d, prec);
-         mpfrcx_tower_decomposition (t, conjugate, conj);
-         /* There should be a possibility to save the field tower on disk. */
-         ok &= cm_mpfrx_tower_get_mpzx_tower (c.tower, t);
-         if (print && ok)
-            mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
-         mpfrx_tower_clear (t);
-      }
-   }
-   else {
-      if (classpol) {
+      else {
          mpcx_init (mpolc, c.minpoly->deg + 1, prec);
          mpcx_reconstruct_from_roots (mpolc, conjugate, c.minpoly->deg);
          ok &= cm_mpcx_get_quadraticx (c.minpoly, c.minpoly_complex, mpolc,
@@ -886,7 +874,24 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
             printf (")\n");
          }
       }
-      if (tower && ok) {
+      cm_timer_stop (clock_local);
+      if (verbose)
+         printf ("--- Time for minimal polynomial reconstruction: %.1f\n",
+                 cm_timer_get (clock_local));
+   }
+
+   if (tower && ok) {
+      cm_timer_start (clock_local);
+      if (c.field == CM_FIELD_REAL) {
+         mpfrx_tower_init (t, c.tower->levels, c.tower->d, prec);
+         mpfrcx_tower_decomposition (t, conjugate, conj);
+         /* There should be a possibility to save the field tower on disk. */
+         ok &= cm_mpfrx_tower_get_mpzx_tower (c.tower, t);
+         if (print && ok)
+            mpzx_tower_print_pari (stdout, c.tower, "f", NULL);
+         mpfrx_tower_clear (t);
+      }
+      else {
          mpcx_tower_init (tc, c.tower->levels, c.tower->d, prec);
          mpcx_tower_decomposition (tc, conjugate);
          ok = cm_mpcx_tower_get_quadratic_tower (c.tower, c.tower_complex,
@@ -897,11 +902,11 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
             mpzx_tower_print_pari (stdout, c.tower_complex, "g", NULL);
          }
       }
+      cm_timer_stop (clock_local);
+      if (verbose)
+         printf ("--- Time for field tower decomposition: %.1f\n",
+                 cm_timer_get (clock_local));
    }
-   cm_timer_stop (clock_local);
-   if (verbose)
-      printf ("--- Time for polynomial reconstruction: %.1f\n",
-              cm_timer_get (clock_local));
 
    for (i = 0; i < c.h; i++)
       if (conj [i] >= i)
