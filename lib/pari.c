@@ -170,10 +170,9 @@ void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose)
 
 /*****************************************************************************/
 
-mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no)
-   /* computes all the roots of the polynomial f of degree deg in the prime  */
-   /* field of characteristic p without multiplicities                       */
-   /* no is the number of found roots                                        */
+mpz_t* cm_pari_find_roots (int *no, mpzx_t f, mpz_t p)
+   /* Computes all the roots (without multiplicities) of the polynomial f
+      modulo p. The number of found roots is returned in no. */
 
 {
    pari_sp av;
@@ -184,7 +183,7 @@ mpz_t* cm_pari_find_roots (mpz_t *f, int deg, mpz_t p, int *no)
    av = avma;
 
    pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f, deg, p);
+   fp = mpzx_get_FpX (f->coeff, f->deg, p);
    rootsp = FpX_roots (fp, pp);
    *no = lg (rootsp) - 1;
    res = (mpz_t*) malloc ((*no) * sizeof (mpz_t));
