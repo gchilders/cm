@@ -95,19 +95,19 @@ static void read_gz_mpz (mpz_t rop, gzFile f)
 
 /*****************************************************************************/
 
-mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type, mpz_t p,
-   mpz_t x, const char* datadir)
-   /* returns the modular polynomial of the given type and level modulo p    */
-   /* and evaluated in the first argument x; n is replaced by its degree  */
+void cm_modpol_read_specialised_mod (mpzx_ptr pol, int level, char type,
+   mpz_t p, mpz_t x, const char* datadir)
+   /* Return in pol the modular polynomial of the given type and level
+      modulo p and evaluated in the first argument x. pol should not be
+      initialised (since its degree is only known inside this function). */
 
 {
    char filename [255];
    gzFile f;
-   int lev, N, i, k;
+   int lev, N, n, i, k;
    char c;
    mpz_t* xpow;
    mpz_t tmp;
-   mpz_t* res;
 
    sprintf (filename, "%s/%cf/%cf_%.4i.dat.gz", datadir,
       type, type, level);
@@ -136,17 +136,17 @@ mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type, mpz_t p,
    }
    mpz_init (tmp);
 
-   *n = read_gz_ui (f);
-   res = (mpz_t*) malloc ((*n+1) * sizeof (mpz_t));
-   for (i = 0; i <= *n; i++)
-      mpz_init_set_ui (res [i], 0ul);
+   n = read_gz_ui (f);
+   mpzx_init (pol, n);
+   for (i = 0; i <= n; i++)
+      mpz_set_ui (pol->coeff [i], 0ul);
    do {
       i = read_gz_ui (f);
       k = read_gz_ui (f);
       read_gz_mpz (tmp, f);
       mpz_mul (tmp, tmp, xpow [i]);
-      mpz_add (res [k], res [k], tmp);
-      mpz_mod (res [k], res [k], p);
+      mpz_add (pol->coeff [k], pol->coeff [k], tmp);
+      mpz_mod (pol->coeff [k], pol->coeff [k], p);
    } while (k != 0 || i != 0);
       /* we assume that the last entry in the file is the constant one */
 
@@ -156,8 +156,6 @@ mpz_t* cm_modpol_read_specialised_mod (int* n, int level, char type, mpz_t p,
    mpz_clear (tmp);
 
    cm_file_gzclose (f);
-
-   return res;
 }
 
 /*****************************************************************************/

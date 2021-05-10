@@ -116,16 +116,12 @@ static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
 
 {
    mpz_t  *j;
-   mpz_t* poly_j;
+   mpzx_t poly_j;
       /* a polynomial one of whose roots is j mod P */
-   int    n, i;
 
-   poly_j = cm_modpol_read_specialised_mod (&n, level, type, P, root,
-      modpoldir);
-   j = cm_pari_find_roots (poly_j, n, P, no);
-   for (i = 0; i <= n; i++)
-      mpz_clear (poly_j [i]);
-   free (poly_j);
+   cm_modpol_read_specialised_mod (poly_j, level, type, P, root, modpoldir);
+   j = cm_pari_find_roots (poly_j->coeff, poly_j->deg, P, no);
+   mpzx_clear (poly_j);
 
    return j;
 }
