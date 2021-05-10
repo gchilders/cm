@@ -272,7 +272,7 @@ void cm_nt_factor (long int d, unsigned long int *factors,
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p)
+void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
    /* computes a square root of a modulo p by the Tonelli-Shanks algorithm,  */
    /* see Cohen93, Algorithm 1.5.                                            */
 
@@ -367,7 +367,7 @@ void cm_nt_mpz_tonelli_z (mpz_t root, mpz_t a, mpz_t p)
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli (mpz_t root, const long int a, mpz_t p)
+void cm_nt_mpz_tonelli (mpz_ptr root, const long int a, mpz_srcptr p)
    /* computes a square root of a modulo p */
 
 {

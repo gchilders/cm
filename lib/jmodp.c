@@ -23,6 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static void quadratic_basis (mpz_ptr omega, int_cl_t d, mpz_srcptr P);
+static void quadraticx_mod_p (mpzx_ptr f, mpzx_srcptr g, mpzx_srcptr h,
+   mpz_srcptr omega, mpz_srcptr p);
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
 static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
@@ -31,54 +34,69 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
 
 /*****************************************************************************/
 
+static void quadratic_basis (mpz_ptr omega, int_cl_t d, mpz_srcptr P)
+   /* Compute the second element omega of the standard quadratic basis
+      for the fundamental discriminant d modulo P, which is assumed to
+      split in the quadratic field. */
+{
+   cm_nt_mpz_tonelli (omega, d, P);
+   if (d % 4 != 0)
+      mpz_add_ui (omega, omega, 1ul);
+      /* Since sqrt(d)!=p-1 mod p, omega is still <p. */
+   if (!mpz_divisible_2exp_p (omega, 1))
+      mpz_add (omega, omega, P);
+   mpz_divexact_ui (omega, omega, 2);
+}
+
+/*****************************************************************************/
+
+static void quadraticx_mod_p (mpzx_ptr f, mpzx_srcptr g, mpzx_srcptr h,
+   mpz_srcptr omega, mpz_srcptr p)
+   /* Compute f = g + omega * h modulo p, where f is assumed to be
+      different from g and h and g and h have the same degree. */
+{
+   mpz_t tmp;
+   int i;
+
+   mpz_init (tmp);
+
+   for (i = 0; i <= g->deg; i++) {
+      mpz_mod (f->coeff [i], g->coeff [i], p);
+      mpz_mod (tmp, h->coeff [i], p);
+      mpz_mul (tmp, tmp, omega);
+      mpz_mod (tmp, tmp, p);
+      mpz_add (f->coeff [i], f->coeff [i], tmp);
+      mpz_mod (f->coeff [i], f->coeff [i], p);
+   }
+
+   mpz_clear (tmp);
+}
+
+/*****************************************************************************/
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
    /* returns a root of the minimal polynomial modulo P                      */
    /* root is changed                                                        */
 
 {
-   /* The local variables are needed only for the complex case. */
    cm_timer clock;
+   mpz_t omega;
    mpzx_t minpoly_P;
-   int i;
-   mpz_t omega, tmp;
-   /* the second element of the integral basis of the maximal order */
-   /* modulo P                                                      */
 
    if (c.field == CM_FIELD_REAL)
       cm_pari_oneroot (root, c.minpoly, P, verbose);
    else {
       mpz_init (omega);
-      mpz_init (tmp);
-
-      mpzx_init (minpoly_P, c.minpoly->deg);
-
-      /* compute the second element of the integral basis modulo P */
       cm_timer_start (clock);
-      cm_nt_mpz_tonelli (omega, c.dfund, P);
+      quadratic_basis (omega, c.dfund, P);
       cm_timer_stop (clock);
       if (verbose)
          printf ("--- Time for square root: %.1f\n", cm_timer_get (clock));
-      if (c.dfund % 4 != 0)
-         mpz_add_ui (omega, omega, 1ul);
-      mpz_set_ui (tmp, 2ul);
-      mpz_invert (tmp, tmp, P);
-      mpz_mul (omega, omega, tmp);
-      mpz_mod (omega, omega, P);
 
-      /* create the minimal polynomial modulo P */
-      for (i = 0; i < c.minpoly->deg; i++) {
-         mpz_mod (minpoly_P->coeff [i], c.minpoly_complex->coeff [i], P);
-         mpz_mul (tmp, minpoly_P->coeff [i], omega);
-         mpz_mod (minpoly_P->coeff [i], tmp, P);
-         mpz_add (tmp, minpoly_P->coeff [i], c.minpoly->coeff [i]);
-         mpz_mod (minpoly_P->coeff [i], tmp, P);
-      }
-      mpz_set_ui (minpoly_P->coeff [c.minpoly->deg], 1ul);
-
+      mpzx_init (minpoly_P, c.minpoly->deg);
+      quadraticx_mod_p (minpoly_P, c.minpoly, c.minpoly_complex, omega, P);
       cm_pari_oneroot (root, minpoly_P, P, verbose);
 
       mpz_clear (omega);
-      mpz_clear (tmp);
       mpzx_clear (minpoly_P);
    }
 
