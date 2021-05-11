@@ -26,7 +26,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static void quadratic_basis (mpz_ptr omega, int_cl_t d, mpz_srcptr P);
 static void quadraticx_mod_p (mpzx_ptr f, mpzx_srcptr g, mpzx_srcptr h,
    mpz_srcptr omega, mpz_srcptr p);
+static void mpzx_eval_mod_p (mpz_ptr val, mpzx_srcptr f, mpz_srcptr x,
+   mpz_srcptr p);
+static void mpzxx_eval_mod_p (mpzx_ptr val, mpzx_t *f, int deg,
+   mpz_srcptr y, mpz_srcptr p);
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
+static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
+   mpz_srcptr p, bool verbose);
 static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
 static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
@@ -73,9 +79,51 @@ static void quadraticx_mod_p (mpzx_ptr f, mpzx_srcptr g, mpzx_srcptr h,
 }
 
 /*****************************************************************************/
+
+static void mpzx_eval_mod_p (mpz_ptr val, mpzx_srcptr f, mpz_srcptr x,
+   mpz_srcptr p)
+   /* Compute f(x) mod p using a Horner scheme; for better efficiency,
+      arg should be an element of [0, p-1]. */
+{
+   mpz_t res;
+   int i;
+
+   mpz_init (res);
+
+   if (f->deg == -1)
+      mpz_set_ui (res, 0);
+   else {
+      mpz_mod (res, f->coeff [f->deg], p);
+      for (i = f->deg - 1; i >= 0; i--) {
+         mpz_mul (res, res, x);
+         mpz_add (res, res, f->coeff [i]);
+         mpz_mod (res, res, p);
+      }
+   }
+
+   mpz_set (val, res);
+
+   mpz_clear (res);
+}
+
+/*****************************************************************************/
+
+static void mpzxx_eval_mod_p (mpzx_ptr val, mpzx_t *f, int deg,
+   mpz_srcptr y, mpz_srcptr p)
+   /* Consider f as a polynomial of degree deg in a variable x with
+      coefficients that are polynomials in y. Evaluate f in the variable y
+      modulo p. Assume that val is already initialised of degree deg. */
+{
+   int i;
+
+   for (i = 0; i <= deg; i++)
+      mpzx_eval_mod_p (val->coeff [i], f [i], y, p);
+}
+
+/*****************************************************************************/
+
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
-   /* returns a root of the minimal polynomial modulo P                      */
-   /* root is changed                                                        */
+   /* Return a root of the minimal polynomial modulo P in root. */
 
 {
    cm_timer clock;
@@ -98,6 +146,31 @@ static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
 
       mpz_clear (omega);
       mpzx_clear (minpoly_P);
+   }
+
+   if (verbose) {
+      printf ("Root: ");
+      mpz_out_str (stdout, 10, root);
+      printf ("\n");
+   }
+}
+
+/*****************************************************************************/
+
+static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
+   mpz_srcptr p, bool verbose)
+   /* Let t be a class field tower in which p splits totally. Return a root
+      mod p of the class polynomial behind the tower. */
+{
+   int i;
+   mpzx_t fp;
+
+   cm_pari_oneroot (root, t->W [0][0], p, verbose);
+   for (i = 1; i < t->levels; i++) {
+      mpzx_init (fp, t->d [i]);
+      mpzxx_eval_mod_p (fp, t->W [i], t->d [i], root, p);
+      cm_pari_oneroot (root, fp, p, verbose);
+      mpzx_clear (fp);
    }
 
    if (verbose) {
@@ -293,15 +366,23 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    mpz_t *j;
    mpz_t root, d_mpz, tmp, tmp2, f24;
    cm_timer clock;
+   bool tower;
 
    cm_class_init (&c, d, inv, pari, verbose);
-   if (!readwrite || !cm_class_read (c))
-      /* Here one could also enable the tower decomposition. */
-      cm_class_compute_minpoly (c, true, false, readwrite, false, verbose);
+   tower = (c.field == CM_FIELD_REAL);
+   if (!readwrite || !cm_class_read (c)) {
+      if (tower)
+         cm_class_compute_minpoly (c, false, true, readwrite, false, verbose);
+      else
+         cm_class_compute_minpoly (c, true, false, readwrite, false, verbose);
+   }
 
    cm_timer_start (clock);
    mpz_init (root);
-   get_root_mod_P (c, root, P, verbose);
+   if (tower)
+      get_tower_root_mod_p (root, c.tower, P, verbose);
+   else
+      get_root_mod_P (c, root, P, verbose);
    switch (inv)
    {
       case CM_INVARIANT_J:
