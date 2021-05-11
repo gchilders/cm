@@ -23,9 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #include "cm-impl.h"
 
-static GEN mpz_get_Z (mpz_t z);
-static void Z_get_mpz (mpz_t z, GEN x);
-static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p);
+static GEN mpz_get_Z (mpz_srcptr z);
+static void Z_get_mpz (mpz_ptr z, GEN x);
+static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -33,7 +33,7 @@ static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p);
 /*                                                                           */
 /*****************************************************************************/
 
-static GEN mpz_get_Z (mpz_t z)
+static GEN mpz_get_Z (mpz_srcptr z)
    /* returns the GEN of type t_INT corresponding to z */
 
 {
@@ -51,7 +51,7 @@ static GEN mpz_get_Z (mpz_t z)
 
 /*****************************************************************************/
 
-static void Z_get_mpz (mpz_t z, GEN x)
+static void Z_get_mpz (mpz_ptr z, GEN x)
    /* returns via z the gmp integer corresponding to the t_INT x */
 
 {
@@ -103,10 +103,9 @@ static int_cl_t Z_get_icl (GEN x)
 
 /*****************************************************************************/
 
-static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p)
-   /* returns a GEN of type t_POL over t_INT corresponding to the polynomial */
-   /* f of degree deg, reduced modulo p                                      */
-   /* The zero polynomial is characterised by a degree equal to -1.          */
+static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p)
+   /* Return a GEN of type t_POL over t_INT corresponding to the polynomial
+      f, reduced modulo p. */
 
 {
    int i;
@@ -115,14 +114,14 @@ static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p)
 
    mpz_init (tmp);
 
-   res = cgetg (deg + 3, t_POL);
+   res = cgetg (f->deg + 3, t_POL);
    setvarn (res, 0);
-   if (deg == -1)
+   if (f->deg == -1)
       setsigne (res, 0);
    else {
       setsigne (res, 1);
-      for (i = 0; i <= deg; i++) {
-         mpz_mod (tmp, f [i], p);
+      for (i = 0; i <= f->deg; i++) {
+         mpz_mod (tmp, f->coeff [i], p);
          gel (res, i+2) = mpz_get_Z (tmp);
       }
    }
@@ -139,7 +138,7 @@ static GEN mpzx_get_FpX (mpz_t *f, int deg, mpz_t p)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose)
+void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p, bool verbose)
    /* Find a root of the polynomial f over the prime field of
       characteristic p, assuming that f splits completely, and return it
       in the variable of the same name. */
@@ -156,7 +155,7 @@ void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose)
       printf ("--- Root finding in degree %i\n", f->deg);
 
    pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f->coeff, f->deg, p);
+   fp = mpzx_get_FpX (f, p);
 
    rootp = FpX_oneroot_split (fp, pp);
    Z_get_mpz (root, rootp);
@@ -170,7 +169,7 @@ void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose)
 
 /*****************************************************************************/
 
-mpz_t* cm_pari_find_roots (int *no, mpzx_t f, mpz_t p)
+mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p)
    /* Computes all the roots (without multiplicities) of the polynomial f
       modulo p. The number of found roots is returned in no. */
 
@@ -183,7 +182,7 @@ mpz_t* cm_pari_find_roots (int *no, mpzx_t f, mpz_t p)
    av = avma;
 
    pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f->coeff, f->deg, p);
+   fp = mpzx_get_FpX (f, p);
    rootsp = FpX_roots (fp, pp);
    *no = lg (rootsp) - 1;
    res = (mpz_t*) malloc ((*no) * sizeof (mpz_t));

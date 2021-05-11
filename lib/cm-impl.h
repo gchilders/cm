@@ -91,8 +91,9 @@ extern void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1);
 extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
 
 /* functions depending on PARI */
-extern void cm_pari_oneroot (mpz_t root, mpzx_ptr f, mpz_t p, bool verbose);
-extern mpz_t* cm_pari_find_roots (int *no, mpzx_t f, mpz_t p);
+extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
+   bool verbose);
+extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
 
 /* functions for integral polynomials */
