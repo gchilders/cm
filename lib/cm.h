@@ -211,11 +211,6 @@ extern void cm_nt_factor (long int d, unsigned long int *factors,
 extern void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p);
 extern void cm_nt_mpz_tonelli (mpz_ptr root, const long int a, mpz_srcptr p);
 
-extern void cm_nt_elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
-   mpz_t m, mpz_t a, mpz_t p);
-extern void cm_nt_elliptic_curve_random (mpz_t P_x, mpz_t P_y,
-   mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p);
-
 /* functions for rounding floating point numbers to rational or quadratic
    integers */
 extern bool cm_nt_fget_z (mpz_t out, ftype in);

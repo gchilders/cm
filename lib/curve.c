@@ -2,7 +2,7 @@
 
 curve.c - code for computing cm curves
 
-Copyright (C) 2009, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -23,10 +23,207 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static void elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
+   mpz_t a, mpz_t p);
+static void elliptic_curve_add (mpz_t P_x,  mpz_t P_y, bool *P_infty,
+   mpz_t Q_x, mpz_t Q_y, const bool Q_infty, mpz_t a, mpz_t p);
+static void elliptic_curve_multiply (mpz_t P_x, mpz_t P_y,
+   bool *P_infty, mpz_t m, mpz_t a, mpz_t p);
+static void elliptic_curve_random (mpz_t P_x, mpz_t P_y,
+   mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p);
 static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
    mpz_t p, bool verbose);
 static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
       int_cl_t d, int fieldsize, bool verbose);
+
+/*****************************************************************************/
+
+static void elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
+   mpz_t a, mpz_t p)
+   /* Replace P by 2P on the elliptic curve given by a over the prime field
+      of characteristic p; b is implicit since it is assumed that the point
+      lies on the curve.
+      P_x and P_y are the X- and Y-coordinates of the point, respectively,
+      P_infty is true if the point is the point at infinity. In this case,
+      the values of P_x and P_y are not defined. */
+{
+   mpz_t factor, x_local, tmp, tmp2;
+
+   mpz_init (factor);
+   mpz_init (x_local);
+   mpz_init (tmp);
+   mpz_init (tmp2);
+
+   if (!(*P_infty)) {
+      /* There is nothing to do when P is already infinity */
+      if (mpz_cmp_ui (P_y, 0ul) == 0)
+         *P_infty = true;
+      else {
+         /* factor = (3*P_x^2 + a) / 2*P_y */
+         mpz_pow_ui (tmp, P_x, 2ul);
+         mpz_mod (tmp, tmp, p);
+         mpz_mul_ui (factor, tmp, 3ul);
+         mpz_add (factor, factor, a);
+         mpz_mul_2exp (tmp, P_y, 1ul);
+         mpz_invert (tmp2, tmp, p);
+         mpz_mul (tmp, factor, tmp2);
+         mpz_mod (factor, tmp, p);
+         /* P_x = factor^2 - 2 P_x; save P_x */
+         mpz_set (x_local, P_x);
+         mpz_pow_ui (P_x, factor, 2ul);
+         mpz_submul_ui (P_x, x_local, 2ul);
+         mpz_mod (P_x, P_x, p);
+         /* P_y = factor * (old x - new x) - P_y */
+         mpz_sub (tmp, x_local, P_x);
+         mpz_mul (tmp2, factor, tmp);
+         mpz_sub (P_y, tmp2, P_y);
+         mpz_mod (P_y, P_y, p);
+      }
+   }
+
+   mpz_clear (factor);
+   mpz_clear (x_local);
+   mpz_clear (tmp);
+   mpz_clear (tmp2);
+}
+
+/*****************************************************************************/
+
+static void elliptic_curve_add (mpz_t P_x,  mpz_t P_y, bool *P_infty,
+   mpz_t Q_x, mpz_t Q_y, const bool Q_infty, mpz_t a, mpz_t p)
+   /* Replace P by P+Q on the elliptic curve given by a and the implicit b
+      over the prime field of characteristic p. */
+{
+   mpz_t factor, x_local, tmp, tmp2;
+
+   mpz_init (factor);
+   mpz_init (x_local);
+   mpz_init (tmp);
+   mpz_init (tmp2);
+
+   if (!Q_infty) {
+      if (*P_infty) {
+         mpz_set (P_x, Q_x);
+         mpz_set (P_y, Q_y);
+         *P_infty = false;
+      }
+      else if (mpz_cmp (P_x, Q_x) == 0) {
+         if (mpz_cmp (P_y, Q_y) == 0)
+            elliptic_curve_double (P_x, P_y, P_infty, a, p);
+         else
+            *P_infty = true;
+      }
+      else {
+         /* factor = Delta y / Delta x */
+         mpz_sub (tmp, Q_x, P_x);
+         mpz_invert (tmp2, tmp, p);
+         mpz_sub (tmp, Q_y, P_y);
+         mpz_mul (factor, tmp, tmp2);
+         mpz_mod (factor, factor, p);
+         /* P_x = factor^2 - (P_x + Q_x), keep a copy of P_x */
+         mpz_set (x_local, P_x);
+         mpz_pow_ui (tmp, factor, 2ul);
+         mpz_add (tmp2, P_x, Q_x);
+         mpz_sub (P_x, tmp, tmp2);
+         mpz_mod (P_x, P_x, p);
+         /* P_y = factor * (old P_x - new x) - P_y */
+         mpz_sub (tmp, x_local, P_x);
+         mpz_mul (tmp2, factor, tmp);
+         mpz_sub (P_y, tmp2, P_y);
+         mpz_mod (P_y, P_y, p);
+      }
+   }
+
+   mpz_clear (factor);
+   mpz_clear (x_local);
+   mpz_clear (tmp);
+   mpz_clear (tmp2);
+}
+
+/*****************************************************************************/
+
+static void elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
+   mpz_t m, mpz_t a, mpz_t p)
+   /* Replace P by mP on the elliptic curve given by a and the implicit b
+      over the prime field of characteristic p. */
+{
+   mpz_t Q_x, Q_y, m_local, m_new;
+   bool  Q_infty = true;
+      /* m P is stored in Q; we use a right to left binary exponentiation    */
+      /* scheme with the invariant Q + m P = const.                          */
+
+   mpz_init (Q_x);
+   mpz_init (Q_y);
+   mpz_init (m_local);
+   mpz_init (m_new);
+   *P_infty = false;
+
+   mpz_set (m_local, m);
+   if (mpz_cmp_ui (m_local, 0ul) == 0)
+      *P_infty = true;
+   else
+   {
+      if (mpz_cmp_ui (m_local, 0ul) < 0)
+      {
+         mpz_neg (m_local, m_local);
+         mpz_neg (P_y, P_y);
+      }
+      while (mpz_cmp_ui (m_local, 0ul) > 0)
+      {
+         while (mpz_tdiv_q_ui (m_new, m_local, 2ul) == 0)
+         {
+            mpz_set (m_local, m_new);
+            elliptic_curve_double (P_x, P_y, P_infty, a, p);
+         }
+         mpz_sub_ui (m_local, m_local, 1ul);
+         elliptic_curve_add (Q_x, Q_y, &Q_infty, P_x, P_y, *P_infty, a, p);
+      }
+      /* copy the result */
+      mpz_set (P_x, Q_x);
+      mpz_set (P_y, Q_y);
+      *P_infty = Q_infty;
+   }
+
+   mpz_clear (Q_x);
+   mpz_clear (Q_y);
+   mpz_clear (m_local);
+   mpz_clear (m_new);
+}
+
+/*****************************************************************************/
+
+static void elliptic_curve_random (mpz_t P_x, mpz_t P_y,
+   mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p)
+   /* Create a point on the elliptic curve given by a and b over the prime
+      field of characteristic p and multiply it by the cofactor until
+      the result is different from infinity. If the curve order is cofactor
+      times a prime, this results in a point of order this prime.
+      The point is not really random, since successive X-coordinates from
+      1 on are tested. */
+{
+   mpz_t  tmp;
+   long unsigned int P_x_long = 0;
+   bool P_infty = true;
+
+   mpz_init (tmp);
+   while (P_infty) {
+      P_x_long++;
+      /* P_y = P_x^3 + a P_x + b */
+      mpz_mul_ui (P_y, a, P_x_long);
+      mpz_add (P_y, P_y, b);
+      mpz_add_ui (P_y, P_y, P_x_long * P_x_long * P_x_long);
+      mpz_mod (P_y, P_y, p);
+      /* try to compute the square root of P_y */
+      if (mpz_jacobi (P_y, p) != -1) {
+         mpz_set_ui (P_x, P_x_long);
+         cm_nt_mpz_tonelli_z (P_y, P_y, p);
+         /* get rid of the cofactor */
+         P_infty = false;
+         elliptic_curve_multiply (P_x, P_y, &P_infty, cofactor, a, p);
+      }
+   }
+   mpz_clear (tmp);
+}
 
 /*****************************************************************************/
 
@@ -309,11 +506,11 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
          mpz_mod (a, a, p);
       }
 
-      cm_nt_elliptic_curve_random (P_x, P_y, c, a, b, p);
+      elliptic_curve_random (P_x, P_y, c, a, b, p);
       mpz_set (x, P_x);
       mpz_set (y, P_y);
       P_infty = false;
-      cm_nt_elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
+      elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
       if (P_infty) {
          ok = true;
          count++;
@@ -326,11 +523,11 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
          mpz_mul (b, b, tmp);
          mpz_mul (b, b, nonsquare);
          mpz_mod (b, b, p);
-         cm_nt_elliptic_curve_random (P_x, P_y, c, a, b, p);
+         elliptic_curve_random (P_x, P_y, c, a, b, p);
          mpz_set (x, P_x);
          mpz_set (y, P_y);
          P_infty = false;
-         cm_nt_elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
+         elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
          if (P_infty) {
             ok = true;
             count++;
