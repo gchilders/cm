@@ -793,7 +793,7 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
    bool disk, bool print, bool verbose)
    /* At least one of classpol and tower needs to be set to true:
-      classpol insicates whether the (absolute) class polynomial should be
+      classpol indicates whether the (absolute) class polynomial should be
       computed; tower indicates whether the class polynomial should be
       decomposed as a Galois tower.
       disk indicates whether the result should be written to disk.
@@ -921,7 +921,9 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
    if (verbose) {
       printf ("--- Total time for minimal polynomial: %.1f\n",
             cm_timer_get (clock_global));
-      printf ("Height of minimal polynomial: %d\n", class_get_height (c));
+      if (classpol)
+         printf ("Height of minimal polynomial: %d\n",
+            class_get_height (c));
    }
    if (disk && ok)
       ok &= cm_class_write (c);
