@@ -91,7 +91,7 @@ void cm_file_gzclose (gzFile f)
 
 /*****************************************************************************/
 
-bool cm_class_write (cm_class_srcptr c)
+bool cm_class_write (cm_class_srcptr c, cm_param_srcptr param)
    /* Write the class polynomial to the file
       CM_CLASS_DATADIR + "/cp_" + d + "_" + invariant + "_" + paramstr
          + ".dat".
@@ -102,19 +102,19 @@ bool cm_class_write (cm_class_srcptr c)
    FILE *f;
    int i;
 
-   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c->cl.d,
-            c->invariant, c->paramstr);
+   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -param->d,
+            param->invariant, param->str);
 
    if (!cm_file_open_write (&f, filename))
       return false;
 
-   fprintf (f, "%"PRIicl"\n", -c->cl.d);
-   fprintf (f, "%c\n", c->invariant);
-   fprintf (f, "%s\n", c->paramstr);
+   fprintf (f, "%"PRIicl"\n", -param->d);
+   fprintf (f, "%c\n", param->invariant);
+   fprintf (f, "%s\n", param->str);
    fprintf (f, "%i\n", c->minpoly->deg);
    for (i = c->minpoly->deg; i >= 0; i--) {
       mpz_out_str (f, 10, c->minpoly->coeff [i]);
-      if (c->field == CM_FIELD_COMPLEX) {
+      if (param->field == CM_FIELD_COMPLEX) {
          fprintf (f, " ");
          mpz_out_str (f, 10, c->minpoly_complex->coeff [i]);
       }
@@ -128,7 +128,7 @@ bool cm_class_write (cm_class_srcptr c)
 
 /*****************************************************************************/
 
-bool cm_class_read (cm_class_ptr c)
+bool cm_class_read (cm_class_ptr c, cm_param_srcptr param)
    /* Read the class polynomial from a file written by cm_class_write.
       If an error occurs, the return value is false. */
 
@@ -140,34 +140,36 @@ bool cm_class_read (cm_class_ptr c)
    char pars [255];
    int_cl_t disc;
 
-   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c->cl.d,
-            c->invariant, c->paramstr);
+   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -param->d,
+            param->invariant, param->str);
 
    if (!cm_file_open_read (&f, filename))
       return false;
 
    if (!fscanf (f, "%"SCNicl"\n", &disc))
       return false;
-   if (-disc != c->cl.d) {
+   if (-disc != param->d) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** discriminant %"PRIicl" instead of %"PRIicl"\n", -disc, c->cl.d);
+      printf ("*** discriminant %"PRIicl" instead of %"PRIicl"\n",
+         -disc, param->d);
       return false;
    }
    if (!fscanf (f, "%c", &inv))
       return false;
-   if (inv != c->invariant) {
+   if (inv != param->invariant) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** invariant '%c' instead of '%c'\n", inv, c->invariant);
+      printf ("*** invariant '%c' instead of '%c'\n",
+         inv, param->invariant);
       return false;
    }
    if (!fscanf (f, "%254s", pars))
       return false;
-   if (strcmp (pars, c->paramstr)) {
+   if (strcmp (pars, param->str)) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** parameter %s instead of %s\n", pars, c->paramstr);
+      printf ("*** parameter %s instead of %s\n", pars, param->str);
       return false;
    }
    if (!fscanf (f, "%i", &i))
@@ -181,7 +183,7 @@ bool cm_class_read (cm_class_ptr c)
 
    for (i = c->minpoly->deg; i >= 0; i--) {
       mpz_inp_str (c->minpoly->coeff [i], f, 10);
-      if (c->field == CM_FIELD_COMPLEX)
+      if (param->field == CM_FIELD_COMPLEX)
          mpz_inp_str (c->minpoly_complex->coeff [i], f, 10);
    }
 

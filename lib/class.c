@@ -23,9 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static double class_get_valuation (cm_class_srcptr c);
+static double class_get_valuation (cm_param_srcptr param);
    /* return some value related to heights and depending on the function     */
-static int class_get_height (cm_class_srcptr c);
+static int class_get_height (cm_param_srcptr param, cm_class_srcptr c);
    /* in the real case, returns the binary length of the largest             */
    /* coefficient of the minimal polynomial                                  */
    /* in the complex case, returns the binary length of the largest          */
@@ -34,15 +34,18 @@ static int class_get_height (cm_class_srcptr c);
 static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    int_cl_t d);
    /* changes Q to be compatible with the N-system condition */
-static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
-   bool verbose);
+static void compute_nsystem (cm_form_t *nsystem, int *conj,
+   cm_class_srcptr c, cm_param_srcptr param, bool verbose);
    /* computes and returns an N-system of forms, together with information
       on the embeddings in the case of real class polynomials in conj */
-static fprec_t compute_precision (cm_class_srcptr c, bool verbose);
+static fprec_t compute_precision (cm_param_srcptr param, cm_class_srcptr c,
+   bool verbose);
 
-static void eval (cm_class_srcptr c, cm_modclass_t mc, ctype rop, cm_form_t Q);
+static void eval (cm_param_srcptr c, cm_modclass_t mc, ctype rop,
+   cm_form_t Q);
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
-   int *conj, cm_class_srcptr c, cm_modclass_t mc, bool verbose);
+   int *conj, cm_param_srcptr param, cm_class_srcptr c, cm_modclass_t mc,
+   bool verbose);
 
 
 /*****************************************************************************/
@@ -55,21 +58,12 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
    bool verbose)
 
 {
-   int i;
    int one [] = {1};
 
-   c->invariant = param->invariant;
    c->dfund = cm_classgroup_fundamental_discriminant (param->d);
-   for (i = 0; i < 6; i++)
-      c->p [i] = param->p [i];
-   c->e = param->e;
-   c->s = param->s;
-   strncpy (c->paramstr, param->str, 255);
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
-               param->d, c->invariant, c->paramstr);
-
-   c->field = param->field;
+               param->d, param->invariant, param->str);
 
    c->pari = pari;
    if (pari) {
@@ -80,29 +74,29 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
 
    cm_classgroup_init (&(c->cl), param->d, verbose);
    mpzx_init (c->minpoly, c->cl.h);
-   if (c->field == CM_FIELD_COMPLEX)
+   if (param->field == CM_FIELD_COMPLEX)
       mpzx_init (c->minpoly_complex, c->cl.h);
 
    if (c->cl.h == 1) {
       mpzx_tower_init (c->tower, 1, one);
-      if (c->field == CM_FIELD_COMPLEX)
+      if (param->field == CM_FIELD_COMPLEX)
          mpzx_tower_init (c->tower_complex, 1, one);
    }
    else {
       mpzx_tower_init (c->tower, c->cl.levels, c->cl.deg);
-      if (c->field == CM_FIELD_COMPLEX)
+      if (param->field == CM_FIELD_COMPLEX)
          mpzx_tower_init (c->tower_complex, c->cl.levels, c->cl.deg);
    }
 }
 
 /*****************************************************************************/
 
-void cm_class_clear (cm_class_ptr c)
+void cm_class_clear (cm_class_ptr c, cm_param_srcptr param)
 
 {
    mpzx_clear (c->minpoly);
    mpzx_tower_clear (c->tower);
-   if (c->field == CM_FIELD_COMPLEX) {
+   if (param->field == CM_FIELD_COMPLEX) {
       mpzx_tower_clear (c->tower_complex);
    }
 
@@ -121,13 +115,13 @@ void cm_class_clear (cm_class_ptr c)
 /*                                                                           */
 /*****************************************************************************/
 
-static double class_get_valuation (cm_class_srcptr c)
-   /* returns the (negative) order of the modular function at infinity       */
+static double class_get_valuation (cm_param_srcptr param)
+   /* Return the (negative) order of the modular function at infinity. */
 
 {
    double result;
 
-   switch (c->invariant) {
+   switch (param->invariant) {
    case CM_INVARIANT_J:
       result = 1;
       break;
@@ -138,11 +132,11 @@ static double class_get_valuation (cm_class_srcptr c)
       result = 0.5;
       break;
    case CM_INVARIANT_ATKIN:
-      if (c->p [0] == 47)
+      if (param->p [0] == 47)
          result = 1.0 / 24;
-      else if (c->p [0] == 59)
+      else if (param->p [0] == 59)
          result = 1.0 / 30;
-      else if (c->p [0] == 71)
+      else if (param->p [0] == 71)
          result = 1.0 / 36;
       else /* 131 */
          result = 1.0 / 33;
@@ -154,9 +148,9 @@ static double class_get_valuation (cm_class_srcptr c)
    case CM_INVARIANT_MULTIETA:
    {
       int num = 1, den = 1, i;
-      for (i = 0; c->p [i] != 0; i++) {
-         num *= c->p [i] - 1;
-         den *= c->p [i] + 1;
+      for (i = 0; param->p [i] != 0; i++) {
+         num *= param->p [i] - 1;
+         den *= param->p [i] + 1;
       }
       if (i == 2)
          result = num / (double) (12 * den);
@@ -167,7 +161,7 @@ static double class_get_valuation (cm_class_srcptr c)
    }
       break;
    case CM_INVARIANT_SIMPLEETA:
-      result = (c->p [0] - 1) / (double) (24 * (c->p [0] + 1));
+      result = (param->p [0] - 1) / (double) (24 * (param->p [0] + 1));
       break;
    default: /* should not occur */
       printf ("class_get_valuation called for unknown class ");
@@ -175,14 +169,14 @@ static double class_get_valuation (cm_class_srcptr c)
       exit (1);
    }
 
-   result *= c->e;
+   result *= param->e;
 
    return result;
 }
 
 /*****************************************************************************/
 
-static int class_get_height (cm_class_srcptr c)
+static int class_get_height (cm_param_srcptr param, cm_class_srcptr c)
    /* In the real case, return the binary length of the largest coefficient
       of the minimal polynomial; in the complex case, return the binary
       length of the largest coefficient with respect to the decomposition
@@ -196,7 +190,7 @@ static int class_get_height (cm_class_srcptr c)
       if (cand > height)
          height = cand;
    }
-   if (c->field == CM_FIELD_COMPLEX)
+   if (param->field == CM_FIELD_COMPLEX)
       for (i = 0; i < c->minpoly_complex->deg; i++) {
          cand = mpz_sizeinbase (c->minpoly_complex->coeff [i], 2);
          if (cand > height)
@@ -255,7 +249,7 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
 /*****************************************************************************/
 
 static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
-   bool verbose)
+   cm_param_srcptr param, bool verbose)
    /* Compute an N-system, or to be more precise, some part of an N-system
       that yields all different conjugates up to complex conjugation;
       this information is passed in conj as follows:
@@ -263,6 +257,10 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
       If the class polynomial is complex, then conj [i] = i. */
 
 {
+   int_cl_t d = param->d;
+   const int *p = param->p;
+   int e = param->e;
+   int s = param->s;
    int_cl_t b0, N;
    cm_form_t neutral, inverse;
    int h1, h2;
@@ -270,18 +268,19 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
 
    /* Compute the targeted b0 for the N-system and (in the real case) the
       neutral form. */
-   if (c->invariant == CM_INVARIANT_SIMPLEETA) {
+   if (param->invariant == CM_INVARIANT_SIMPLEETA) {
       bool ok = false;
 
-      if (c->p[0] != 4) {
-         b0 = c->cl.d % 2;
+      if (p[0] != 4) {
+         b0 = d % 2;
          while (!ok) {
             b0 += 2;
-            if ((b0*b0 - c->cl.d) % (4*c->p[0]) != 0)
+            if ((b0*b0 - d) % (4*p[0]) != 0)
                ok = false;
-            else if (c->p[0] != 2 && (c->s/c->e) % 2 == 0 && (b0 - 1) % 4 != 0)
+            else if (p[0] != 2 && (s/e) % 2 == 0
+                     && (b0 - 1) % 4 != 0)
                ok = false;
-            else if (c->p[0] != 2 && (c->s/c->e) % 3 == 0 && b0 % 3 != 0)
+            else if (p[0] != 2 && (s/e) % 3 == 0 && b0 % 3 != 0)
                ok = false;
             else
                ok = true;
@@ -291,27 +290,27 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
         b0 = (int_cl_t) -7;
       }
       if (verbose)
-         printf ("N %i\ns %i\ne %i\nb0 %"PRIicl"\n", c->p[0], c->s, c->e, b0);
-      N = c->p[0] * c->s / c->e;
+         printf ("N %i\ns %i\ne %i\nb0 %"PRIicl"\n", p[0], s, e, b0);
+      N = p[0] * s / e;
    }
 
    else {
       neutral.a = 1;
-      if (c->cl.d % 2 == 0)
+      if (d % 2 == 0)
          neutral.b = 0;
       else
          neutral.b = 1;
 
-      switch (c->invariant) {
+      switch (param->invariant) {
          case CM_INVARIANT_J:
-            b0 = c->cl.d % 2;
+            b0 = d % 2;
             /* An even N makes c even if 2 is split so that during the
                evaluation of eta(z/2) for f1 all forms can be taken from
                the precomputed ones. */
             N = 2;
             break;
          case CM_INVARIANT_GAMMA2:
-            b0 = 3 * (c->cl.d % 2);
+            b0 = 3 * (d % 2);
             /* Use an even N as for j. */
             N = 6;
             break;
@@ -320,16 +319,16 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
             N = 2;
             break;
          case CM_INVARIANT_ATKIN:
-            N = c->p [0];
-            if (c->cl.d % 2 == 0)
+            N = p [0];
+            if (d % 2 == 0)
                b0 = 0;
             else
                b0 = 1;
-            while ((b0*b0 - c->cl.d) % N != 0)
+            while ((b0*b0 - d) % N != 0)
                b0 += 2;
             neutral.a = N;
             neutral.b = -b0;
-            cm_classgroup_reduce (&neutral, c->cl.d);
+            cm_classgroup_reduce (&neutral, d);
             break;
          case CM_INVARIANT_WEBER:
             neutral.a = 1;
@@ -342,24 +341,24 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
          {
             int_cl_t C;
             N = 1;
-            for (i = 0; c->p [i] != 0; i++)
-               N *= c->p [i];
-            if (c->cl.d % 2 == 0)
+            for (i = 0; p [i] != 0; i++)
+               N *= p [i];
+            if (d % 2 == 0)
                b0 = 2;
             else
                b0 = 1;
             while (true) {
-               C = (b0*b0 - c->cl.d) / 4;
+               C = (b0*b0 - d) / 4;
                if (C % N == 0 && cm_nt_gcd (C / N, N) == 1)
                   break;
                b0 += 2;
             }
             neutral.a = N;
             neutral.b = -b0;
-            cm_classgroup_reduce (&neutral, c->cl.d);
-            /* The neutral form corresponds to the product of the primes,    */
-            /* but the n-system needs to take s/e into account               */
-            N *= c->s / c->e;
+            cm_classgroup_reduce (&neutral, d);
+            /* The neutral form corresponds to the product of the primes,
+               but the n-system needs to take s/e into account. */
+            N *= s / e;
             break;
          }
          default: /* should not occur */
@@ -375,12 +374,12 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
 
    for (i = 0; i < c->cl.h; i++)
       /* Pair forms yielding complex conjugate roots. */
-      if (c->field == CM_FIELD_REAL) {
+      if (param->field == CM_FIELD_REAL) {
          if (conj [i] == -1) {
             /* form did not yet occur in a pair; look for its inverse
                with respect to neutral_class */
             nsystem [i].b = -nsystem [i].b;
-            cm_classgroup_compose (&inverse, neutral, nsystem [i], c->cl.d);
+            cm_classgroup_compose (&inverse, neutral, nsystem [i], d);
             nsystem [i].b = -nsystem [i].b;
             j = 0;
             /* So far, nsystem still contains the reduced forms, so we may look
@@ -391,13 +390,13 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
             conj [j] = i;
          }
       }
-      else /* c->field == CM_FIELD_COMPLEX */
+      else /* param->field == CM_FIELD_COMPLEX */
          conj [i] = i;
 
    /* Now modify the entries of nsystem. */
    for (i = 0; i < c->cl.h; i++)
       if (conj [i] >= i)
-         correct_nsystem_entry (&(nsystem [i]), N, b0, c->cl.d);
+         correct_nsystem_entry (&(nsystem [i]), N, b0, d);
 
    /* Compute h1 and h2, only for printing. */
    if (verbose) {
@@ -414,13 +413,14 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
 
 /*****************************************************************************/
 
-static fprec_t compute_precision (cm_class_srcptr c, bool verbose) {
-   /* Returns an approximation of the required precision. */
+static fprec_t compute_precision (cm_param_srcptr param, cm_class_srcptr c,
+   bool verbose) {
+   /* Return an approximation of the required precision. */
 
    const double C = 2114.567;
    const double pisqrtd
-      = 3.14159265358979323846 * sqrt ((double) (-c->cl.d));
-   const double cf = class_get_valuation (c);
+      = 3.14159265358979323846 * sqrt ((double) (-param->d));
+   const double cf = class_get_valuation (param);
    double x, binom = 1.0, prec = 0, M;
    int_cl_t amax;
    int i, m;
@@ -444,10 +444,10 @@ static fprec_t compute_precision (cm_class_srcptr c, bool verbose) {
       binom *= (double) (c->cl.h - 1 + i) / i / M;
    prec = ceil ((prec + log (binom)) / log (2.0) * cf);
 
-   if (c->invariant == CM_INVARIANT_GAMMA3) {
+   if (param->invariant == CM_INVARIANT_GAMMA3) {
       /* Increase the height estimate by the bit size of sqrt (|D|)^h in
          the constant coefficient.*/
-      prec += (int) (log ((double) (-c->cl.d)) / log (2.0) / 2.0 * c->cl.h);
+      prec += (int) (log ((double) (-param->d)) / log (2.0) / 2.0 * c->cl.h);
       if (verbose)
          printf ("Corrected bound for gamma3:     %ld\n", (long int) prec);
    }
@@ -462,10 +462,11 @@ static fprec_t compute_precision (cm_class_srcptr c, bool verbose) {
 }
 /*****************************************************************************/
 
-static void eval (cm_class_srcptr c, cm_modclass_t mc, ctype rop, cm_form_t Q)
+static void eval (cm_param_srcptr param, cm_modclass_t mc, ctype rop,
+   cm_form_t Q)
 
 {
-   switch (c->invariant) {
+   switch (param->invariant) {
    case CM_INVARIANT_J:
       cm_modclass_j_eval_quad (mc, rop, Q.a, Q.b);
       break;
@@ -476,45 +477,47 @@ static void eval (cm_class_srcptr c, cm_modclass_t mc, ctype rop, cm_form_t Q)
       cm_modclass_gamma3_eval_quad (mc, rop, Q.a, Q.b);
       break;
    case CM_INVARIANT_ATKIN:
-      cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b, c->p [0]);
+      cm_modclass_atkinhecke_level_eval_quad (mc, rop, Q.a, Q.b,
+         param->p [0]);
       break;
    case CM_INVARIANT_SIMPLEETA:
    case CM_INVARIANT_DOUBLEETA:
    case CM_INVARIANT_MULTIETA:
-         cm_modclass_multieta_eval_quad (mc, rop, Q.a, Q.b, c->p, c->e);
+         cm_modclass_multieta_eval_quad (mc, rop, Q.a, Q.b,
+            param->p, param->e);
       break;
    case CM_INVARIANT_WEBER:
-      if (c->p [0] == 1) {
+      if (param->p [0] == 1) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 2);
          cmul_fr (rop, rop, mc.sqrt2_over2);
       }
-      else if (c->p [0] == 3)
+      else if (param->p [0] == 3)
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 1);
-      else if (c->p [0] == 5) {
+      else if (param->p [0] == 5) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 2);
          csqr (rop, rop);
          cdiv_ui (rop, rop, 2ul);
       }
-      else if (c->p [0] == 7) {
+      else if (param->p [0] == 7) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 1);
          cmul_fr (rop, rop, mc.sqrt2_over2);
       }
-      else if (c->p [0] == 2 || c->p [0] == 6) {
+      else if (param->p [0] == 2 || param->p [0] == 6) {
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b, 1);
          csqr (rop, rop);
          cmul_fr (rop, rop, mc.sqrt2_over2);
       }
       else {
-         /* c->p [0] == 4 */
+         /* param->p [0] == 4 */
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b, 1);
          cpow_ui (rop, rop, 4ul);
          cmul_fr (rop, rop, mc.sqrt2_over4);
       }
 
-      if (c->cl.d % 3 == 0)
+      if (param->d % 3 == 0)
          cpow_ui (rop, rop, 3ul);
 
-      if (c->p [0] != 3 && c->p [0] != 5)
+      if (param->p [0] != 3 && param->p [0] != 5)
          if (cm_classgroup_kronecker ((int_cl_t) 2, Q.a) == -1)
             cneg (rop, rop);
 
@@ -528,15 +531,16 @@ static void eval (cm_class_srcptr c, cm_modclass_t mc, ctype rop, cm_form_t Q)
 /*****************************************************************************/
 
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
-   int *conj, cm_class_srcptr c, cm_modclass_t mc, bool verbose)
-   /* computes the conjugates of the singular value over Q */
+   int *conj, cm_param_srcptr param, cm_class_srcptr c, cm_modclass_t mc,
+   bool verbose)
+   /* Compute the conjugates of the singular value over Q. */
 
 {
    int i;
 
    for (i = 0; i < c->cl.h; i++) {
       if (conj [i] >= i)
-         eval (c, mc, conjugate [i], nsystem [i]);
+         eval (param, mc, conjugate [i], nsystem [i]);
       if (verbose && i % 200 == 0) {
          printf (".");
          fflush (stdout);
@@ -548,8 +552,8 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol, bool tower,
-   bool disk, bool print, bool verbose)
+bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
+   bool classpol, bool tower, bool disk, bool print, bool verbose)
    /* At least one of classpol and tower needs to be set to true:
       classpol indicates whether the (absolute) class polynomial should be
       computed; tower indicates whether the class polynomial should be
@@ -582,11 +586,11 @@ bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol, bool tower,
    nsystem = (cm_form_t *) malloc (c->cl.h * sizeof (cm_form_t));
    conj = (int *) malloc (c->cl.h * sizeof (int));
    cm_timer_start (clock_local);
-   compute_nsystem (nsystem, conj, c, verbose);
+   compute_nsystem (nsystem, conj, c, param, verbose);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
-   prec = compute_precision (c, verbose);
+   prec = compute_precision (param, c, verbose);
 
    conjugate = (ctype *) malloc (c->cl.h * sizeof (ctype));
    for (i = 0; i < c->cl.h; i++)
@@ -594,7 +598,7 @@ bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol, bool tower,
          cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
    cm_modclass_init (&mc, c->cl, prec, verbose);
-   compute_conjugates (conjugate, nsystem, conj, c, mc, verbose);
+   compute_conjugates (conjugate, nsystem, conj, param, c, mc, verbose);
    cm_modclass_clear (&mc);
    cm_timer_stop (clock_local);
    if (verbose)
@@ -602,7 +606,7 @@ bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol, bool tower,
 
    if (classpol) {
       cm_timer_start (clock_local);
-      if (c->field == CM_FIELD_REAL) {
+      if (param->field == CM_FIELD_REAL) {
          mpfrx_init (mpol, c->minpoly->deg + 1, prec);
          mpfrcx_reconstruct_from_roots (mpol, conjugate, conj,
             c->minpoly->deg);
@@ -635,7 +639,7 @@ bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol, bool tower,
 
    if (tower && ok) {
       cm_timer_start (clock_local);
-      if (c->field == CM_FIELD_REAL) {
+      if (param->field == CM_FIELD_REAL) {
          mpfrx_tower_init (t, c->tower->levels, c->tower->d, prec);
          mpfrcx_tower_decomposition (t, conjugate, conj);
          /* There should be a possibility to save the field tower on disk. */
@@ -674,10 +678,10 @@ bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol, bool tower,
             cm_timer_get (clock_global));
       if (classpol)
          printf ("Height of minimal polynomial: %d\n",
-            class_get_height (c));
+            class_get_height (param, c));
    }
    if (disk && ok)
-      ok &= cm_class_write (c);
+      ok &= cm_class_write (c, param);
 
    return ok;
 }

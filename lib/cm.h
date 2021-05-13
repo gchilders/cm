@@ -194,21 +194,9 @@ typedef const __cm_param_struct *cm_param_srcptr;
 /* Type for class polynomials and class field towers. */
 
 typedef struct {
-   char invariant;
-      /* a constant describing which invariant is actually used                 */
-   int field;
-      /* a constant describing whether we are working over the real or the      */
-      /* complex numbers                                                        */
    bool pari;
       /* Indicates whether the pari stack has been initialised during the
          call to cm_class_init. */
-   int p [6], e, s;
-      /* some parameters of the class invariant                                 */
-      /* p is a 0-terminated list of integers (often the primes dividing the    */
-      /* level); s is the canonical power, e the power actually used.           */
-   char paramstr [255];
-      /* a string encoding the previous characters, used in files and their     */
-      /* names                                                                  */
    cm_classgroup_t cl;
       /* The class group; it also contains the discriminant d and the class
          number h. */
@@ -293,9 +281,10 @@ extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
 /* functions for class polynomials */
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
    bool pari, bool verbose);
-extern void cm_class_clear (cm_class_ptr c);
-extern bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol,
-   bool tower, bool disk, bool print, bool verbose);
+extern void cm_class_clear (cm_class_ptr c, cm_param_srcptr param);
+extern bool cm_class_compute_minpoly (cm_class_ptr c,
+   cm_param_srcptr param, bool classpol, bool tower,
+   bool disk, bool print, bool verbose);
 
 /* functions for computing parameters of a complex multiplication curve      */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,

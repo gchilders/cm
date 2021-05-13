@@ -43,12 +43,13 @@ int main (int argc, char* argv [])
       exit (1);
    cm_class_init (c, param, true /* pari */, verbose);
    cm_class_compute_minpoly (c,
+      param,
       true /* classpol */,
       false /* tower */,
       false /* disk */,
       true /* print */,
       verbose);
-   cm_class_clear (c);
+   cm_class_clear (c, param);
 
    cm_timer_stop (clock);
    if (verbose)
