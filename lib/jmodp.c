@@ -428,7 +428,8 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_class_t c, mpz_t root, mpz_t P,
 /*****************************************************************************/
 
 mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
-   const char* modpoldir, bool pari, bool readwrite, bool verbose)
+   const char* modpoldir, bool pari, bool readwrite, bool tower,
+   bool verbose)
    /* pari indicates whether the pari stack should be initialised; if set
       to false, this is the responsability of the calling function.
       If readwrite is true, tries to read the polynomial from a file, and    */
@@ -439,10 +440,9 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    mpz_t *j;
    mpz_t root, d_mpz, tmp, tmp2, f24;
    cm_timer clock;
-   bool tower;
 
    cm_class_init (&c, d, inv, pari, verbose);
-   tower = true;
+
    /* In the tower case, reading and writing to files is not yet
       implemented; compute the class polynomial then. */
    if (tower || !readwrite || !cm_class_read (c)) {

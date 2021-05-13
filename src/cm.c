@@ -41,6 +41,7 @@ int main (int argc, char* argv [])
       true /* pari */,
       false /* readwrite */,
       true /* print */,
+      true /* tower */,
       verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */

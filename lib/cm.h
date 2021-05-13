@@ -251,7 +251,7 @@ extern bool cm_class_compute_minpoly (cm_class_t c, bool classpol,
 /* functions for computing parameters of a complex multiplication curve      */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    const char* modpoldir, bool pari, bool readwrite, bool print,
-   bool verbose);
+   bool tower, bool verbose);
 
 #if defined (__cplusplus)
 }

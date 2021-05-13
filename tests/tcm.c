@@ -31,13 +31,21 @@ static void test_curve (int_cl_t d, char invariant, bool verbose) {
 
    cm_timer_start (clock);
 
-   printf ("d = %"PRIicl", inv = %c ", d, invariant);
+   printf ("d = %"PRIicl", inv = %c; ", d, invariant);
+   /* First test with class polynomials. */
+   printf ("class polynomial: ");
    fflush (stdout);
    cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, true, false,
-      false, verbose);
+      false, false, verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
-   printf (" ok\n");
+   printf ("ok; ");
+   /* Then test with a class field tower. */
+   printf ("class field tower: ");
+   fflush (stdout);
+   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, true, false,
+      false, true, verbose);
+   printf ("ok\n");
 
    cm_timer_stop (clock);
    if (verbose)

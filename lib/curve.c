@@ -221,7 +221,7 @@ static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
 
 void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    const char* modpoldir, bool pari, bool readwrite, bool print,
-   bool verbose)
+   bool tower, bool verbose)
    /* computes a curve with the good number of points, using the given       */
    /* invariant                                                              */
    /* pari indicates whether the pari stack should be initialised; if set
@@ -230,6 +230,8 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    /* computes it and writes it to the file if it is not yet present.        */
    /* print indicates whether the curve parameters shall be displayed on     */
    /* screen                                                                 */
+   /* If tower is set, go through a class field tower instead of a class
+      polynomial. */
 {
    mpz_t  p;
       /* the size of the base field */
@@ -274,7 +276,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
       printf ("--- Time for P: %.1f\n\n", cm_timer_get (clock));
 
    j = cm_class_get_j_mod_P (d, inv, p, &no_j, modpoldir, pari, readwrite,
-      verbose);
+      tower, verbose);
 
    cm_timer_start (clock);
    for (i = 0; i < no_j && !ok; i++)
