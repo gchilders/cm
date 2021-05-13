@@ -30,8 +30,15 @@ static void mpzx_eval_mod_p (mpz_ptr val, mpzx_srcptr f, mpz_srcptr x,
    mpz_srcptr p);
 static void mpzxx_eval_mod_p (mpzx_ptr val, mpzx_t *f, int deg,
    mpz_srcptr y, mpz_srcptr p);
+static void quadraticx_eval_mod_p (mpz_ptr val, mpzx_srcptr g,
+   mpzx_srcptr h, mpz_srcptr x, mpz_srcptr omega, mpz_srcptr p);
+static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
+   int deg, mpz_srcptr y, mpz_srcptr omega, mpz_srcptr p);
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose);
 static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
+   mpz_srcptr p, bool verbose);
+static void get_quadratic_tower_root_mod_p (mpz_ptr root,
+   mpzx_tower_srcptr t, mpzx_tower_srcptr u, mpz_srcptr omega,
    mpz_srcptr p, bool verbose);
 static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_t root, mpz_t P);
@@ -122,6 +129,40 @@ static void mpzxx_eval_mod_p (mpzx_ptr val, mpzx_t *f, int deg,
 
 /*****************************************************************************/
 
+static void quadraticx_eval_mod_p (mpz_ptr val, mpzx_srcptr g,
+   mpzx_srcptr h, mpz_srcptr x, mpz_srcptr omega, mpz_srcptr p)
+   /* Compute f(x) mod p, where f=g+omega*h. */
+{
+   mpz_t tmp;
+
+   mpz_init (tmp);
+
+   mpzx_eval_mod_p (val, g, x, p);
+   mpzx_eval_mod_p (tmp, h, x, p);
+   mpz_mul (tmp, tmp, omega);
+   mpz_add (val, val, tmp);
+   mpz_mod (val, val, p);
+
+   mpz_clear (tmp);
+}
+
+/*****************************************************************************/
+
+static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
+   int deg, mpz_srcptr y, mpz_srcptr omega, mpz_srcptr p)
+   /* Consider f=g+omega*h, where g and h are polynomials of degree deg in
+      a variable x with coefficients that are polynomials in y. Evaluate f
+      in the variable y modulo p. Assume that val is already initialised
+      of degree deg. */
+{
+   int i;
+
+   for (i = 0; i <= deg; i++)
+      quadraticx_eval_mod_p (val->coeff [i], g [i], h [i], y, omega, p);
+}
+
+/*****************************************************************************/
+
 static void get_root_mod_P (cm_class_t c, mpz_t root, mpz_t P, bool verbose)
    /* Return a root of the minimal polynomial modulo P in root. */
 
@@ -169,6 +210,38 @@ static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
    for (i = 1; i < t->levels; i++) {
       mpzx_init (fp, t->d [i]);
       mpzxx_eval_mod_p (fp, t->W [i], t->d [i], root, p);
+      cm_pari_oneroot (root, fp, p, verbose);
+      mpzx_clear (fp);
+   }
+
+   if (verbose) {
+      printf ("Root: ");
+      mpz_out_str (stdout, 10, root);
+      printf ("\n");
+   }
+}
+
+/*****************************************************************************/
+
+static void get_quadratic_tower_root_mod_p (mpz_ptr root,
+   mpzx_tower_srcptr t, mpzx_tower_srcptr u, mpz_srcptr omega, mpz_srcptr p,
+   bool verbose)
+   /* Assume that t+omega*u is a class field tower defined over the
+      imaginary-quadratic field defined by omega in which p splits
+      completely. Return a root modulo p of the class polynomial behind
+      the tower. */
+{
+   int i;
+   mpzx_t fp;
+
+   mpzx_init (fp, t->d [0]);
+   quadraticx_mod_p (fp, t->W [0][0], u->W [0][0], omega, p);
+   cm_pari_oneroot (root, fp, p, verbose);
+   mpzx_clear (fp);
+   for (i = 1; i < t->levels; i++) {
+      mpzx_init (fp, t->d [i]);
+      quadraticxx_eval_mod_p (fp, t->W [i], u->W [i], t->d [i], root,
+         omega, p);
       cm_pari_oneroot (root, fp, p, verbose);
       mpzx_clear (fp);
    }
@@ -369,8 +442,10 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    bool tower;
 
    cm_class_init (&c, d, inv, pari, verbose);
-   tower = (c.field == CM_FIELD_REAL);
-   if (!readwrite || !cm_class_read (c)) {
+   tower = true;
+   /* In the tower case, reading and writing to files is not yet
+      implemented; compute the class polynomial then. */
+   if (tower || !readwrite || !cm_class_read (c)) {
       if (tower)
          cm_class_compute_minpoly (c, false, true, readwrite, false, verbose);
       else
@@ -379,10 +454,21 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 
    cm_timer_start (clock);
    mpz_init (root);
-   if (tower)
-      get_tower_root_mod_p (root, c.tower, P, verbose);
-   else
+   if (!tower)
       get_root_mod_P (c, root, P, verbose);
+   else {
+      if (c.field == CM_FIELD_REAL)
+         get_tower_root_mod_p (root, c.tower, P, verbose);
+      else {
+         mpz_t omega;
+         mpz_init (omega);
+         quadratic_basis (omega, c.dfund, P);
+         get_quadratic_tower_root_mod_p (root, c.tower, c.tower_complex,
+            omega, P, verbose);
+         mpz_clear (omega);
+      }
+   }
+
    switch (inv)
    {
       case CM_INVARIANT_J:
