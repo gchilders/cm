@@ -440,8 +440,12 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    mpz_t *j;
    mpz_t root, d_mpz, tmp, tmp2, f24;
    cm_timer clock;
+   cm_param_t param;
 
-   cm_class_init (&c, d, inv, pari, verbose);
+   if (!cm_param_init (param, d, inv, verbose))
+      exit (1);
+
+   cm_class_init (&c, param, pari, verbose);
 
    /* In the tower case, reading and writing to files is not yet
       implemented; compute the class polynomial then. */

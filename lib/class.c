@@ -31,7 +31,6 @@ static int class_get_height (cm_class_t c);
    /* in the complex case, returns the binary length of the largest          */
    /* coefficient with respect to the decomposition over an integral basis   */
 
-static bool cm_class_compute_parameter (cm_class_t *c, int_cl_t d, bool verbose);
 static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    int_cl_t d);
    /* changes Q to be compatible with the N-system condition */
@@ -45,7 +44,6 @@ static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q);
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
    int *conj, cm_class_t c, cm_modclass_t mc, bool verbose);
 
-static bool doubleeta_compute_parameter (cm_class_t *c, int_cl_t d);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -53,42 +51,25 @@ static bool doubleeta_compute_parameter (cm_class_t *c, int_cl_t d);
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool pari,
+void cm_class_init (cm_class_t *c, cm_param_srcptr param, bool pari,
    bool verbose)
 
 {
    int i;
    int one [] = {1};
 
-   if (d >= 0) {
-      printf ("\n*** The discriminant must be negative.\n");
-      exit (1);
-   }
-   else if (d % 4 != 0 && (d - 1) % 4 != 0) {
-      printf ("\n*** %"PRIicl" is not a quadratic discriminant.\n", d);
-      exit (1);
-   }
-   else {
-      c->invariant = inv;
-      c->dfund = cm_classgroup_fundamental_discriminant (d);
-      if (!cm_class_compute_parameter (c, d, verbose))
-         exit (1);
-   }
+   c->invariant = param->invariant;
+   c->dfund = cm_classgroup_fundamental_discriminant (param->d);
+   for (i = 0; i < 6; i++)
+      c->p [i] = param->p [i];
+   c->e = param->e;
+   c->s = param->s;
+   strncpy (c->paramstr, param->str, 255);
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
-               d, c->invariant, c->paramstr);
+               param->d, c->invariant, c->paramstr);
 
-   if (inv == CM_INVARIANT_SIMPLEETA)
-      c->field = CM_FIELD_COMPLEX;
-   else if (inv == CM_INVARIANT_MULTIETA) {
-      for (i = 0; c->p [i] != 0; i++);
-      if (i % 2 == 0)
-         c->field = CM_FIELD_REAL;
-      else
-         c->field = CM_FIELD_COMPLEX;
-   }
-   else
-      c->field = CM_FIELD_REAL;
+   c->field = param->field;
 
    c->pari = pari;
    if (pari) {
@@ -97,7 +78,7 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool pari,
       paristack_setsize (1000000, 1000000000);
    }
 
-   cm_classgroup_init (&(c->cl), d, verbose);
+   cm_classgroup_init (&(c->cl), param->d, verbose);
    mpzx_init (c->minpoly, c->cl.h);
    if (c->field == CM_FIELD_COMPLEX)
       mpzx_init (c->minpoly_complex, c->cl.h);
@@ -131,226 +112,6 @@ void cm_class_clear (cm_class_t *c)
    cm_classgroup_clear (&(c->cl));
 
    ffree_cache ();
-}
-
-/*****************************************************************************/
-
-static bool cm_class_compute_parameter (cm_class_t *c, int_cl_t d,
-   bool verbose)
-   /* Test whether the discriminant is suited for the chosen invariant and
-      in this case compute and store the parameters p in c and return true;
-      otherwise return false. */
-
-{
-   int i;
-   char* pointer;
-
-   switch (c->invariant) {
-      case CM_INVARIANT_J:
-         c->p [0] = 1;
-         c->p [1] = 0;
-         c->s = 1;
-         c->e = 1;
-         break;
-      case CM_INVARIANT_GAMMA2:
-         if (d % 3 == 0) {
-            if (verbose) {
-               printf ("\n*** %"PRIicl" is divisible by 3, so that gamma2 ",
-                        d);
-               printf ("cannot be used.\n");
-            }
-            return false;
-         }
-         c->p [0] = 1;
-         c->p [1] = 0;
-         c->s = 1;
-         c->e = 1;
-         break;
-      case CM_INVARIANT_GAMMA3:
-         if (d % 2 == 0) {
-            if (verbose) {
-               printf ("\n*** %"PRIicl" is divisible by 4, so that gamma3 ",
-                        d);
-               printf ("cannot be used.\n");
-            }
-            return false;
-         }
-         c->p [0] = 1;
-         c->p [1] = 0;
-         c->s = 1;
-         c->e = 1;
-         break;
-      case CM_INVARIANT_WEBER:
-         if (d % 32 == 0) {
-            if (verbose) {
-               printf ("\n*** %"PRIicl" is divisible by 32, so that the Weber ",
-                        d);
-               printf ("functions cannot be used.\n");
-            }
-            return false;
-         }
-         else if (cm_classgroup_mod (d, 8) == 5) {
-            if (verbose)
-               printf ("\n*** %"PRIicl" is 5 mod 8; the Weber function "
-                  "cannot be used directly, but you\nmay compute the ring "
-                  "class field for the discriminant %"PRIicl" and apply\n"
-                  "a 2-isogeny when computing the elliptic curve.\n",
-                  d, 4*d);
-            return false;
-         }
-         else if (cm_classgroup_mod (d, 8) == 1) {
-            if (verbose)
-               printf ("\n*** %"PRIicl" is 1 mod 8; the Weber function "
-                  "cannot be used directly, but you\nmay compute the ring "
-                  "class field for the discriminant %"PRIicl", which is\n"
-                  "the same as the Hilbert class field\n",
-                  d, 4*d);
-            return false;
-         }
-
-         /* Let m = -disc/4 and p [0] = m % 8. */
-         c->p [0] = ((-d) / 4) % 8;
-         c->p [1] = 0;
-         c->s = 24;
-         c->e = 1;
-         if (c->p [0] == 1 || c->p [0] == 2 || c->p [0] == 6)
-            c->e *= 2;
-         else if (c->p [0] == 4 || c->p [0] == 5)
-            c->e *= 4;
-         if (d % 3 == 0)
-            c->e *= 3;
-         break;
-      case CM_INVARIANT_ATKIN:
-         if (cm_classgroup_kronecker (d, (int_cl_t) 71) != -1)
-            /* factor 36, T_5 + T_29 + 1 */
-            c->p [0] = 71;
-         else if (cm_classgroup_kronecker (d, (int_cl_t) 131) != -1)
-            /* factor 33, T_61 + 1 */
-            c->p [0] = 131;
-         else if (cm_classgroup_kronecker (d, (int_cl_t) 59) != -1)
-            /* factor 30, T_5 + T_29 */
-            c->p [0] = 59;
-         else if (cm_classgroup_kronecker (d, (int_cl_t) 47) != -1)
-            /* factor 24, -T_17 */
-            c->p [0] = 47;
-         else {
-            if (verbose) {
-               printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl, d);
-               printf (", so that atkin cannot be used.\n");
-            }
-            return false;
-         }
-         c->p [1] = 0;
-         c->s = 1;
-         c->e = 1;
-         break;
-      case CM_INVARIANT_MULTIETA:
-         c->p [0] = 3;
-         c->p [1] = 5;
-         c->p [2] = 7;
-         c->p [3] = 0;
-         c->s = 1;
-         c->e = 1;
-         break;
-      case CM_INVARIANT_DOUBLEETA:
-         if (!doubleeta_compute_parameter (c, d))
-            return false;
-         break;
-      case CM_INVARIANT_SIMPLEETA:
-         c->p [0] = 3;
-         if (cm_classgroup_kronecker (d, (int_cl_t) (c->p [0])) == -1) {
-            if (verbose)
-               printf ("*** Unsuited discriminant\n\n");
-            return false;
-         }
-
-         c->p [1] = 0;
-         c->s = 12;
-         c->e = 12;
-         break;
-      default: /* should not occur */
-         printf ("class_compute_parameter called for "
-                  "unknown class invariant '%c'\n", c->invariant);
-         exit (1);
-   }
-
-   /* create parameter string */
-   pointer = c->paramstr;
-   i = 0;
-   do {
-      pointer += sprintf (pointer, "%i_", c->p [i]);
-      i++;
-   } while (c->p [i] != 0);
-   sprintf (pointer, "%i_%i", c->e, c->s);
-   return true;
-}
-
-/*****************************************************************************/
-
-static bool doubleeta_compute_parameter (cm_class_t *c, int_cl_t d)
-   /* Compute p1 <= p2 prime following Cor. 3.1 of [EnSc04], that is,        */
-   /* - 24 | (p1-1)(p2-1).                                                   */
-   /* - p1, p2 are not inert;                                                */
-   /* - if p1!=p2, then p1, p2 do not divide the conductor;                  */
-   /* - if p1=p2=p, then either p splits or divides the conductor.           */
-   /* The case p1=p2=2 of Cor. 3.1 is excluded by divisibility by 24.        */
-   /* Minimise with respect to the height factor gained, which is            */
-   /* 12 psi (p1*p2) / (p1-1)(p2-1);                                         */
-   /* then p1, p2 <= the smallest split prime which is 1 (mod 24).           */
-   /* Let p = 1000*p2 + p1.                                                */
-
-{
-   int_cl_t cond2 = d / c->dfund;
-      /* square of conductor */
-   const unsigned long int maxprime = 997;
-   unsigned long int primelist [169];
-      /* list of suitable primes, terminated by 0; big enough to hold all    */
-      /* primes <= maxprime                                                  */
-   unsigned long int p1, p2, p1opt = 0, p2opt = 0;
-   double quality, opt;
-   bool ok;
-   int i, j;
-
-   /* determine all non-inert primes */
-   i = 0;
-   p1 = 2;
-   ok = false;
-   do {
-      int kro = cm_classgroup_kronecker (d, (int_cl_t) p1);
-      if (kro != -1) {
-         primelist [i] = p1;
-         i++;
-      }
-      if (kro == 1 && (p1 - 1) % 24 == 0)
-         ok = true;
-      else
-         p1 = cm_nt_next_prime (p1);
-   }
-   while (p1 <= maxprime && !ok);
-   primelist [i] = 0;
-
-   /* search for the best tuple */
-   opt = 0.0;
-   for (j = 0, p2 = primelist [j]; p2 != 0; j++, p2 = primelist [j])
-      for (i = 0, p1 = primelist [i]; i <= j; i++, p1 = primelist [i])
-         if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
-             && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
-                 || (p1 == p2 && ((-d) % p1 != 0 || cond2 % p1 == 0)))) {
-            quality = (p1 == p2 ? p1 : p1 + 1) * (p2 + 1) / (double) (p1 - 1)
-               / (double) (p2 - 1);
-            if (quality > opt) {
-               p1opt = p1;
-               p2opt = p2;
-               opt = quality;
-               ok = true;
-            }
-         }
-   c->p [0] = p1opt;
-   c->p [1] = p2opt;
-   c->p [2] = 0;
-   c->s = 1;
-   c->e = 1;
-   return ok;
 }
 
 

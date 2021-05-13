@@ -166,6 +166,33 @@ typedef struct {
 } cm_classgroup_t;
 
 
+/* Types for CM parameters. */
+
+typedef struct {
+   int_cl_t d;
+      /* The (not necessarily fundamental) discriminant of an imaginary-
+         quadratic order. */
+   char invariant;
+      /* Constant describing which type of invariant is used. */
+   int field;
+      /* A constant describing whether we are working over the real or the
+         complex numbers. */
+   int p [6], e, s;
+      /* The actual parameters attached to the class invariant.
+         p is a 0-terminated list of integers (often the primes dividing the
+         level); s is the canonical power, e the power actually used. */
+   char str [255];
+      /* A string encoding the previous characters, used in files and their
+         names. */
+} __cm_param_struct;
+
+typedef __cm_param_struct cm_param_t [1];
+typedef __cm_param_struct *cm_param_ptr;
+typedef const __cm_param_struct *cm_param_srcptr;
+
+
+/* Type for class polynomials and class field towers. */
+
 typedef struct {
    char invariant;
       /* a constant describing which invariant is actually used                 */
@@ -256,8 +283,12 @@ extern void cm_modpol_read_specialised_mod (mpzx_ptr pol, int level,
 extern void cm_modpol_print_pari (int level, char type, const char* datadir);
 extern void cm_modpol_print_magma (int level, char type, const char* datadir);
 
+/* functions concerned with CM parameters */
+extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
+   bool verbose);
+
 /* functions for class polynomials */
-extern void cm_class_init (cm_class_t *c, int_cl_t d, char inv,
+extern void cm_class_init (cm_class_t *c, cm_param_srcptr param,
    bool pari, bool verbose);
 extern void cm_class_clear (cm_class_t *c);
 extern bool cm_class_compute_minpoly (cm_class_t c, bool classpol,

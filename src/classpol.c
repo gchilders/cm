@@ -30,6 +30,7 @@ int main (int argc, char* argv [])
    bool       verbose;
    cm_class_t c;
    cm_timer clock;
+   cm_param_t param;
 
    cm_timer_start (clock);
 
@@ -38,7 +39,9 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
-   cm_class_init (&c, d, invariant, true /* pari */, verbose);
+   if (!cm_param_init (param, d, invariant, verbose))
+      exit (1);
+   cm_class_init (&c, param, true /* pari */, verbose);
    cm_class_compute_minpoly (c,
       true /* classpol */,
       false /* tower */,
