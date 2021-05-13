@@ -143,14 +143,14 @@ extern void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, ctype rop,
 extern void cm_modclass_j_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b);
 extern void cm_modclass_multieta_eval_quad (cm_modclass_t mc, ctype rop,
-   int_cl_t a, int_cl_t b, int *p, int e);
+   int_cl_t a, int_cl_t b, const int *p, int e);
 extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, unsigned long int l);
 
 
 /* functions for class polynomials */
-extern bool cm_class_write (cm_class_t c);
-extern bool cm_class_read (cm_class_t c);
+extern bool cm_class_write (cm_class_srcptr c);
+extern bool cm_class_read (cm_class_ptr c);
 
 extern mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    const char* modpoldir, bool pari, bool readwrite, bool tower,

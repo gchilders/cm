@@ -231,8 +231,11 @@ typedef struct {
          class field is decomposed as a tower; it contains the entries of
          the defining polynomials in the second element of the integral
          basis as explained for minpoly_complex. */
-} cm_class_t;
+} __cm_class_struct;
 
+typedef __cm_class_struct cm_class_t [1];
+typedef __cm_class_struct *cm_class_ptr;
+typedef const __cm_class_struct *cm_class_srcptr;
 
 #if defined (__cplusplus)
 extern "C" {
@@ -288,10 +291,10 @@ extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    bool verbose);
 
 /* functions for class polynomials */
-extern void cm_class_init (cm_class_t *c, cm_param_srcptr param,
+extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
    bool pari, bool verbose);
-extern void cm_class_clear (cm_class_t *c);
-extern bool cm_class_compute_minpoly (cm_class_t c, bool classpol,
+extern void cm_class_clear (cm_class_ptr c);
+extern bool cm_class_compute_minpoly (cm_class_ptr c, bool classpol,
    bool tower, bool disk, bool print, bool verbose);
 
 /* functions for computing parameters of a complex multiplication curve      */

@@ -37,7 +37,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
 static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
    ctype *eta, bool verbose);
 static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
-   ctype rop_den, int_cl_t a, int_cl_t b, int *p);
+   ctype rop_den, int_cl_t a, int_cl_t b, const int *p);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -768,7 +768,7 @@ void cm_modclass_j_eval_quad (cm_modclass_t mc, ctype rop,
 /*****************************************************************************/
 
 static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
-   ctype rop_den, int_cl_t a, int_cl_t b, int *p)
+   ctype rop_den, int_cl_t a, int_cl_t b, const int *p)
    /* Evaluates a multiple eta quotient, whose transformation degress are    */
    /* given by the numbers in p, which is an array terminated by 0; the      */
    /* result is given by rop_num / rop_den. This approach replaces complex   */
@@ -813,7 +813,7 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
 /*****************************************************************************/
 
 void cm_modclass_multieta_eval_quad (cm_modclass_t mc, ctype rop,
-   int_cl_t a, int_cl_t b, int *p, int e)
+   int_cl_t a, int_cl_t b, const int *p, int e)
    /* Evaluates a multiple eta quotient, whose transformation degress are    */
    /* given by the numbers in p, which is an array terminated by 0; the      */
    /* quotient is additionally raised to the power e.                        */

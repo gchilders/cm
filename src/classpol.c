@@ -41,14 +41,14 @@ int main (int argc, char* argv [])
 
    if (!cm_param_init (param, d, invariant, verbose))
       exit (1);
-   cm_class_init (&c, param, true /* pari */, verbose);
+   cm_class_init (c, param, true /* pari */, verbose);
    cm_class_compute_minpoly (c,
       true /* classpol */,
       false /* tower */,
       false /* disk */,
       true /* print */,
       verbose);
-   cm_class_clear (&c);
+   cm_class_clear (c);
 
    cm_timer_stop (clock);
    if (verbose)
