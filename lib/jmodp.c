@@ -509,7 +509,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
          mpz_init (f24);
          mpz_init (tmp);
 
-         if (c.d % 3 == 0)
+         if (d % 3 == 0)
             mpz_powm_ui (f24, root, 2ul, P);
          else
             mpz_powm_ui (f24, root, 6ul, P);

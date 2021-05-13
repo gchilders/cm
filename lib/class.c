@@ -31,22 +31,21 @@ static int class_get_height (cm_class_t c);
    /* in the complex case, returns the binary length of the largest          */
    /* coefficient with respect to the decomposition over an integral basis   */
 
-static bool cm_class_compute_parameter (cm_class_t *c, bool verbose);
+static bool cm_class_compute_parameter (cm_class_t *c, int_cl_t d, bool verbose);
 static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
    int_cl_t d);
    /* changes Q to be compatible with the N-system condition */
-static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
-   cm_classgroup_t cl, bool verbose);
+static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t c,
+   bool verbose);
    /* computes and returns an N-system of forms, together with information
       on the embeddings in the case of real class polynomials in conj */
-static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
-   bool verbose);
+static fprec_t compute_precision (cm_class_t c, bool verbose);
 
 static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q);
 static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
    int *conj, cm_class_t c, cm_modclass_t mc, bool verbose);
 
-static bool doubleeta_compute_parameter (cm_class_t *c);
+static bool doubleeta_compute_parameter (cm_class_t *c, int_cl_t d);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -58,7 +57,6 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool pari,
    bool verbose)
 
 {
-   cm_classgroup_t cl;
    int i;
    int one [] = {1};
 
@@ -72,14 +70,13 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool pari,
    }
    else {
       c->invariant = inv;
-      c->d = d;
       c->dfund = cm_classgroup_fundamental_discriminant (d);
-      if (!cm_class_compute_parameter (c, verbose))
+      if (!cm_class_compute_parameter (c, d, verbose))
          exit (1);
    }
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
-               c->d, c->invariant, c->paramstr);
+               d, c->invariant, c->paramstr);
 
    if (inv == CM_INVARIANT_SIMPLEETA)
       c->field = CM_FIELD_COMPLEX;
@@ -100,23 +97,21 @@ void cm_class_init (cm_class_t *c, int_cl_t d, char inv, bool pari,
       paristack_setsize (1000000, 1000000000);
    }
 
-   cm_classgroup_init (&cl, c->d, false);
-   c->h = cl.h;
-   mpzx_init (c->minpoly, cl.h);
+   cm_classgroup_init (&(c->cl), d, verbose);
+   mpzx_init (c->minpoly, c->cl.h);
    if (c->field == CM_FIELD_COMPLEX)
-      mpzx_init (c->minpoly_complex, cl.h);
+      mpzx_init (c->minpoly_complex, c->cl.h);
 
-   if (c->h == 1) {
+   if (c->cl.h == 1) {
       mpzx_tower_init (c->tower, 1, one);
       if (c->field == CM_FIELD_COMPLEX)
          mpzx_tower_init (c->tower_complex, 1, one);
    }
    else {
-      mpzx_tower_init (c->tower, cl.levels, cl.deg);
+      mpzx_tower_init (c->tower, c->cl.levels, c->cl.deg);
       if (c->field == CM_FIELD_COMPLEX)
-         mpzx_tower_init (c->tower_complex, cl.levels, cl.deg);
+         mpzx_tower_init (c->tower_complex, c->cl.levels, c->cl.deg);
    }
-   cm_classgroup_clear (&cl);
 }
 
 /*****************************************************************************/
@@ -133,15 +128,18 @@ void cm_class_clear (cm_class_t *c)
    if (c->pari)
       pari_close ();
 
+   cm_classgroup_clear (&(c->cl));
+
    ffree_cache ();
 }
 
 /*****************************************************************************/
 
-static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
-      /* tests whether the discriminant is suited for the chosen invariant and  */
-      /* in this case computes and returns the parameter p                      */
-      /* otherwise, returns 0                                                   */
+static bool cm_class_compute_parameter (cm_class_t *c, int_cl_t d,
+   bool verbose)
+   /* Test whether the discriminant is suited for the chosen invariant and
+      in this case compute and store the parameters p in c and return true;
+      otherwise return false. */
 
 {
    int i;
@@ -155,10 +153,10 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_GAMMA2:
-         if (c->d % 3 == 0) {
+         if (d % 3 == 0) {
             if (verbose) {
                printf ("\n*** %"PRIicl" is divisible by 3, so that gamma2 ",
-                        c->d);
+                        d);
                printf ("cannot be used.\n");
             }
             return false;
@@ -169,10 +167,10 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_GAMMA3:
-         if (c->d % 2 == 0) {
+         if (d % 2 == 0) {
             if (verbose) {
                printf ("\n*** %"PRIicl" is divisible by 4, so that gamma3 ",
-                        c->d);
+                        d);
                printf ("cannot be used.\n");
             }
             return false;
@@ -183,35 +181,35 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_WEBER:
-         if (c->d % 32 == 0) {
+         if (d % 32 == 0) {
             if (verbose) {
                printf ("\n*** %"PRIicl" is divisible by 32, so that the Weber ",
-                        c->d);
+                        d);
                printf ("functions cannot be used.\n");
             }
             return false;
          }
-         else if (cm_classgroup_mod (c->d, 8) == 5) {
+         else if (cm_classgroup_mod (d, 8) == 5) {
             if (verbose)
                printf ("\n*** %"PRIicl" is 5 mod 8; the Weber function "
                   "cannot be used directly, but you\nmay compute the ring "
                   "class field for the discriminant %"PRIicl" and apply\n"
                   "a 2-isogeny when computing the elliptic curve.\n",
-                  c->d, 4*c->d);
+                  d, 4*d);
             return false;
          }
-         else if (cm_classgroup_mod (c->d, 8) == 1) {
+         else if (cm_classgroup_mod (d, 8) == 1) {
             if (verbose)
                printf ("\n*** %"PRIicl" is 1 mod 8; the Weber function "
                   "cannot be used directly, but you\nmay compute the ring "
                   "class field for the discriminant %"PRIicl", which is\n"
                   "the same as the Hilbert class field\n",
-                  c->d, 4*c->d);
+                  d, 4*d);
             return false;
          }
 
          /* Let m = -disc/4 and p [0] = m % 8. */
-         c->p [0] = ((-(c->d)) / 4) % 8;
+         c->p [0] = ((-d) / 4) % 8;
          c->p [1] = 0;
          c->s = 24;
          c->e = 1;
@@ -219,25 +217,25 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
             c->e *= 2;
          else if (c->p [0] == 4 || c->p [0] == 5)
             c->e *= 4;
-         if (c->d % 3 == 0)
+         if (d % 3 == 0)
             c->e *= 3;
          break;
       case CM_INVARIANT_ATKIN:
-         if (cm_classgroup_kronecker (c->d, (int_cl_t) 71) != -1)
+         if (cm_classgroup_kronecker (d, (int_cl_t) 71) != -1)
             /* factor 36, T_5 + T_29 + 1 */
             c->p [0] = 71;
-         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 131) != -1)
+         else if (cm_classgroup_kronecker (d, (int_cl_t) 131) != -1)
             /* factor 33, T_61 + 1 */
             c->p [0] = 131;
-         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 59) != -1)
+         else if (cm_classgroup_kronecker (d, (int_cl_t) 59) != -1)
             /* factor 30, T_5 + T_29 */
             c->p [0] = 59;
-         else if (cm_classgroup_kronecker (c->d, (int_cl_t) 47) != -1)
+         else if (cm_classgroup_kronecker (d, (int_cl_t) 47) != -1)
             /* factor 24, -T_17 */
             c->p [0] = 47;
          else {
             if (verbose) {
-               printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl, c->d);
+               printf ("\n*** 47, 59, 71 and 131 are inert for %"PRIicl, d);
                printf (", so that atkin cannot be used.\n");
             }
             return false;
@@ -255,12 +253,12 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
          c->e = 1;
          break;
       case CM_INVARIANT_DOUBLEETA:
-         if (!doubleeta_compute_parameter (c))
+         if (!doubleeta_compute_parameter (c, d))
             return false;
          break;
       case CM_INVARIANT_SIMPLEETA:
          c->p [0] = 3;
-         if (cm_classgroup_kronecker (c->d, (int_cl_t) (c->p [0])) == -1) {
+         if (cm_classgroup_kronecker (d, (int_cl_t) (c->p [0])) == -1) {
             if (verbose)
                printf ("*** Unsuited discriminant\n\n");
             return false;
@@ -289,7 +287,7 @@ static bool cm_class_compute_parameter (cm_class_t *c, bool verbose)
 
 /*****************************************************************************/
 
-static bool doubleeta_compute_parameter (cm_class_t *c)
+static bool doubleeta_compute_parameter (cm_class_t *c, int_cl_t d)
    /* Compute p1 <= p2 prime following Cor. 3.1 of [EnSc04], that is,        */
    /* - 24 | (p1-1)(p2-1).                                                   */
    /* - p1, p2 are not inert;                                                */
@@ -302,7 +300,7 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
    /* Let p = 1000*p2 + p1.                                                */
 
 {
-   int_cl_t cond2 = c->d / c->dfund;
+   int_cl_t cond2 = d / c->dfund;
       /* square of conductor */
    const unsigned long int maxprime = 997;
    unsigned long int primelist [169];
@@ -318,7 +316,7 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
    p1 = 2;
    ok = false;
    do {
-      int kro = cm_classgroup_kronecker (c->d, (int_cl_t) p1);
+      int kro = cm_classgroup_kronecker (d, (int_cl_t) p1);
       if (kro != -1) {
          primelist [i] = p1;
          i++;
@@ -337,7 +335,7 @@ static bool doubleeta_compute_parameter (cm_class_t *c)
       for (i = 0, p1 = primelist [i]; i <= j; i++, p1 = primelist [i])
          if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
              && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
-                 || (p1 == p2 && ((-c->d) % p1 != 0 || cond2 % p1 == 0)))) {
+                 || (p1 == p2 && ((-d) % p1 != 0 || cond2 % p1 == 0)))) {
             quality = (p1 == p2 ? p1 : p1 + 1) * (p2 + 1) / (double) (p1 - 1)
                / (double) (p2 - 1);
             if (quality > opt) {
@@ -496,8 +494,8 @@ static void correct_nsystem_entry (cm_form_t *Q, int_cl_t N, int_cl_t b0,
 
 /*****************************************************************************/
 
-static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
-   cm_classgroup_t cl, bool verbose)
+static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t c,
+   bool verbose)
    /* Compute an N-system, or to be more precise, some part of an N-system
       that yields all different conjugates up to complex conjugation;
       this information is passed in conj as follows:
@@ -512,18 +510,18 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
 
    /* Compute the targeted b0 for the N-system and (in the real case) the
       neutral form. */
-   if (c->invariant == CM_INVARIANT_SIMPLEETA) {
+   if (c.invariant == CM_INVARIANT_SIMPLEETA) {
       bool ok = false;
 
-      if (c->p[0] != 4) {
-         b0 = c->d % 2;
+      if (c.p[0] != 4) {
+         b0 = c.cl.d % 2;
          while (!ok) {
             b0 += 2;
-            if ((b0*b0 - c->d) % (4*c->p[0]) != 0)
+            if ((b0*b0 - c.cl.d) % (4*c.p[0]) != 0)
                ok = false;
-            else if (c->p[0] != 2 && (c->s/c->e) % 2 == 0 && (b0 - 1) % 4 != 0)
+            else if (c.p[0] != 2 && (c.s/c.e) % 2 == 0 && (b0 - 1) % 4 != 0)
                ok = false;
-            else if (c->p[0] != 2 && (c->s/c->e) % 3 == 0 && b0 % 3 != 0)
+            else if (c.p[0] != 2 && (c.s/c.e) % 3 == 0 && b0 % 3 != 0)
                ok = false;
             else
                ok = true;
@@ -533,27 +531,27 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
         b0 = (int_cl_t) -7;
       }
       if (verbose)
-         printf ("N %i\ns %i\ne %i\nb0 %"PRIicl"\n", c->p[0], c->s, c->e, b0);
-      N = c->p[0] * c->s / c->e;
+         printf ("N %i\ns %i\ne %i\nb0 %"PRIicl"\n", c.p[0], c.s, c.e, b0);
+      N = c.p[0] * c.s / c.e;
    }
 
    else {
       neutral.a = 1;
-      if (c->d % 2 == 0)
+      if (c.cl.d % 2 == 0)
          neutral.b = 0;
       else
          neutral.b = 1;
 
-      switch (c->invariant) {
+      switch (c.invariant) {
          case CM_INVARIANT_J:
-            b0 = c->d % 2;
+            b0 = c.cl.d % 2;
             /* An even N makes c even if 2 is split so that during the
                evaluation of eta(z/2) for f1 all forms can be taken from
                the precomputed ones. */
             N = 2;
             break;
          case CM_INVARIANT_GAMMA2:
-            b0 = 3 * (c->d % 2);
+            b0 = 3 * (c.cl.d % 2);
             /* Use an even N as for j. */
             N = 6;
             break;
@@ -562,16 +560,16 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
             N = 2;
             break;
          case CM_INVARIANT_ATKIN:
-            N = c->p [0];
-            if (c->d % 2 == 0)
+            N = c.p [0];
+            if (c.cl.d % 2 == 0)
                b0 = 0;
             else
                b0 = 1;
-            while ((b0*b0 - c->d) % N != 0)
+            while ((b0*b0 - c.cl.d) % N != 0)
                b0 += 2;
             neutral.a = N;
             neutral.b = -b0;
-            cm_classgroup_reduce (&neutral, c->d);
+            cm_classgroup_reduce (&neutral, c.cl.d);
             break;
          case CM_INVARIANT_WEBER:
             neutral.a = 1;
@@ -584,24 +582,24 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
          {
             int_cl_t C;
             N = 1;
-            for (i = 0; c->p [i] != 0; i++)
-               N *= c->p [i];
-            if (c->d % 2 == 0)
+            for (i = 0; c.p [i] != 0; i++)
+               N *= c.p [i];
+            if (c.cl.d % 2 == 0)
                b0 = 2;
             else
                b0 = 1;
             while (true) {
-               C = (b0*b0 - c->d) / 4;
+               C = (b0*b0 - c.cl.d) / 4;
                if (C % N == 0 && cm_nt_gcd (C / N, N) == 1)
                   break;
                b0 += 2;
             }
             neutral.a = N;
             neutral.b = -b0;
-            cm_classgroup_reduce (&neutral, c->d);
+            cm_classgroup_reduce (&neutral, c.cl.d);
             /* The neutral form corresponds to the product of the primes,    */
             /* but the n-system needs to take s/e into account               */
-            N *= c->s / c->e;
+            N *= c.s / c.e;
             break;
          }
          default: /* should not occur */
@@ -610,19 +608,19 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
       }
    }
 
-   for (i = 0; i < cl.h; i++) {
-      nsystem [i] = cl.form [i];
+   for (i = 0; i < c.cl.h; i++) {
+      nsystem [i] = c.cl.form [i];
       conj [i] = -1;
    }
 
-   for (i = 0; i < cl.h; i++)
+   for (i = 0; i < c.cl.h; i++)
       /* Pair forms yielding complex conjugate roots. */
-      if (c->field == CM_FIELD_REAL) {
+      if (c.field == CM_FIELD_REAL) {
          if (conj [i] == -1) {
             /* form did not yet occur in a pair; look for its inverse
                with respect to neutral_class */
             nsystem [i].b = -nsystem [i].b;
-            cm_classgroup_compose (&inverse, neutral, nsystem [i], c->d);
+            cm_classgroup_compose (&inverse, neutral, nsystem [i], c.cl.d);
             nsystem [i].b = -nsystem [i].b;
             j = 0;
             /* So far, nsystem still contains the reduced forms, so we may look
@@ -633,35 +631,34 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_t *c,
             conj [j] = i;
          }
       }
-      else /* c->field == CM_FIELD_COMPLEX */
+      else /* c.field == CM_FIELD_COMPLEX */
          conj [i] = i;
 
    /* Now modify the entries of nsystem. */
-   for (i = 0; i < cl.h; i++)
+   for (i = 0; i < c.cl.h; i++)
       if (conj [i] >= i)
-         correct_nsystem_entry (&(nsystem [i]), N, b0, c->d);
+         correct_nsystem_entry (&(nsystem [i]), N, b0, c.cl.d);
 
    /* Compute h1 and h2, only for printing. */
    if (verbose) {
       h1 = 0;
       h2 = 0;
-      for (i = 0; i < cl.h; i++)
+      for (i = 0; i < c.cl.h; i++)
          if (conj [i] == i)
             h1++;
          else if (conj [i] > i)
             h2++;
-      printf ("h = %i, h1 = %i, h2 = %i\n", c->h, h1, h2);
+      printf ("h = %i, h1 = %i, h2 = %i\n", c.cl.h, h1, h2);
    }
 }
 
 /*****************************************************************************/
 
-static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
-   bool verbose) {
-   /* returns an approximation of the required precision */
+static fprec_t compute_precision (cm_class_t c, bool verbose) {
+   /* Returns an approximation of the required precision. */
 
    const double C = 2114.567;
-   const double pisqrtd = 3.14159265358979323846 * sqrt ((double) (-cl.d));
+   const double pisqrtd = 3.14159265358979323846 * sqrt ((double) (-c.cl.d));
    const double cf = class_get_valuation (c);
    double x, binom = 1.0, prec = 0, M;
    int_cl_t amax;
@@ -670,26 +667,26 @@ static fprec_t compute_precision (cm_class_t c, cm_classgroup_t cl,
 
    /* formula of Lemma 8 of [Sutherland11] */
    amax = 0;
-   for (i = 0; i < cl.h; i++) {
-      x = pisqrtd / cl.form [i].a;
+   for (i = 0; i < c.cl.h; i++) {
+      x = pisqrtd / c.cl.form [i].a;
       if (x < 42)
          M = log (exp (x) + C);
       else /* prevent overflow in exponential without changing the result */
          M = x;
       prec += M;
-      if (cl.form [i].a > amax)
-         amax = cl.form [i].a;
+      if (c.cl.form [i].a > amax)
+         amax = c.cl.form [i].a;
    }
    M = exp (pisqrtd / amax) + C;
-   m = (int) ((cl.h + 1) / (M + 1));
+   m = (int) ((c.cl.h + 1) / (M + 1));
    for (i = 1; i <= m; i++)
-      binom *= (double) (cl.h - 1 + i) / i / M;
+      binom *= (double) (c.cl.h - 1 + i) / i / M;
    prec = ceil ((prec + log (binom)) / log (2.0) * cf);
 
    if (c.invariant == CM_INVARIANT_GAMMA3) {
       /* increase height estimate by bit size of sqrt (|D|)^h in constant    */
       /* coefficient                                                         */
-      prec += (int) (log ((double) (-cl.d)) / log (2.0) / 2.0 * cl.h);
+      prec += (int) (log ((double) (-c.cl.d)) / log (2.0) / 2.0 * c.cl.h);
       if (verbose)
          printf ("Corrected bound for gamma3:     %ld\n", (long int) prec);
    }
@@ -753,7 +750,7 @@ static void eval (cm_class_t c, cm_modclass_t mc, ctype rop, cm_form_t Q)
          cmul_fr (rop, rop, mc.sqrt2_over4);
       }
 
-      if (c.d % 3 == 0)
+      if (c.cl.d % 3 == 0)
          cpow_ui (rop, rop, 3ul);
 
       if (c.p [0] != 3 && c.p [0] != 5)
@@ -776,7 +773,7 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 {
    int i;
 
-   for (i = 0; i < c.h; i++) {
+   for (i = 0; i < c.cl.h; i++) {
       if (conj [i] >= i)
          eval (c, mc, conjugate [i], nsystem [i]);
       if (verbose && i % 200 == 0) {
@@ -800,7 +797,6 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
       print indicates whether the result should be printed on screen.
       The return value reflects the success of the computation. */
 {
-   cm_classgroup_t cl;
    cm_form_t *nsystem;
    int *conj;
    fprec_t prec;
@@ -822,27 +818,21 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
 
    cm_timer_start (clock_global);
 
+   nsystem = (cm_form_t *) malloc (c.cl.h * sizeof (cm_form_t));
+   conj = (int *) malloc (c.cl.h * sizeof (int));
    cm_timer_start (clock_local);
-   cm_classgroup_init (&cl, c.d, verbose);
-   cm_timer_stop (clock_local);
-   if (verbose)
-      printf ("--- Time for class group: %.1f\n", cm_timer_get (clock_local));
-
-   nsystem = (cm_form_t *) malloc (c.h * sizeof (cm_form_t));
-   conj = (int *) malloc (c.h * sizeof (int));
-   cm_timer_start (clock_local);
-   compute_nsystem (nsystem, conj, &c, cl, verbose);
+   compute_nsystem (nsystem, conj, c, verbose);
    cm_timer_stop (clock_local);
    if (verbose)
       printf ("--- Time for N-system: %.1f\n", cm_timer_get (clock_local));
-   prec = compute_precision (c, cl, verbose);
+   prec = compute_precision (c, verbose);
 
-   conjugate = (ctype *) malloc (c.h * sizeof (ctype));
-   for (i = 0; i < c.h; i++)
+   conjugate = (ctype *) malloc (c.cl.h * sizeof (ctype));
+   for (i = 0; i < c.cl.h; i++)
       if (conj [i] >= i)
          cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
-   cm_modclass_init (&mc, cl, prec, verbose);
+   cm_modclass_init (&mc, c.cl, prec, verbose);
    compute_conjugates (conjugate, nsystem, conj, c, mc, verbose);
    cm_modclass_clear (&mc);
    cm_timer_stop (clock_local);
@@ -909,13 +899,12 @@ bool cm_class_compute_minpoly (cm_class_t c, bool classpol, bool tower,
                  cm_timer_get (clock_local));
    }
 
-   for (i = 0; i < c.h; i++)
+   for (i = 0; i < c.cl.h; i++)
       if (conj [i] >= i)
          cclear (conjugate [i]);
    free (conjugate);
    free (nsystem);
    free (conj);
-   cm_classgroup_clear (&cl);
 
    cm_timer_stop (clock_global);
    if (verbose) {

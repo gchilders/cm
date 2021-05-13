@@ -102,13 +102,13 @@ bool cm_class_write (cm_class_t c)
    FILE *f;
    int i;
 
-   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.d,
+   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.cl.d,
             c.invariant, c.paramstr);
 
    if (!cm_file_open_write (&f, filename))
       return false;
 
-   fprintf (f, "%"PRIicl"\n", -c.d);
+   fprintf (f, "%"PRIicl"\n", -c.cl.d);
    fprintf (f, "%c\n", c.invariant);
    fprintf (f, "%s\n", c.paramstr);
    fprintf (f, "%i\n", c.minpoly->deg);
@@ -140,7 +140,7 @@ bool cm_class_read (cm_class_t c)
    char pars [255];
    int_cl_t disc;
 
-   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.d,
+   sprintf (filename, "%s/cp_%"PRIicl"_%c_%s.dat", CM_CLASS_DATADIR, -c.cl.d,
             c.invariant, c.paramstr);
 
    if (!cm_file_open_read (&f, filename))
@@ -148,10 +148,10 @@ bool cm_class_read (cm_class_t c)
 
    if (!fscanf (f, "%"SCNicl"\n", &disc))
       return false;
-   if (-disc != c.d) {
+   if (-disc != c.cl.d) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** discriminant %"PRIicl" instead of %"PRIicl"\n", -disc, c.d);
+      printf ("*** discriminant %"PRIicl" instead of %"PRIicl"\n", -disc, c.cl.d);
       return false;
    }
    if (!fscanf (f, "%c", &inv))

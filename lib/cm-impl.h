@@ -40,31 +40,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 
 typedef struct {
-   int_cl_t a, b;
-} cm_form_t;
-
-
-typedef struct {
-   int_cl_t d;
-   cm_form_t *form;
-      /* contains a set of representatives of quadratic forms of             */
-      /* discriminant d.                                                     */
-   int *conj;
-      /* references how the forms in form are related by "conjugation",
-         that is, negation; conj [i] == j if and only if form [j] is the
-         inverse of form [i] */
-   int h;
-      /* the class number */
-   int levels;
-   int *deg;
-      /* Number of entries and their cardinalities (from back to front) in
-         the normal series associated to the ordering of the quadratic
-         forms, or equivalently the sequence of degrees (from bottom to
-         top) in a Galois tower decomposition of the class field. */
-} cm_classgroup_t;
-
-
-typedef struct {
    cm_modular_t m;
    cm_classgroup_t cl;
    ftype root;

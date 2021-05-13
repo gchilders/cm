@@ -141,6 +141,31 @@ typedef __mpzx_tower_struct *mpzx_tower_ptr;
 typedef const __mpzx_tower_struct *mpzx_tower_srcptr;
 
 
+/* Types for quadratic forms and class groups */
+typedef struct {
+   int_cl_t a, b;
+} cm_form_t;
+
+typedef struct {
+   int_cl_t d;
+   cm_form_t *form;
+      /* contains a set of representatives of quadratic forms of             */
+      /* discriminant d.                                                     */
+   int *conj;
+      /* references how the forms in form are related by "conjugation",
+         that is, negation; conj [i] == j if and only if form [j] is the
+         inverse of form [i] */
+   int h;
+      /* the class number */
+   int levels;
+   int *deg;
+      /* Number of entries and their cardinalities (from back to front) in
+         the normal series associated to the ordering of the quadratic
+         forms, or equivalently the sequence of degrees (from bottom to
+         top) in a Galois tower decomposition of the class field. */
+} cm_classgroup_t;
+
+
 typedef struct {
    char invariant;
       /* a constant describing which invariant is actually used                 */
@@ -157,13 +182,12 @@ typedef struct {
    char paramstr [255];
       /* a string encoding the previous characters, used in files and their     */
       /* names                                                                  */
-   int_cl_t d;
-      /* the discriminant                                                       */
+   cm_classgroup_t cl;
+      /* The class group; it also contains the discriminant d and the class
+         number h. */
    int_cl_t dfund;
       /* The fundamental discriminant attached to d, needed for rounding to
          quadratic integers in the complex case. */
-   int h;
-      /* the class number */
    mpzx_t minpoly;
       /* real part of the minimal polynomial of the function over Q             */
    mpzx_t minpoly_complex;
