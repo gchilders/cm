@@ -80,6 +80,11 @@ typedef struct {
 extern "C" {
 #endif
 
+/* number theoretic functions */
+extern void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p);
+extern void cm_nt_mpz_tonelli (mpz_ptr root, const long int a, mpz_srcptr p);
+extern bool cm_nt_cget_zz (mpz_ptr out1, mpz_ptr out2, ctype in, ctype omega);
+
 /* functions for computing q expansions of modular functions and addition
    chains */
 extern void cm_qdev_init (cm_qdev_t *f, fprec_t prec);
