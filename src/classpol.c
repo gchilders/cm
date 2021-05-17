@@ -46,7 +46,6 @@ int main (int argc, char* argv [])
       param,
       true /* classpol */,
       false /* tower */,
-      false /* disk */,
       true /* print */,
       verbose);
    cm_class_clear (c, param);

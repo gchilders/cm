@@ -284,12 +284,11 @@ extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
 extern void cm_class_clear (cm_class_ptr c, cm_param_srcptr param);
 extern bool cm_class_compute_minpoly (cm_class_ptr c,
    cm_param_srcptr param, bool classpol, bool tower,
-   bool disk, bool print, bool verbose);
+   bool print, bool verbose);
 
-/* functions for computing parameters of a complex multiplication curve      */
+/* functions for computing parameters of a complex multiplication curve */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool pari, bool readwrite, bool print,
-   bool tower, bool verbose);
+   const char* modpoldir, bool pari, bool print, bool tower, bool verbose);
 
 #if defined (__cplusplus)
 }

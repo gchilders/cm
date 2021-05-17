@@ -39,7 +39,6 @@ int main (int argc, char* argv [])
 
    cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR,
       true /* pari */,
-      false /* readwrite */,
       true /* print */,
       true /* tower */,
       verbose);

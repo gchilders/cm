@@ -553,12 +553,11 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 /*****************************************************************************/
 
 bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
-   bool classpol, bool tower, bool disk, bool print, bool verbose)
+   bool classpol, bool tower, bool print, bool verbose)
    /* At least one of classpol and tower needs to be set to true:
       classpol indicates whether the (absolute) class polynomial should be
       computed; tower indicates whether the class polynomial should be
       decomposed as a Galois tower.
-      disk indicates whether the result should be written to disk.
       print indicates whether the result should be printed on screen.
       The return value reflects the success of the computation. */
 {
@@ -642,7 +641,6 @@ bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
       if (param->field == CM_FIELD_REAL) {
          mpfrx_tower_init (t, c->tower->levels, c->tower->d, prec);
          mpfrcx_tower_decomposition (t, conjugate, conj);
-         /* There should be a possibility to save the field tower on disk. */
          ok &= cm_mpfrx_tower_get_mpzx_tower (c->tower, t);
          if (print && ok)
             mpzx_tower_print_pari (stdout, c->tower, "f", NULL);
@@ -680,8 +678,6 @@ bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
          printf ("Height of minimal polynomial: %d\n",
             class_get_height (param, c));
    }
-   if (disk && ok)
-      ok &= cm_class_write (c, param);
 
    return ok;
 }
