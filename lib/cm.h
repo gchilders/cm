@@ -194,9 +194,6 @@ typedef const __cm_param_struct *cm_param_srcptr;
 /* Type for class polynomials and class field towers. */
 
 typedef struct {
-   bool pari;
-      /* Indicates whether the pari stack has been initialised during the
-         call to cm_class_init. */
    cm_classgroup_t cl;
       /* The class group; it also contains the discriminant d and the class
          number h. */
@@ -219,6 +216,13 @@ typedef struct {
          class field is decomposed as a tower; it contains the entries of
          the defining polynomials in the second element of the integral
          basis as explained for minpoly_complex. */
+   bool pari;
+      /* Indicates whether the pari stack has been initialised during the
+         call to cm_class_init. */
+   int field;
+      /* This is a duplicate of the field with the same name in cm_param,
+         but it makes the structure self-contained with respect to which
+         fields are initialised. */
 } __cm_class_struct;
 
 typedef __cm_class_struct cm_class_t [1];
@@ -281,7 +285,7 @@ extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
 /* functions for class polynomials */
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
    bool pari, bool verbose);
-extern void cm_class_clear (cm_class_ptr c, cm_param_srcptr param);
+extern void cm_class_clear (cm_class_ptr c);
 extern bool cm_class_compute_minpoly (cm_class_ptr c,
    cm_param_srcptr param, bool classpol, bool tower,
    bool print, bool verbose);

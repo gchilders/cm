@@ -48,7 +48,7 @@ int main (int argc, char* argv [])
       false /* tower */,
       true /* print */,
       verbose);
-   cm_class_clear (c, param);
+   cm_class_clear (c);
 
    cm_timer_stop (clock);
    if (verbose)

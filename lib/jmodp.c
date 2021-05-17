@@ -629,7 +629,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       printf ("--- Time for j: %.1f\n", cm_timer_get (clock));
    }
 
-   cm_class_clear (c, param);
+   cm_class_clear (c);
 
    return j;
 }

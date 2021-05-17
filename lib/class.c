@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static double class_get_valuation (cm_param_srcptr param);
    /* return some value related to heights and depending on the function     */
-static int class_get_height (cm_param_srcptr param, cm_class_srcptr c);
+static int class_get_height (cm_class_srcptr c);
    /* in the real case, returns the binary length of the largest             */
    /* coefficient of the minimal polynomial                                  */
    /* in the complex case, returns the binary length of the largest          */
@@ -60,6 +60,7 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
 {
    int one [] = {1};
 
+   c->field = param->field;
    c->dfund = cm_classgroup_fundamental_discriminant (param->d);
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
@@ -91,12 +92,12 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
 
 /*****************************************************************************/
 
-void cm_class_clear (cm_class_ptr c, cm_param_srcptr param)
+void cm_class_clear (cm_class_ptr c)
 
 {
    mpzx_clear (c->minpoly);
    mpzx_tower_clear (c->tower);
-   if (param->field == CM_FIELD_COMPLEX) {
+   if (c->field == CM_FIELD_COMPLEX) {
       mpzx_tower_clear (c->tower_complex);
    }
 
@@ -176,7 +177,7 @@ static double class_get_valuation (cm_param_srcptr param)
 
 /*****************************************************************************/
 
-static int class_get_height (cm_param_srcptr param, cm_class_srcptr c)
+static int class_get_height (cm_class_srcptr c)
    /* In the real case, return the binary length of the largest coefficient
       of the minimal polynomial; in the complex case, return the binary
       length of the largest coefficient with respect to the decomposition
@@ -190,7 +191,7 @@ static int class_get_height (cm_param_srcptr param, cm_class_srcptr c)
       if (cand > height)
          height = cand;
    }
-   if (param->field == CM_FIELD_COMPLEX)
+   if (c->field == CM_FIELD_COMPLEX)
       for (i = 0; i < c->minpoly_complex->deg; i++) {
          cand = mpz_sizeinbase (c->minpoly_complex->coeff [i], 2);
          if (cand > height)
@@ -676,7 +677,7 @@ bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
             cm_timer_get (clock_global));
       if (classpol)
          printf ("Height of minimal polynomial: %d\n",
-            class_get_height (param, c));
+            class_get_height (c));
    }
 
    return ok;
