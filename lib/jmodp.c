@@ -34,17 +34,17 @@ static void quadraticx_eval_mod_p (mpz_ptr val, mpzx_srcptr g,
    mpzx_srcptr h, mpz_srcptr x, mpz_srcptr omega, mpz_srcptr p);
 static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
    int deg, mpz_srcptr y, mpz_srcptr omega, mpz_srcptr p);
-static void get_root_mod_P (cm_param_srcptr param, cm_class_srcptr c,
-   mpz_t root, mpz_t P, bool verbose);
+static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
+   mpz_ptr root, mpz_srcptr p, bool verbose);
 static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
    mpz_srcptr p, bool verbose);
 static void get_quadratic_tower_root_mod_p (mpz_ptr root,
    mpzx_tower_srcptr t, mpzx_tower_srcptr u, mpz_srcptr omega,
    mpz_srcptr p, bool verbose);
-static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
-   char type, int level, mpz_t root, mpz_t P);
-static mpz_t* simpleeta_cm_get_j_mod_P (cm_param_srcptr param, mpz_t root,
-   mpz_t P, int *no);
+static mpz_t* get_j_mod_p_from_modular (int *no, const char* modpoldir,
+   char type, int level, mpz_srcptr root, mpz_srcptr p);
+static mpz_t* simpleeta_cm_get_j_mod_p (cm_param_srcptr param,
+   mpz_srcptr root, mpz_srcptr P, int *no);
 
 /*****************************************************************************/
 
@@ -164,31 +164,31 @@ static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
 
 /*****************************************************************************/
 
-static void get_root_mod_P (cm_param_srcptr param, cm_class_srcptr c,
-   mpz_t root, mpz_t P, bool verbose)
+static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
+   mpz_ptr root, mpz_srcptr p, bool verbose)
    /* Return a root of the minimal polynomial modulo P in root. */
 
 {
    cm_timer clock;
    mpz_t omega;
-   mpzx_t classpol_P;
+   mpzx_t classpol_p;
 
    if (param->field == CM_FIELD_REAL)
-      cm_pari_oneroot (root, c->classpol, P, verbose);
+      cm_pari_oneroot (root, c->classpol, p, verbose);
    else {
       mpz_init (omega);
       cm_timer_start (clock);
-      quadratic_basis (omega, c->dfund, P);
+      quadratic_basis (omega, c->dfund, p);
       cm_timer_stop (clock);
       if (verbose)
          printf ("--- Time for square root: %.1f\n", cm_timer_get (clock));
 
-      mpzx_init (classpol_P, c->classpol->deg);
-      quadraticx_mod_p (classpol_P, c->classpol, c->classpol_c, omega, P);
-      cm_pari_oneroot (root, classpol_P, P, verbose);
+      mpzx_init (classpol_p, c->classpol->deg);
+      quadraticx_mod_p (classpol_p, c->classpol, c->classpol_c, omega, p);
+      cm_pari_oneroot (root, classpol_p, p, verbose);
 
       mpz_clear (omega);
-      mpzx_clear (classpol_P);
+      mpzx_clear (classpol_p);
    }
 
    if (verbose) {
@@ -257,8 +257,8 @@ static void get_quadratic_tower_root_mod_p (mpz_ptr root,
 
 /*****************************************************************************/
 
-static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
-   char type, int level, mpz_t root, mpz_t P)
+static mpz_t* get_j_mod_p_from_modular (int *no, const char* modpoldir,
+   char type, int level, mpz_srcptr root, mpz_srcptr p)
    /* computes the possible j-values as roots of the modular polynomial      */
    /* specified by type and level                                            */
 
@@ -267,8 +267,8 @@ static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
    mpzx_t poly_j;
       /* a polynomial one of whose roots is j mod P */
 
-   cm_modpol_read_specialised_mod (poly_j, level, type, P, root, modpoldir);
-   j = cm_pari_find_roots (no, poly_j, P);
+   cm_modpol_read_specialised_mod (poly_j, level, type, p, root, modpoldir);
+   j = cm_pari_find_roots (no, poly_j, p);
    mpzx_clear (poly_j);
 
    return j;
@@ -276,152 +276,154 @@ static mpz_t* get_j_mod_P_from_modular (int *no, const char* modpoldir,
 
 /*****************************************************************************/
 
-static mpz_t* simpleeta_cm_get_j_mod_P (cm_param_srcptr param, mpz_t root,
-   mpz_t P, int *no)
+static mpz_t* simpleeta_cm_get_j_mod_p (cm_param_srcptr param,
+   mpz_srcptr root, mpz_srcptr p, int *no)
 
 {
    mpz_t* j = (mpz_t*) malloc (sizeof (mpz_t));
-   mpz_t f3, tmp;
+   mpz_t f3, pow, tmp;
 
    mpz_init (j [0]);
    mpz_init (f3);
+   mpz_init (pow);
    mpz_init (tmp);
 
-   mpz_powm_ui (root, root, (unsigned long int) (param->s / param->e), P);
+   mpz_powm_ui (pow, root, (unsigned long int) (param->s / param->e), p);
 
    if (param->p [0] == 3) {
-      mpz_add_ui (f3, root, 3ul);
-      mpz_powm_ui (f3, f3, 3ul, P);
-      mpz_invert (tmp, root, P);
+      mpz_add_ui (f3, pow, 3ul);
+      mpz_powm_ui (f3, f3, 3ul, p);
+      mpz_invert (tmp, pow, p);
       mpz_mul_ui (tmp, tmp, 27ul);
       mpz_add_ui (tmp, tmp, 1ul);
       mpz_mul (j [0], f3, tmp);
-      mpz_mod (j [0], j [0], P);
+      mpz_mod (j [0], j [0], p);
    }
    else if (param->p [0] == 5) {
-      mpz_add_ui (tmp, root, 10ul);
-      mpz_mul (f3, root, tmp);
-      mpz_mod (f3, f3, P);
+      mpz_add_ui (tmp, pow, 10ul);
+      mpz_mul (f3, pow, tmp);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 5ul);
-      mpz_powm_ui (f3, f3, 3ul, P);
-      mpz_invert (tmp, root, P);
+      mpz_powm_ui (f3, f3, 3ul, p);
+      mpz_invert (tmp, pow, p);
       mpz_mul (j [0], f3, tmp);
-      mpz_mod (j [0], j [0], P);
+      mpz_mod (j [0], j [0], p);
    }
    else if (param->p [0] == 7) {
-      mpz_add_ui (tmp, root, 5ul);
-      mpz_mul (f3, root, tmp);
-      mpz_mod (f3, f3, P);
+      mpz_add_ui (tmp, pow, 5ul);
+      mpz_mul (f3, pow, tmp);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 1ul);
-      mpz_powm_ui (f3, f3, 3ul, P);
-      mpz_add_ui (j [0], root, 13ul);
-      mpz_mul (j [0], j [0], root);
-      mpz_mod (j [0], j [0], P);
+      mpz_powm_ui (f3, f3, 3ul, p);
+      mpz_add_ui (j [0], pow, 13ul);
+      mpz_mul (j [0], j [0], pow);
+      mpz_mod (j [0], j [0], p);
       mpz_add_ui (j [0], j [0], 49ul);
       mpz_mul (j [0], j [0], f3);
-      mpz_mod (j [0], j [0], P);
-      mpz_invert (tmp, root, P);
+      mpz_mod (j [0], j [0], p);
+      mpz_invert (tmp, pow, p);
       mpz_mul (j [0], j [0], tmp);
-      mpz_mod (j [0], j [0], P);
+      mpz_mod (j [0], j [0], p);
    }
    else if (param->p [0] == 13) {
-      mpz_add_ui (f3, root, 7ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_add_ui (f3, pow, 7ul);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 20ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 19ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 1ul);
-      mpz_powm_ui (f3, f3, 3ul, P);
-      mpz_add_ui (j [0], root, 5ul);
-      mpz_mul (j [0], j [0], root);
-      mpz_mod (j [0], j [0], P);
+      mpz_powm_ui (f3, f3, 3ul, p);
+      mpz_add_ui (j [0], pow, 5ul);
+      mpz_mul (j [0], j [0], pow);
+      mpz_mod (j [0], j [0], p);
       mpz_add_ui (j [0], j [0], 13ul);
       mpz_mul (j [0], j [0], f3);
-      mpz_mod (j [0], j [0], P);
-      mpz_invert (tmp, root, P);
+      mpz_mod (j [0], j [0], p);
+      mpz_invert (tmp, pow, p);
       mpz_mul (j [0], j [0], tmp);
-      mpz_mod (j [0], j [0], P);
+      mpz_mod (j [0], j [0], p);
    }
    else if (param->p [0] == 4) {
-      mpz_add_ui (f3, root, 16ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
-      mpz_invert (tmp, f3, P);
+      mpz_add_ui (f3, pow, 16ul);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
+      mpz_invert (tmp, f3, p);
       mpz_add_ui (f3, f3, 16ul);
-      mpz_powm_ui (f3, f3, 3ul, P);
+      mpz_powm_ui (f3, f3, 3ul, p);
       mpz_mul (j [0], tmp, f3);
-      mpz_mod (j [0], j [0], P);
+      mpz_mod (j [0], j [0], p);
    }
    else if (param->p [0] == 9) {
-      mpz_add_ui (tmp, root, 9ul);
-      mpz_mul (tmp, tmp, root);
-      mpz_mod (tmp, tmp, P);
+      mpz_add_ui (tmp, pow, 9ul);
+      mpz_mul (tmp, tmp, pow);
+      mpz_mod (tmp, tmp, p);
       mpz_add_ui (tmp, tmp, 27ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
-      mpz_invert (j [0], tmp, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
+      mpz_invert (j [0], tmp, p);
       mpz_add_ui (f3, tmp, 3ul);
-      mpz_add_ui (tmp, root, 3ul);
+      mpz_add_ui (tmp, pow, 3ul);
       mpz_mul (f3, f3, tmp);
-      mpz_mod (f3, f3, P);
-      mpz_powm_ui (f3, f3, 3ul, P);
+      mpz_mod (f3, f3, p);
+      mpz_powm_ui (f3, f3, 3ul, p);
       mpz_mul (j [0], j [0], f3);
-      mpz_mod (j [0], j [0], P);
+      mpz_mod (j [0], j [0], p);
    }
    else if (param->p [0] == 25) {
-      mpz_add_ui (f3, root, 10ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_add_ui (f3, pow, 10ul);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 55ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 200ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 525ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 1010ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 1425ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 1400ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 875ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 250ul);
-      mpz_mul (f3, f3, root);
-      mpz_mod (f3, f3, P);
+      mpz_mul (f3, f3, pow);
+      mpz_mod (f3, f3, p);
       mpz_add_ui (f3, f3, 5ul);
-      mpz_powm_ui (f3, f3, 3ul, P);
-      mpz_add_ui (tmp, root, 5ul);
-      mpz_mul (tmp, tmp, root);
-      mpz_mod (tmp, tmp, P);
+      mpz_powm_ui (f3, f3, 3ul, p);
+      mpz_add_ui (tmp, pow, 5ul);
+      mpz_mul (tmp, tmp, pow);
+      mpz_mod (tmp, tmp, p);
       mpz_add_ui (tmp, tmp, 15ul);
-      mpz_mul (tmp, tmp, root);
-      mpz_mod (tmp, tmp, P);
+      mpz_mul (tmp, tmp, pow);
+      mpz_mod (tmp, tmp, p);
       mpz_add_ui (tmp, tmp, 25ul);
-      mpz_mul (tmp, tmp, root);
-      mpz_mod (tmp, tmp, P);
+      mpz_mul (tmp, tmp, pow);
+      mpz_mod (tmp, tmp, p);
       mpz_add_ui (tmp, tmp, 25ul);
-      mpz_mul (tmp, tmp, root);
-      mpz_mod (tmp, tmp, P);
-      mpz_invert (j [0], tmp, P);
+      mpz_mul (tmp, tmp, pow);
+      mpz_mod (tmp, tmp, p);
+      mpz_invert (j [0], tmp, p);
       mpz_mul (j [0], j [0], f3);
-      mpz_mod (j [0], j [0], P);
+      mpz_mod (j [0], j [0], p);
    }
 
    *no = 1;
 
    mpz_clear (f3);
+   mpz_clear (pow);
    mpz_clear (tmp);
 
    return j;
@@ -429,44 +431,35 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_param_srcptr param, mpz_t root,
 
 /*****************************************************************************/
 
-mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
-   const char* modpoldir, bool tower, bool verbose)
+mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
+   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir, bool verbose)
+   /* Assuming that c contains a class polynomial or a tower for param,
+      allocate and return a list of potential j values modulo p.
+      The number of allocated values is returned in no. */
 
 {
-   cm_class_t c;
    mpz_t *j;
    mpz_t root, d_mpz, tmp, tmp2, f24;
    cm_timer clock;
-   cm_param_t param;
-
-   if (!cm_param_init (param, d, inv, verbose))
-      exit (1);
-
-   cm_class_init (c, param, verbose);
-
-   if (tower)
-      cm_class_compute (c, param, false, true, verbose);
-   else
-      cm_class_compute (c, param, true, false, verbose);
 
    cm_timer_start (clock);
    mpz_init (root);
-   if (!tower)
-      get_root_mod_P (param, c, root, P, verbose);
+   if (!c->computed_tower)
+      get_root_mod_p (param, c, root, p, verbose);
    else {
       if (param->field == CM_FIELD_REAL)
-         get_tower_root_mod_p (root, c->tower, P, verbose);
+         get_tower_root_mod_p (root, c->tower, p, verbose);
       else {
          mpz_t omega;
          mpz_init (omega);
-         quadratic_basis (omega, c->dfund, P);
+         quadratic_basis (omega, c->dfund, p);
          get_quadratic_tower_root_mod_p (root, c->tower, c->tower_c,
-            omega, P, verbose);
+            omega, p, verbose);
          mpz_clear (omega);
       }
    }
 
-   switch (inv)
+   switch (param->invariant)
    {
       case CM_INVARIANT_J:
          j = (mpz_t*) malloc (sizeof (mpz_t));
@@ -476,22 +469,22 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       case CM_INVARIANT_GAMMA2:
          j = (mpz_t*) malloc (sizeof (mpz_t));
          mpz_init_set (j [0], root);
-         mpz_powm_ui (j [0], j [0], 3, P);
+         mpz_powm_ui (j [0], j [0], 3, p);
          *no = 1;
          break;
       case CM_INVARIANT_GAMMA3:
          j = (mpz_t*) malloc (sizeof (mpz_t));
          mpz_init (j [0]);
 
-         mpz_init_set_si (d_mpz, d);
+         mpz_init_set_si (d_mpz, param->d);
          mpz_init (tmp);
          mpz_init (tmp2);
 
-         mpz_powm_ui (tmp, root, 2, P);
-         mpz_invert (tmp2, d_mpz, P);
+         mpz_powm_ui (tmp, root, 2, p);
+         mpz_invert (tmp2, d_mpz, p);
          mpz_mul (root, tmp, tmp2);
          mpz_add_ui (root, root, 1728);
-         mpz_mod (j [0], root, P);
+         mpz_mod (j [0], root, p);
 
          *no = 1;
 
@@ -506,68 +499,68 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
          mpz_init (f24);
          mpz_init (tmp);
 
-         if (d % 3 == 0)
-            mpz_powm_ui (f24, root, 2ul, P);
+         if (param->d % 3 == 0)
+            mpz_powm_ui (f24, root, 2ul, p);
          else
-            mpz_powm_ui (f24, root, 6ul, P);
+            mpz_powm_ui (f24, root, 6ul, p);
 
          if (param->p [0] == 1) {
             mpz_mul_2exp (tmp, f24, 3ul);
-            mpz_mod (tmp, tmp, P);
-            mpz_powm_ui (f24, tmp, 2ul, P);
+            mpz_mod (tmp, tmp, p);
+            mpz_powm_ui (f24, tmp, 2ul, p);
             mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
+            mpz_powm_ui (j [0], j [0], 3ul, p);
+            mpz_invert (tmp, f24, p);
             mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
+            mpz_mod (j [0], j [0], p);
          }
          else if (param->p [0] == 3) {
-            mpz_powm_ui (tmp, f24, 4ul, P);
+            mpz_powm_ui (tmp, f24, 4ul, p);
             mpz_set (f24, tmp);
             mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
+            mpz_powm_ui (j [0], j [0], 3ul, p);
+            mpz_invert (tmp, f24, p);
             mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
+            mpz_mod (j [0], j [0], p);
          }
          else if (param->p [0] == 5) {
             mpz_mul_2exp (tmp, f24, 6ul);
             mpz_set (f24, tmp);
             mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
+            mpz_powm_ui (j [0], j [0], 3ul, p);
+            mpz_invert (tmp, f24, p);
             mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
+            mpz_mod (j [0], j [0], p);
          }
          else if (param->p [0] == 7) {
             mpz_mul_2exp (tmp, f24, 3ul);
-            mpz_mod (tmp, tmp, P);
-            mpz_powm_ui (f24, tmp, 4ul, P);
+            mpz_mod (tmp, tmp, p);
+            mpz_powm_ui (f24, tmp, 4ul, p);
             mpz_sub_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
+            mpz_powm_ui (j [0], j [0], 3ul, p);
+            mpz_invert (tmp, f24, p);
             mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
+            mpz_mod (j [0], j [0], p);
          }
          else if (param->p [0] == 2 || param->p [0] == 6) {
             mpz_mul_2exp (tmp, f24, 3ul);
-            mpz_mod (tmp, tmp, P);
-            mpz_powm_ui (f24, tmp, 2ul, P);
+            mpz_mod (tmp, tmp, p);
+            mpz_powm_ui (f24, tmp, 2ul, p);
             mpz_add_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
+            mpz_powm_ui (j [0], j [0], 3ul, p);
+            mpz_invert (tmp, f24, p);
             mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
+            mpz_mod (j [0], j [0], p);
          }
          else {
             /* param->p [0] == 4 */
             mpz_mul_2exp (tmp, f24, 9ul);
             mpz_set (f24, tmp);
             mpz_add_ui (j [0], f24, 16ul);
-            mpz_powm_ui (j [0], j [0], 3ul, P);
-            mpz_invert (tmp, f24, P);
+            mpz_powm_ui (j [0], j [0], 3ul, p);
+            mpz_invert (tmp, f24, p);
             mpz_mul (j [0], j [0], tmp);
-            mpz_mod (j [0], j [0], P);
+            mpz_mod (j [0], j [0], p);
          }
 
          *no = 1;
@@ -581,9 +574,9 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
 #endif
          if (param->s != param->e)
             mpz_powm_ui (root, root,
-               (unsigned long int) (param->s / param->e), P);
-         j = get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
-            param->p [0] * param->p [1], root, P);
+               (unsigned long int) (param->s / param->e), p);
+         j = get_j_mod_p_from_modular (no, modpoldir, CM_MODPOL_DOUBLEETA,
+            param->p [0] * param->p [1], root, p);
          break;
       case CM_INVARIANT_MULTIETA:
       {
@@ -592,17 +585,17 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
             N *= param->p [i];
          if (param->s != param->e)
             mpz_powm_ui (root, root,
-               (unsigned long int) (param->s / param->e), P);
-         j = get_j_mod_P_from_modular (no, modpoldir,
-            CM_MODPOL_MULTIETA, N, root, P);
+               (unsigned long int) (param->s / param->e), p);
+         j = get_j_mod_p_from_modular (no, modpoldir,
+            CM_MODPOL_MULTIETA, N, root, p);
          break;
       }
       case CM_INVARIANT_ATKIN:
-         j = get_j_mod_P_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
-            param->p [0], root, P);
+         j = get_j_mod_p_from_modular (no, modpoldir, CM_MODPOL_ATKIN,
+            param->p [0], root, p);
          break;
       case CM_INVARIANT_SIMPLEETA:
-         j = simpleeta_cm_get_j_mod_P (param, root, P, no);
+         j = simpleeta_cm_get_j_mod_p (param, root, p, no);
          break;
       default: /* should not occur */
          printf ("class_cm_get_j_mod_P called for unknown class ");
@@ -625,8 +618,6 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
       printf ("\n");
       printf ("--- Time for j: %.1f\n", cm_timer_get (clock));
    }
-
-   cm_class_clear (c);
 
    return j;
 }

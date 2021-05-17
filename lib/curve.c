@@ -427,7 +427,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
 {
    mpz_t  p;
       /* the size of the base field */
-   mpz_t  n, l, c;
+   mpz_t  n, l, co;
       /* the cardinality of the curve, the prime order of a base point and  */
       /* the cofactor C = N/Q                                               */
    mpz_t* j;
@@ -436,6 +436,8 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    mpz_t  a, b, k, P_x, P_y, x, y;
       /* the curve parameters mod P, an auxiliary variable and point         */
       /* coordinates of a random point on the curve (twice)                  */
+   cm_param_t param;
+   cm_class_t c;
    mpz_t  tmp;
    bool   P_infty;
    int    i, no_j;
@@ -448,7 +450,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    mpz_init (p);
    mpz_init (n);
    mpz_init (l);
-   mpz_init (c);
+   mpz_init (co);
    mpz_init (tmp);
    mpz_init (a);
    mpz_init (b);
@@ -460,14 +462,19 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    mpz_init_set_ui (nonsquare, 2);
 
    cm_timer_start (clock);
-   curve_compute_param (p, n, l, c, d, fieldsize, verbose);
+   curve_compute_param (p, n, l, co, d, fieldsize, verbose);
    cm_timer_stop (clock);
    while (mpz_jacobi (nonsquare, p) != -1)
       mpz_add_ui (nonsquare, nonsquare, 1);
    if (verbose)
       printf ("--- Time for P: %.1f\n\n", cm_timer_get (clock));
 
-   j = cm_class_get_j_mod_P (d, inv, p, &no_j, modpoldir, tower, verbose);
+   if (!cm_param_init (param, d, inv, verbose))
+      exit (1);
+   cm_class_init (c, param, verbose);
+   cm_class_compute (c, param, !tower, tower, verbose);
+   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
+   cm_class_clear (c);
 
    cm_timer_start (clock);
    for (i = 0; i < no_j && !ok; i++)
@@ -500,7 +507,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
          mpz_mod (a, a, p);
       }
 
-      elliptic_curve_random (P_x, P_y, c, a, b, p);
+      elliptic_curve_random (P_x, P_y, co, a, b, p);
       mpz_set (x, P_x);
       mpz_set (y, P_y);
       P_infty = false;
@@ -517,7 +524,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
          mpz_mul (b, b, tmp);
          mpz_mul (b, b, nonsquare);
          mpz_mod (b, b, p);
-         elliptic_curve_random (P_x, P_y, c, a, b, p);
+         elliptic_curve_random (P_x, P_y, co, a, b, p);
          mpz_set (x, P_x);
          mpz_set (y, P_y);
          P_infty = false;
@@ -538,7 +545,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    if (print) {
       printf ("p = "); mpz_out_str (stdout, 10, p); printf ("\n");
       printf ("n = "); mpz_out_str (stdout, 10, n); printf ("\n");
-      printf ("  = "); mpz_out_str (stdout, 10, c);
+      printf ("  = "); mpz_out_str (stdout, 10, co);
       printf (" * "); mpz_out_str (stdout, 10, l); printf ("\n");
       printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
       printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
@@ -553,7 +560,7 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    mpz_clear (p);
    mpz_clear (n);
    mpz_clear (l);
-   mpz_clear (c);
+   mpz_clear (co);
    mpz_clear (tmp);
    mpz_clear (a);
    mpz_clear (b);

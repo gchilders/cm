@@ -96,7 +96,7 @@ static void read_gz_mpz (mpz_t rop, gzFile f)
 /*****************************************************************************/
 
 void cm_modpol_read_specialised_mod (mpzx_ptr pol, int level, char type,
-   mpz_t p, mpz_t x, const char* datadir)
+   mpz_srcptr p, mpz_srcptr x, const char* datadir)
    /* Return in pol the modular polynomial of the given type and level
       modulo p and evaluated in the first argument x. pol should not be
       initialised (since its degree is only known inside this function). */

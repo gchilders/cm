@@ -275,7 +275,7 @@ extern void cm_modular_atkinhecke_level_eval (cm_modular_t m, ctype rop,
 
 /* functions reading modular polynomials */
 extern void cm_modpol_read_specialised_mod (mpzx_ptr pol, int level,
-   char type, mpz_t p, mpz_t x, const char * datadir);
+   char type, mpz_srcptr p, mpz_srcptr x, const char * datadir);
 extern void cm_modpol_print_pari (int level, char type, const char* datadir);
 extern void cm_modpol_print_magma (int level, char type, const char* datadir);
 

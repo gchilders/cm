@@ -152,8 +152,8 @@ extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
 extern bool cm_class_write (cm_class_srcptr c, cm_param_srcptr param);
 extern bool cm_class_read (cm_class_ptr c, cm_param_srcptr param);
 
-extern mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
-   const char* modpoldir, bool tower, bool verbose);
+extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
+   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir, bool verbose);
 
 #if defined (__cplusplus)
 }
