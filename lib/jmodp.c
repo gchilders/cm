@@ -171,10 +171,10 @@ static void get_root_mod_P (cm_param_srcptr param, cm_class_srcptr c,
 {
    cm_timer clock;
    mpz_t omega;
-   mpzx_t minpoly_P;
+   mpzx_t classpol_P;
 
    if (param->field == CM_FIELD_REAL)
-      cm_pari_oneroot (root, c->minpoly, P, verbose);
+      cm_pari_oneroot (root, c->classpol, P, verbose);
    else {
       mpz_init (omega);
       cm_timer_start (clock);
@@ -183,13 +183,12 @@ static void get_root_mod_P (cm_param_srcptr param, cm_class_srcptr c,
       if (verbose)
          printf ("--- Time for square root: %.1f\n", cm_timer_get (clock));
 
-      mpzx_init (minpoly_P, c->minpoly->deg);
-      quadraticx_mod_p (minpoly_P, c->minpoly, c->minpoly_complex,
-         omega, P);
-      cm_pari_oneroot (root, minpoly_P, P, verbose);
+      mpzx_init (classpol_P, c->classpol->deg);
+      quadraticx_mod_p (classpol_P, c->classpol, c->classpol_c, omega, P);
+      cm_pari_oneroot (root, classpol_P, P, verbose);
 
       mpz_clear (omega);
-      mpzx_clear (minpoly_P);
+      mpzx_clear (classpol_P);
    }
 
    if (verbose) {
@@ -448,9 +447,9 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    cm_class_init (c, param, pari, verbose);
 
    if (tower)
-      cm_class_compute_minpoly (c, param, false, true, false, verbose);
+      cm_class_compute (c, param, false, true, false, verbose);
    else
-      cm_class_compute_minpoly (c, param, true, false, false, verbose);
+      cm_class_compute (c, param, true, false, false, verbose);
 
    cm_timer_start (clock);
    mpz_init (root);
@@ -463,7 +462,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
          mpz_t omega;
          mpz_init (omega);
          quadratic_basis (omega, c->dfund, P);
-         get_quadratic_tower_root_mod_p (root, c->tower, c->tower_complex,
+         get_quadratic_tower_root_mod_p (root, c->tower, c->tower_c,
             omega, P, verbose);
          mpz_clear (omega);
       }

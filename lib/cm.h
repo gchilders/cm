@@ -200,22 +200,22 @@ typedef struct {
    int_cl_t dfund;
       /* The fundamental discriminant attached to d, needed for rounding to
          quadratic integers in the complex case. */
-   mpzx_t minpoly;
-      /* real part of the minimal polynomial of the function over Q             */
-   mpzx_t minpoly_complex;
-      /* Only meaningful in the complex case; then the minimal polynomial is    */
-      /* decomposed into two parts over the integral basis                      */
-      /* [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in      */
-      /* minpoly, the second one in this variable.                              */
+   mpzx_t classpol;
+      /* Real part of the class polynomial of the function over Q. */
+   mpzx_t classpol_c;
+      /* Only meaningful in the complex case; then the minimal polynomial is
+         decomposed into two parts over the integral basis
+         [1, sqrt (D)/2] resp. [1, (1 + sqrt (D))/2]; the first part is in
+         classpol, the second one in this field. */
    mpzx_tower_t tower;
       /* This field is meaningful only when the class field is decomposed
          as a tower; it represents the polynomials defining the extensions,
          in the same format as an mpfrx_tower or an mpcx_tower. */
-   mpzx_tower_t tower_complex;
+   mpzx_tower_t tower_c;
       /* This field is meaningful only in the complex case and when the
          class field is decomposed as a tower; it contains the entries of
          the defining polynomials in the second element of the integral
-         basis as explained for minpoly_complex. */
+         basis as explained for classpol_c. */
    bool pari;
       /* Indicates whether the pari stack has been initialised during the
          call to cm_class_init. */
@@ -286,9 +286,8 @@ extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
    bool pari, bool verbose);
 extern void cm_class_clear (cm_class_ptr c);
-extern bool cm_class_compute_minpoly (cm_class_ptr c,
-   cm_param_srcptr param, bool classpol, bool tower,
-   bool print, bool verbose);
+extern bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param,
+   bool classpol, bool tower, bool print, bool verbose);
 
 /* functions for computing parameters of a complex multiplication curve */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,

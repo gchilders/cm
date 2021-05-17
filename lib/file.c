@@ -111,12 +111,12 @@ bool cm_class_write (cm_class_srcptr c, cm_param_srcptr param)
    fprintf (f, "%"PRIicl"\n", -param->d);
    fprintf (f, "%c\n", param->invariant);
    fprintf (f, "%s\n", param->str);
-   fprintf (f, "%i\n", c->minpoly->deg);
-   for (i = c->minpoly->deg; i >= 0; i--) {
-      mpz_out_str (f, 10, c->minpoly->coeff [i]);
+   fprintf (f, "%i\n", c->classpol->deg);
+   for (i = c->classpol->deg; i >= 0; i--) {
+      mpz_out_str (f, 10, c->classpol->coeff [i]);
       if (param->field == CM_FIELD_COMPLEX) {
          fprintf (f, " ");
-         mpz_out_str (f, 10, c->minpoly_complex->coeff [i]);
+         mpz_out_str (f, 10, c->classpol_c->coeff [i]);
       }
       fprintf (f, "\n");
    }
@@ -174,17 +174,17 @@ bool cm_class_read (cm_class_ptr c, cm_param_srcptr param)
    }
    if (!fscanf (f, "%i", &i))
       return false;
-   if (i != c->minpoly->deg) {
+   if (i != c->classpol->deg) {
       printf ("*** Inconsistency between file '%s' ", filename);
       printf ("and internal data:\n");
-      printf ("*** degree %i instead of %i\n", i, c->minpoly->deg);
+      printf ("*** degree %i instead of %i\n", i, c->classpol->deg);
       return false;
    }
 
-   for (i = c->minpoly->deg; i >= 0; i--) {
-      mpz_inp_str (c->minpoly->coeff [i], f, 10);
+   for (i = c->classpol->deg; i >= 0; i--) {
+      mpz_inp_str (c->classpol->coeff [i], f, 10);
       if (param->field == CM_FIELD_COMPLEX)
-         mpz_inp_str (c->minpoly_complex->coeff [i], f, 10);
+         mpz_inp_str (c->classpol_c->coeff [i], f, 10);
    }
 
    cm_file_close (f);

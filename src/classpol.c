@@ -42,7 +42,7 @@ int main (int argc, char* argv [])
    if (!cm_param_init (param, d, invariant, verbose))
       exit (1);
    cm_class_init (c, param, true /* pari */, verbose);
-   cm_class_compute_minpoly (c,
+   cm_class_compute (c,
       param,
       true /* classpol */,
       false /* tower */,

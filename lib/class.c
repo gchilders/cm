@@ -74,19 +74,19 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
    }
 
    cm_classgroup_init (&(c->cl), param->d, verbose);
-   mpzx_init (c->minpoly, c->cl.h);
+   mpzx_init (c->classpol, c->cl.h);
    if (param->field == CM_FIELD_COMPLEX)
-      mpzx_init (c->minpoly_complex, c->cl.h);
+      mpzx_init (c->classpol_c, c->cl.h);
 
    if (c->cl.h == 1) {
       mpzx_tower_init (c->tower, 1, one);
       if (param->field == CM_FIELD_COMPLEX)
-         mpzx_tower_init (c->tower_complex, 1, one);
+         mpzx_tower_init (c->tower_c, 1, one);
    }
    else {
       mpzx_tower_init (c->tower, c->cl.levels, c->cl.deg);
       if (param->field == CM_FIELD_COMPLEX)
-         mpzx_tower_init (c->tower_complex, c->cl.levels, c->cl.deg);
+         mpzx_tower_init (c->tower_c, c->cl.levels, c->cl.deg);
    }
 }
 
@@ -95,10 +95,10 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
 void cm_class_clear (cm_class_ptr c)
 
 {
-   mpzx_clear (c->minpoly);
+   mpzx_clear (c->classpol);
    mpzx_tower_clear (c->tower);
    if (c->field == CM_FIELD_COMPLEX) {
-      mpzx_tower_clear (c->tower_complex);
+      mpzx_tower_clear (c->tower_c);
    }
 
    if (c->pari)
@@ -186,14 +186,14 @@ static int class_get_height (cm_class_srcptr c)
    int i, height, cand;
 
    height = -1;
-   for (i = 0; i < c->minpoly->deg; i++) {
-      cand = mpz_sizeinbase (c->minpoly->coeff [i], 2);
+   for (i = 0; i < c->classpol->deg; i++) {
+      cand = mpz_sizeinbase (c->classpol->coeff [i], 2);
       if (cand > height)
          height = cand;
    }
    if (c->field == CM_FIELD_COMPLEX)
-      for (i = 0; i < c->minpoly_complex->deg; i++) {
-         cand = mpz_sizeinbase (c->minpoly_complex->coeff [i], 2);
+      for (i = 0; i < c->classpol_c->deg; i++) {
+         cand = mpz_sizeinbase (c->classpol_c->coeff [i], 2);
          if (cand > height)
             height = cand;
    }
@@ -553,8 +553,8 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 /*****************************************************************************/
 
-bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
-   bool classpol, bool tower, bool print, bool verbose)
+bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
+   bool tower, bool print, bool verbose)
    /* At least one of classpol and tower needs to be set to true:
       classpol indicates whether the (absolute) class polynomial should be
       computed; tower indicates whether the class polynomial should be
@@ -576,7 +576,7 @@ bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
    cm_timer clock_global, clock_local;
 
    if (!classpol && !tower) {
-      printf ("***** Error: cm_class_compute_minpoly called with nothing "
+      printf ("***** Error: cm_class_compute_classpol called with nothing "
               "to compute\n");
       return false;
    }
@@ -607,27 +607,27 @@ bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
    if (classpol) {
       cm_timer_start (clock_local);
       if (param->field == CM_FIELD_REAL) {
-         mpfrx_init (mpol, c->minpoly->deg + 1, prec);
+         mpfrx_init (mpol, c->classpol->deg + 1, prec);
          mpfrcx_reconstruct_from_roots (mpol, conjugate, conj,
-            c->minpoly->deg);
-         ok &= cm_mpfrx_get_mpzx (c->minpoly, mpol);
+            c->classpol->deg);
+         ok &= cm_mpfrx_get_mpzx (c->classpol, mpol);
          if (print && ok) {
-            mpzx_print_pari (stdout, c->minpoly, NULL);
+            mpzx_print_pari (stdout, c->classpol, NULL);
             printf ("\n");
          }
          mpfrx_clear (mpol);
       }
       else {
-         mpcx_init (mpolc, c->minpoly->deg + 1, prec);
-         mpcx_reconstruct_from_roots (mpolc, conjugate, c->minpoly->deg);
-         ok &= cm_mpcx_get_quadraticx (c->minpoly, c->minpoly_complex,
+         mpcx_init (mpolc, c->classpol->deg + 1, prec);
+         mpcx_reconstruct_from_roots (mpolc, conjugate, c->classpol->deg);
+         ok &= cm_mpcx_get_quadraticx (c->classpol, c->classpol_c,
             mpolc, c->dfund);
          mpcx_clear (mpolc);
          if (print && ok) {
             printf ("(");
-            mpzx_print_pari (stdout, c->minpoly, NULL);
+            mpzx_print_pari (stdout, c->classpol, NULL);
             printf (")+o*(");
-            mpzx_print_pari (stdout, c->minpoly_complex, NULL);
+            mpzx_print_pari (stdout, c->classpol_c, NULL);
             printf (")\n");
          }
       }
@@ -650,12 +650,12 @@ bool cm_class_compute_minpoly (cm_class_ptr c, cm_param_srcptr param,
       else {
          mpcx_tower_init (tc, c->tower->levels, c->tower->d, prec);
          mpcx_tower_decomposition (tc, conjugate);
-         ok = cm_mpcx_tower_get_quadratic_tower (c->tower, c->tower_complex,
+         ok = cm_mpcx_tower_get_quadratic_tower (c->tower, c->tower_c,
             tc, c->dfund);
          mpcx_tower_clear (tc);
          if (print && ok) {
             mpzx_tower_print_pari (stdout, c->tower, "f", NULL);
-            mpzx_tower_print_pari (stdout, c->tower_complex, "g", NULL);
+            mpzx_tower_print_pari (stdout, c->tower_c, "g", NULL);
          }
       }
       cm_timer_stop (clock_local);
