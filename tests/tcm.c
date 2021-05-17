@@ -35,16 +35,16 @@ static void test_curve (int_cl_t d, char invariant, bool verbose) {
    /* First test with class polynomials. */
    printf ("class polynomial: ");
    fflush (stdout);
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, true, false,
-      false, verbose);
+   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, false,
+      verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
    printf ("ok; ");
    /* Then test with a class field tower. */
    printf ("class field tower: ");
    fflush (stdout);
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, true, false,
-      true, verbose);
+   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, true,
+      verbose);
    printf ("ok\n");
 
    cm_timer_stop (clock);
@@ -107,8 +107,12 @@ static void big_test (void)
 
 int main (void)
 {
+   cm_pari_init ();
+
    small_test ();
    big_test ();
    
+   cm_pari_clear ();
+
    return 0;
 }

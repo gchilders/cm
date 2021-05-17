@@ -37,13 +37,14 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
+   cm_pari_init ();
    cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR,
-      true /* pari */,
       true /* print */,
       true /* tower */,
       verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
+   cm_pari_clear ();
 
    cm_timer_stop (clock);
    if (verbose)

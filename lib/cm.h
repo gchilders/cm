@@ -216,9 +216,6 @@ typedef struct {
          class field is decomposed as a tower; it contains the entries of
          the defining polynomials in the second element of the integral
          basis as explained for classpol_c. */
-   bool pari;
-      /* Indicates whether the pari stack has been initialised during the
-         call to cm_class_init. */
    int field;
       /* This is a duplicate of the field with the same name in cm_param,
          but it makes the structure self-contained with respect to which
@@ -287,8 +284,10 @@ extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    bool verbose);
 
 /* functions for class polynomials */
+extern void cm_pari_init (void);
+extern void cm_pari_clear (void);
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
-   bool pari, bool verbose);
+   bool verbose);
 extern void cm_class_clear (cm_class_ptr c);
 extern bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param,
    bool classpol, bool tower, bool verbose);
@@ -297,7 +296,7 @@ extern void cm_class_print_pari (FILE* file, cm_class_srcptr c,
 
 /* functions for computing parameters of a complex multiplication curve */
 extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool pari, bool print, bool tower, bool verbose);
+   const char* modpoldir, bool print, bool tower, bool verbose);
 
 #if defined (__cplusplus)
 }

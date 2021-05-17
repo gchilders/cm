@@ -430,9 +430,7 @@ static mpz_t* simpleeta_cm_get_j_mod_P (cm_param_srcptr param, mpz_t root,
 /*****************************************************************************/
 
 mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
-   const char* modpoldir, bool pari, bool tower, bool verbose)
-   /* pari indicates whether the pari stack should be initialised; if set
-      to false, this is the responsability of the calling function. */
+   const char* modpoldir, bool tower, bool verbose)
 
 {
    cm_class_t c;
@@ -444,7 +442,7 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    if (!cm_param_init (param, d, inv, verbose))
       exit (1);
 
-   cm_class_init (c, param, pari, verbose);
+   cm_class_init (c, param, verbose);
 
    if (tower)
       cm_class_compute (c, param, false, true, verbose);

@@ -54,8 +54,24 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
-   bool verbose)
+void cm_pari_init ()
+{
+   pari_init_opts (1000000, 0, INIT_JMPm | INIT_DFTm);
+      /* Do not capture SIGSEGV. */
+   paristack_setsize (1000000, 1000000000);
+}
+
+/*****************************************************************************/
+
+void cm_pari_clear ()
+
+{
+   pari_close ();
+}
+
+/*****************************************************************************/
+
+void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool verbose)
 
 {
    int one [] = {1};
@@ -67,13 +83,6 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
                param->d, param->invariant, param->str);
-
-   c->pari = pari;
-   if (pari) {
-      pari_init_opts (1000000, 0, INIT_JMPm | INIT_DFTm);
-         /* Do not capture SIGSEGV. */
-      paristack_setsize (1000000, 1000000000);
-   }
 
    cm_classgroup_init (&(c->cl), param->d, verbose);
    mpzx_init (c->classpol, c->cl.h);
@@ -102,9 +111,6 @@ void cm_class_clear (cm_class_ptr c)
    if (c->field == CM_FIELD_COMPLEX) {
       mpzx_tower_clear (c->tower_c);
    }
-
-   if (c->pari)
-      pari_close ();
 
    cm_classgroup_clear (&(c->cl));
 

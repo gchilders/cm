@@ -41,7 +41,8 @@ int main (int argc, char* argv [])
 
    if (!cm_param_init (param, d, invariant, verbose))
       exit (1);
-   cm_class_init (c, param, true /* pari */, verbose);
+   cm_pari_init ();
+   cm_class_init (c, param, verbose);
    cm_class_compute (c,
       param,
       true /* classpol */,
@@ -49,6 +50,7 @@ int main (int argc, char* argv [])
       verbose);
    cm_class_print_pari (stdout, c, NULL, NULL, NULL);
    cm_class_clear (c);
+   cm_pari_clear ();
 
    cm_timer_stop (clock);
    if (verbose)
