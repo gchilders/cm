@@ -613,10 +613,6 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          mpfrcx_reconstruct_from_roots (mpol, conjugate, conj,
             c->classpol->deg);
          ok &= cm_mpfrx_get_mpzx (c->classpol, mpol);
-         if (print && ok) {
-            mpzx_print_pari (stdout, c->classpol, NULL);
-            printf ("\n");
-         }
          mpfrx_clear (mpol);
       }
       else {
@@ -625,13 +621,6 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          ok &= cm_mpcx_get_quadraticx (c->classpol, c->classpol_c,
             mpolc, c->dfund);
          mpcx_clear (mpolc);
-         if (print && ok) {
-            printf ("(");
-            mpzx_print_pari (stdout, c->classpol, NULL);
-            printf (")+o*(");
-            mpzx_print_pari (stdout, c->classpol_c, NULL);
-            printf (")\n");
-         }
       }
       cm_timer_stop (clock_local);
       c->computed_classpol = true;
@@ -646,8 +635,6 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          mpfrx_tower_init (t, c->tower->levels, c->tower->d, prec);
          mpfrcx_tower_decomposition (t, conjugate, conj);
          ok &= cm_mpfrx_tower_get_mpzx_tower (c->tower, t);
-         if (print && ok)
-            mpzx_tower_print_pari (stdout, c->tower, "f", NULL);
          mpfrx_tower_clear (t);
       }
       else {
@@ -656,10 +643,6 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          ok = cm_mpcx_tower_get_quadratic_tower (c->tower, c->tower_c,
             tc, c->dfund);
          mpcx_tower_clear (tc);
-         if (print && ok) {
-            mpzx_tower_print_pari (stdout, c->tower, "f", NULL);
-            mpzx_tower_print_pari (stdout, c->tower_c, "g", NULL);
-         }
       }
       cm_timer_stop (clock_local);
       c->computed_tower = true;
@@ -667,6 +650,9 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          printf ("--- Time for field tower decomposition: %.1f\n",
                  cm_timer_get (clock_local));
    }
+
+   if (print)
+      cm_class_print_pari (stdout, c, NULL, NULL, NULL);
 
    for (i = 0; i < c->cl.h; i++)
       if (conj [i] >= i)

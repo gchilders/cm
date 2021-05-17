@@ -194,3 +194,42 @@ bool cm_class_read (cm_class_ptr c, cm_param_srcptr param)
 }
 
 /*****************************************************************************/
+
+void cm_class_print_pari (FILE* file, cm_class_srcptr c,
+   char *fun, char *fun_c, char *var)
+   /* Print the class polynomial and/or class field tower decomposition in c
+      to file using a format understandable by PARI. fun and fun_c contain
+      the function names for the real and, if applicable, the complex parts
+      of the tower ("f" and "g" by default), var the base name of the
+      variable ("x" by default); the default values are chosen when the
+      arguments are NULL. */
+{
+   char* f = (fun == NULL ? "f" : fun);
+   char* g = (fun_c == NULL ? "g" :fun_c);
+   char* x = (var == NULL ? "x" : var);
+
+   if (c->computed_classpol) {
+      printf ("%s = ", f);
+      if (c->field == CM_FIELD_REAL) {
+         mpzx_print_pari (file, c->classpol, x);
+         printf (")\n");
+      }
+      else {
+         printf ("(");
+         mpzx_print_pari (file, c->classpol, x);
+         printf (")+o*(");
+         mpzx_print_pari (file, c->classpol_c, x);
+         printf (")\n");
+      }
+   }
+   if (c->computed_tower) {
+      if (c->field == CM_FIELD_REAL)
+         mpzx_tower_print_pari (file, c->tower, f, x);
+      else {
+         mpzx_tower_print_pari (file, c->tower, f, x);
+         mpzx_tower_print_pari (file, c->tower_c, g, x);
+      }
+   }
+}
+
+/*****************************************************************************/
