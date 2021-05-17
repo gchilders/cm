@@ -447,9 +447,9 @@ mpz_t* cm_class_get_j_mod_P (int_cl_t d, char inv, mpz_t P, int *no,
    cm_class_init (c, param, pari, verbose);
 
    if (tower)
-      cm_class_compute (c, param, false, true, false, verbose);
+      cm_class_compute (c, param, false, true, verbose);
    else
-      cm_class_compute (c, param, true, false, false, verbose);
+      cm_class_compute (c, param, true, false, verbose);
 
    cm_timer_start (clock);
    mpz_init (root);

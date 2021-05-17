@@ -46,8 +46,8 @@ int main (int argc, char* argv [])
       param,
       true /* classpol */,
       false /* tower */,
-      true /* print */,
       verbose);
+   cm_class_print_pari (stdout, c, NULL, NULL, NULL);
    cm_class_clear (c);
 
    cm_timer_stop (clock);

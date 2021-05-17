@@ -291,7 +291,7 @@ extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
    bool pari, bool verbose);
 extern void cm_class_clear (cm_class_ptr c);
 extern bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param,
-   bool classpol, bool tower, bool print, bool verbose);
+   bool classpol, bool tower, bool verbose);
 extern void cm_class_print_pari (FILE* file, cm_class_srcptr c,
    char *fun, char *fun_c, char *var);
 

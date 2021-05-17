@@ -556,12 +556,11 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 /*****************************************************************************/
 
 bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
-   bool tower, bool print, bool verbose)
+   bool tower, bool verbose)
    /* At least one of classpol and tower needs to be set to true:
       classpol indicates whether the (absolute) class polynomial should be
       computed; tower indicates whether the class polynomial should be
       decomposed as a Galois tower.
-      print indicates whether the result should be printed on screen.
       The return value reflects the success of the computation. */
 {
    cm_form_t *nsystem;
@@ -650,9 +649,6 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          printf ("--- Time for field tower decomposition: %.1f\n",
                  cm_timer_get (clock_local));
    }
-
-   if (print)
-      cm_class_print_pari (stdout, c, NULL, NULL, NULL);
 
    for (i = 0; i < c->cl.h; i++)
       if (conj [i] >= i)
