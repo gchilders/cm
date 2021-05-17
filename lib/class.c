@@ -61,6 +61,8 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool pari,
    int one [] = {1};
 
    c->field = param->field;
+   c->computed_classpol = false;
+   c->computed_tower = false;
    c->dfund = cm_classgroup_fundamental_discriminant (param->d);
    if (verbose)
       printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
@@ -632,6 +634,7 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          }
       }
       cm_timer_stop (clock_local);
+      c->computed_classpol = true;
       if (verbose)
          printf ("--- Time for minimal polynomial reconstruction: %.1f\n",
                  cm_timer_get (clock_local));
@@ -659,6 +662,7 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
          }
       }
       cm_timer_stop (clock_local);
+      c->computed_tower = true;
       if (verbose)
          printf ("--- Time for field tower decomposition: %.1f\n",
                  cm_timer_get (clock_local));

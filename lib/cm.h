@@ -223,6 +223,10 @@ typedef struct {
       /* This is a duplicate of the field with the same name in cm_param,
          but it makes the structure self-contained with respect to which
          fields are initialised. */
+   bool computed_classpol;
+   bool computed_tower;
+      /* These fields store whether the class polynomial or the tower
+         decomposition are stored in the variable. */
 } __cm_class_struct;
 
 typedef __cm_class_struct cm_class_t [1];

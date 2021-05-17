@@ -188,6 +188,7 @@ bool cm_class_read (cm_class_ptr c, cm_param_srcptr param)
    }
 
    cm_file_close (f);
+   c->computed_classpol = true;
 
    return true;
 }
