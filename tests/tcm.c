@@ -26,26 +26,59 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /*****************************************************************************/
 
-static void test_curve (int_cl_t d, char invariant, bool verbose) {
+static void test_curve (int_cl_t d, char invariant, bool verbose)
+{
+   cm_param_t param;
+   cm_class_t c;
+   mpz_t a, b, x, y, p, n, l, co;
    cm_timer clock;
 
    cm_timer_start (clock);
 
-   printf ("d = %"PRIicl", inv = %c; ", d, invariant);
+   if (!cm_param_init (param, d, invariant, verbose))
+      exit (1);
+   mpz_init (a);
+   mpz_init (b);
+   mpz_init (x);
+   mpz_init (y);
+   mpz_init (p);
+   mpz_init (n);
+   mpz_init (l);
+   mpz_init (co);
+
+   cm_curve_crypto_param (p, n, l, co, d, 200, verbose);
+
    /* First test with class polynomials. */
+   printf ("d = %"PRIicl", inv = %c; ", d, invariant);
    printf ("class polynomial: ");
    fflush (stdout);
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, false,
+   cm_class_init (c, param, verbose);
+   cm_class_compute (c, param, false, true, verbose);
+   cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
       verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
+   cm_class_clear (c);
    printf ("ok; ");
+
    /* Then test with a class field tower. */
    printf ("class field tower: ");
    fflush (stdout);
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR, false, true,
+   cm_class_init (c, param, verbose);
+   cm_class_compute (c, param, true, false, verbose);
+   cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
       verbose);
+   cm_class_clear (c);
    printf ("ok\n");
+
+   mpz_clear (a);
+   mpz_clear (b);
+   mpz_clear (x);
+   mpz_clear (y);
+   mpz_clear (p);
+   mpz_clear (n);
+   mpz_clear (l);
+   mpz_clear (co);
 
    cm_timer_stop (clock);
    if (verbose)

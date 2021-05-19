@@ -28,6 +28,9 @@ int main (int argc, char* argv [])
    int_cl_t d;
    char     invariant;
    bool     verbose;
+   cm_param_t param;
+   cm_class_t c;
+   mpz_t a, b, x, y, p, n, l, co;
    cm_timer clock;
 
    cm_timer_start (clock);
@@ -37,14 +40,40 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
+   if (!cm_param_init (param, d, invariant, verbose))
+      exit (1);
    cm_pari_init ();
-   cm_curve_compute_curve (d, invariant, 200, CM_MODPOLDIR,
-      true /* print */,
+   cm_class_init (c, param, verbose);
+   mpz_init (a);
+   mpz_init (b);
+   mpz_init (x);
+   mpz_init (y);
+   mpz_init (p);
+   mpz_init (n);
+   mpz_init (l);
+   mpz_init (co);
+
+   cm_class_compute (c,
+      param,
+      false /* classpol */,
       true /* tower */,
+      verbose);
+   cm_curve_crypto_param (p, n, l, co, d, 200, verbose);
+   cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
       verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
+
+   cm_class_clear (c);
    cm_pari_clear ();
+   mpz_clear (a);
+   mpz_clear (b);
+   mpz_clear (x);
+   mpz_clear (y);
+   mpz_clear (p);
+   mpz_clear (n);
+   mpz_clear (l);
+   mpz_clear (co);
 
    cm_timer_stop (clock);
    if (verbose)

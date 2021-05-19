@@ -295,8 +295,12 @@ extern void cm_class_print_pari (FILE* file, cm_class_srcptr c,
    char *fun, char *fun_c, char *var);
 
 /* functions for computing parameters of a complex multiplication curve */
-extern void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool print, bool tower, bool verbose);
+extern void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l,
+   mpz_ptr c, int_cl_t d, int fieldsize, bool verbose);
+extern void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
+   cm_param_srcptr param, cm_class_srcptr c,
+   mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
+   const char* modpoldir, bool verbose);
 
 #if defined (__cplusplus)
 }

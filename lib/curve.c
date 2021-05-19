@@ -23,23 +23,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static void elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
-   mpz_t a, mpz_t p);
-static void elliptic_curve_add (mpz_t P_x,  mpz_t P_y, bool *P_infty,
-   mpz_t Q_x, mpz_t Q_y, const bool Q_infty, mpz_t a, mpz_t p);
-static void elliptic_curve_multiply (mpz_t P_x, mpz_t P_y,
-   bool *P_infty, mpz_t m, mpz_t a, mpz_t p);
-static void elliptic_curve_random (mpz_t P_x, mpz_t P_y,
-   mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p);
-static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
-   mpz_t p, bool verbose);
-static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
-      int_cl_t d, int fieldsize, bool verbose);
+static void elliptic_curve_double (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
+   mpz_srcptr a, mpz_srcptr p);
+static void elliptic_curve_add (mpz_ptr P_x,  mpz_ptr P_y, bool *P_infty,
+   mpz_srcptr Q_x, mpz_srcptr Q_y, const bool Q_infty,
+   mpz_srcptr a, mpz_srcptr p);
+static void elliptic_curve_multiply (mpz_ptr P_x, mpz_ptr P_y,
+   bool *P_infty, mpz_srcptr m, mpz_srcptr a, mpz_srcptr p);
+static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
+   mpz_srcptr cofactor, mpz_srcptr a, mpz_srcptr b, mpz_srcptr p);
+static bool curve_is_crypto (mpz_ptr l, mpz_ptr c, mpz_srcptr n,
+   int_cl_t d, mpz_srcptr p, bool verbose);
 
 /*****************************************************************************/
 
-static void elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
-   mpz_t a, mpz_t p)
+static void elliptic_curve_double (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
+   mpz_srcptr a, mpz_srcptr p)
    /* Replace P by 2P on the elliptic curve given by a over the prime field
       of characteristic p; b is implicit since it is assumed that the point
       lies on the curve.
@@ -89,8 +88,9 @@ static void elliptic_curve_double (mpz_t P_x, mpz_t P_y, bool *P_infty,
 
 /*****************************************************************************/
 
-static void elliptic_curve_add (mpz_t P_x,  mpz_t P_y, bool *P_infty,
-   mpz_t Q_x, mpz_t Q_y, const bool Q_infty, mpz_t a, mpz_t p)
+static void elliptic_curve_add (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
+   mpz_srcptr Q_x, mpz_srcptr Q_y, const bool Q_infty, mpz_srcptr a,
+   mpz_srcptr p)
    /* Replace P by P+Q on the elliptic curve given by a and the implicit b
       over the prime field of characteristic p. */
 {
@@ -142,8 +142,8 @@ static void elliptic_curve_add (mpz_t P_x,  mpz_t P_y, bool *P_infty,
 
 /*****************************************************************************/
 
-static void elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
-   mpz_t m, mpz_t a, mpz_t p)
+static void elliptic_curve_multiply (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
+   mpz_srcptr m, mpz_srcptr a, mpz_srcptr p)
    /* Replace P by mP on the elliptic curve given by a and the implicit b
       over the prime field of characteristic p. */
 {
@@ -156,13 +156,11 @@ static void elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
    mpz_init (Q_y);
    mpz_init (m_local);
    mpz_init (m_new);
-   *P_infty = false;
 
    mpz_set (m_local, m);
    if (mpz_cmp_ui (m_local, 0ul) == 0)
       *P_infty = true;
-   else
-   {
+   else if (!(*P_infty)) {
       if (mpz_cmp_ui (m_local, 0ul) < 0)
       {
          mpz_neg (m_local, m_local);
@@ -192,8 +190,8 @@ static void elliptic_curve_multiply (mpz_t P_x, mpz_t P_y, bool *P_infty,
 
 /*****************************************************************************/
 
-static void elliptic_curve_random (mpz_t P_x, mpz_t P_y,
-   mpz_t cofactor, mpz_t a, mpz_t b, mpz_t p)
+static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
+   mpz_srcptr cofactor, mpz_srcptr a, mpz_srcptr b, mpz_srcptr p)
    /* Create a point on the elliptic curve given by a and b over the prime
       field of characteristic p and multiply it by the cofactor until
       the result is different from infinity. If the curve order is cofactor
@@ -227,8 +225,8 @@ static void elliptic_curve_random (mpz_t P_x, mpz_t P_y,
 
 /*****************************************************************************/
 
-static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
-   mpz_t p, bool verbose)
+static bool curve_is_crypto (mpz_ptr l, mpz_ptr c, mpz_srcptr n,
+   int_cl_t d, mpz_srcptr p, bool verbose)
    /* checks whether n might be a cryptographically secure cardinality for a */
    /* curve over F_p with discriminant d                                     */
    /* first tests if n, divided by a small cofactor, becomes a prime; if     */
@@ -316,24 +314,24 @@ static bool curve_is_crypto (mpz_t l, mpz_t c, mpz_t n, int_cl_t d,
 
 /*****************************************************************************/
 
-static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
+void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l, mpz_ptr c,
       int_cl_t d, int fieldsize, bool verbose)
-   /* computes the curve parameters p (size of prime field), n (cardinality  */
-   /* of curve), l (prime order of point) and c (n/l)                        */
-   /* Try u and v until u^2 - v^2 d is 4 times a prime. Congruences of u and */
-   /* v modulo 2 and 4 are taken into account, also to make sure that the    */
-   /* cofactor of the curve cardinality can be as small as possible.         */
-   /* Conditions:                                                            */
-   /* d = 5 (8): u odd, v odd  (cofactor 1)                                  */
-   /* d = 1 (8): u = 2 (4), v = 0 (4) (cofactor 4)                           */
-   /*         or u = 0 (4), v = 2 (4) (cofactor 4, sometimes even higher)    */
-   /* 4 | d, d/4 = 2 (4): u = 2 (4), v odd (cofactor 2)                      */
-   /* 4 | d, d/4 = 3 (4): u = 0 (4), v odd (cofactor 2)                      */
-   /* 4 | d, d/4 = 1 (4): u = 2 (4), v even (cofactor 4)                     */
-   /*                  or u = 0 (4), v odd (cofactor 8)                      */
-   /* 4 | d, d/4 = 0 (4): u = 2 (4) (cofactor 4)                             */
-   /* To simplify the implementation, we step through the u and v in steps   */
-   /* of 4.                                                                  */
+   /* Given a discriminant d and a desired field size in bits (twice the
+      bit security of the elliptic curve cryptosystem), return the
+      cardinality of a cryptographically suitable elliptic curve.
+      Precisely, p is the cardinality of the prime field, n the cardinality
+      of the curve, l the prime order of a point on the curve and c=n/l the
+      minimally possible cofactor for d, given as follows:
+      d = 5 (8): u odd, v odd  (cofactor 1)
+      d = 1 (8): u = 2 (4), v = 0 (4) (cofactor 4)
+              or u = 0 (4), v = 2 (4) (cofactor 4, sometimes even higher)
+      4 | d, d/4 = 2 (4): u = 2 (4), v odd (cofactor 2)
+      4 | d, d/4 = 3 (4): u = 0 (4), v odd (cofactor 2)
+      4 | d, d/4 = 1 (4): u = 2 (4), v even (cofactor 4)
+                       or u = 0 (4), v odd (cofactor 8)
+      4 | d, d/4 = 0 (4): u = 2 (4) (cofactor 4)
+      To simplify the implementation, we step through the u and v in steps
+      of 4. */
 {
    mpz_t u, v, tmp;
    long unsigned int v_start;
@@ -416,85 +414,56 @@ static void curve_compute_param (mpz_t p, mpz_t n, mpz_t l, mpz_t c,
 
 /*****************************************************************************/
 
-void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
-   const char* modpoldir, bool print, bool tower, bool verbose)
-   /* computes a curve with the good number of points, using the given       */
-   /* invariant
-      print indicates whether the curve parameters shall be displayed on
-      screen                                                                 */
-   /* If tower is set, go through a class field tower instead of a class
-      polynomial. */
+void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
+   cm_param_srcptr param, cm_class_srcptr c,
+   mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
+   const char* modpoldir, bool verbose)
+   /* Given CM parameters param, a class polynomial or class field tower
+      stored in c, and curve cardinality parameters p (>=5, the cardinality
+      of the prime field), a prime order l and a cofactor co, returns curve
+      parameters a and b defining an elliptic curve over F_p of cardinality
+      n = l*co and a point P=(x,y) on the curve of order l.
+      The algorithm will work in a slightly more general context
+      (l and c are coprime, and gcd (exponent of curve group, l^\infty)=l),
+      but the situation above is the common case for getting crypto curves
+      or for ECPP.
+      Right now, only d<-4 is treated, since quartic and sextic twists
+      are missing. */
 {
-   mpz_t  p;
-      /* the size of the base field */
-   mpz_t  n, l, co;
-      /* the cardinality of the curve, the prime order of a base point and  */
-      /* the cofactor C = N/Q                                               */
    mpz_t* j;
    mpz_t  nonsquare;
-      /* a quadratic non-residue modulo P to compute quadratic twists        */
-   mpz_t  a, b, k, P_x, P_y, x, y;
-      /* the curve parameters mod P, an auxiliary variable and point         */
-      /* coordinates of a random point on the curve (twice)                  */
-   cm_param_t param;
-   cm_class_t c;
-   mpz_t  tmp;
+      /* quadratic non-residue modulo p to compute quadratic twists */
+   mpz_t  k, tmp, P_x, P_y;
    bool   P_infty;
    int    i, no_j;
-   bool   ok = false;
-      /* true if at least one suitable curve could be found */
-   int    count = 0;
-      /* number of suitable curves */
+   bool   ok;
    cm_timer  clock;
 
-   mpz_init (p);
-   mpz_init (n);
-   mpz_init (l);
-   mpz_init (co);
    mpz_init (tmp);
-   mpz_init (a);
-   mpz_init (b);
    mpz_init (k);
    mpz_init (P_x);
    mpz_init (P_y);
-   mpz_init (x);
-   mpz_init (y);
    mpz_init_set_ui (nonsquare, 2);
 
-   cm_timer_start (clock);
-   curve_compute_param (p, n, l, co, d, fieldsize, verbose);
-   cm_timer_stop (clock);
    while (mpz_jacobi (nonsquare, p) != -1)
       mpz_add_ui (nonsquare, nonsquare, 1);
-   if (verbose)
-      printf ("--- Time for P: %.1f\n\n", cm_timer_get (clock));
 
-   if (!cm_param_init (param, d, inv, verbose))
-      exit (1);
-   cm_class_init (c, param, verbose);
-   cm_class_compute (c, param, !tower, tower, verbose);
    j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
-   cm_class_clear (c);
 
    cm_timer_start (clock);
-   for (i = 0; i < no_j && !ok; i++)
-   {
-      /* construct one curve with the given j-invariant */
-      if (mpz_cmp_ui (j [i], 1728) == 0)
-      /* may occur with spurious roots of modular polynomials */
-      {
+   ok = false;
+   for (i = 0; i < no_j && !ok; i++) {
+      /* Construct one curve with the given j-invariant. */
+      if (mpz_cmp_ui (j [i], 1728) == 0) {
          mpz_set_ui (a, 1);
          mpz_set_ui (b, 0);
       }
-      else if (mpz_cmp_ui (j [i], 0) == 0)
-      /* should not occur as d \not= -3 */
-      {
+      else if (mpz_cmp_ui (j [i], 0) == 0) {
          mpz_set_ui (a, 0);
          mpz_set_ui (b, 1);
       }
-      else
-      {
-         /* k = j [i] / (1728 - j_mod) */
+      else {
+         /* k = j [i] / (1728 - j [i]) */
          mpz_sub_ui (k, j [i], 1728);
          mpz_neg (k, k);
          mpz_invert (tmp, k, p);
@@ -506,18 +475,15 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
          mpz_add (a, b, k);
          mpz_mod (a, a, p);
       }
-
       elliptic_curve_random (P_x, P_y, co, a, b, p);
       mpz_set (x, P_x);
       mpz_set (y, P_y);
       P_infty = false;
       elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
-      if (P_infty) {
+      if (P_infty)
          ok = true;
-         count++;
-      }
       else {
-         /* consider the quadratic twist */
+         /* Consider the quadratic twist. */
          mpz_pow_ui (tmp, nonsquare, 2);
          mpz_mul (a, a, tmp);
          mpz_mod (a, a, p);
@@ -529,10 +495,8 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
          mpz_set (y, P_y);
          P_infty = false;
          elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
-         if (P_infty) {
+         if (P_infty)
             ok = true;
-            count++;
-         }
       }
    }
 
@@ -542,33 +506,23 @@ void cm_curve_compute_curve (int_cl_t d, char inv, int fieldsize,
    }
 
    cm_timer_stop (clock);
-   if (print) {
+   if (verbose) {
       printf ("p = "); mpz_out_str (stdout, 10, p); printf ("\n");
-      printf ("n = "); mpz_out_str (stdout, 10, n); printf ("\n");
-      printf ("  = "); mpz_out_str (stdout, 10, co);
+      printf ("n = "); mpz_out_str (stdout, 10, co);
       printf (" * "); mpz_out_str (stdout, 10, l); printf ("\n");
       printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
       printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
       printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
-   }
-   if (verbose)
       printf ("--- Time for curve: %.1f\n", cm_timer_get (clock));
+   }
 
    for (i = 0; i < no_j; i++)
       mpz_clear (j [i]);
    free (j);
-   mpz_clear (p);
-   mpz_clear (n);
-   mpz_clear (l);
-   mpz_clear (co);
    mpz_clear (tmp);
-   mpz_clear (a);
-   mpz_clear (b);
    mpz_clear (k);
    mpz_clear (P_x);
    mpz_clear (P_y);
-   mpz_clear (x);
-   mpz_clear (y);
    mpz_clear (nonsquare);
 }
 
