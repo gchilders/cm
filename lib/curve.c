@@ -488,17 +488,16 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
          mpz_set_ui (B [0], 1);
       }
       else {
-         /* e = j [i] / (1728 - j [i]) */
-         mpz_sub_ui (e, j [i], 1728);
-         mpz_neg (e, e);
-         mpz_invert (tmp, e, p);
-         mpz_mul (e, tmp, j [i]);
-         /* b = 2 * e; */
-         mpz_mul_2exp (B [0], e, 1);
-         mpz_mod (B [0], B [0], p);
-         /* a = 3 * e; */
-         mpz_add (A [0], B [0], e);
+         /* a = 3 * j [i] * (1728 - j [i]),
+            b = 2 * j [i] * (1728 - j [i])^2 */
+         mpz_ui_sub (e, 1728, j [i]);
+         mpz_mul (A [0], j [i], e);
          mpz_mod (A [0], A [0], p);
+         mpz_mul (B [0], A [0], e);
+         mpz_mul_ui (A [0], A [0], 3);
+         mpz_mod (A [0], A [0], p);
+         mpz_mul_2exp (B [0], B [0], 1);
+         mpz_mod (B [0], B [0], p);
       }
 
       /* Compute the twists. */
