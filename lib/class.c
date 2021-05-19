@@ -56,9 +56,9 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 
 void cm_pari_init ()
 {
-   pari_init_opts (1000000, 0, INIT_JMPm | INIT_DFTm);
+   pari_init_opts (2000000, 0, INIT_JMPm | INIT_DFTm);
       /* Do not capture SIGSEGV. */
-   paristack_setsize (1000000, 1000000000);
+   paristack_setsize (2000000, 1000000000);
 }
 
 /*****************************************************************************/
