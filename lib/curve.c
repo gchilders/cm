@@ -420,33 +420,58 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    const char* modpoldir, bool verbose)
    /* Given CM parameters param, a class polynomial or class field tower
       stored in c, and curve cardinality parameters p (>=5, the cardinality
-      of the prime field), a prime order l and a cofactor co, returns curve
+      of the prime field), a prime order l and a cofactor co, return curve
       parameters a and b defining an elliptic curve over F_p of cardinality
       n = l*co and a point P=(x,y) on the curve of order l.
       The algorithm will work in a slightly more general context
       (l and c are coprime, and gcd (exponent of curve group, l^\infty)=l),
       but the situation above is the common case for getting crypto curves
-      or for ECPP.
-      Right now, only d<-4 is treated, since quartic and sextic twists
-      are missing. */
+      or for ECPP. */
 {
-   mpz_t* j;
-   mpz_t  nonsquare;
-      /* quadratic non-residue modulo p to compute quadratic twists */
-   mpz_t  k, tmp, P_x, P_y;
+   mpz_t *j, *A, *B;
+   mpz_t  twister;
+   mpz_t  e, tmp, P_x, P_y;
    bool   P_infty;
-   int    i, no_j;
+   int    i, k, no_twists, no_j;
    bool   ok;
    cm_timer  clock;
 
    mpz_init (tmp);
-   mpz_init (k);
+   mpz_init (e);
    mpz_init (P_x);
    mpz_init (P_y);
-   mpz_init_set_ui (nonsquare, 2);
+   mpz_init (twister);
 
-   while (mpz_jacobi (nonsquare, p) != -1)
-      mpz_add_ui (nonsquare, nonsquare, 1);
+   /* Compute twister as a generator of F_p^* / (F_p^*)^n, where n is
+      2, 4 or 6; this is equivalent to being a non-square such that
+      additionally for n=6 (when p=1 mod 3), twister^((p-1)/3) != 1 mod p. */
+   if (param->d != -3) {
+      mpz_set_ui (twister, 2);
+      while (mpz_jacobi (twister, p) != -1)
+         mpz_add_ui (twister, twister, 1);
+      no_twists = (param->d == -4 ? 4 : 2);
+   }
+   else {
+      mpz_sub_ui (e, p, 1);
+      if (!mpz_divisible_ui_p (e, 3)) {
+         printf ("*** Error: p != 1 mod 3 for d=-3\n");
+         exit (1);
+      }
+      mpz_divexact_ui (e, e, 3);
+      mpz_set_ui (twister, 1);
+      do {
+         mpz_add_ui (twister, twister, 1);
+         mpz_powm (tmp, twister, e, p);
+      } while (mpz_jacobi (twister, p) != -1 || !mpz_cmp_ui (tmp, 1));
+      no_twists = 6;
+   }
+
+   A = (mpz_t *) malloc (no_twists * sizeof (mpz_t));
+   B = (mpz_t *) malloc (no_twists * sizeof (mpz_t));
+   for (i = 0; i < no_twists; i++) {
+      mpz_init (A [i]);
+      mpz_init (B [i]);
+   }
 
    j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
 
@@ -455,41 +480,54 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    for (i = 0; i < no_j && !ok; i++) {
       /* Construct one curve with the given j-invariant. */
       if (mpz_cmp_ui (j [i], 1728) == 0) {
-         mpz_set_ui (a, 1);
-         mpz_set_ui (b, 0);
+         mpz_set_ui (A [0], 1);
+         mpz_set_ui (B [0], 0);
       }
       else if (mpz_cmp_ui (j [i], 0) == 0) {
-         mpz_set_ui (a, 0);
-         mpz_set_ui (b, 1);
+         mpz_set_ui (A [0], 0);
+         mpz_set_ui (B [0], 1);
       }
       else {
-         /* k = j [i] / (1728 - j [i]) */
-         mpz_sub_ui (k, j [i], 1728);
-         mpz_neg (k, k);
-         mpz_invert (tmp, k, p);
-         mpz_mul (k, tmp, j [i]);
-         /* b = 2 * k; */
-         mpz_mul_2exp (b, k, 1);
-         mpz_mod (b, b, p);
-         /* a = 3 * k; */
-         mpz_add (a, b, k);
-         mpz_mod (a, a, p);
+         /* e = j [i] / (1728 - j [i]) */
+         mpz_sub_ui (e, j [i], 1728);
+         mpz_neg (e, e);
+         mpz_invert (tmp, e, p);
+         mpz_mul (e, tmp, j [i]);
+         /* b = 2 * e; */
+         mpz_mul_2exp (B [0], e, 1);
+         mpz_mod (B [0], B [0], p);
+         /* a = 3 * e; */
+         mpz_add (A [0], B [0], e);
+         mpz_mod (A [0], A [0], p);
       }
-      elliptic_curve_random (P_x, P_y, co, a, b, p);
-      mpz_set (x, P_x);
-      mpz_set (y, P_y);
-      P_infty = false;
-      elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
-      if (P_infty)
-         ok = true;
-      else {
-         /* Consider the quadratic twist. */
-         mpz_pow_ui (tmp, nonsquare, 2);
-         mpz_mul (a, a, tmp);
-         mpz_mod (a, a, p);
-         mpz_mul (b, b, tmp);
-         mpz_mul (b, b, nonsquare);
-         mpz_mod (b, b, p);
+
+      /* Compute the twists. */
+      if (no_twists == 2) {
+         mpz_powm_ui (tmp, twister, 2, p);
+         mpz_mul (A [1], A [0], tmp);
+         mpz_mod (A [1], A [1], p);
+         mpz_mul (tmp, tmp, twister);
+         mpz_mod (tmp, tmp, p);
+         mpz_mul (B [1], B [0], tmp);
+         mpz_mod (B [1], B [1], p);
+      }
+      else if (no_twists == 4)
+         for (k = 1; k < no_twists; k++) {
+            mpz_mul (A [k], A [k-1], twister);
+            mpz_mod (A [k], A [k], p);
+            mpz_set_ui (B [k], 0);
+         }
+      else
+         for (k = 1; k < no_twists; k++) {
+            mpz_mul (B [k], B [k-1], twister);
+            mpz_mod (B [k], B [k], p);
+            mpz_set_ui (A [k], 0);
+         }
+
+      /* Go through the twists and look for a suitable curve. */
+      for (k = 0; k < no_twists && !ok; k++) {
+         mpz_set (a, A [k]);
+         mpz_set (b, B [k]);
          elliptic_curve_random (P_x, P_y, co, a, b, p);
          mpz_set (x, P_x);
          mpz_set (y, P_y);
@@ -519,11 +557,17 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    for (i = 0; i < no_j; i++)
       mpz_clear (j [i]);
    free (j);
+   for (i = 0; i < no_twists; i++) {
+      mpz_clear (A [i]);
+      mpz_clear (B [i]);
+   }
+   free (A);
+   free (B);
    mpz_clear (tmp);
-   mpz_clear (k);
+   mpz_clear (e);
    mpz_clear (P_x);
    mpz_clear (P_y);
-   mpz_clear (nonsquare);
+   mpz_clear (twister);
 }
 
 /*****************************************************************************/
