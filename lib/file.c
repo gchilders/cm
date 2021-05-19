@@ -212,7 +212,7 @@ void cm_class_print_pari (FILE* file, cm_class_srcptr c,
       printf ("%s = ", f);
       if (c->field == CM_FIELD_REAL) {
          mpzx_print_pari (file, c->classpol, x);
-         printf (")\n");
+         printf ("\n");
       }
       else {
          printf ("(");

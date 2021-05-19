@@ -58,7 +58,7 @@ int main (int argc, char* argv [])
       false /* classpol */,
       true /* tower */,
       verbose);
-   cm_curve_crypto_param (p, n, l, co, d, 200, verbose);
+   cm_curve_crypto_param (p, n, l, co, d, 256, verbose);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
       verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
