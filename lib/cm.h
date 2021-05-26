@@ -236,6 +236,8 @@ extern "C" {
 
 /* functions for measuring the passing time */
 extern void cm_timer_start (cm_timer clock);
+extern void cm_timer_reset (cm_timer clock);
+extern void cm_timer_continue (cm_timer clock);
 extern void cm_timer_stop (cm_timer clock);
 extern double cm_timer_get (cm_timer clock);
 
@@ -293,6 +295,10 @@ extern void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
    const char* modpoldir, bool verbose);
+
+/* functions for ECPP */
+extern void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
+   bool print, bool verbose);
 
 #if defined (__cplusplus)
 }

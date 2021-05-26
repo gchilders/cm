@@ -34,12 +34,28 @@ void cm_timer_start (cm_timer clock)
 
 /*****************************************************************************/
 
+void cm_timer_reset (cm_timer clock)
+
+{
+   clock->elapsed = 0;
+}
+
+/*****************************************************************************/
+
+void cm_timer_continue (cm_timer clock)
+
+{
+   times (&(clock->time_old));
+}
+
+/*****************************************************************************/
+
 void cm_timer_stop (cm_timer clock)
 
 {
    struct tms time_new;
    times (&time_new);
-   clock->elapsed =
+   clock->elapsed +=
      ((double) (time_new.tms_utime - clock->time_old.tms_utime)) / 100;
 }
 

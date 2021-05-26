@@ -18,6 +18,7 @@ lib/libcm.la
 
 src/classpol
 src/cm
+src/ecpp
 
 aclocal.m4
 autom4te.cache/
