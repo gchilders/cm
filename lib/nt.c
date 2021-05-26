@@ -349,6 +349,81 @@ void cm_nt_mpz_tonelli (mpz_ptr root, const long int a, mpz_srcptr p)
 }
 
 /*****************************************************************************/
+
+bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
+   const int_cl_t d)
+   /* Compute t such that 4*p = t^2-v^2*d for some v, where p is an odd
+      prime and d is an imaginary-quadratic discriminant such that d is a
+      square modulo p and |d|<4*p, using Algorithm 1.5.3 of Cohen93.
+      The return value indicates whether such a t exists; if not, the
+      value of t is not changed during the algorithm. If yes and v is not
+      NULL, it is changed. */
+{
+   mpz_t r, a, b, l;
+   bool ok;
+
+   mpz_init (r);
+   mpz_init (a);
+   mpz_init (b);
+   mpz_init (l);
+
+   /* Step 3: Initialisation. */
+   cm_nt_mpz_tonelli (b, d, p);
+   if (mpz_divisible_2exp_p (b, 1)) {
+      if (d % 4 != 0)
+         mpz_sub (b, p, b);
+   }
+   else {
+      if (d % 4 == 0)
+         mpz_sub (b, p, b);
+   }
+   mpz_mul_2exp (l, p, 2);
+   mpz_sqrt (l, l);
+   mpz_mul_2exp (a, p, 1);
+
+   /* Step 4: Euclidian algorithm. */
+   while (mpz_cmp (b, l) > 0) {
+      mpz_mod (r, a, b);
+      mpz_set (a, b);
+      mpz_set (b, r);
+   }
+
+   /* Step 5: Check correctness. */
+   mpz_mul_2exp (a, p, 2);
+   mpz_pow_ui (r, b, 2);
+   mpz_sub (a, a, r); /* a = 4*p-b^2 */
+   if (!(mpz_divisible_ui_p (a, -d)))
+      ok = false;
+   else {
+      mpz_divexact_ui (a, a, -d);
+      if (v == NULL) {
+         if (!mpz_perfect_square_p (a))
+            ok = false;
+         else {
+            ok = true;
+            mpz_set (t, b);
+         }
+      }
+      else {
+         if (!mpz_root (l, a, 2))
+            ok = false;
+         else {
+            ok = true;
+            mpz_set (t, b);
+            mpz_set (v, l);
+         }
+      }
+   }
+
+   mpz_clear (r);
+   mpz_clear (a);
+   mpz_clear (b);
+   mpz_clear (l);
+
+   return ok;
+}
+
+/*****************************************************************************/
 /*****************************************************************************/
 
 bool cm_nt_fget_z (mpz_t out, ftype in)
