@@ -297,8 +297,8 @@ extern void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    const char* modpoldir, bool verbose);
 
 /* functions for ECPP */
-extern void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
-   bool print, bool verbose);
+extern void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari,
+   bool tower, bool print, bool verbose);
 
 #if defined (__cplusplus)
 }

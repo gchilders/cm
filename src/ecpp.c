@@ -30,11 +30,12 @@ int main (void)
    cm_pari_init ();
    mpz_init (N);
 
-   mpz_set_ui (N, 1);
-   mpz_mul_2exp (N, N, 200);
+   mpz_set_ui (N, 2);
+   mpz_pow_ui (N, N, 200);
    mpz_nextprime (N, N);
 
    cm_ecpp (N, CM_MODPOLDIR,
+      true /* pari */,
       true /* tower */,
       true /* print */,
       true /* verbose */);
