@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef __CM_H
 #define __CM_H
 
-#include <sys/times.h>
+#include <time.h>
 #include <stdbool.h>
 #include <zlib.h>
 #include <inttypes.h>
@@ -63,7 +63,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 
 typedef struct {
-   struct tms time_old;
+   clock_t time_old;
    double     elapsed;
 } __cm_timer_struct;
 typedef __cm_timer_struct cm_timer [1];
@@ -235,11 +235,11 @@ extern "C" {
 #endif
 
 /* functions for measuring the passing time */
-extern void cm_timer_start (cm_timer clock);
-extern void cm_timer_reset (cm_timer clock);
-extern void cm_timer_continue (cm_timer clock);
-extern void cm_timer_stop (cm_timer clock);
-extern double cm_timer_get (cm_timer clock);
+extern void cm_timer_start (cm_timer t);
+extern void cm_timer_reset (cm_timer t);
+extern void cm_timer_continue (cm_timer t);
+extern void cm_timer_stop (cm_timer t);
+extern double cm_timer_get (cm_timer t);
 
 /* generic functions for opening files */
 extern bool cm_file_open_write (FILE **f, char *filename);

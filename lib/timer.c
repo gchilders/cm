@@ -25,46 +25,45 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /*****************************************************************************/
 
-void cm_timer_start (cm_timer clock)
+void cm_timer_start (cm_timer t)
 
 {
-   clock->elapsed = 0;
-   times (&(clock->time_old));
+   t->elapsed = 0;
+   t->time_old = clock ();
 }
 
 /*****************************************************************************/
 
-void cm_timer_reset (cm_timer clock)
+void cm_timer_reset (cm_timer t)
 
 {
-   clock->elapsed = 0;
+   t->elapsed = 0;
 }
 
 /*****************************************************************************/
 
-void cm_timer_continue (cm_timer clock)
+void cm_timer_continue (cm_timer t)
 
 {
-   times (&(clock->time_old));
+   t->time_old = clock ();
 }
 
 /*****************************************************************************/
 
-void cm_timer_stop (cm_timer clock)
+void cm_timer_stop (cm_timer t)
 
 {
-   struct tms time_new;
-   times (&time_new);
-   clock->elapsed +=
-     ((double) (time_new.tms_utime - clock->time_old.tms_utime)) / 100;
+   clock_t time_new;
+   time_new = clock ();
+   t->elapsed += ((double) (time_new - t->time_old)) / CLOCKS_PER_SEC;
 }
 
 /*****************************************************************************/
 
-double cm_timer_get (cm_timer clock)
+double cm_timer_get (cm_timer t)
 
 {
-   return clock->elapsed;
+   return t->elapsed;
 }
 
 /*****************************************************************************/
