@@ -146,7 +146,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
 
 /*****************************************************************************/
 
-mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p)
+mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
    /* Compute the first step of the ECPP certificate; this is the downrun
       part with the parameters of the elliptic curves.
       The return value is a newly allocated array of depth entries, each
@@ -161,6 +161,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p)
    mpz_t N;
    mpz_t** c;
    int_cl_t d;
+   cm_timer clock;
    int i;
 
    mpz_init_set (N, p);
@@ -172,7 +173,12 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p)
       for (i = 0; i < 4; i++)
          mpz_init (c [*depth][i]);
       mpz_set (c [*depth][0], N);
+      cm_timer_start (clock);
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N);
+      cm_timer_stop (clock);
+      if (verbose)
+         printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
+            d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
       mpz_set_si (c [*depth][1], d);
       mpz_set (N, c [*depth][3]);
       (*depth)++;
@@ -220,7 +226,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    if (pari)
       cert = cm_pari_ecpp1 (&depth, N);
    else
-      cert = cm_ecpp1 (&depth, N);
+      cert = cm_ecpp1 (&depth, N, verbose);
    cm_timer_stop (clock);
    if (verbose)
       printf ("--- Time for first ECPP step:  %.1f\n", cm_timer_get (clock));
