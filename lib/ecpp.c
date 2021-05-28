@@ -38,6 +38,8 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       unchanged. */
 
 {
+   int_cl_t dfund;
+   int_cl_t qstar [17];
    mpz_t D, t, v, co;
    mpz_ptr V;
    int twists;
@@ -47,6 +49,10 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    size_t size_co, size_N;
    int i;
    bool ok;
+
+   dfund = cm_classgroup_fundamental_primes (qstar, d);
+   if (dfund != d)
+      return false;
 
    mpz_init_set_si (D, d);
    ok = false;
