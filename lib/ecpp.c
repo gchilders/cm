@@ -40,7 +40,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 {
    int_cl_t dfund;
    int_cl_t qstar [17];
-   mpz_t D, t, v, co;
+   mpz_t t, v, co;
    mpz_ptr V;
    int twists;
    mpz_t card [6];
@@ -54,79 +54,85 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    if (dfund != d)
       return false;
 
-   mpz_init_set_si (D, d);
-   ok = false;
-   if (mpz_legendre (D, N) == 1) {
-      mpz_init (t);
-      if (d == -3 || d == -4) {
-         mpz_init (v);
-         V = v;
-         if (d == -3)
-            twists = 6;
-         else
-            twists = 4;
+   /* Check whether all "signed primes" in d are squares modulo N, which
+      is a necessary condition for N to split totally in the genus field. */
+   mpz_init (t);
+   for (i = 0; qstar [i] != 0; i++) {
+      mpz_set_si (t, qstar [i]);
+      if (mpz_legendre (t, N) == -1) {
+         mpz_clear (t);
+         return false;
       }
-      else {
-         V = NULL;
-         twists = 2;
-      }
-      if (cm_nt_mpz_cornacchia (t, V, N, d)) {
-
-         /* Compute the cardinalities of all the twists. */
-         mpz_init (co);
-         for (i = 0; i < twists; i++)
-            mpz_init (card [i]);
-         mpz_add_ui (card [0], N, 1);
-         mpz_add (card [1], card [0], t);
-         if (d == -3) {
-            /* The sextic twists have trace (\pm t \pm 3*v)/2. */
-            mpz_mul_ui (v, v, 3);
-            mpz_sub (v, v, t);
-            mpz_divexact_ui (v, v, 2);
-            mpz_add (card [2], card [0], v);
-            mpz_sub (card [3], card [0], v);
-            mpz_add (v, v, t);
-            mpz_add (card [4], card [0], v);
-            mpz_sub (card [5], card [0], v);
-         }
-         else if (d == -4) {
-            /* The quartic twists have trace \pm 2*v. */
-            mpz_mul_2exp (v, v, 1);
-            mpz_sub (card [2], card [0], v);
-            mpz_add (card [3], card [0], v);
-         }
-         mpz_sub (card [0], card [0], t);
-
-         /* Cycle through the twists and look for a suitable cardinality. */
-         for (i = 0; !ok && i < twists; i++) {
-            cm_pari_trialdiv (co, card [i], 1000000);
-            /* We need to check whether co > (N^1/4 + 1)^2.
-               Let N have e bits, that is, 2^(e-1) <= N < 2^e,
-               and co have f bits, that is, 2^(f-1) <= co < 2^f. Then
-               (N^(1/4) + 1)^2 = N^(1/2) * (1+1/N^(1/4))^2
-                               < 2^(e/2) * sqrt (2) for N >= 781
-               So it is sufficient to check that
-               f-1 >= (e+1)/2, or equivalently f >= floor (e/2) + 2.
-               We also want to gain at least one bit; otherwise we might
-               even increase the prime a little bit. */
-            size_co = mpz_sizeinbase (co, 2);
-            size_N = mpz_sizeinbase (N, 2);
-            if (size_co < size_N && size_co >= size_N / 2 + 2
-               && cm_nt_is_prime (co)) {
-               ok = true;
-               mpz_set (n, card [i]);
-               mpz_set (l, co);
-            }
-         }
-         mpz_clear (co);
-         for (i = 0; i < twists; i++)
-            mpz_clear (card [i]);
-      }
-      if (d == -3 || d == -4)
-         mpz_clear (v);
-      mpz_clear (t);
    }
-   mpz_clear (D);
+
+   ok = false;
+   if (d == -3 || d == -4) {
+      mpz_init (v);
+      V = v;
+      if (d == -3)
+         twists = 6;
+      else
+         twists = 4;
+   }
+   else {
+      V = NULL;
+      twists = 2;
+   }
+   if (cm_nt_mpz_cornacchia (t, V, N, d)) {
+
+      /* Compute the cardinalities of all the twists. */
+      mpz_init (co);
+      for (i = 0; i < twists; i++)
+         mpz_init (card [i]);
+      mpz_add_ui (card [0], N, 1);
+      mpz_add (card [1], card [0], t);
+      if (d == -3) {
+         /* The sextic twists have trace (\pm t \pm 3*v)/2. */
+         mpz_mul_ui (v, v, 3);
+         mpz_sub (v, v, t);
+         mpz_divexact_ui (v, v, 2);
+         mpz_add (card [2], card [0], v);
+         mpz_sub (card [3], card [0], v);
+         mpz_add (v, v, t);
+         mpz_add (card [4], card [0], v);
+         mpz_sub (card [5], card [0], v);
+      }
+      else if (d == -4) {
+         /* The quartic twists have trace \pm 2*v. */
+         mpz_mul_2exp (v, v, 1);
+         mpz_sub (card [2], card [0], v);
+         mpz_add (card [3], card [0], v);
+      }
+      mpz_sub (card [0], card [0], t);
+
+      /* Cycle through the twists and look for a suitable cardinality. */
+      for (i = 0; !ok && i < twists; i++) {
+         cm_pari_trialdiv (co, card [i], 1000000);
+         /* We need to check whether co > (N^1/4 + 1)^2.
+            Let N have e bits, that is, 2^(e-1) <= N < 2^e,
+            and co have f bits, that is, 2^(f-1) <= co < 2^f. Then
+            (N^(1/4) + 1)^2 = N^(1/2) * (1+1/N^(1/4))^2
+                            < 2^(e/2) * sqrt (2) for N >= 781
+            So it is sufficient to check that
+            f-1 >= (e+1)/2, or equivalently f >= floor (e/2) + 2.
+            We also want to gain at least one bit; otherwise we might
+            even increase the prime a little bit. */
+         size_co = mpz_sizeinbase (co, 2);
+         size_N = mpz_sizeinbase (N, 2);
+         if (size_co < size_N && size_co >= size_N / 2 + 2
+            && cm_nt_is_prime (co)) {
+            ok = true;
+            mpz_set (n, card [i]);
+            mpz_set (l, co);
+         }
+      }
+      mpz_clear (co);
+      for (i = 0; i < twists; i++)
+         mpz_clear (card [i]);
+   }
+   if (d == -3 || d == -4)
+      mpz_clear (v);
+   mpz_clear (t);
 
    return ok;
 }
