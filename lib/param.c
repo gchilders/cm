@@ -125,16 +125,16 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
             param->e *= 3;
          break;
       case CM_INVARIANT_ATKIN:
-         if (cm_classgroup_kronecker (d, (int_cl_t) 71) != -1)
+         if (cm_nt_kronecker (d, (int_cl_t) 71) != -1)
             /* factor 36, T_5 + T_29 + 1 */
             param->p [0] = 71;
-         else if (cm_classgroup_kronecker (d, (int_cl_t) 131) != -1)
+         else if (cm_nt_kronecker (d, (int_cl_t) 131) != -1)
             /* factor 33, T_61 + 1 */
             param->p [0] = 131;
-         else if (cm_classgroup_kronecker (d, (int_cl_t) 59) != -1)
+         else if (cm_nt_kronecker (d, (int_cl_t) 59) != -1)
             /* factor 30, T_5 + T_29 */
             param->p [0] = 59;
-         else if (cm_classgroup_kronecker (d, (int_cl_t) 47) != -1)
+         else if (cm_nt_kronecker (d, (int_cl_t) 47) != -1)
             /* factor 24, -T_17 */
             param->p [0] = 47;
          else {
@@ -158,7 +158,7 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          break;
       case CM_INVARIANT_SIMPLEETA:
          param->p [0] = 3;
-         if (cm_classgroup_kronecker (d, (int_cl_t) (param->p [0])) == -1) {
+         if (cm_nt_kronecker (d, (int_cl_t) (param->p [0])) == -1) {
             if (verbose)
                printf ("*** Unsuited discriminant\n\n");
             return false;
@@ -232,7 +232,7 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
    p1 = 2;
    ok = false;
    do {
-      int kro = cm_classgroup_kronecker (d, (int_cl_t) p1);
+      int kro = cm_nt_kronecker (d, (int_cl_t) p1);
       if (kro != -1) {
          primelist [i] = p1;
          i++;

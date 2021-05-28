@@ -528,7 +528,7 @@ static void eval (cm_param_srcptr param, cm_modclass_t mc, ctype rop,
          cpow_ui (rop, rop, 3ul);
 
       if (param->p [0] != 3 && param->p [0] != 5)
-         if (cm_classgroup_kronecker ((int_cl_t) 2, Q.a) == -1)
+         if (cm_nt_kronecker ((int_cl_t) 2, Q.a) == -1)
             cneg (rop, rop);
 
       break;

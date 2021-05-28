@@ -58,16 +58,16 @@ long int cm_nt_gcd (long int a, long int b)
 
 /*****************************************************************************/
 
-int cm_nt_kronecker (long int a, long int b)
-   /* computes the Kronecker symbol (a / b) following Algorithm 1.4.12       */
-   /* in Cohen (by the binary algorithm)                                     */
+int cm_nt_kronecker (int_cl_t a, int_cl_t b)
+   /* Compute the Kronecker symbol (a / b) following Algorithm 1.4.12
+      in Cohen93 (by the binary algorithm). */
 {
    const int tab [8] = {0, 1, 0, -1, 0, -1, 0, 1};
-   int k, r;
+   int k;
+   int_cl_t r;
 
    /* step 1 */
-   if (b == 0)
-   {
+   if (b == 0) {
       if (a == 1 || a == -1)
          return 1;
       else
@@ -80,44 +80,34 @@ int cm_nt_kronecker (long int a, long int b)
 
    while (b % 4 == 0)
       b >>= 2;
-   if (b % 2 == 0)
-   {
+   if (b % 2 == 0) {
       b >>= 1;
-      k = tab [a & 7];
+      k = tab [cm_classgroup_mod (a, (uint_cl_t) 8)];
    }
    else
       k = 1;
 
-   if (b < 0)
-   {
+   if (b < 0) {
       b = -b;
       if (a < 0)
          k = -k;
    }
 
-   /* step 3 and added test; here, b is already odd */
-   if (a < 0)
-   {
-      a = -a;
-      if (b & 2)
-         k = -k;
-   }
-   a %= b;
+   /* step 3 */
+   a = cm_classgroup_mod (a, b);
 
    /* steps 4 to 6 */
-   while (a != 0)
-   {
+   while (a != 0) {
       while (a % 4 == 0)
          a >>= 2;
-      if (a % 2 == 0)
-      {
+      if (a % 2 == 0) {
          a >>= 1;
-         k *= tab [b & 7];
+         k *= tab [cm_classgroup_mod (b, (uint_cl_t) 8)];
       }
-      if (b > a)
-      {
+      if (b > a) {
          r = b - a;
-         if (a & b & 2)
+         if (   cm_classgroup_mod (a, (uint_cl_t) 4) == 3
+             && cm_classgroup_mod (b, (uint_cl_t) 4) == 3)
             k = -k;
          b = a;
          a = r;

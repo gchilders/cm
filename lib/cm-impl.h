@@ -57,7 +57,7 @@ extern "C" {
 
 /* number theoretic functions */
 extern long int cm_nt_gcd (long int a, long int b);
-extern int cm_nt_kronecker (long int a, long int b);
+extern int cm_nt_kronecker (int_cl_t a, int_cl_t b);
 extern int cm_nt_is_prime (mpz_t a);
 extern unsigned long int cm_nt_next_prime (const unsigned long int n);
 extern void cm_nt_factor (uint_cl_t d, uint_cl_t *factors,
@@ -112,7 +112,6 @@ extern void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op);
 extern int_cl_t cm_classgroup_mpz_get_icl (mpz_t op);
 extern uint_cl_t cm_classgroup_mod (int_cl_t a, uint_cl_t p);
 extern int_cl_t cm_classgroup_gcd (int_cl_t a, int_cl_t b);
-extern int cm_classgroup_kronecker (int_cl_t a, int_cl_t b);
 
 extern int_cl_t cm_classgroup_fundamental_primes (int_cl_t *primes,
       int_cl_t d);
