@@ -81,8 +81,9 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool verbose)
    c->computed_tower = false;
    c->dfund = cm_classgroup_fundamental_discriminant (param->d);
    if (verbose)
-      printf ("\nDiscriminant %"PRIicl", invariant %c, parameter %s\n",
-               param->d, param->invariant, param->str);
+      printf ("\nDiscriminant %"PRIicl", fundamental discriminant %"PRIicl
+               ", invariant %c, parameter %s\n",
+               param->d, c->dfund, param->invariant, param->str);
 
    cm_classgroup_init (&(c->cl), param->d, verbose);
    mpzx_init (c->classpol, c->cl.h);

@@ -25,8 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static int_cl_t classgroup_gcdext (int_cl_t *u, int_cl_t *v, int_cl_t a,
    int_cl_t b);
-static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
-   uint_cl_t *cond_primes, unsigned int *cond_exp);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -344,122 +342,70 @@ int cm_classgroup_kronecker (int_cl_t a, int_cl_t b)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_classgroup_factor (int_cl_t d, uint_cl_t *factors,
-                   unsigned int *exponents)
-   /* factors the absolute value of d by trial division. The prime factors   */
-   /* are stored in "factors", their multiplicities in "exponents", which    */
-   /* must provide sufficiently much space. The list of prime factors is     */
-   /* terminated by 0, so that 12 entries suffice for a number of 32 bits,   */
-   /* and 17 entries for a number of 64 bits.                                */
-
+int_cl_t cm_classgroup_fundamental_primes (int_cl_t *primes, int_cl_t d)
+   /* Given a discriminant d, compute and return its fundamental
+      discriminant. At the same time, put the "signed primes" dividing the
+      fundamental discriminant as a zero-terminated array into primes,
+      which needs to be initialised with at least 17 entries. The "signed
+      primes" are -4, 8, -8, p with p=1 mod 4 and -p with p=3 mod 4. */
 {
-   uint_cl_t no, trial, trial2;
-   int j;
-
-   if (d < 0)
-      no = -d;
-   else
-      no = d;
-
-   j = 0;
-   trial = 0;
-   trial2 = 0;
-   while (trial2 <= no) {
-      if (trial == 0) {
-         trial = 2;
-         trial2 = 4;
-      }
-      else if (trial == 2) {
-         trial = 3;
-         trial2 = 9;
-      }
-      else {
-         trial += 2;
-         trial2 += 4 * (trial - 1);
-      }
-      if (no % trial == 0) {
-         factors [j] = trial;
-         no /= trial;
-         exponents [j] = 1;
-         while (no % trial == 0) {
-            no /= trial;
-            exponents [j]++;
-         }
-         j++;
-      }
-   }
-   if (no != 1) {
-     factors [j] = no;
-     exponents [j] = 1;
-     j++;
-   }
-   factors [j] = 0;
-}
-
-/*****************************************************************************/
-
-static int_cl_t classgroup_fundamental_discriminant_conductor (int_cl_t d,
-   uint_cl_t *cond_primes, unsigned int *cond_exp)
-   /* returns the fundamental discriminant corresponding to d, and the       */
-   /* prime factorisation of the conductor via cond_primes and cond_exp.     */
-
-{
+   uint_cl_t p [17];
+   unsigned int e [17];
    int i, j;
-   int_cl_t local_d;
-   int pow4;
-   uint_cl_t factors [17];
-   unsigned int exponents [17];
-   int_cl_t fundamental_d = -1;
 
-   /* handle 2 in the conductor separately */
-   local_d = d;
-   pow4 = 0;
-   while (local_d % 4 == 0) {
-      local_d /= 4;
-      if ((local_d - 1) % 4 == 0 || local_d % 4 == 0)
-         pow4++;
+   /* Make the discriminant "2-fundamental", assuming it was a discriminant
+      in the first place. */
+   while (d % 4 == 0)
+      d /= 4;
+   if ((d - 1) % 4 != 0)
+      d *= 4;
+
+   cm_nt_factor (-d, p, e);
+
+   i = 0; /* counter for p */
+   j = 0; /* counter for primes */
+   /* Handle the 2-part first; the difficulty is to decide between
+      +8 and -8. */
+   if (p [i] == 2) {
+      if (e [i] == 2)
+         primes [j] = -4;
+      else if ((d/(-8) - 1) % 4 == 0)
+         primes [j] = -8;
       else
-         fundamental_d *= 4;
+         primes [j] = 8;
+      i++;
+      j++;
    }
-   if (local_d % 2 == 0) {
-      local_d /= 2;
-      fundamental_d *= 2;
-   }
-
-   if (pow4 != 0) {
-      cond_primes [0] = 2;
-      cond_exp [0] = pow4;
-      j = 1;
-   }
-   else
-      j = 0;
-
-   cm_classgroup_factor (local_d, factors, exponents);
-
-   for (i = 0; factors [i] != 0; i++) {
-      if (exponents [i] >= 2) {
-         cond_primes [j] = factors [i];
-         cond_exp [j] = exponents [i] / 2;
+   /* Now loop through the odd primes. */
+   while (p [i] != 0) {
+      if (e [i] % 2 == 1) {
+         if ((p [i] - 1) % 4 == 0)
+            primes [j] = p [i];
+         else
+            primes [j] = -p [i];
          j++;
       }
-      if (exponents [i] & 1)
-            fundamental_d *= factors [i];
+      i++;
    }
-   cond_primes [j] = 0;
 
-   return fundamental_d;
+   primes [j] = 0;
+
+   d = primes [0];
+   for (i = 1; primes [i] != 0; i++)
+      d *= primes [i];
+
+   return d;
 }
 
 /*****************************************************************************/
 
 int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d)
-
+   /* Return the fundamental discriminant associated with the
+      discriminant d. */
 {
-   uint_cl_t cond_primes [17];
-   unsigned int cond_exp [17];
+   int_cl_t p [17];
 
-   return classgroup_fundamental_discriminant_conductor (d, cond_primes,
-             cond_exp);
+   return cm_classgroup_fundamental_primes (p, d);
 }
 
 

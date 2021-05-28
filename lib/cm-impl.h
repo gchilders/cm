@@ -114,8 +114,8 @@ extern uint_cl_t cm_classgroup_mod (int_cl_t a, uint_cl_t p);
 extern int_cl_t cm_classgroup_gcd (int_cl_t a, int_cl_t b);
 extern int cm_classgroup_kronecker (int_cl_t a, int_cl_t b);
 
-extern void cm_classgroup_factor (int_cl_t d,
-      uint_cl_t *factors, unsigned int *exponents);
+extern int_cl_t cm_classgroup_fundamental_primes (int_cl_t *primes,
+      int_cl_t d);
 extern int_cl_t cm_classgroup_fundamental_discriminant (int_cl_t d);
 
 extern int_cl_t cm_classgroup_compute_c (int_cl_t a, int_cl_t b, int_cl_t d);
