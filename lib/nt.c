@@ -204,65 +204,50 @@ unsigned long int cm_nt_next_prime (const unsigned long int n)
 
 /*****************************************************************************/
 
-void cm_nt_factor (long int d, unsigned long int *factors,
-   unsigned int *exponents)
-   /* factors the absolute value of d by trial division. The prime factors   */
-   /* are stored in "factors", their multiplicities in "exponents", which    */
-   /* must provide sufficiently much space. The list of prime factors is     */
-   /* terminated by 0, so that 12 entries suffice for a number of 32 bits,   */
-   /* and 17 entries for a number of 64 bits.                                */
+void cm_nt_factor (uint_cl_t d, uint_cl_t *factors, unsigned int *exponents)
+   /* Factor d by trial division. The prime factors are stored in factors,
+      their multiplicities in exponents, which must provide sufficiently
+      much space. The list of prime factors is terminated by 0, so that
+      17 entries suffice for the 64 bit type. */
 
 {
-   unsigned long int no, trial, trial2;
-   int i, j;
-
-   if (d < 0)
-      no = -d;
-   else
-      no = d;
+   uint_cl_t p, p2;
+   int i;
 
    i = 0;
-   j = 0;
-   trial = 0;
-   trial2 = 0;
-   while (trial2 <= no)
-   {
-      if (trial == 0)
-      {
-         trial = 2;
-         trial2 = 4;
-      }
-      else if (trial == 2)
-      {
-         trial = 3;
-         trial2 = 9;
-      }
-      else
-      {
-         trial += 2;
-         trial2 += 4 * (trial - 1);
-      }
-      if (no % trial == 0)
-      {
-         factors [j] = trial;
-         exponents [j] = 1;
-         no /= trial;
-         while (no % trial == 0)
-         {
-            no /= trial;
-            exponents [j]++;
+   p = 2;
+   p2 = 4;
+   do {
+      if (d % p == 0) {
+         factors [i] = p;
+         exponents [i] = 1;
+         d /= p;
+         while (d % p == 0) {
+            exponents [i]++;
+            d /= p;
          }
-         j++;
+         i++;
       }
-      i++;
+      /* We may wish to use cm_nt_next_prime, but its implementation
+         is slow beyond the precomputed table. */
+      if (p == 2) {
+         p = 3;
+         p2 = 9;
+      }
+      else {
+         p2 += 4*(p+1);
+         p += 2;
+      }
+   } while (p2 <= d);
+
+   if (d != 1) {
+     /* There is a prime factor left. */
+     factors [i] = d;
+     exponents [i] = 1;
+     i++;
    }
-   if (no != 1)
-   {
-     factors [j] = no;
-     exponents [j] = 1;
-     j++;
-   }
-   factors [j] = 0;
+
+   factors [i] = 0;
 }
 
 /*****************************************************************************/

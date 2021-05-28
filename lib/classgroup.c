@@ -621,11 +621,11 @@ int cm_classgroup_normalseries (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
       the result. */
 
 {
-   unsigned long int factors [17];
+   uint_cl_t factors [17];
    unsigned int exponents [17];
    int_cl_t o [64];
    cm_form_t g [64];
-   int_cl_t h, p;
+   uint_cl_t h, p;
    int l, p_l, length, i;
 
    l = cm_pari_classgroup (disc, o, g);
@@ -638,7 +638,7 @@ int cm_classgroup_normalseries (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
       for (i = 0; i < l; i++)
          h *= o [i];
 
-      cm_nt_factor ((long int) h, factors, exponents);
+      cm_nt_factor (h, factors, exponents);
       for (p_l = 1; factors [p_l] != 0; p_l++);
 
       length = 0;
