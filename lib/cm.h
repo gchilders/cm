@@ -247,14 +247,6 @@ extern void cm_file_gzopen_write (gzFile *f, char *filename);
 extern void cm_file_gzopen_read (gzFile *f, char *filename);
 extern void cm_file_gzclose (gzFile f);
 
-/* different functions for number theoretic computations */
-extern int cm_nt_is_prime (mpz_t a);
-extern unsigned long int cm_nt_next_prime (const unsigned long int n);
-extern long int cm_nt_gcd (long int a, long int b);
-extern int cm_nt_kronecker (long int a, long int b);
-extern void cm_nt_factor (long int d, unsigned long int *factors,
-   unsigned int *exponents);
-
 /* functions for rounding floating point numbers to rational or quadratic
    integers */
 extern bool cm_nt_fget_z (mpz_t out, ftype in);
