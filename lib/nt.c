@@ -178,17 +178,9 @@ unsigned long int cm_nt_next_prime (const unsigned long int n)
       return P [left];
    }
    else {
-      unsigned long int res;
-      mpz_t a;
-      if (n & 1)
-         mpz_init_set_ui (a, n+2);
-      else
-         mpz_init_set_ui (a, n+1);
-      while (!cm_nt_is_prime (a))
-         mpz_add_ui (a, a, 2ul);
-      res = mpz_get_ui (a);
-      mpz_clear (a);
-      return res;
+      printf ("***** Error: cm_nt_next_prime called with an argument\n"
+         "that is too large for the precomputed list.\n");
+      exit (1);
    }
 }
 
