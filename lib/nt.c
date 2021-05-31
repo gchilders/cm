@@ -351,13 +351,15 @@ void cm_nt_mpz_tonelli (mpz_ptr root, const long int a, mpz_srcptr p)
 /*****************************************************************************/
 
 bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
-   const int_cl_t d)
+   mpz_srcptr root, const int_cl_t d)
    /* Compute t such that 4*p = t^2-v^2*d for some v, where p is an odd
       prime and d is an imaginary-quadratic discriminant such that d is a
       square modulo p and |d|<4*p, using Algorithm 1.5.3 of Cohen93.
       The return value indicates whether such a t exists; if not, the
       value of t is not changed during the algorithm. If yes and v is not
-      NULL, it is changed. */
+      NULL, it is changed.
+      If root is not NULL, it is assumed to contain a pre-computed
+      square root of d modulo p. */
 {
    mpz_t r, a, b, l;
    bool ok;
@@ -368,7 +370,10 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_init (l);
 
    /* Step 3: Initialisation. */
-   cm_nt_mpz_tonelli (b, d, p);
+   if (root != NULL)
+      mpz_set (b, root);
+   else
+      cm_nt_mpz_tonelli (b, d, p);
    if (mpz_divisible_2exp_p (b, 1)) {
       if (d % 4 != 0)
          mpz_sub (b, p, b);

@@ -78,7 +78,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       V = NULL;
       twists = 2;
    }
-   if (cm_nt_mpz_cornacchia (t, V, N, d)) {
+   if (cm_nt_mpz_cornacchia (t, V, N, NULL, d)) {
 
       /* Compute the cardinalities of all the twists. */
       mpz_init (co);
