@@ -24,22 +24,178 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   int_cl_t d);
+   mpz_srcptr root, int_cl_t d);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N);
+static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
+   int no);
+static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
+   int no_qstar, int no_factors, uint_cl_t Dmax);
+
+/*****************************************************************************/
+
+static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
+   int no)
+   /* Compute and return via qstar a list of "signed primes" suitable
+      for dividing the discriminant to prove the primality of p, and via
+      root their square roots modulo p. The entries in qstar are ordered
+      by increasing absolute value.
+      no indicates the desired number of elements.
+      qstar and root need to be initialised to the correct size,
+      and the entries of root need to be initialised as well. */
+{
+   int i;
+   long int q;
+
+   i = 0;
+   q = -3;
+   while (i < no) {
+      if (mpz_si_kronecker (q, p) == 1) {
+         qstar [i] = q;
+         cm_nt_mpz_tonelli (root [i], q, p);
+         i++;
+      }
+      if (q == -3)
+         q = 5;
+      else if (q == 5)
+         q = -7;
+      else if (q == -7)
+         q = -8;
+      else if (q == -8)
+         q = 8;
+      else if (q == 8)
+         q = -11;
+      else {
+         if (q > 0)
+            q = cm_nt_next_prime (q);
+         else
+            q = cm_nt_next_prime (-q);
+         if (q % 4 == 3)
+            q = -q;
+      }
+   }
+}
+
+/*****************************************************************************/
+
+static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
+   int no_qstar, int no_factors, uint_cl_t Dmax)
+   /* Given an array of no_qstar "signed primes" qstar (ordered by
+      increasing absolute value), return an array of negative fundamental
+      discriminants with at most no_factors prime factors from the list,
+      and return their number in no_d.
+      If it is different from 0, then Dmax furthermore is an upper bound
+      on the absolute value of the discriminant.
+      The task feels like it could be written in a few lines in a
+      functional programming language; as a graph traversal, it is also
+      readily implemented in C with "manual" backtracking. */
+{
+   int_cl_t *d;
+      /* result */
+   int_cl_t D;
+      /* currently considered discriminant */
+   int Dq [16];
+      /* its prime factors as indices in qstar */
+   int Dno;
+      /* number of its prime factors, which is also the level in the tree */
+   int Dqmax;
+      /* largest index in qstar of one of its prime factors */
+   int no;
+      /* number of found discriminants so far */
+   mpz_t Dz;
+   int k;
+
+   if (Dmax != 0)
+      /* The algorithm assumes that at least the primes in qstar are of
+         suitable size; otherwise, forget the largest ones. */
+      while (   (qstar [no_qstar-1] > 0
+                 && (uint_cl_t) (qstar [no_qstar-1]) > Dmax)
+             || (qstar [no_qstar-1] < 0
+                 && (uint_cl_t) (-qstar [no_qstar-1]) > Dmax))
+         no_qstar--;
+
+   if (no_factors > no_qstar)
+      no_factors = no_qstar;
+
+   if (Dmax != 0) {
+      /* no_factors may be larger than the actual number of factors
+         that can fit under Dmax; since the elements of qstar are
+         sorted, the product of the first no_factors elements must
+         fit. */
+      k = 0;
+      mpz_init_set_ui (Dz, 1);
+      while (k < no_factors && mpz_cmp_ui (Dz, Dmax) <= 0) {
+         if (qstar [k] > 0)
+            mpz_mul_ui (Dz, Dz, (unsigned long int) (qstar [k]));
+         else
+            mpz_mul_ui (Dz, Dz, (unsigned long int) (-qstar [k]));
+         k++;
+      }
+      if (mpz_cmp_ui (Dz, Dmax) > 0)
+         no_factors = k-1;
+      mpz_clear (Dz);
+   }
+
+   /* Compute an upper bound on the possible number of discriminants. */
+   no = 0;
+   for (k = 1; k <= no_factors; k++)
+      no += cm_nt_binomial (no_qstar, k);
+   d = (int_cl_t *) malloc (no * sizeof (int_cl_t));
+
+   no = 0;
+   D = 1;
+   Dno = 0;
+   Dqmax = -1;
+
+   /* Loop until we reach the last discriminant; in our depth first tree
+      traversal, this is the one with only one prime factor, which is the
+      largest one possible. */
+   while (Dno != 1 || Dqmax != no_qstar - 1) {
+      if (Dno < no_factors && Dqmax < no_qstar - 1)
+         /* Add a level. */
+         Dno++;
+      else {
+         /* Backtrack: Find the largest previous level where Dqmax
+            can be increased. */
+         while (Dqmax == no_qstar - 1) {
+            D /= qstar [Dqmax];
+            Dno--;
+            Dqmax = Dq [Dno - 1];
+         }
+         /* On this level, remove the current prime. */
+         D /= qstar [Dqmax];
+      }
+      /* Add one larger prime. After the "if" case above, Dqmax is the
+         index of the currently largest prime; after the "else" case, it
+         is the index of the prime we just removed. In both cases, it
+         simply needs to be incremented. */
+      Dqmax++;
+      Dq [Dno - 1] = Dqmax;
+      D *= qstar [Dqmax];
+      /* Register the new discriminant if it satisfies the conditions. */
+      if (D < 0 && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
+         d [no] = D;
+         no++;
+      }
+   }
+
+   *no_d = no;
+   d = realloc (d, no * sizeof (int_cl_t));
+
+   return d;
+}
 
 /*****************************************************************************/
 
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   int_cl_t d)
+   mpz_srcptr root, int_cl_t d)
    /* The function tests whether d is a suitable discriminant to perform
       one step in the ECPP downrun from the (probable) prime N>=787 and
       returns the result. If true, n becomes the cardinality of the
       elliptic curve and l its largest prime factor; otherwise n and l are
-      unchanged. */
+      unchanged.
+      root is a square root of d modulo N. */
 
 {
-   int_cl_t dfund;
-   int_cl_t qstar [17];
    mpz_t t, v, co;
    mpz_ptr V;
    int twists;
@@ -50,21 +206,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int i;
    bool ok;
 
-   dfund = cm_classgroup_fundamental_primes (qstar, d);
-   if (dfund != d)
-      return false;
-
-   /* Check whether all "signed primes" in d are squares modulo N, which
-      is a necessary condition for N to split totally in the genus field. */
    mpz_init (t);
-   for (i = 0; qstar [i] != 0; i++) {
-      mpz_set_si (t, qstar [i]);
-      if (mpz_legendre (t, N) == -1) {
-         mpz_clear (t);
-         return false;
-      }
-   }
-
    ok = false;
    if (d == -3 || d == -4) {
       mpz_init (v);
@@ -78,7 +220,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       V = NULL;
       twists = 2;
    }
-   if (cm_nt_mpz_cornacchia (t, V, N, NULL, d)) {
+   if (cm_nt_mpz_cornacchia (t, V, N, root, d)) {
 
       /* Compute the cardinalities of all the twists. */
       mpz_init (co);
@@ -144,13 +286,67 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l. */
 {
+   int no_qstar = 20;
+   int no_factors = 3;
+   uint_cl_t Dmax = 0;
+   long int *qstar;
+   mpz_t *root;
+   int i, j;
    int_cl_t d;
+   int_cl_t *dlist;
+   int no_d;
+   mpz_t Droot;
+   bool ok;
 
-   /* So far, we simply sort discriminants by absolute value. Even in a
-      non-fastECPP implementation, a smarter sorting order depending on
-      the class number and its smoothness would be preferable. */
-   for (d=-3; !is_ecpp_discriminant (n, l, N, d);
-      d -= (d % 4 == 0 ? 3 : 1));
+   /* Prepare the prime and square root list. */
+   qstar = (long int *) malloc (no_qstar * sizeof (long int));
+   root = (mpz_t *) malloc (no_qstar * sizeof (mpz_t));
+   for (i = 0; i < no_qstar; i++)
+      mpz_init (root [i]);
+   compute_qstar (qstar, root, N, no_qstar);
+
+   /* Precompute a list of potential discriminants for fastECPP. */
+   dlist = compute_discriminants (&no_d, qstar, no_qstar, no_factors, Dmax);
+   /* TODO: Sort the discriminants in some smart order. */
+
+   /* Search for the first suitable discriminant in the list. */
+   mpz_init (Droot);
+   i = -1;
+   ok = false;
+   do {
+      i++;
+      d = dlist [i];
+      /* Compute the square root of the discriminant by multiplying the
+         roots of all its prime factors. d can be trial divided over qstar,
+         but the "even primes" need special care, in particular for the
+         sign of 8. */
+      mpz_set_ui (Droot, 1);
+      for (j = 0; j < no_qstar; j++)
+         if (qstar [j] % 2 != 0 && d % qstar [j] == 0) {
+            mpz_mul (Droot, Droot, root [j]);
+            mpz_mod (Droot, Droot, N);
+            d /= qstar [j];
+         }
+      if (d != 1)
+         for (j = 0; j < no_qstar; j++)
+            if (d == qstar [j]) {
+               mpz_mul (Droot, Droot, root [j]);
+               mpz_mod (Droot, Droot, N);
+            }
+      d = dlist [i];
+      ok = is_ecpp_discriminant (n, l, N, Droot, d);
+   } while (!ok && i < no_d - 1);
+   if (!ok) {
+      printf ("***** Error in find_ecpp_discriminant: qstar too short\n");
+      exit (1);
+   }
+   mpz_clear (Droot);
+
+   free (dlist);
+   for (i = 0; i < no_qstar; i++)
+      mpz_clear (root [i]);
+   free (root);
+   free (qstar);
 
    return d;
 }
