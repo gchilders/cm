@@ -30,6 +30,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    int no);
 static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
    int no_qstar, int no_factors, uint_cl_t Dmax);
+static int disc_cmp (const void* d1, const void* d2);
 
 /*****************************************************************************/
 
@@ -186,6 +187,18 @@ static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
 
 /*****************************************************************************/
 
+static int disc_cmp (const void* d1, const void* d2)
+{
+   int_cl_t D1, D2;
+
+   D1 = *((int_cl_t *) d1);
+   D2 = *((int_cl_t *) d2);
+
+   return (D1 < D2 ? +1 : (D1 == D2 ? 0 : -1));
+}
+
+/*****************************************************************************/
+
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_srcptr root, int_cl_t d)
    /* The function tests whether d is a suitable discriminant to perform
@@ -307,7 +320,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
 
    /* Precompute a list of potential discriminants for fastECPP. */
    dlist = compute_discriminants (&no_d, qstar, no_qstar, no_factors, Dmax);
-   /* TODO: Sort the discriminants in some smart order. */
+   qsort (dlist, no_d, sizeof (int_cl_t), disc_cmp);
 
    /* Search for the first suitable discriminant in the list. */
    mpz_init (Droot);
