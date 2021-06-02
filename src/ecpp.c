@@ -31,7 +31,7 @@ int main (void)
    mpz_init (N);
 
    mpz_set_ui (N, 10);
-   mpz_pow_ui (N, N, 300);
+   mpz_pow_ui (N, N, 1000);
    mpz_nextprime (N, N);
 
    cm_ecpp (N, CM_MODPOLDIR,

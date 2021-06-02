@@ -260,6 +260,7 @@ void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
    unsigned int      e;
    unsigned long int r, m;
 
+   cm_timer_continue (cm_timer1);
    mpz_init (a_local);
    mpz_tdiv_r (a_local, a, p);
    if (mpz_cmp_ui (a_local, 0ul) == 0) {
@@ -282,19 +283,24 @@ void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
       e++;
    }
    if (e > 1) {
+      cm_timer_continue (cm_timer2);
       /* find generator of the 2-Sylow group */
       for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
                mpz_add_ui (z, z, 1ul));
       mpz_powm (z, z, pm1, p);
+      cm_timer_stop (cm_timer2);
    }
 
    if (e == 1) /* p=3 (mod 8) */ {
+      cm_timer_continue (cm_timer3);
       mpz_add_ui (tmp, p, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 2ul);
       mpz_powm (x, a_local, tmp, p);
+      cm_timer_stop (cm_timer3);
    }
    else {
       /* initialisation */
+      cm_timer_continue (cm_timer4);
       mpz_set (y, z);
       r = e;
       mpz_sub_ui (tmp, pm1, 1ul);
@@ -330,6 +336,7 @@ void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
          mpz_mul (b, b, y);
          mpz_mod (b, b, p);
       }
+      cm_timer_stop (cm_timer4);
    }
 
    mpz_set (root, x);
@@ -341,6 +348,7 @@ void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
    mpz_clear (x);
    mpz_clear (b);
    mpz_clear (tmp);
+   cm_timer_stop (cm_timer1);
 }
 
 /*****************************************************************************/

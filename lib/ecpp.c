@@ -52,6 +52,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    while (i < no) {
       if (mpz_si_kronecker (q, p) == 1) {
          qstar [i] = q;
+         cm_counter1++;
          cm_nt_mpz_tonelli (root [i], q, p);
          i++;
       }
@@ -262,7 +263,10 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
       /* Cycle through the twists and look for a suitable cardinality. */
       for (i = 0; !ok && i < twists; i++) {
+         cm_timer_continue (cm_timer5);
+         cm_counter2++;
          cm_pari_trialdiv (co, card [i], 1000000);
+         cm_timer_stop (cm_timer5);
          /* We need to check whether co > (N^1/4 + 1)^2.
             Let N have e bits, that is, 2^(e-1) <= N < 2^e,
             and co have f bits, that is, 2^(f-1) <= co < 2^f. Then
@@ -299,8 +303,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l. */
 {
-   int no_qstar = 20;
-   int no_factors = 3;
+   int no_qstar = 40;
+   int no_factors = 4;
    uint_cl_t Dmax = 0;
    long int *qstar;
    mpz_t *root;
@@ -394,12 +398,26 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       for (i = 0; i < 4; i++)
          mpz_init (c [*depth][i]);
       mpz_set (c [*depth][0], N);
+      cm_counter1 = 0;
+      cm_counter2 = 0;
       cm_timer_start (clock);
+      cm_timer_reset (cm_timer1);
+      cm_timer_reset (cm_timer2);
+      cm_timer_reset (cm_timer3);
+      cm_timer_reset (cm_timer4);
+      cm_timer_reset (cm_timer5);
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N);
       cm_timer_stop (clock);
-      if (verbose)
+      if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
+         printf ("%5i Tonelli: %.1f, 3mod8: %.1f, 2-Sylow: %.1f, normal: %.1f\n",
+            cm_counter1,
+            cm_timer_get (cm_timer1), cm_timer_get (cm_timer3),
+            cm_timer_get (cm_timer2), cm_timer_get (cm_timer4));
+         printf ("%5i Trial div: %.1f\n", cm_counter2,
+            cm_timer_get (cm_timer5));
+      }
       mpz_set_si (c [*depth][1], d);
       mpz_set (N, c [*depth][3]);
       (*depth)++;
