@@ -53,7 +53,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
       if (mpz_si_kronecker (q, p) == 1) {
          qstar [i] = q;
          cm_counter1++;
-         cm_nt_mpz_tonelli (root [i], q, p);
+         cm_nt_mpz_tonelli_si (root [i], q, p);
          i++;
       }
       if (q == -3)

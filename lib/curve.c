@@ -214,7 +214,7 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
       /* try to compute the square root of P_y */
       if (mpz_jacobi (P_y, p) != -1) {
          mpz_set_ui (P_x, P_x_long);
-         cm_nt_mpz_tonelli_z (P_y, P_y, p);
+         cm_nt_mpz_tonelli (P_y, P_y, p);
          /* get rid of the cofactor */
          P_infty = false;
          elliptic_curve_multiply (P_x, P_y, &P_infty, cofactor, a, p);

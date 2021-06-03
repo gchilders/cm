@@ -53,7 +53,7 @@ static void quadratic_basis (mpz_ptr omega, int_cl_t d, mpz_srcptr P)
       for the fundamental discriminant d modulo P, which is assumed to
       split in the quadratic field. */
 {
-   cm_nt_mpz_tonelli (omega, d, P);
+   cm_nt_mpz_tonelli_si (omega, d, P);
    if (d % 4 != 0)
       mpz_add_ui (omega, omega, 1ul);
       /* Since sqrt(d)!=p-1 mod p, omega is still <p. */

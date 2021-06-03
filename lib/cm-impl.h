@@ -67,8 +67,9 @@ extern int cm_nt_is_prime (mpz_t a);
 extern unsigned long int cm_nt_next_prime (const unsigned long int n);
 extern void cm_nt_factor (uint_cl_t d, uint_cl_t *factors,
    unsigned int *exponents);
-extern void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p);
-extern void cm_nt_mpz_tonelli (mpz_ptr root, const long int a, mpz_srcptr p);
+extern void cm_nt_mpz_tonelli (mpz_ptr root, mpz_srcptr a, mpz_srcptr p);
+extern void cm_nt_mpz_tonelli_si (mpz_ptr root, const long int a,
+   mpz_srcptr p);
 extern bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
 extern bool cm_nt_cget_zz (mpz_ptr out1, mpz_ptr out2, ctype in, ctype omega);

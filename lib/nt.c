@@ -250,7 +250,7 @@ void cm_nt_factor (uint_cl_t d, uint_cl_t *factors, unsigned int *exponents)
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
+void cm_nt_mpz_tonelli (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
    /* computes a square root of a modulo p by the Tonelli-Shanks algorithm,  */
    /* see Cohen93, Algorithm 1.5.                                            */
 
@@ -353,14 +353,14 @@ void cm_nt_mpz_tonelli_z (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli (mpz_ptr root, const long int a, mpz_srcptr p)
+void cm_nt_mpz_tonelli_si (mpz_ptr root, const long int a, mpz_srcptr p)
    /* computes a square root of a modulo p */
 
 {
    mpz_t tmp_a;
 
    mpz_init_set_si (tmp_a, a);
-   cm_nt_mpz_tonelli_z (root, tmp_a, p);
+   cm_nt_mpz_tonelli (root, tmp_a, p);
    mpz_clear (tmp_a);
 }
 
@@ -389,7 +389,7 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    if (root != NULL)
       mpz_set (b, root);
    else
-      cm_nt_mpz_tonelli (b, d, p);
+      cm_nt_mpz_tonelli_si (b, d, p);
    if (mpz_divisible_2exp_p (b, 1)) {
       if (d % 4 != 0)
          mpz_sub (b, p, b);
