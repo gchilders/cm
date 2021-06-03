@@ -250,17 +250,35 @@ void cm_nt_factor (uint_cl_t d, uint_cl_t *factors, unsigned int *exponents)
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
-   /* computes a square root of a modulo p by the Tonelli-Shanks algorithm,  */
-   /* see Cohen93, Algorithm 1.5.                                            */
-
+unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
+   mpz_srcptr p)
+   /* For p an odd prime, compute and return e such that p-1 = 2^e * q with
+      q odd. If e>1 (that is, p != 3 mod 4), also q and a generator z of
+      the 2-Sylow subgroup of (Z/pZ)^* are returned. Otherwise q and z
+      are not modified. */
 {
-   mpz_t             pm1, z;
-   mpz_t             a_local, y, x, b, tmp;
-   unsigned int      e;
+   unsigned int e = mpz_scan1 (p, 1);
+
+   if (e > 1) {
+      mpz_tdiv_q_2exp (q, p, e);
+      for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
+         mpz_add_ui (z, z, 1ul));
+      mpz_powm (z, z, q, p);
+   }
+
+   return e;
+}
+
+/*****************************************************************************/
+
+void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
+   mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z)
+   /* Compute a square root of a modulo p by the Tonelli-Shanks algorithm,
+      see Cohen93, Algorithm 1.5. */
+{
+   mpz_t a_local, y, x, b, tmp;
    unsigned long int r, m;
 
-   cm_timer_continue (cm_timer1);
    mpz_init (a_local);
    mpz_tdiv_r (a_local, a, p);
    if (mpz_cmp_ui (a_local, 0ul) == 0) {
@@ -269,41 +287,21 @@ void cm_nt_mpz_tonelli (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
       return;
    }
 
-   mpz_init (pm1);
-   mpz_init (z);
    mpz_init (y);
    mpz_init (x);
    mpz_init (b);
    mpz_init (tmp);
 
-   mpz_sub_ui (pm1, p, 1ul);
-   e = 0;
-   while (mpz_divisible_2exp_p (pm1, 1ul) != 0) {
-      mpz_tdiv_q_2exp (pm1, pm1, 1ul);
-      e++;
-   }
-   if (e > 1) {
-      cm_timer_continue (cm_timer2);
-      /* find generator of the 2-Sylow group */
-      for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
-               mpz_add_ui (z, z, 1ul));
-      mpz_powm (z, z, pm1, p);
-      cm_timer_stop (cm_timer2);
-   }
-
-   if (e == 1) /* p=3 (mod 8) */ {
-      cm_timer_continue (cm_timer3);
+   if (e == 1) /* p=3 (mod 4) */ {
       mpz_add_ui (tmp, p, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 2ul);
       mpz_powm (x, a_local, tmp, p);
-      cm_timer_stop (cm_timer3);
    }
    else {
       /* initialisation */
-      cm_timer_continue (cm_timer4);
       mpz_set (y, z);
       r = e;
-      mpz_sub_ui (tmp, pm1, 1ul);
+      mpz_sub_ui (tmp, q, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 1ul);
       mpz_powm (x, a_local, tmp, p);
       mpz_powm_ui (b, x, 2ul, p);
@@ -336,19 +334,45 @@ void cm_nt_mpz_tonelli (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
          mpz_mul (b, b, y);
          mpz_mod (b, b, p);
       }
-      cm_timer_stop (cm_timer4);
    }
 
    mpz_set (root, x);
 
    mpz_clear (a_local);
-   mpz_clear (pm1);
-   mpz_clear (z);
    mpz_clear (y);
    mpz_clear (x);
    mpz_clear (b);
    mpz_clear (tmp);
-   cm_timer_stop (cm_timer1);
+}
+
+/*****************************************************************************/
+
+void cm_nt_mpz_tonelli (mpz_ptr root, mpz_srcptr a, mpz_srcptr p)
+{
+   unsigned int e;
+   mpz_t q, z;
+
+   mpz_init (q);
+   mpz_init (z);
+
+   e = cm_nt_mpz_tonelli_generator (q, z, p);
+   cm_nt_mpz_tonelli_with_generator (root, a, p, e, q, z);
+
+   mpz_clear (q);
+   mpz_clear (z);
+}
+
+/*****************************************************************************/
+
+void cm_nt_mpz_tonelli_si_with_generator (mpz_ptr root,
+   const long int a, mpz_srcptr p, unsigned int e, mpz_srcptr q,
+   mpz_srcptr z)
+{
+   mpz_t tmp_a;
+
+   mpz_init_set_si (tmp_a, a);
+   cm_nt_mpz_tonelli_with_generator (root, tmp_a, p, e, q, z);
+   mpz_clear (tmp_a);
 }
 
 /*****************************************************************************/
@@ -380,6 +404,7 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_t r, a, b, l;
    bool ok;
 
+   cm_timer_continue (cm_timer2);
    mpz_init (r);
    mpz_init (a);
    mpz_init (b);
@@ -440,6 +465,7 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_clear (a);
    mpz_clear (b);
    mpz_clear (l);
+   cm_timer_stop (cm_timer2);
 
    return ok;
 }

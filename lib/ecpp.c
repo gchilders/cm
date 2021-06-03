@@ -46,6 +46,12 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 {
    int i;
    long int q;
+   unsigned int e;
+   mpz_t r, z;
+
+   mpz_init (r);
+   mpz_init (z);
+   e = cm_nt_mpz_tonelli_generator (r, z, p);
 
    i = 0;
    q = -3;
@@ -53,7 +59,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
       if (mpz_si_kronecker (q, p) == 1) {
          qstar [i] = q;
          cm_counter1++;
-         cm_nt_mpz_tonelli_si (root [i], q, p);
+         cm_nt_mpz_tonelli_si_with_generator (root [i], q, p, e, r, z);
          i++;
       }
       if (q == -3)
@@ -75,6 +81,9 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
             q = -q;
       }
    }
+
+   mpz_clear (r);
+   mpz_clear (z);
 }
 
 /*****************************************************************************/
@@ -276,6 +285,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             f-1 >= (e+1)/2, or equivalently f >= floor (e/2) + 2.
             We also want to gain at least one bit; otherwise we might
             even increase the prime a little bit. */
+         cm_timer_continue (cm_timer3);
          size_co = mpz_sizeinbase (co, 2);
          size_N = mpz_sizeinbase (N, 2);
          if (size_co < size_N && size_co >= size_N / 2 + 2
@@ -284,6 +294,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             mpz_set (n, card [i]);
             mpz_set (l, co);
          }
+         cm_timer_stop (cm_timer3);
       }
       mpz_clear (co);
       for (i = 0; i < twists; i++)
@@ -316,6 +327,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
    bool ok;
 
    /* Prepare the prime and square root list. */
+   cm_timer_continue (cm_timer1);
    qstar = (long int *) malloc (no_qstar * sizeof (long int));
    root = (mpz_t *) malloc (no_qstar * sizeof (mpz_t));
    for (i = 0; i < no_qstar; i++)
@@ -325,6 +337,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
    /* Precompute a list of potential discriminants for fastECPP. */
    dlist = compute_discriminants (&no_d, qstar, no_qstar, no_factors, Dmax);
    qsort (dlist, no_d, sizeof (int_cl_t), disc_cmp);
+   cm_timer_stop (cm_timer1);
 
    /* Search for the first suitable discriminant in the list. */
    mpz_init (Droot);
@@ -411,10 +424,9 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
-         printf ("%5i Tonelli: %.1f, 3mod8: %.1f, 2-Sylow: %.1f, normal: %.1f\n",
-            cm_counter1,
-            cm_timer_get (cm_timer1), cm_timer_get (cm_timer3),
-            cm_timer_get (cm_timer2), cm_timer_get (cm_timer4));
+         printf ("%5i step0: %.1f, cornacchia: %.1f, is_prime: %.1f\n",
+            cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2),
+            cm_timer_get (cm_timer3));
          printf ("%5i Trial div: %.1f\n", cm_counter2,
             cm_timer_get (cm_timer5));
       }
