@@ -63,6 +63,8 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
          i++;
       }
       if (q == -3)
+         q = -4;
+      else if (q == -4)
          q = 5;
       else if (q == 5)
          q = -7;
@@ -186,7 +188,9 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       Dq [Dno - 1] = Dqmax;
       D *= qstar [Dqmax];
       /* Register the new discriminant if it satisfies the conditions. */
-      if (D < 0 && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
+      if (D < 0
+          && D % 16 != 0 /* only one of -4, -8 and 8 is included */
+          && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
          d [no] = (int_cl_t *) malloc (1 * sizeof (int_cl_t));
          d [no][0] = D;
          no++;
