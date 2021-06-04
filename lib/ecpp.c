@@ -28,7 +28,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    int no);
-static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
+static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar, int no_factors, uint_cl_t Dmax);
 static int disc_cmp (const void* d1, const void* d2);
 
@@ -88,7 +88,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 
 /*****************************************************************************/
 
-static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
+static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar, int no_factors, uint_cl_t Dmax)
    /* Given an array of no_qstar "signed primes" qstar (ordered by
       increasing absolute value), return an array of negative fundamental
@@ -96,11 +96,14 @@ static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
       and return their number in no_d.
       If it is different from 0, then Dmax furthermore is an upper bound
       on the absolute value of the discriminant.
+      Each element of the array is again an array (of fixed length)
+      recording additional information on the discriminant. So far:
+      0: discriminant
       The task feels like it could be written in a few lines in a
       functional programming language; as a graph traversal, it is also
       readily implemented in C with "manual" backtracking. */
 {
-   int_cl_t *d;
+   int_cl_t **d;
       /* result */
    int_cl_t D;
       /* currently considered discriminant */
@@ -150,7 +153,7 @@ static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
    no = 0;
    for (k = 1; k <= no_factors; k++)
       no += cm_nt_binomial (no_qstar, k);
-   d = (int_cl_t *) malloc (no * sizeof (int_cl_t));
+   d = (int_cl_t **) malloc (no * sizeof (int_cl_t *));
 
    no = 0;
    D = 1;
@@ -184,13 +187,14 @@ static int_cl_t* compute_discriminants (int *no_d, long int *qstar,
       D *= qstar [Dqmax];
       /* Register the new discriminant if it satisfies the conditions. */
       if (D < 0 && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
-         d [no] = D;
+         d [no] = (int_cl_t *) malloc (1 * sizeof (int_cl_t));
+         d [no][0] = D;
          no++;
       }
    }
 
    *no_d = no;
-   d = realloc (d, no * sizeof (int_cl_t));
+   d = realloc (d, no * sizeof (int_cl_t *));
 
    return d;
 }
@@ -201,8 +205,8 @@ static int disc_cmp (const void* d1, const void* d2)
 {
    int_cl_t D1, D2;
 
-   D1 = *((int_cl_t *) d1);
-   D2 = *((int_cl_t *) d2);
+   D1 = (*((int_cl_t **) d1)) [0];
+   D2 = (*((int_cl_t **) d2)) [0];
 
    return (D1 < D2 ? +1 : (D1 == D2 ? 0 : -1));
 }
@@ -321,7 +325,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
    mpz_t *root;
    int i, j;
    int_cl_t d;
-   int_cl_t *dlist;
+   int_cl_t **dlist;
    int no_d;
    mpz_t Droot;
    bool ok;
@@ -336,7 +340,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
 
    /* Precompute a list of potential discriminants for fastECPP. */
    dlist = compute_discriminants (&no_d, qstar, no_qstar, no_factors, Dmax);
-   qsort (dlist, no_d, sizeof (int_cl_t), disc_cmp);
+   qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
    cm_timer_stop (cm_timer1);
 
    /* Search for the first suitable discriminant in the list. */
@@ -345,7 +349,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
    ok = false;
    do {
       i++;
-      d = dlist [i];
+      d = dlist [i][0];
       /* Compute the square root of the discriminant by multiplying the
          roots of all its prime factors. d can be trial divided over qstar,
          but the "even primes" need special care, in particular for the
@@ -363,7 +367,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
                mpz_mul (Droot, Droot, root [j]);
                mpz_mod (Droot, Droot, N);
             }
-      d = dlist [i];
+      d = dlist [i][0];
       ok = is_ecpp_discriminant (n, l, N, Droot, d);
    } while (!ok && i < no_d - 1);
    if (!ok) {
@@ -372,6 +376,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
    }
    mpz_clear (Droot);
 
+   for (i = 0; i < no_d; i++)
+      free (dlist [i]);
    free (dlist);
    for (i = 0; i < no_qstar; i++)
       mpz_clear (root [i]);
