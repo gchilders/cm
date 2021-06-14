@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 cm_timer cm_timer1, cm_timer2, cm_timer3, cm_timer4, cm_timer5;
-int cm_counter1, cm_counter2;
+int cm_counter1, cm_counter2, cm_counter3;
 
 /*****************************************************************************/
 

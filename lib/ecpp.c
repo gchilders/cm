@@ -370,11 +370,13 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          cm_timer_continue (cm_timer3);
          size_co = mpz_sizeinbase (co, 2);
          size_N = mpz_sizeinbase (N, 2);
-         if (size_co < size_N && size_co >= size_N / 2 + 2
-            && cm_nt_is_prime (co)) {
-            ok = true;
-            mpz_set (n, card [i]);
-            mpz_set (l, co);
+         if (size_co < size_N && size_co >= size_N / 2 + 2) {
+            cm_counter3++;
+            if (cm_nt_is_prime (co)) {
+               ok = true;
+               mpz_set (n, card [i]);
+               mpz_set (l, co);
+            }
          }
          cm_timer_stop (cm_timer3);
       }
@@ -523,6 +525,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       mpz_set (c [*depth][0], N);
       cm_counter1 = 0;
       cm_counter2 = 0;
+      cm_counter3 = 0;
       cm_timer_start (clock);
       cm_timer_reset (cm_timer1);
       cm_timer_reset (cm_timer2);
@@ -534,11 +537,12 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
-         printf ("%5i qstar: %.1f, disclist: %.1f, is_prime: %.1f\n",
-            cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2),
-            cm_timer_get (cm_timer3));
+         printf ("%5i qstar: %.1f, disclist: %.1f\n",
+            cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2));
          printf ("%5i Trial div: %.1f\n", cm_counter2,
             cm_timer_get (cm_timer5));
+         printf ("%5i is_prime: %.1f\n", cm_counter3,
+            cm_timer_get (cm_timer3));
       }
       mpz_set_si (c [*depth][1], d);
       mpz_set (N, c [*depth][3]);
