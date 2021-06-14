@@ -23,14 +23,60 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_srcptr root, int_cl_t d);
-static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N);
+static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    int no);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar, int no_factors, uint_cl_t Dmax);
+   int no_qstar, int no_factors, uint_cl_t Dmax, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
+static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
+   mpz_srcptr root, int_cl_t d);
+static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
+   uint_cl_t Dmax, uint_cl_t *h);
+
+/*****************************************************************************/
+
+static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
+   /* Assuming that h is an array of length (Dmax/2)+1 for even Dmax,
+      compute in h [|D|/2] the class number for fundamental discriminants D
+      such that |D| <= Dmax.
+      Non-fundamental positions need not contain the class number.
+      Precisely, h [|D|] counts the number of quadratic forms [A, B, C]
+      such that 0 <= |B| <= A <= C of discriminant D = B^2-4*A*C,
+      and B>=0 if |B| = A or A = C. We may include in this count some or
+      all of the non-primitive forms, since they belong to non-fundamental
+      discriminants. */
+{
+   uint_cl_t Dmax2, A, B, D2, Amax, Alocmax, i;
+
+   Dmax2 = Dmax / 2;
+   for (i = 0; i <= Dmax2; i++)
+      h [i] = 0;
+
+   Amax = (uint_cl_t) sqrt (Dmax / 3.0);
+
+   /* Consider forms with B=0. */
+   for (A = 1; A <= Amax; A++)
+      /* C = A, occurs as primitive form only for |D| = 4  */
+      for (D2 = 2*A*A; D2 <= Dmax2; h [D2]++, D2 += 2*A);
+
+   /* Consider forms with 0 < |B| = A <= C. */
+   for (A = 1; A <= Amax; A++)
+      /* C = A, occurs as primitive form only for |D| = 3 */
+      for (D2 = 3 * A * A / 2; D2 <= Dmax2; h [D2]++, D2 += 2*A);
+
+   /* Consider forms with 0 < |B| < A <= C. */
+   for (B = 1; B < Amax; B++) {
+      Alocmax = (uint_cl_t) sqrt ((Dmax + B * B) / 4);
+      for (A = B + 1; A <= Alocmax; A++) {
+         /* C = A */
+         D2 = (2 * A - B) * (2 * A + B) / 2;
+         h [D2]++;
+         /* C = A + 1 */
+         for (D2 += 2*A; D2 <= Dmax2; h [D2] += 2, D2 += 2*A);
+      }
+   }
+}
 
 /*****************************************************************************/
 
@@ -91,7 +137,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 /*****************************************************************************/
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar, int no_factors, uint_cl_t Dmax)
+   int no_qstar, int no_factors, uint_cl_t Dmax, uint_cl_t *h)
    /* Given an array of no_qstar "signed primes" qstar (ordered by
       increasing absolute value), return an array of negative fundamental
       discriminants with at most no_factors prime factors from the list,
@@ -101,6 +147,12 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       Each element of the array is again an array (of fixed length)
       recording additional information on the discriminant. So far:
       0: discriminant
+      1: number of its prime factors
+      2: its largest prime factor
+      3: h/g, the class number relative to the genus field
+      4: class number h
+      The additional input h is a precomputed array in which h [(-d)/2]
+      contains the class number of the fundamental discriminant d.
       The task feels like it could be written in a few lines in a
       functional programming language; as a graph traversal, it is also
       readily implemented in C with "manual" backtracking. */
@@ -191,8 +243,12 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       if (D < 0
           && D % 16 != 0 /* only one of -4, -8 and 8 is included */
           && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
-         d [no] = (int_cl_t *) malloc (1 * sizeof (int_cl_t));
+         d [no] = (int_cl_t *) malloc (5 * sizeof (int_cl_t));
          d [no][0] = D;
+         d [no][1] = Dno;
+         d [no][2] = qstar [Dqmax];
+         d [no][4] = h [(-D) / 2];
+         d [no][3] = d [no][4] >> (Dno - 1);
          no++;
       }
    }
@@ -207,12 +263,30 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 
 static int disc_cmp (const void* d1, const void* d2)
 {
-   int_cl_t D1, D2;
+   int_cl_t *D1, *D2;
 
-   D1 = (*((int_cl_t **) d1)) [0];
-   D2 = (*((int_cl_t **) d2)) [0];
+   D1 = (*((int_cl_t **) d1));
+   D2 = (*((int_cl_t **) d2));
 
-   return (D1 < D2 ? +1 : (D1 == D2 ? 0 : -1));
+   /* First sort by increasing h/g. */
+   if (D1 [3] < D2 [3])
+      return -1;
+   else if (D1 [3] > D2 [3])
+      return +1;
+   else
+      /* Then sort by increasing h. */
+      if (D1 [4] < D2 [4])
+         return -1;
+      else if (D1 [4] > D2 [4])
+         return +1;
+      else
+         /* Finally sort by increasing |d|. */
+         if (D1 [0] < D2 [0])
+            return +1;
+         else if (D1 [0] > D2 [0])
+            return -1;
+         else
+            return 0;
 }
 
 /*****************************************************************************/
@@ -317,14 +391,15 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
 /*****************************************************************************/
 
-static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
+static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
+   uint_cl_t Dmax, uint_cl_t *h)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
-      its largest prime factor in l. */
+      its largest prime factor in l.
+      Dmax and h are passed through to compute_discriminants. */
 {
-   int no_qstar = 40;
+   int no_qstar = 100;
    int no_factors = 4;
-   uint_cl_t Dmax = 0;
    long int *qstar;
    mpz_t *root;
    int i, j;
@@ -341,11 +416,14 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
    for (i = 0; i < no_qstar; i++)
       mpz_init (root [i]);
    compute_qstar (qstar, root, N, no_qstar);
-
-   /* Precompute a list of potential discriminants for fastECPP. */
-   dlist = compute_discriminants (&no_d, qstar, no_qstar, no_factors, Dmax);
-   qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
    cm_timer_stop (cm_timer1);
+
+   cm_timer_continue (cm_timer2);
+   /* Precompute a list of potential discriminants for fastECPP. */
+   dlist = compute_discriminants (&no_d, qstar, no_qstar, no_factors,
+      Dmax, h);
+   qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
+   cm_timer_stop (cm_timer2);
 
    /* Search for the first suitable discriminant in the list. */
    mpz_init (Droot);
@@ -375,10 +453,21 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N)
       ok = is_ecpp_discriminant (n, l, N, Droot, d);
    } while (!ok && i < no_d - 1);
    if (!ok) {
-      printf ("***** Error in find_ecpp_discriminant: qstar too short\n");
+      printf ("***** Error in find_ecpp_discriminant: qstar too short.\n");
+      printf ("N=");
+      mpz_out_str (stdout, 10, N);
+      printf (";\nDmax=%"PRIucl";\nno_factors=%i;\nqstar = [",
+         Dmax, no_factors);
+      for (j = 0; j < no_qstar; j++) {
+         printf ("%li", qstar [j]);
+         if (j != no_qstar - 1)
+            printf (", ");
+      }
+      printf ("]\n");
       exit (1);
    }
    mpz_clear (Droot);
+printf ("[%"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl"]\n", dlist[i][0], dlist[i][1], dlist[i][2], dlist[i][3], dlist[i][4]);
 
    for (i = 0; i < no_d; i++)
       free (dlist [i]);
@@ -408,9 +497,20 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
 {
    mpz_t N;
    mpz_t** c;
+   uint_cl_t *h;
+   uint_cl_t Dmax;
    int_cl_t d;
    cm_timer clock;
    int i;
+
+   /* Precompute class numbers. */
+   cm_timer_start (clock);
+   Dmax = mpz_sizeinbase (p, 2);
+   Dmax = ((Dmax * Dmax) >> 3) << 1;
+   h = (uint_cl_t *) malloc ((Dmax / 2 + 1) * sizeof (uint_cl_t));
+   compute_h (h, Dmax);
+   cm_timer_stop (clock);
+   printf ("-- Time for class numbers: %5.1f\n", cm_timer_get (clock));
 
    mpz_init_set (N, p);
    *depth = 0;
@@ -429,12 +529,12 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       cm_timer_reset (cm_timer3);
       cm_timer_reset (cm_timer4);
       cm_timer_reset (cm_timer5);
-      d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N);
+      d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax, h);
       cm_timer_stop (clock);
       if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
-         printf ("%5i step0: %.1f, cornacchia: %.1f, is_prime: %.1f\n",
+         printf ("%5i qstar: %.1f, disclist: %.1f, is_prime: %.1f\n",
             cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2),
             cm_timer_get (cm_timer3));
          printf ("%5i Trial div: %.1f\n", cm_counter2,
@@ -445,6 +545,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       (*depth)++;
    }
 
+   free (h);
    mpz_clear (N);
 
    return c;

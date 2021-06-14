@@ -404,7 +404,6 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_t r, a, b, l;
    bool ok;
 
-   cm_timer_continue (cm_timer2);
    mpz_init (r);
    mpz_init (a);
    mpz_init (b);
@@ -465,7 +464,6 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_clear (a);
    mpz_clear (b);
    mpz_clear (l);
-   cm_timer_stop (cm_timer2);
 
    return ok;
 }
