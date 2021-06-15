@@ -25,9 +25,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   int no);
+   int no_old, int no_new);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar, int no_factors, uint_cl_t Dmax, uint_cl_t *h);
+   int no_qstar_old, int no_qstar, int no_factors, uint_cl_t Dmax,
+   uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_srcptr root, int_cl_t d);
@@ -81,16 +82,17 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
 /*****************************************************************************/
 
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   int no)
+   int no_old, int no_new)
    /* Compute and return via qstar a list of "signed primes" suitable
       for dividing the discriminant to prove the primality of p, and via
       root their square roots modulo p. The entries in qstar are ordered
       by increasing absolute value.
-      no indicates the desired number of elements.
+      To make repeated calls possible for increasing the number of primes,
+      no_old indicates the number of elements already present before the
+      call, no_new the desired total number of elements.
       qstar and root need to be initialised to the correct size,
       and the entries of root need to be initialised as well. */
 {
-   int i;
    long int q;
    unsigned int e;
    mpz_t r, z;
@@ -99,14 +101,16 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    mpz_init (z);
    e = cm_nt_mpz_tonelli_generator (r, z, p);
 
-   i = 0;
-   q = -3;
-   while (i < no) {
+   if (no_old == 0)
+      q = -3;
+   else
+      q = qstar [no_old - 1];
+   while (no_old < no_new) {
       if (mpz_si_kronecker (q, p) == 1) {
-         qstar [i] = q;
+         qstar [no_old] = q;
          cm_counter1++;
-         cm_nt_mpz_tonelli_si_with_generator (root [i], q, p, e, r, z);
-         i++;
+         cm_nt_mpz_tonelli_si_with_generator (root [no_old], q, p, e, r, z);
+         no_old++;
       }
       if (q == -3)
          q = -4;
@@ -137,11 +141,14 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 /*****************************************************************************/
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar, int no_factors, uint_cl_t Dmax, uint_cl_t *h)
-   /* Given an array of no_qstar "signed primes" qstar (ordered by
+   int no_qstar_old, int no_qstar, int no_factors, uint_cl_t Dmax,
+   uint_cl_t *h)
+   /* Given an array of no_qstar_new "signed primes" qstar (ordered by
       increasing absolute value), return an array of negative fundamental
       discriminants with at most no_factors prime factors from the list,
       and return their number in no_d.
+      Moreover, each discriminant must contain at least one prime larger
+      in absolute value than the first no_qstar_old ones.
       If it is different from 0, then Dmax furthermore is an upper bound
       on the absolute value of the discriminant.
       Each element of the array is again an array (of fixed length)
@@ -242,6 +249,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       /* Register the new discriminant if it satisfies the conditions. */
       if (D < 0
           && D % 16 != 0 /* only one of -4, -8 and 8 is included */
+          && Dqmax >= no_qstar_old
           && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
          d [no] = (int_cl_t *) malloc (5 * sizeof (int_cl_t));
          d [no][0] = D;
@@ -400,10 +408,10 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       its largest prime factor in l.
       Dmax and h are passed through to compute_discriminants. */
 {
-   int no_qstar = 100;
+   int no_qstar_old, no_qstar;
    int no_factors = 4;
-   long int *qstar;
-   mpz_t *root;
+   long int qstar [1000];
+   mpz_t root [1000];
    int i, j;
    int_cl_t d;
    int_cl_t **dlist;
@@ -411,77 +419,79 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t Droot;
    bool ok;
 
-   /* Prepare the prime and square root list. */
-   cm_timer_continue (cm_timer1);
-   qstar = (long int *) malloc (no_qstar * sizeof (long int));
-   root = (mpz_t *) malloc (no_qstar * sizeof (mpz_t));
-   for (i = 0; i < no_qstar; i++)
-      mpz_init (root [i]);
-   compute_qstar (qstar, root, N, no_qstar);
-   cm_timer_stop (cm_timer1);
-
-   cm_timer_continue (cm_timer2);
-   /* Precompute a list of potential discriminants for fastECPP. */
-   dlist = compute_discriminants (&no_d, qstar, no_qstar, no_factors,
-      Dmax, h);
-   qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
-   cm_timer_stop (cm_timer2);
-
-   /* Search for the first suitable discriminant in the list. */
-   mpz_init (Droot);
-   i = -1;
    ok = false;
+   no_qstar_old = 0;
+   no_qstar = 10;
+   mpz_init (Droot);
+
    do {
-      i++;
-      d = dlist [i][0];
-      /* Compute the square root of the discriminant by multiplying the
-         roots of all its prime factors. d can be trial divided over qstar,
-         but the "even primes" need special care, in particular for the
-         sign of 8. */
-      mpz_set_ui (Droot, 1);
-      for (j = 0; j < no_qstar; j++)
-         if (qstar [j] % 2 != 0 && d % qstar [j] == 0) {
-            mpz_mul (Droot, Droot, root [j]);
-            mpz_mod (Droot, Droot, N);
-            d /= qstar [j];
-         }
-      if (d != 1)
+      /* Extend the prime and square root list. */
+      cm_timer_continue (cm_timer1);
+      for (i = no_qstar_old; i < no_qstar; i++)
+         mpz_init (root [i]);
+      compute_qstar (qstar, root, N, no_qstar_old, no_qstar);
+      cm_timer_stop (cm_timer1);
+
+      /* Precompute a list of potential discriminants for fastECPP. */
+      cm_timer_continue (cm_timer2);
+      dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar,
+         no_factors, Dmax, h);
+      qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
+      cm_timer_stop (cm_timer2);
+
+      /* Search for the first suitable discriminant in the list. */
+      i = -1;
+      do {
+         i++;
+         d = dlist [i][0];
+         /* Compute the square root of the discriminant by multiplying the
+            roots of all its prime factors. d can be trial divided over qstar,
+            but the "even primes" need special care, in particular for the
+            sign of 8. */
+         mpz_set_ui (Droot, 1);
          for (j = 0; j < no_qstar; j++)
-            if (d == qstar [j]) {
+            if (qstar [j] % 2 != 0 && d % qstar [j] == 0) {
                mpz_mul (Droot, Droot, root [j]);
                mpz_mod (Droot, Droot, N);
+               d /= qstar [j];
             }
-      d = dlist [i][0];
-      ok = is_ecpp_discriminant (n, l, N, Droot, d);
-   } while (!ok && i < no_d - 1);
-   if (!ok) {
-      printf ("***** Error in find_ecpp_discriminant: qstar too short.\n");
-      printf ("N=");
-      mpz_out_str (stdout, 10, N);
-      printf (";\nDmax=%"PRIucl";\nno_factors=%i;\nqstar = [",
-         Dmax, no_factors);
-      for (j = 0; j < no_qstar; j++) {
-         printf ("%li", qstar [j]);
-         if (j != no_qstar - 1)
-            printf (", ");
-      }
-      printf ("]\n");
-      exit (1);
-   }
-   mpz_clear (Droot);
-printf ("[%"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl"]\n", dlist[i][0], dlist[i][1], dlist[i][2], dlist[i][3], dlist[i][4]);
+         if (d != 1)
+            for (j = 0; j < no_qstar; j++)
+               if (d == qstar [j]) {
+                  mpz_mul (Droot, Droot, root [j]);
+                  mpz_mod (Droot, Droot, N);
+               }
+         d = dlist [i][0];
+         ok = is_ecpp_discriminant (n, l, N, Droot, d);
+      } while (!ok && i < no_d - 1);
 
-   for (i = 0; i < no_d; i++)
-      free (dlist [i]);
-   free (dlist);
+      if (!ok) {
+         no_qstar_old = no_qstar;
+         if (no_qstar <= 10)
+            no_qstar += 10;
+         else
+            no_qstar += 20;
+         if (no_qstar > 1000) {
+            printf ("Error in find_ecpp_discriminant: qstar array too short\n");
+            exit (1);
+         }
+      }
+      else
+         printf ("[%"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl"]\n", dlist[i][0], dlist[i][1], dlist[i][2], dlist[i][3], dlist[i][4]);
+
+      /* Free the discriminant list. */
+      for (i = 0; i < no_d; i++)
+         free (dlist [i]);
+      free (dlist);
+
+   } while (!ok);
+
+   mpz_clear (Droot);
    for (i = 0; i < no_qstar; i++)
       mpz_clear (root [i]);
-   free (root);
-   free (qstar);
 
    return d;
 }
-
 
 /*****************************************************************************/
 
