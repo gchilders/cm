@@ -282,23 +282,3 @@ mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p)
 }
 
 /*****************************************************************************/
-
-void cm_pari_trialdiv (mpz_ptr p, mpz_srcptr n, unsigned long int B)
-   /* Trial divide n by the numbers less than B and return the largest
-      factor found in p. This is either the largest prime dividing n
-      if n is smooth, or otherwise the cofactor, which in the ECPP setting
-      is hoped to be prime, thus the name of the p parameter. */
-{
-   pari_sp av = avma;
-   GEN f;
-
-   f = factor0 (mpz_get_Z (n), icl_get_Z (B));
-   f = gel (f, 1);
-   f = gel (f, glength (f));
-
-   Z_get_mpz (p, f);
-
-   avma = av;
-}
-
-/*****************************************************************************/

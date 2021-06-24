@@ -30,10 +30,11 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar, int no_factors, uint_cl_t Dmax,
    uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
+static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_srcptr root, int_cl_t d);
+   mpz_srcptr root, mpz_srcptr primorialB, int_cl_t d);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t *h);
+   uint_cl_t Dmax, uint_cl_t *h, mpz_srcptr primorialB);
 
 /*****************************************************************************/
 
@@ -299,14 +300,41 @@ static int disc_cmp (const void* d1, const void* d2)
 
 /*****************************************************************************/
 
+static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB)
+   /* primorialB is supposed to be the product of the primes up to the
+      smoothness bound B.
+      The function removes all occurrences of the primes up to B from n
+      and stores the result in l. */
+{
+   mpz_t mod, gcd;
+
+   mpz_init (mod);
+   mpz_init (gcd);
+
+   mpz_set (l, n);
+   mpz_mod (mod, primorialB, l);
+   mpz_gcd (gcd, l, mod);
+   while (mpz_cmp_ui (gcd, 1)) {
+      mpz_divexact (l, l, gcd);
+      mpz_gcd (gcd, l, mod);
+   }
+
+   mpz_clear (mod);
+   mpz_clear (gcd);
+}
+
+/*****************************************************************************/
+
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_srcptr root, int_cl_t d)
+   mpz_srcptr root, mpz_srcptr primorialB, int_cl_t d)
    /* The function tests whether d is a suitable discriminant to perform
       one step in the ECPP downrun from the (probable) prime N>=787 and
       returns the result. If true, n becomes the cardinality of the
       elliptic curve and l its largest prime factor; otherwise n and l are
       unchanged.
-      root is a square root of d modulo N. */
+      root is a square root of d modulo N.
+      primorialB is related to the trial division bound and is passed on
+      to trial_div. */
 
 {
    mpz_t t, v, co;
@@ -364,7 +392,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       for (i = 0; !ok && i < twists; i++) {
          cm_timer_continue (cm_timer5);
          cm_counter2++;
-         cm_pari_trialdiv (co, card [i], 1000000);
+         trial_div (co, card [i], primorialB);
          cm_timer_stop (cm_timer5);
          /* We need to check whether co > (N^1/4 + 1)^2.
             Let N have e bits, that is, 2^(e-1) <= N < 2^e,
@@ -402,11 +430,12 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 /*****************************************************************************/
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t *h)
+   uint_cl_t Dmax, uint_cl_t *h, mpz_srcptr primorialB)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
-      Dmax and h are passed through to compute_discriminants. */
+      Dmax and h are passed through to compute_discriminants.
+      primorialB is passed through to trial division. */
 {
    int no_qstar_old, no_qstar;
    int no_factors = 4;
@@ -462,7 +491,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
                   mpz_mod (Droot, Droot, N);
                }
          d = dlist [i][0];
-         ok = is_ecpp_discriminant (n, l, N, Droot, d);
+         ok = is_ecpp_discriminant (n, l, N, Droot, primorialB, d);
       } while (!ok && i < no_d - 1);
 
       if (!ok) {
@@ -507,7 +536,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       The downrun stops as soon as the prime is less than 2^64. */
 
 {
-   mpz_t N;
+   const unsigned long int B = 1000000;
+   mpz_t N, primorialB;
    mpz_t** c;
    uint_cl_t *h;
    uint_cl_t Dmax;
@@ -523,6 +553,13 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
    compute_h (h, Dmax);
    cm_timer_stop (clock);
    printf ("-- Time for class numbers: %5.1f\n", cm_timer_get (clock));
+
+   /* Precompute primorial for trial division. */
+   cm_timer_start (clock);
+   mpz_init (primorialB);
+   mpz_primorial_ui (primorialB, B);
+   cm_timer_stop (clock);
+   printf ("-- Time for primorial: %5.1f\n", cm_timer_get (clock));
 
    mpz_init_set (N, p);
    *depth = 0;
@@ -542,7 +579,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       cm_timer_reset (cm_timer3);
       cm_timer_reset (cm_timer4);
       cm_timer_reset (cm_timer5);
-      d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax, h);
+      d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax, h,
+         primorialB);
       cm_timer_stop (clock);
       if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
@@ -560,6 +598,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
    }
 
    free (h);
+   mpz_clear (primorialB);
    mpz_clear (N);
 
    return c;
