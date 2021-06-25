@@ -32,9 +32,11 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 static int disc_cmp (const void* d1, const void* d2);
 static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_srcptr root, mpz_srcptr primorialB, int_cl_t d);
+   mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
+   int_cl_t d);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t *h, mpz_srcptr primorialB);
+   uint_cl_t Dmax, uint_cl_t *h, const unsigned int delta,
+   mpz_srcptr primorialB);
 
 /*****************************************************************************/
 
@@ -326,13 +328,15 @@ static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB)
 /*****************************************************************************/
 
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_srcptr root, mpz_srcptr primorialB, int_cl_t d)
+   mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
+   int_cl_t d)
    /* The function tests whether d is a suitable discriminant to perform
       one step in the ECPP downrun from the (probable) prime N>=787 and
       returns the result. If true, n becomes the cardinality of the
       elliptic curve and l its largest prime factor; otherwise n and l are
       unchanged.
       root is a square root of d modulo N.
+      delta >= 1 is the minimum number of bits to be gained in this step.
       primorialB is related to the trial division bound and is passed on
       to trial_div. */
 
@@ -406,7 +410,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          cm_timer_continue (cm_timer3);
          size_co = mpz_sizeinbase (co, 2);
          size_N = mpz_sizeinbase (N, 2);
-         if (size_co < size_N && size_co >= size_N / 2 + 2) {
+         if (size_co <= size_N - delta && size_co >= size_N / 2 + 2) {
             cm_counter3++;
             if (cm_nt_is_prime (co)) {
                ok = true;
@@ -430,15 +434,18 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 /*****************************************************************************/
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t *h, mpz_srcptr primorialB)
+   uint_cl_t Dmax, uint_cl_t *h, const unsigned int delta,
+   mpz_srcptr primorialB)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
       Dmax and h are passed through to compute_discriminants.
+      delta >= 1 is passed through as the minimum number of bits to be
+      gained in this step.
       primorialB is passed through to trial division. */
 {
    int no_qstar_old, no_qstar;
-   int no_factors = 4;
+   const int no_factors = 4;
    long int qstar [1000];
    mpz_t root [1000];
    int i, j;
@@ -491,7 +498,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
                   mpz_mod (Droot, Droot, N);
                }
          d = dlist [i][0];
-         ok = is_ecpp_discriminant (n, l, N, Droot, primorialB, d);
+         ok = is_ecpp_discriminant (n, l, N, Droot, delta, primorialB, d);
       } while (!ok && i < no_d - 1);
 
       if (!ok) {
@@ -505,8 +512,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             exit (1);
          }
       }
-      else
-         printf ("[%"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl", %"PRIicl"]\n", dlist[i][0], dlist[i][1], dlist[i][2], dlist[i][3], dlist[i][4]);
 
       /* Free the discriminant list. */
       for (i = 0; i < no_d; i++)
@@ -537,6 +542,10 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
 
 {
    const unsigned long int B = 1000000;
+   const unsigned int delta = (unsigned int) (log2 (B) / 2) + 1;
+      /* According to [FrKlMoWi04] the average factor removed by trial
+         division up to B, assuming that what remains is prime, is B;
+         we impose half of this number of bits as the minimal gain. */
    mpz_t N, primorialB;
    mpz_t** c;
    uint_cl_t *h;
@@ -580,7 +589,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       cm_timer_reset (cm_timer4);
       cm_timer_reset (cm_timer5);
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax, h,
-         primorialB);
+         delta, primorialB);
       cm_timer_stop (clock);
       if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
@@ -644,7 +653,8 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       cert = cm_ecpp1 (&depth, N, verbose);
    cm_timer_stop (clock);
    if (verbose)
-      printf ("--- Time for first ECPP step:  %.1f\n", cm_timer_get (clock));
+      printf ("--- Time for first ECPP step, depth %i:  %.1f\n", depth,
+         cm_timer_get (clock));
 
    cm_timer_start (clock);
    cm_timer_reset (clock1);
