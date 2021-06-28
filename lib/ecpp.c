@@ -637,7 +637,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    cm_param_t param;
    cm_class_t c;
    int i, j;
-   cm_timer clock, clock1, clock2;
+   cm_timer clock, clock1, clock2, clock3;
 
    mpz_init (t);
    mpz_init (co);
@@ -659,9 +659,15 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    cm_timer_start (clock);
    cm_timer_reset (clock1);
    cm_timer_reset (clock2);
+   cm_timer_reset (cm_timer1);
+   cm_timer_reset (cm_timer2);
+   cm_timer_reset (cm_timer3);
+   cm_timer_reset (cm_timer4);
+   cm_timer_reset (cm_timer5);
    if (print)
       printf ("c = [");
    for (i = 0; i < depth; i++) {
+      cm_timer_start (clock3);
       p = cert [i][0];
       d = mpz_get_si (cert [i][1]);
       n = cert [i][2];
@@ -686,6 +692,16 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
          modpoldir, false);
       cm_timer_stop (clock2);
       cm_class_clear (c);
+      cm_timer_stop (clock3);
+
+      if (verbose) {
+         printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
+            d, mpz_sizeinbase (p, 2), cm_timer_get (clock3));
+         printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
+         printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
+         printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
+         printf ("     multiply: %5.1f\n", cm_timer_get (cm_timer4));
+      }
 
       if (print) {
          printf ("[");

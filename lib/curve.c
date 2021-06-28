@@ -473,9 +473,12 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       mpz_init (B [i]);
    }
 
+   cm_timer_continue (cm_timer1);
    j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
+   cm_timer_stop (cm_timer1);
 
    cm_timer_start (clock);
+   cm_timer_continue (cm_timer2);
    ok = false;
    for (i = 0; i < no_j && !ok; i++) {
       /* Construct one curve with the given j-invariant. */
@@ -527,15 +530,20 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       for (k = 0; k < no_twists && !ok; k++) {
          mpz_set (a, A [k]);
          mpz_set (b, B [k]);
+         cm_timer_continue (cm_timer3);
          elliptic_curve_random (P_x, P_y, co, a, b, p);
+         cm_timer_stop (cm_timer3);
          mpz_set (x, P_x);
          mpz_set (y, P_y);
          P_infty = false;
+         cm_timer_continue (cm_timer4);
          elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
+         cm_timer_stop (cm_timer4);
          if (P_infty)
             ok = true;
       }
    }
+   cm_timer_stop (cm_timer2);
 
    if (!ok) {
       printf ("\n*** No suitable curve found!\n");
