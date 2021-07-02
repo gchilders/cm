@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static bool elliptic_curve_dehomogenise (mpz_ptr x, mpz_ptr y,
+   mpz_ptr z, mpz_srcptr p);
 static void elliptic_curve_double (mpz_ptr x, mpz_ptr y, mpz_ptr z,
    mpz_srcptr a, mpz_srcptr p);
 static void elliptic_curve_mixedadd (mpz_ptr x1, mpz_ptr y1, mpz_ptr z1,
@@ -34,6 +36,38 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
 static bool curve_is_crypto (mpz_ptr l, mpz_ptr c, mpz_srcptr n,
    int_cl_t d, mpz_srcptr p, bool verbose);
 
+/*****************************************************************************/
+
+static bool elliptic_curve_dehomogenise (mpz_ptr x, mpz_ptr y,
+   mpz_ptr z, mpz_srcptr p)
+   /* If the point in Jacobian coordinates is infinite, return true;
+      otherwise replace it by the corresponding affine point with z=1
+      and return false. */
+{
+   mpz_t tmp;
+
+   if (!mpz_cmp_ui (z, 0ul))
+      return true;
+   else {
+      mpz_init (tmp);
+
+      mpz_invert (z, z, p);
+      mpz_mul (tmp, z, z);
+      mpz_mod (tmp, tmp, p);
+      mpz_mul (x, x, tmp);
+      mpz_mod (x, x, p);
+      mpz_mul (tmp, tmp, z);
+      mpz_mod (tmp, tmp, p);
+      mpz_mul (y, y, tmp);
+      mpz_mod (y, y, p);
+      mpz_set_ui (z, 1ul);
+
+      mpz_clear (tmp);
+
+      return false;
+   }
+}
+ 
 /*****************************************************************************/
 
 static void elliptic_curve_double (mpz_ptr x, mpz_ptr y, mpz_ptr z,
@@ -244,7 +278,7 @@ static void elliptic_curve_multiply (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
       over the prime field of characteristic p, where m is assumed to be
       non-negative. */
 {
-   mpz_t x, y, z, tmp;
+   mpz_t x, y, z;
       /* m P is stored in Jacobian coordinates as (x:y:z); we use a left
          to right binary exponentiation scheme. */
    int i;
@@ -262,24 +296,9 @@ static void elliptic_curve_multiply (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
             elliptic_curve_mixedadd (x, y, z, P_x, P_y, a, p);
       }
 
-      /* Dehomogenise the result. */
-      if (!mpz_cmp_ui (z, 0ul))
-         *P_infty = true;
-      else {
-         mpz_init (tmp);
-
-         mpz_invert (z, z, p);
-         mpz_mul (tmp, z, z);
-         mpz_mod (tmp, tmp, p);
-         mpz_mul (P_x, x, tmp);
-         mpz_mod (P_x, P_x, p);
-         mpz_mul (tmp, tmp, z);
-         mpz_mod (tmp, tmp, p);
-         mpz_mul (P_y, y, tmp);
-         mpz_mod (P_y, P_y, p);
-
-         mpz_clear (tmp);
-      }
+      *P_infty = elliptic_curve_dehomogenise (x, y, z, p);
+      mpz_set (P_x, x);
+      mpz_set (P_y, y);
 
       mpz_clear (x);
       mpz_clear (y);
