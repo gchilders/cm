@@ -52,7 +52,7 @@ typedef struct {
 
 
 /* Define a few auxiliary timers and counters. */
-extern cm_timer cm_timer1, cm_timer2, cm_timer3, cm_timer4, cm_timer5;
+extern cm_timer cm_timer1, cm_timer2, cm_timer3, cm_timer4, cm_timer5, cm_timer6;
 extern int cm_counter1, cm_counter2, cm_counter3;
 
 #if defined (__cplusplus)

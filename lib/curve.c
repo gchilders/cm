@@ -23,11 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static void elliptic_curve_double (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
+static void elliptic_curve_double (mpz_ptr x, mpz_ptr y, mpz_ptr z,
    mpz_srcptr a, mpz_srcptr p);
-static void elliptic_curve_add (mpz_ptr P_x,  mpz_ptr P_y, bool *P_infty,
-   mpz_srcptr Q_x, mpz_srcptr Q_y, const bool Q_infty,
-   mpz_srcptr a, mpz_srcptr p);
+static void elliptic_curve_mixedadd (mpz_ptr x1, mpz_ptr y1, mpz_ptr z1,
+   mpz_srcptr x2, mpz_srcptr y2, mpz_srcptr a, mpz_srcptr p);
 static void elliptic_curve_multiply (mpz_ptr P_x, mpz_ptr P_y,
    bool *P_infty, mpz_srcptr m, mpz_srcptr a, mpz_srcptr p);
 static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
@@ -37,107 +36,204 @@ static bool curve_is_crypto (mpz_ptr l, mpz_ptr c, mpz_srcptr n,
 
 /*****************************************************************************/
 
-static void elliptic_curve_double (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
+static void elliptic_curve_double (mpz_ptr x, mpz_ptr y, mpz_ptr z,
    mpz_srcptr a, mpz_srcptr p)
-   /* Replace P by 2P on the elliptic curve given by a over the prime field
-      of characteristic p; b is implicit since it is assumed that the point
-      lies on the curve.
-      P_x and P_y are the X- and Y-coordinates of the point, respectively,
-      P_infty is true if the point is the point at infinity. In this case,
-      the values of P_x and P_y are not defined. */
+   /* Replace P, given in Jacobian coordinates (x:y:z), by 2P on the
+      elliptic curve given by a over the prime field of characteristic p;
+      b is implicit since it is assumed that the point lies on the curve. */
 {
-   mpz_t factor, x_local, tmp, tmp2;
+   mpz_t xx, yy, yyyy, zz, s, m, x2, y2, z2, tmp;
 
-   mpz_init (factor);
-   mpz_init (x_local);
+   mpz_init (xx);
+   mpz_init (yy);
+   mpz_init (yyyy);
+   mpz_init (zz);
+   mpz_init (s);
+   mpz_init (m);
+   mpz_init (x2);
+   mpz_init (y2);
+   mpz_init (z2);
    mpz_init (tmp);
-   mpz_init (tmp2);
 
-   if (!(*P_infty)) {
-      /* There is nothing to do when P is already infinity */
-      if (mpz_cmp_ui (P_y, 0ul) == 0)
-         *P_infty = true;
-      else {
-         /* factor = (3*P_x^2 + a) / 2*P_y */
-         mpz_pow_ui (tmp, P_x, 2ul);
-         mpz_mod (tmp, tmp, p);
-         mpz_mul_ui (factor, tmp, 3ul);
-         mpz_add (factor, factor, a);
-         mpz_mul_2exp (tmp, P_y, 1ul);
-         mpz_invert (tmp2, tmp, p);
-         mpz_mul (tmp, factor, tmp2);
-         mpz_mod (factor, tmp, p);
-         /* P_x = factor^2 - 2 P_x; save P_x */
-         mpz_set (x_local, P_x);
-         mpz_pow_ui (P_x, factor, 2ul);
-         mpz_submul_ui (P_x, x_local, 2ul);
-         mpz_mod (P_x, P_x, p);
-         /* P_y = factor * (old x - new x) - P_y */
-         mpz_sub (tmp, x_local, P_x);
-         mpz_mul (tmp2, factor, tmp);
-         mpz_sub (P_y, tmp2, P_y);
-         mpz_mod (P_y, P_y, p);
-      }
+   cm_timer_continue (cm_timer5);
+   if (mpz_cmp_ui (z, 0ul)) {
+      /* There is nothing to do when P is already infinity.
+         Otherwise we use the formula of
+         https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
+         that requires 2 multiplications and 8 squarings; we also try to
+         minimise the reductions modulo p, carrying them out only when an
+         element is used in a subsequent multiplication or is a part of the
+         result, and use 8 reductions.
+         One of the multiplications is by a; if a==0, then we could use a
+         separate formula to save this multiplication and a squaring. */
+      /* xx = x^2, yy = y^2, yyyy = y^4, zz = z^2 */
+      mpz_mul (xx, x, x);
+      mpz_mul (yy, y, y);
+      mpz_mod (yy, yy, p);
+      mpz_mul (yyyy, yy, yy);
+      mpz_mul (zz, z, z);
+      mpz_mod (zz, zz, p);
+      /* s = 2 * ((x + yy)^2 - xx - yyyy) = 4*x*y^2 */
+      mpz_add (s, x, yy);
+      mpz_mul (s, s, s);
+      mpz_sub (s, s, xx);
+      mpz_sub (s, s, yyyy);
+      mpz_mul_2exp (s, s, 1);
+      mpz_mod (s, s, p);
+      /* m = 3 * xx + a * zz^2 */
+      mpz_mul (m, zz, zz);
+      mpz_mod (m, m, p);
+      mpz_mul (m, m, a);
+      mpz_mul_ui (tmp, xx, 3);
+      mpz_add (m, m, tmp);
+      mpz_mod (m, m, p);
+      /* x2 = m^2 - 2 * s */
+      mpz_mul (x2, m, m);
+      mpz_mul_2exp (tmp, s, 1);
+      mpz_sub (x2, x2, tmp);
+      mpz_mod (x2, x2, p);
+      /* y2 = m * (s - x2) - 8 * yyyy */
+      mpz_sub (y2, s, x2);
+      mpz_mul (y2, y2, m);
+      mpz_mul_2exp (tmp, yyyy, 3);
+      mpz_sub (y2, y2, tmp);
+      mpz_mod (y2, y2, p);
+      /* z2 = (y+z)^2 - yy - zz = 2*y*z */
+      mpz_add (z2, y, z);
+      mpz_mul (z2, z2, z2);
+      mpz_sub (z2, z2, yy);
+      mpz_sub (z2, z2, zz);
+      mpz_mod (z2, z2, p);
+
+      mpz_set (x, x2);
+      mpz_set (y, y2);
+      mpz_set (z, z2);
    }
+   cm_timer_stop (cm_timer5);
 
-   mpz_clear (factor);
-   mpz_clear (x_local);
+   mpz_clear (xx);
+   mpz_clear (yy);
+   mpz_clear (yyyy);
+   mpz_clear (zz);
+   mpz_clear (s);
+   mpz_clear (m);
+   mpz_clear (x2);
+   mpz_clear (y2);
+   mpz_clear (z2);
    mpz_clear (tmp);
-   mpz_clear (tmp2);
 }
 
 /*****************************************************************************/
 
-static void elliptic_curve_add (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
-   mpz_srcptr Q_x, mpz_srcptr Q_y, const bool Q_infty, mpz_srcptr a,
-   mpz_srcptr p)
-   /* Replace P by P+Q on the elliptic curve given by a and the implicit b
-      over the prime field of characteristic p. */
+static void elliptic_curve_mixedadd (mpz_ptr x1, mpz_ptr y1, mpz_ptr z1,
+   mpz_srcptr x2, mpz_srcptr y2, mpz_srcptr a, mpz_srcptr p)
+   /* Replace P1, given by Jacobian coordinates (x1:y1:z1), by P1+P2, where
+      P2 is non-zero and given by affine coordinates (x2:y2:1), on the same
+      elliptic curve given by a over the prime field of characteristic p.
+      The parameter a is actually needed only when it turns out that
+      P1 == P2. */
 {
-   mpz_t factor, x_local, tmp, tmp2;
+   mpz_t z1z1, h, hh, i, j, r, v, x3, y3, z3, tmp;
 
-   mpz_init (factor);
-   mpz_init (x_local);
-   mpz_init (tmp);
-   mpz_init (tmp2);
-
-   if (!Q_infty) {
-      if (*P_infty) {
-         mpz_set (P_x, Q_x);
-         mpz_set (P_y, Q_y);
-         *P_infty = false;
-      }
-      else if (mpz_cmp (P_x, Q_x) == 0) {
-         if (mpz_cmp (P_y, Q_y) == 0)
-            elliptic_curve_double (P_x, P_y, P_infty, a, p);
-         else
-            *P_infty = true;
-      }
-      else {
-         /* factor = Delta y / Delta x */
-         mpz_sub (tmp, Q_x, P_x);
-         mpz_invert (tmp2, tmp, p);
-         mpz_sub (tmp, Q_y, P_y);
-         mpz_mul (factor, tmp, tmp2);
-         mpz_mod (factor, factor, p);
-         /* P_x = factor^2 - (P_x + Q_x), keep a copy of P_x */
-         mpz_set (x_local, P_x);
-         mpz_pow_ui (tmp, factor, 2ul);
-         mpz_add (tmp2, P_x, Q_x);
-         mpz_sub (P_x, tmp, tmp2);
-         mpz_mod (P_x, P_x, p);
-         /* P_y = factor * (old P_x - new x) - P_y */
-         mpz_sub (tmp, x_local, P_x);
-         mpz_mul (tmp2, factor, tmp);
-         mpz_sub (P_y, tmp2, P_y);
-         mpz_mod (P_y, P_y, p);
-      }
+   cm_timer_continue (cm_timer6);
+   if (!mpz_cmp_ui (z1, 0ul)) {
+      /* P1 is zero */
+      mpz_set (x1, x2);
+      mpz_set (y1, y2);
+      mpz_set_ui (z1, 1ul);
    }
+   else {
+      mpz_init (z1z1);
+      mpz_init (h);
+      mpz_init (r);
 
-   mpz_clear (factor);
-   mpz_clear (x_local);
-   mpz_clear (tmp);
-   mpz_clear (tmp2);
+      /* Use the formula for mixed addition of
+         https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-madd-2007-bl
+         which requires 7 multiplications and 4 squarings, as well as
+         10 reductions modulo p.
+         On the way, we need to check whether P1 == +- P2, for which
+         we slightly reorder the formula to see this happen earlier. */
+      /* z1z1 = z1^2 */
+      mpz_mul (z1z1, z1, z1);
+      mpz_mod (z1z1, z1z1, p);
+      /* h = x2*z1z1 - x1 */
+      mpz_mul (h, x2, z1z1);
+      mpz_sub (h, h, x1);
+      mpz_mod (h, h, p);
+      /* r = 2 * (y2 * z1^3 - y1) */
+      mpz_mul (r, z1z1, z1);
+      mpz_mod (r, r, p);
+      mpz_mul (r, r, y2);
+      mpz_sub (r, r, y1);
+      mpz_mul_2exp (r, r, 1ul);
+      mpz_mod (r, r, p);
+      if (!mpz_cmp_ui (h, 0ul))
+         /* P1 == +- P2 */
+         if (!mpz_cmp_ui (r, 0ul))
+            /* P1 == P2 */
+            elliptic_curve_double (x1, y1, z1, a, p);
+         else /* P1 == -P2 */
+            mpz_set_ui (z1, 0ul);
+      else {
+         mpz_init (hh);
+         mpz_init (i);
+         mpz_init (j);
+         mpz_init (v);
+         mpz_init (x3);
+         mpz_init (y3);
+         mpz_init (z3);
+         mpz_init (tmp);
+
+         /* hh = h^2 */
+         mpz_mul (hh, h, h);
+         /* i = 4 * hh */
+         mpz_mul_2exp (i, hh, 2);
+         mpz_mod (i, i, p);
+         /* j = h * i */
+         mpz_mul (j, h, i);
+         mpz_mod (j, j, p);
+         /* v = x1 * i */
+         mpz_mul (v, x1, i);
+         mpz_mod (v, v, p);
+         /* x3 = r^2 - j - 2 * v */
+         mpz_mul (x3, r, r);
+         mpz_sub (x3, x3, j);
+         mpz_mul_2exp (tmp, v, 1);
+         mpz_sub (x3, x3, tmp);
+         mpz_mod (x3, x3, p);
+         /* y3 = r * (v - x3) - 2 * y1 * j */
+         mpz_sub (y3, v, x3);
+         mpz_mul (y3, y3, r);
+         mpz_mul (tmp, y1, j);
+         mpz_mul_2exp (tmp, tmp, 1);
+         mpz_sub (y3, y3, tmp);
+         mpz_mod (y3, y3, p);
+         /* z3 = (z1 + h)^2 - z1z1 - hh = 2 * z1 * h */
+         mpz_add (z3, z1, h);
+         mpz_mul (z3, z3, z3);
+         mpz_sub (z3, z3, z1z1);
+         mpz_sub (z3, z3, hh);
+         mpz_mod (z3, z3, p);
+
+         mpz_set (x1, x3);
+         mpz_set (y1, y3);
+         mpz_set (z1, z3);
+
+         mpz_clear (hh);
+         mpz_clear (i);
+         mpz_clear (j);
+         mpz_clear (v);
+         mpz_clear (x3);
+         mpz_clear (y3);
+         mpz_clear (z3);
+         mpz_clear (tmp);
+      }
+
+      mpz_clear (z1z1);
+      mpz_clear (h);
+      mpz_clear (r);
+   }
+   cm_timer_stop (cm_timer6);
 }
 
 /*****************************************************************************/
@@ -145,47 +241,50 @@ static void elliptic_curve_add (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
 static void elliptic_curve_multiply (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
    mpz_srcptr m, mpz_srcptr a, mpz_srcptr p)
    /* Replace P by mP on the elliptic curve given by a and the implicit b
-      over the prime field of characteristic p. */
+      over the prime field of characteristic p, where m is assumed to be
+      non-negative. */
 {
-   mpz_t Q_x, Q_y, m_local, m_new;
-   bool  Q_infty = true;
-      /* m P is stored in Q; we use a right to left binary exponentiation    */
-      /* scheme with the invariant Q + m P = const.                          */
+   mpz_t x, y, z, tmp;
+      /* m P is stored in Jacobian coordinates as (x:y:z); we use a left
+         to right binary exponentiation scheme. */
+   int i;
 
-   mpz_init (Q_x);
-   mpz_init (Q_y);
-   mpz_init (m_local);
-   mpz_init (m_new);
-
-   mpz_set (m_local, m);
-   if (mpz_cmp_ui (m_local, 0ul) == 0)
+   if (mpz_cmp_ui (m, 0ul) == 0)
       *P_infty = true;
    else if (!(*P_infty)) {
-      if (mpz_cmp_ui (m_local, 0ul) < 0)
-      {
-         mpz_neg (m_local, m_local);
-         mpz_neg (P_y, P_y);
-      }
-      while (mpz_cmp_ui (m_local, 0ul) > 0)
-      {
-         while (mpz_tdiv_q_ui (m_new, m_local, 2ul) == 0)
-         {
-            mpz_set (m_local, m_new);
-            elliptic_curve_double (P_x, P_y, P_infty, a, p);
-         }
-         mpz_sub_ui (m_local, m_local, 1ul);
-         elliptic_curve_add (Q_x, Q_y, &Q_infty, P_x, P_y, *P_infty, a, p);
-      }
-      /* copy the result */
-      mpz_set (P_x, Q_x);
-      mpz_set (P_y, Q_y);
-      *P_infty = Q_infty;
-   }
+      mpz_init_set (x, P_x);
+      mpz_init_set (y, P_y);
+      mpz_init_set_ui (z, 1ul);
 
-   mpz_clear (Q_x);
-   mpz_clear (Q_y);
-   mpz_clear (m_local);
-   mpz_clear (m_new);
+      for (i = mpz_sizeinbase (m, 2) - 2; i >= 0; i--) {
+         elliptic_curve_double (x, y, z, a, p);
+         if (mpz_tstbit (m, i))
+            elliptic_curve_mixedadd (x, y, z, P_x, P_y, a, p);
+      }
+
+      /* Dehomogenise the result. */
+      if (!mpz_cmp_ui (z, 0ul))
+         *P_infty = true;
+      else {
+         mpz_init (tmp);
+
+         mpz_invert (z, z, p);
+         mpz_mul (tmp, z, z);
+         mpz_mod (tmp, tmp, p);
+         mpz_mul (P_x, x, tmp);
+         mpz_mod (P_x, P_x, p);
+         mpz_mul (tmp, tmp, z);
+         mpz_mod (tmp, tmp, p);
+         mpz_mul (P_y, y, tmp);
+         mpz_mod (P_y, P_y, p);
+
+         mpz_clear (tmp);
+      }
+
+      mpz_clear (x);
+      mpz_clear (y);
+      mpz_clear (z);
+   }
 }
 
 /*****************************************************************************/

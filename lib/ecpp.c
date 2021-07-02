@@ -573,6 +573,11 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
    mpz_init_set (N, p);
    *depth = 0;
    c = (mpz_t**) malloc (*depth);
+   cm_timer_reset (cm_timer1);
+   cm_timer_reset (cm_timer2);
+   cm_timer_reset (cm_timer3);
+   cm_timer_reset (cm_timer4);
+   cm_timer_reset (cm_timer5);
    while (mpz_sizeinbase (N, 2) > 64) {
       c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
       c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
@@ -583,11 +588,6 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       cm_counter2 = 0;
       cm_counter3 = 0;
       cm_timer_start (clock);
-      cm_timer_reset (cm_timer1);
-      cm_timer_reset (cm_timer2);
-      cm_timer_reset (cm_timer3);
-      cm_timer_reset (cm_timer4);
-      cm_timer_reset (cm_timer5);
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax, h,
          delta, primorialB);
       cm_timer_stop (clock);
@@ -664,6 +664,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    cm_timer_reset (cm_timer3);
    cm_timer_reset (cm_timer4);
    cm_timer_reset (cm_timer5);
+   cm_timer_reset (cm_timer6);
    if (print)
       printf ("c = [");
    for (i = 0; i < depth; i++) {
@@ -697,10 +698,13 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (p, 2), cm_timer_get (clock3));
+         printf ("   CM:    %5.1f\n", cm_timer_get (clock1));
          printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
          printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
          printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
          printf ("     multiply: %5.1f\n", cm_timer_get (cm_timer4));
+         printf ("       dbl: %5.1f\n", cm_timer_get (cm_timer5));
+         printf ("       add: %5.1f\n", cm_timer_get (cm_timer6));
       }
 
       if (print) {
