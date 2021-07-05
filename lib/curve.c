@@ -280,25 +280,166 @@ static void elliptic_curve_multiply (mpz_ptr P_x, mpz_ptr P_y, bool *P_infty,
 {
    mpz_t x, y, z;
       /* m P is stored in Jacobian coordinates as (x:y:z); we use a left
-         to right binary exponentiation scheme. */
-   int i;
+         to right sliding window exponentiation scheme. */
+   int w; /* window width */
+   int l; /* length of precomputed table 2^(w-1) */
+   mpz_t *mx, *my, *mz;
+      /* (mx [i] : my [i] : mz [i]) contains the Jacobian coordinates
+         of the multiple (2*i+1)*P for 0 <= i < l. These multiples are
+         eventually dehomogenised, but care must be taken if by chance
+         any of them is 0. */
+   int i, n, j, start, stop;
+   bool infty;
 
-   if (mpz_cmp_ui (m, 0ul) == 0)
+   if (!mpz_cmp_ui (m, 0ul))
       *P_infty = true;
-   else if (!(*P_infty)) {
+   else if (!(*P_infty || !mpz_cmp_ui (m, 1ul))) {
+      /* From now on P is a finite point and m at least 2.
+         Precompute 2*P and the odd multiples of P, and handle the special
+         cases when infinity occurs as one of them. */
+
       mpz_init_set (x, P_x);
       mpz_init_set (y, P_y);
       mpz_init_set_ui (z, 1ul);
+      elliptic_curve_double (x, y, z, a, p);
+      if (elliptic_curve_dehomogenise (x, y, z, p))
+         /* P is of order 2. So we return either P or infinity depending
+            on the parity of m. */
+         *P_infty = mpz_divisible_2exp_p (m, 1);
+      else {
+         /* Now (x, y) == 2*P. Precompute the odd multiples of P. */
 
-      for (i = mpz_sizeinbase (m, 2) - 2; i >= 0; i--) {
-         elliptic_curve_double (x, y, z, a, p);
-         if (mpz_tstbit (m, i))
-            elliptic_curve_mixedadd (x, y, z, P_x, P_y, a, p);
+         /* For the window width, we use the following simplified model:
+            For a width of k, the precomputations take 2^(k-1) additions;
+            the average window length including the following run of 0 is
+            k+1, so the total number of additions is
+            f (n, k) = 2^(k-1) + n/(k+1) with n = ld(m).
+            This function is unimodular, so we should set w to the smallest
+            k such that f(n,k) <= f(n,k+1) <=> (k+1)*(k+2)*2^(k-1) <= n. */
+         j = mpz_sizeinbase (m, 2);
+         if (j <= 6)
+            w = 1;
+         else if (j <= 24)
+            w = 2;
+         else if (j <= 80)
+            w = 3;
+         else if (j <= 240)
+            w = 4;
+         else if (j <= 672)
+            w = 5;
+         else if (j <= 1792)
+            w = 6;
+         else if (j <= 4608)
+            w = 7;
+         else if (j <= 11520)
+            w = 8;
+         else if (j <= 28160)
+            w = 9;
+         else if (j <= 67584)
+            w = 10;
+         else
+            w = 11;
+         l = 1 << (w - 1);
+         mx = (mpz_t *) malloc (l * sizeof (mpz_t));
+         my = (mpz_t *) malloc (l * sizeof (mpz_t));
+         mz = (mpz_t *) malloc (l * sizeof (mpz_t));
+         for (i = 0; i < l; i++) {
+            mpz_init (mx [i]);
+            mpz_init (my [i]);
+            mpz_init (mz [i]);
+         }
+         mpz_set (mx [0], P_x);
+         mpz_set (my [0], P_y);
+         mpz_set_ui (mz [0], 1ul);
+         infty = false;
+         for (i = 1; !infty && i < l; i++) {
+            mpz_set (mx [i], mx [i-1]);
+            mpz_set (my [i], my [i-1]);
+            mpz_set (mz [i], mz [i-1]);
+            elliptic_curve_mixedadd (mx [i], my [i], mz [i], x, y, a, p);
+            infty = !mpz_cmp_ui (mz [i], 0ul);
+         }
+         if (infty) {
+            /* P has order 2*i-1.
+               Let n = m % (2*i-1) = 2^j * (2*k + 1).
+               Then m*P = 2^j * (mx [k] : my [k] : mz [k]) can be computed
+               with j doublings. This is a special case of the sliding window
+               code below with only one window. */
+            n = mpz_fdiv_ui (m, (unsigned long int) (2*i-1));
+            j = 0;
+            while (n % 2 == 0) {
+               n /= 2;
+               j++;
+            }
+            n /= 2;
+            mpz_set (x, mx [n]);
+            mpz_set (y, my [n]);
+            mpz_set (z, mz [n]);
+            for (i = 0; i < j; i++)
+               elliptic_curve_double (x, y, z, a, p);
+         }
+         else {
+            /* None of the precomputed points is infinite, use
+               sliding windows. */
+
+            for (i = 1; i < l; i++)
+               /* This could be done more efficiently by inverting all
+                  Z-coordinates at the same time using Montgomery's trick,
+                  but right now this is not a bottleneck. */
+               elliptic_curve_dehomogenise (mx [i], my [i], mz [i], p);
+
+            start = mpz_sizeinbase (m, 2) - 2;
+               /* position of the next bit to treat */
+            if (!mpz_tstbit (m, start))
+               /* Microoptimisation: Start with 2*P = (x, y). */
+               start--;
+            else {
+               mpz_set (x, P_x);
+               mpz_set (y, P_y);
+            }
+            mpz_set_ui (z, 1ul);
+
+            while (start >= 0) {
+               /* Slide to the right while the bit is 0. */
+               while (start >= 0 && !mpz_tstbit (m, start)) {
+                  elliptic_curve_double (x, y, z, a, p);
+                  start--;
+               }
+               if (start >= 0) {
+                  /* Start is on a bit 1, find the end of the window on
+                     another bit 1. */
+                  stop = (start < w-1 ? 0 : start - (w - 1));
+                  stop = mpz_scan1 (m, stop);
+                  /* Double according to the length of the window. */
+                  j = start - stop + 1;
+                  for (i = 0; i < j; i++)
+                     elliptic_curve_double (x, y, z, a, p);
+                  /* Add the content of the window. */
+                  if (stop == start)
+                     j = 0;
+                  else
+                     for (j = 1, i = start - 1; i > stop; i--)
+                        j = 2 * j + mpz_tstbit (m, i);
+                  elliptic_curve_mixedadd (x, y, z, mx [j], my [j], a, p);
+                  start = stop - 1;
+               }
+            }
+
+         }
+
+         *P_infty = elliptic_curve_dehomogenise (x, y, z, p);
+         mpz_set (P_x, x);
+         mpz_set (P_y, y);
+
+         for (i = 0; i < l; i++) {
+            mpz_clear (mx [i]);
+            mpz_clear (my [i]);
+            mpz_clear (mz [i]);
+         }
+         free (mx);
+         free (my);
+         free (mz);
       }
-
-      *P_infty = elliptic_curve_dehomogenise (x, y, z, p);
-      mpz_set (P_x, x);
-      mpz_set (P_y, y);
 
       mpz_clear (x);
       mpz_clear (y);
