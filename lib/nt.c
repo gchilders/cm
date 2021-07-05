@@ -250,6 +250,24 @@ void cm_nt_factor (uint_cl_t d, uint_cl_t *factors, unsigned int *exponents)
 
 /*****************************************************************************/
 
+uint_cl_t cm_nt_largest_factor (uint_cl_t n)
+   /* Return the largest prime factor of n or 1 if n==1. */
+{
+   uint_cl_t factors [17];
+   unsigned int exponents [17];
+   int i;
+
+   cm_nt_factor (n, factors, exponents);
+   for (i = 0; factors [i] != 0; i++);
+
+   if (i == 0)
+      return 1;
+   else
+      return factors [i - 1];
+}
+
+/*****************************************************************************/
+
 unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
    mpz_srcptr p)
    /* For p an odd prime, compute and return e such that p-1 = 2^e * q with

@@ -157,10 +157,9 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       Each element of the array is again an array (of fixed length)
       recording additional information on the discriminant. So far:
       0: discriminant
-      1: number of its prime factors
-      2: its largest prime factor
-      3: h/g, the class number relative to the genus field
-      4: class number h
+      1: class number h
+      2: h/g, the class number relative to the genus field
+      3: largest prime factor of h (currently not computed)
       The additional input h is a precomputed array in which h [(-d)/2]
       contains the class number of the fundamental discriminant d.
       The task feels like it could be written in a few lines in a
@@ -254,12 +253,11 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
           && D % 16 != 0 /* only one of -4, -8 and 8 is included */
           && Dqmax >= no_qstar_old
           && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
-         d [no] = (int_cl_t *) malloc (5 * sizeof (int_cl_t));
+         d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
          d [no][0] = D;
-         d [no][1] = Dno;
-         d [no][2] = qstar [Dqmax];
-         d [no][4] = h [(-D) / 2];
-         d [no][3] = d [no][4] >> (Dno - 1);
+         d [no][1] = h [(-D) / 2];
+         d [no][2] = d [no][1] >> (Dno - 1);
+//         d [no][3] = cm_nt_largest_factor (d [no][1]);
          no++;
       }
    }
@@ -280,15 +278,15 @@ static int disc_cmp (const void* d1, const void* d2)
    D2 = (*((int_cl_t **) d2));
 
    /* First sort by increasing h/g. */
-   if (D1 [3] < D2 [3])
+   if (D1 [2] < D2 [2])
       return -1;
-   else if (D1 [3] > D2 [3])
+   else if (D1 [2] > D2 [2])
       return +1;
    else
       /* Then sort by increasing h. */
-      if (D1 [4] < D2 [4])
+      if (D1 [1] < D2 [1])
          return -1;
-      else if (D1 [4] > D2 [4])
+      else if (D1 [1] > D2 [1])
          return +1;
       else
          /* Finally sort by increasing |d|. */

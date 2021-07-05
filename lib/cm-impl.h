@@ -67,6 +67,7 @@ extern int cm_nt_is_prime (mpz_t a);
 extern unsigned long int cm_nt_next_prime (const unsigned long int n);
 extern void cm_nt_factor (uint_cl_t d, uint_cl_t *factors,
    unsigned int *exponents);
+extern uint_cl_t cm_nt_largest_factor (uint_cl_t n);
 extern unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
    mpz_srcptr p);
 extern void cm_nt_mpz_tonelli_with_generator (mpz_ptr root,
