@@ -28,15 +28,15 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    int no_old, int no_new);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar, int no_factors, uint_cl_t Dmax,
-   uint_cl_t *h);
+   uint_cl_t hmaxprime, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
    int_cl_t d);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t *h, const unsigned int delta,
-   mpz_srcptr primorialB);
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
+   const unsigned int delta, mpz_srcptr primorialB);
 
 /*****************************************************************************/
 
@@ -145,8 +145,8 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar, int no_factors, uint_cl_t Dmax,
-   uint_cl_t *h)
-   /* Given an array of no_qstar_new "signed primes" qstar (ordered by
+   uint_cl_t hmaxprime, uint_cl_t *h)
+   /* Given an array of no_qstar "signed primes" qstar (ordered by
       increasing absolute value), return an array of negative fundamental
       discriminants with at most no_factors prime factors from the list,
       and return their number in no_d.
@@ -154,12 +154,17 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       in absolute value than the first no_qstar_old ones.
       If it is different from 0, then Dmax furthermore is an upper bound
       on the absolute value of the discriminant.
+      If it is different from 0, then hmaxprime furthermore is an upper
+      bound on the largest prime factor of the class number. Specifying it
+      will result in the class numbers being factored, which takes
+      additional time.
       Each element of the array is again an array (of fixed length)
       recording additional information on the discriminant. So far:
       0: discriminant
       1: class number h
       2: h/g, the class number relative to the genus field
-      3: largest prime factor of h (currently not computed)
+      3: largest prime factor of h (only computed when hmax>0, otherwise
+         it is set to 0)
       The additional input h is a precomputed array in which h [(-d)/2]
       contains the class number of the fundamental discriminant d.
       The task feels like it could be written in a few lines in a
@@ -179,6 +184,8 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no;
       /* number of found discriminants so far */
    mpz_t Dz;
+   uint_cl_t hprime;
+      /* largest prime factor of the class number, or 0 if not computed */
    int k;
 
    if (Dmax != 0)
@@ -253,12 +260,15 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
           && D % 16 != 0 /* only one of -4, -8 and 8 is included */
           && Dqmax >= no_qstar_old
           && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
-         d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
-         d [no][0] = D;
-         d [no][1] = h [(-D) / 2];
-         d [no][2] = d [no][1] >> (Dno - 1);
-//         d [no][3] = cm_nt_largest_factor (d [no][1]);
-         no++;
+         hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
+         if (hprime <= hmaxprime) {
+            d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
+            d [no][0] = D;
+            d [no][1] = h [(-D) / 2];
+            d [no][2] = d [no][1] >> (Dno - 1);
+            d [no][3] = hprime;
+            no++;
+         }
       }
    }
 
@@ -432,12 +442,12 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 /*****************************************************************************/
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t *h, const unsigned int delta,
-   mpz_srcptr primorialB)
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
+   const unsigned int delta, mpz_srcptr primorialB)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
-      Dmax and h are passed through to compute_discriminants.
+      Dmax, hmaxprime and h are passed through to compute_discriminants.
       delta >= 1 is passed through as the minimum number of bits to be
       gained in this step.
       primorialB is passed through to trial division. */
@@ -469,7 +479,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       /* Precompute a list of potential discriminants for fastECPP. */
       cm_timer_continue (cm_timer2);
       dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar,
-         no_factors, Dmax, h);
+         no_factors, Dmax, hmaxprime, h);
       qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
       cm_timer_stop (cm_timer2);
 
@@ -544,6 +554,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       /* According to [FrKlMoWi04] the average factor removed by trial
          division up to B, assuming that what remains is prime, is B;
          we impose half of this number of bits as the minimal gain. */
+   const uint_cl_t hmaxprime = 30;
    mpz_t N, primorialB;
    mpz_t** c;
    uint_cl_t *h;
@@ -586,8 +597,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       cm_counter2 = 0;
       cm_counter3 = 0;
       cm_timer_start (clock);
-      d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax, h,
-         delta, primorialB);
+      d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
+         hmaxprime, h, delta, primorialB);
       cm_timer_stop (clock);
       if (verbose) {
          printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
