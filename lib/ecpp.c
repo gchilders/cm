@@ -571,7 +571,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
    compute_h (h, Dmax);
    cm_timer_stop (clock);
    if (verbose)
-      printf ("-- Time for class numbers: %5.1f\n", cm_timer_get (clock));
+      printf ("-- Time for class numbers up to Dmax=%"PRIucl": %5.1f\n",
+         Dmax, cm_timer_get (clock));
 
    /* Precompute primorial for trial division. */
    cm_timer_start (clock);
@@ -603,7 +604,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
          hmaxprime, h, delta, primorialB);
       cm_timer_stop (clock);
       if (verbose) {
-         printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
+         printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
          printf ("%5i qstar: %.1f, disclist: %.1f\n",
             cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2));
@@ -648,7 +649,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    cm_param_t param;
    cm_class_t c;
    int i, j;
-   cm_timer clock, clock1, clock2, clock3;
+   cm_timer clock, clock2, clock3, clock4, clock5;
 
    mpz_init (t);
    mpz_init (co);
@@ -658,18 +659,19 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    mpz_init (y);
 
    cm_timer_start (clock);
+   cm_timer_start (clock2);
    if (pari)
       cert = cm_pari_ecpp1 (&depth, N);
    else
       cert = cm_ecpp1 (&depth, N, verbose);
-   cm_timer_stop (clock);
+   cm_timer_stop (clock2);
    if (verbose)
       printf ("--- Time for first ECPP step, depth %i:  %.1f\n", depth,
-         cm_timer_get (clock));
+         cm_timer_get (clock2));
 
-   cm_timer_start (clock);
-   cm_timer_reset (clock1);
-   cm_timer_reset (clock2);
+   cm_timer_start (clock2);
+   cm_timer_reset (clock4);
+   cm_timer_reset (clock5);
    cm_timer_reset (cm_timer1);
    cm_timer_reset (cm_timer2);
    cm_timer_reset (cm_timer3);
@@ -689,7 +691,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       mpz_sub (t, t, n);
       mpz_divexact (co, n, l);
 
-      cm_timer_continue (clock1);
+      cm_timer_continue (clock4);
       if (d % 3 != 0)
          cm_param_init (param, d, CM_INVARIANT_GAMMA2, false);
       else if (d % 2 != 0)
@@ -698,18 +700,19 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
          cm_param_init (param, d, CM_INVARIANT_J, false);
       cm_class_init (c, param, false);
       cm_class_compute (c, param, !tower, tower, false);
-      cm_timer_stop (clock1);
-      cm_timer_continue (clock2);
+      cm_timer_stop (clock4);
+
+      cm_timer_continue (clock5);
       cm_curve_and_point (a, b, x, y, param, c, p, l, co,
          modpoldir, false);
-      cm_timer_stop (clock2);
       cm_class_clear (c);
+      cm_timer_stop (clock5);
       cm_timer_stop (clock3);
 
       if (verbose) {
-         printf ("-- Time for discriminant %6"PRIicl" for %4li bits: %5.1f\n",
+         printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (p, 2), cm_timer_get (clock3));
-         printf ("   CM:    %5.1f\n", cm_timer_get (clock1));
+         printf ("   CM:    %5.1f\n", cm_timer_get (clock4));
          printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
          printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
          printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
@@ -751,11 +754,13 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       free (cert [i]);
    }
    free (cert);
+   cm_timer_stop (clock2);
    cm_timer_stop (clock);
    if (verbose) {
-      printf ("--- Time for CM:               %.1f\n", cm_timer_get (clock1));
-      printf ("--- Time for curves:           %.1f\n", cm_timer_get (clock2));
-      printf ("--- Time for second ECPP step: %.1f\n", cm_timer_get (clock));
+      printf ("--- Time for CM:               %.1f\n", cm_timer_get (clock4));
+      printf ("--- Time for curves:           %.1f\n", cm_timer_get (clock5));
+      printf ("--- Time for second ECPP step: %.1f\n", cm_timer_get (clock2));
+      printf ("--- Total time for ECPP:       %.1f\n", cm_timer_get (clock));
    }
 }
 
