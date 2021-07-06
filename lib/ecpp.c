@@ -570,14 +570,16 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
    h = (uint_cl_t *) malloc ((Dmax / 2 + 1) * sizeof (uint_cl_t));
    compute_h (h, Dmax);
    cm_timer_stop (clock);
-   printf ("-- Time for class numbers: %5.1f\n", cm_timer_get (clock));
+   if (verbose)
+      printf ("-- Time for class numbers: %5.1f\n", cm_timer_get (clock));
 
    /* Precompute primorial for trial division. */
    cm_timer_start (clock);
    mpz_init (primorialB);
    mpz_primorial_ui (primorialB, B);
    cm_timer_stop (clock);
-   printf ("-- Time for primorial: %5.1f\n", cm_timer_get (clock));
+   if (verbose)
+      printf ("-- Time for primorial: %5.1f\n", cm_timer_get (clock));
 
    mpz_init_set (N, p);
    *depth = 0;
