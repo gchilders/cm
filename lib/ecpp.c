@@ -537,7 +537,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
 /*****************************************************************************/
 
-mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
+mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    /* Compute the first step of the ECPP certificate; this is the downrun
       part with the parameters of the elliptic curves.
       The return value is a newly allocated array of depth entries, each
@@ -606,12 +606,14 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
       if (verbose) {
          printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
-         printf ("%5i qstar: %.1f, disclist: %.1f\n",
-            cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2));
-         printf ("%5i Trial div: %.1f\n", cm_counter2,
-            cm_timer_get (cm_timer5));
-         printf ("%5i is_prime: %.1f\n", cm_counter3,
-            cm_timer_get (cm_timer3));
+         if (debug) {
+            printf ("%5i qstar: %.1f, disclist: %.1f\n",
+                  cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2));
+            printf ("%5i Trial div: %.1f\n", cm_counter2,
+                  cm_timer_get (cm_timer5));
+            printf ("%5i is_prime: %.1f\n", cm_counter3,
+                  cm_timer_get (cm_timer3));
+         }
       }
       mpz_set_si (c [*depth][1], d);
       mpz_set (N, c [*depth][3]);
@@ -628,7 +630,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose)
 /*****************************************************************************/
 
 void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
-   bool print, bool verbose)
+   bool print, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
@@ -639,7 +641,11 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       instead of only the class polynomial.
       print indicates whether the result is printed.
       verbose indicates whether intermediate computations output progress
-      information. */
+      information.
+      debug indicates whether additional developer information (mainly
+      timings and counters for tuning) is output; this is done only in
+      the case that verbose is set as well. */
+
 {
    int depth;
    mpz_t **cert;
@@ -663,7 +669,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    if (pari)
       cert = cm_pari_ecpp1 (&depth, N);
    else
-      cert = cm_ecpp1 (&depth, N, verbose);
+      cert = cm_ecpp1 (&depth, N, verbose, debug);
    cm_timer_stop (clock2);
    if (verbose)
       printf ("--- Time for first ECPP step, depth %i:  %.1f\n", depth,
@@ -712,13 +718,15 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       if (verbose) {
          printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (p, 2), cm_timer_get (clock3));
-         printf ("   CM:    %5.1f\n", cm_timer_get (clock4));
-         printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
-         printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
-         printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
-         printf ("     multiply: %5.1f\n", cm_timer_get (cm_timer4));
-         printf ("       dbl: %5.1f\n", cm_timer_get (cm_timer5));
-         printf ("       add: %5.1f\n", cm_timer_get (cm_timer6));
+         if (debug) {
+            printf ("   CM:    %5.1f\n", cm_timer_get (clock4));
+            printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
+            printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
+            printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
+            printf ("     multiply: %5.1f\n", cm_timer_get (cm_timer4));
+            printf ("       dbl: %5.1f\n", cm_timer_get (cm_timer5));
+            printf ("       add: %5.1f\n", cm_timer_get (cm_timer6));
+         }
       }
 
       if (print) {

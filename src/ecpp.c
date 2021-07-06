@@ -45,7 +45,8 @@ int main (void)
       false /* pari */,
       true /* tower */,
       false /* print */,
-      true /* verbose */);
+      true /* verbose */,
+      true /* debug */);
 
    cm_pari_clear ();
    mpz_clear (N);
