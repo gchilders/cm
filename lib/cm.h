@@ -283,6 +283,7 @@ extern void cm_pari_clear (void);
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
    bool verbose);
 extern void cm_class_clear (cm_class_ptr c);
+extern double cm_class_height_factor (cm_param_srcptr param);
 extern bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param,
    bool classpol, bool tower, bool verbose);
 extern void cm_class_print_pari (FILE* file, cm_class_srcptr c,

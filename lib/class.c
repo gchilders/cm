@@ -23,8 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static double class_get_valuation (cm_param_srcptr param);
-   /* return some value related to heights and depending on the function     */
 static int class_get_height (cm_class_srcptr c);
    /* in the real case, returns the binary length of the largest             */
    /* coefficient of the minimal polynomial                                  */
@@ -125,8 +123,10 @@ void cm_class_clear (cm_class_ptr c)
 /*                                                                           */
 /*****************************************************************************/
 
-static double class_get_valuation (cm_param_srcptr param)
-   /* Return the (negative) order of the modular function at infinity. */
+double cm_class_height_factor (cm_param_srcptr param)
+   /* Return the height factor gained through using this function, the
+      inverse of the negative of the order of the modular function at
+      infinity. */
 
 {
    double result;
@@ -136,50 +136,50 @@ static double class_get_valuation (cm_param_srcptr param)
       result = 1;
       break;
    case CM_INVARIANT_GAMMA2:
-      result = 1.0 / 3;
+      result = 3;
       break;
    case CM_INVARIANT_GAMMA3:
-      result = 0.5;
+      result = 2;
       break;
    case CM_INVARIANT_ATKIN:
       if (param->p [0] == 47)
-         result = 1.0 / 24;
+         result = 24;
       else if (param->p [0] == 59)
-         result = 1.0 / 30;
+         result = 30;
       else if (param->p [0] == 71)
-         result = 1.0 / 36;
+         result = 36;
       else /* 131 */
-         result = 1.0 / 33;
+         result = 33;
       break;
    case CM_INVARIANT_WEBER:
-      result = 1.0 / 72;
+      result = 72;
       break;
    case CM_INVARIANT_DOUBLEETA:
    case CM_INVARIANT_MULTIETA:
    {
       int num = 1, den = 1, i;
       for (i = 0; param->p [i] != 0; i++) {
-         num *= param->p [i] - 1;
-         den *= param->p [i] + 1;
+         num *= param->p [i] + 1;
+         den *= param->p [i] - 1;
       }
       if (i == 2)
-         result = num / (double) (12 * den);
+         result = (12 * num) / (double) den;
       else if (i == 3)
-         result = num / (double) (6 * den);
+         result = (6 * num) / (double) den;
       else /* i == 4 */
-         result = num / (double) (3 * den);
+         result = (3 * num) / (double) den;
    }
       break;
    case CM_INVARIANT_SIMPLEETA:
-      result = (param->p [0] - 1) / (double) (24 * (param->p [0] + 1));
+      result = 24 * (param->p [0] + 1) / (double) (param->p [0] - 1);
       break;
    default: /* should not occur */
-      printf ("class_get_valuation called for unknown class ");
-      printf ("invariant\n");
+      printf ("cm_class_height_factor called for unknown class "
+              "invariant\n");
       exit (1);
    }
 
-   result *= param->e;
+   result /= param->e;
 
    return result;
 }
@@ -430,7 +430,7 @@ static fprec_t compute_precision (cm_param_srcptr param, cm_class_srcptr c,
    const double C = 2114.567;
    const double pisqrtd
       = 3.14159265358979323846 * sqrt ((double) (-param->d));
-   const double cf = class_get_valuation (param);
+   const double cf = cm_class_height_factor (param);
    double x, binom = 1.0, prec = 0, M;
    int_cl_t amax;
    int i, m;
@@ -452,7 +452,7 @@ static fprec_t compute_precision (cm_param_srcptr param, cm_class_srcptr c,
    m = (int) ((c->cl.h + 1) / (M + 1));
    for (i = 1; i <= m; i++)
       binom *= (double) (c->cl.h - 1 + i) / i / M;
-   prec = ceil ((prec + log (binom)) / log (2.0) * cf);
+   prec = ceil ((prec + log (binom)) / (log (2.0) * cf));
 
    if (param->invariant == CM_INVARIANT_GAMMA3) {
       /* Increase the height estimate by the bit size of sqrt (|D|)^h in

@@ -652,7 +652,8 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    mpz_srcptr p, n, l;
    int_cl_t d;
    mpz_t t, co, a, b, x, y;
-   cm_param_t param;
+   cm_param_t param, new_param;
+   double hf, new_hf;
    cm_class_t c;
    int i, j;
    cm_timer clock, clock2, clock3, clock4, clock5;
@@ -698,12 +699,32 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       mpz_divexact (co, n, l);
 
       cm_timer_continue (clock4);
-      if (d % 3 != 0)
-         cm_param_init (param, d, CM_INVARIANT_GAMMA2, false);
-      else if (d % 2 != 0)
-         cm_param_init (param, d, CM_INVARIANT_GAMMA3, false);
-      else
-         cm_param_init (param, d, CM_INVARIANT_J, false);
+      /* Find the invariant with the largest height factor from those
+         not requiring modular polynomials for retrieving the curve. */
+      /* First test the non-parametric invariants in the good order. */
+      if (   !cm_param_init (param, d, CM_INVARIANT_WEBER, false)
+          && !(((d - 1) % 8 == 0
+               && cm_param_init (param, 4*d, CM_INVARIANT_WEBER, false)))
+          && !cm_param_init (param, d, CM_INVARIANT_GAMMA2, false)
+          && !cm_param_init (param, d, CM_INVARIANT_GAMMA3, false))
+          cm_param_init (param, d, CM_INVARIANT_J, true);
+      hf = cm_class_height_factor (param);
+      /* Atkin invariants have excellent factors between 24 and 36, but
+         the Hecke operators are slow to compute. So do not use them.
+         Simple eta is currently hard-wired to w_3^12 with a factor of 4,
+         which is still better than all others currently available when
+         Weber does not work. */
+      if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA, false)) {
+         new_hf = cm_class_height_factor (new_param);
+         if (new_hf > hf) {
+            param [0] = new_param [0];
+            hf = new_hf;
+         }
+      }
+      /* FIXME: For double and multiple eta quotients, one needs to take
+         the degree of the modular polynomial into account. */
+
+      /* Compute one of the class field tower or the class polynomial. */
       cm_class_init (c, param, false);
       cm_class_compute (c, param, !tower, tower, false);
       cm_timer_stop (clock4);
@@ -716,8 +737,10 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       cm_timer_stop (clock3);
 
       if (verbose) {
-         printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
-            d, mpz_sizeinbase (p, 2), cm_timer_get (clock3));
+         printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
+            "for %4li bits: %5.1f\n",
+            d, param->invariant, mpz_sizeinbase (p, 2),
+            cm_timer_get (clock3));
          if (debug) {
             printf ("   CM:    %5.1f\n", cm_timer_get (clock4));
             printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
