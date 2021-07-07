@@ -1,5 +1,5 @@
 Changes in version XXX:
-  - increase minimal version number for mpfrcx to 0.6.2 and for
+  - increase minimal version number for mpfrcx to 0.6.3 and for
     pari to 2.11.
   - add decomposition of the class field into a tower of prime degree
     extensions
