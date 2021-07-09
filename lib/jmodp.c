@@ -362,8 +362,8 @@ static mpz_t* simpleeta_cm_get_j_mod_p (cm_param_srcptr param,
       mpz_mul (tmp, tmp, pow);
       mpz_mod (tmp, tmp, p);
       mpz_add_ui (tmp, tmp, 27ul);
-      mpz_mul (f3, f3, pow);
-      mpz_mod (f3, f3, p);
+      mpz_mul (tmp, tmp, pow);
+      mpz_mod (tmp, tmp, p);
       mpz_invert (j [0], tmp, p);
       mpz_add_ui (f3, tmp, 3ul);
       mpz_add_ui (tmp, pow, 3ul);
