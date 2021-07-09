@@ -187,6 +187,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    uint_cl_t hprime;
       /* largest prime factor of the class number, or 0 if not computed */
    int k;
+   int c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
 
    if (Dmax != 0)
       /* The algorithm assumes that at least the primes in qstar are of
@@ -234,13 +235,22 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       traversal, this is the one with only one prime factor, which is the
       largest one possible. */
    while (Dno != 1 || Dqmax != no_qstar - 1) {
-      if (Dno < no_factors && Dqmax < no_qstar - 1)
+      if (Dno < no_factors
+          && Dqmax < no_qstar - 1
+          && (Dmax == 0 || (D > 0 && (uint_cl_t)   D  < Dmax)
+                        || (D < 0 && (uint_cl_t) (-D) < Dmax)))
          /* Add a level. */
          Dno++;
       else {
-         /* Backtrack: Find the largest previous level where Dqmax
-            can be increased. */
-         while (Dqmax == no_qstar - 1) {
+         /* Backtrack: If possible, stay at the same level and remove the
+            current prime to replace it by the next candidate. If the
+            current prime is already the largest one, we need to go one
+            level up. Also if the current discriminant is already too
+            large, there is no point in trying even larger primes, and we
+            need to go one level up. */
+         if (Dqmax == no_qstar - 1
+             || (Dmax > 0 && (   (D > 0 && (uint_cl_t)   D  >= Dmax)
+                              || (D < 0 && (uint_cl_t) (-D) >= Dmax)))) {
             D /= qstar [Dqmax];
             Dno--;
             Dqmax = Dq [Dno - 1];
@@ -255,6 +265,26 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       Dqmax++;
       Dq [Dno - 1] = Dqmax;
       D *= qstar [Dqmax];
+      c1++;
+#if 0
+printf ("%11"PRIicl": ", D);
+for (k = 0; k < Dno; k++)
+printf (" %i", Dq [k]);
+printf ("\n");
+#endif
+      if (D < 0 && D % 16 != 0) {
+         c2++;
+         if (Dqmax >= no_qstar_old) {
+            c3++;
+            if (Dmax == 0 || (uint_cl_t) (-D) <= Dmax) {
+               c4++;
+               hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
+               if (hprime <= hmaxprime)
+                  c5++;
+            }
+         }
+      }
+
       /* Register the new discriminant if it satisfies the conditions. */
       if (D < 0
           && D % 16 != 0 /* only one of -4, -8 and 8 is included */
@@ -274,6 +304,15 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 
    *no_d = no;
    d = realloc (d, no * sizeof (int_cl_t *));
+
+#if 0
+printf ("THINGS:        %i\n", c1);
+printf ("DISCRIMINANTS: %i\n", c2);
+printf ("NEW PRIME:     %i\n", c3);
+printf ("SMALL DISC:    %i\n", c4);
+printf ("SMALL PRIME:   %i\n", c5);
+printf ("\n");
+#endif
 
    return d;
 }
