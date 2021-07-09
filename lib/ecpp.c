@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    int no_old, int no_new);
+static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
+   int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar, uint_cl_t Dmax, uint_cl_t hmaxprime,
    uint_cl_t *h);
@@ -144,28 +146,17 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 
 /*****************************************************************************/
 
-static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, uint_cl_t Dmax, uint_cl_t hmaxprime,
-   uint_cl_t *h)
+static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
+   int no_qstar, uint_cl_t Dmax, int sign)
    /* Given an array of no_qstar "signed primes" qstar (ordered by
-      increasing absolute value), return an array of negative fundamental
-      discriminants with factors from the list and of absolute value
-      bounded above by Dmax, and return their number in no_d.
-      Moreover, each discriminant must contain at least one prime larger
-      in absolute value than the first no_qstar_old ones.
-      If it is different from 0, then hmaxprime furthermore is an upper
-      bound on the largest prime factor of the class number. Specifying it
-      will result in the class numbers being factored, which takes
-      additional time.
+      increasing absolute value), return an array of fundamental
+      discriminants of the given sign with factors from the list and of
+      absolute value bounded above by Dmax, and return their number in no_d.
+      For our purposes, 1 counts as a positive discriminant.
       Each element of the array is again an array (of fixed length)
       recording additional information on the discriminant. So far:
       0: discriminant
-      1: class number h
-      2: h/g, the class number relative to the genus field
-      3: largest prime factor of h (only computed when hmax>0, otherwise
-         it is set to 0)
-      The additional input h is a precomputed array in which h [(-d)/2]
-      contains the class number of the fundamental discriminant d.
+      1: number of prime factors (this is needed later for h/g)
       The task feels like it could be written in a few lines in a
       functional programming language; as a graph traversal, it is also
       readily implemented in C with "manual" backtracking. */
@@ -184,8 +175,6 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       /* number of found discriminants so far */
    int no_factors;
    mpz_t tmp, bin;
-   uint_cl_t hprime;
-      /* largest prime factor of the class number, or 0 if not computed */
    int k;
 
    /* The algorithm assumes that at least the primes in qstar are of
@@ -221,6 +210,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       no = mpz_get_ui (tmp);
    mpz_clear (bin);
    mpz_clear (tmp);
+   no ++;
 
    d = (int_cl_t **) malloc (no * sizeof (int_cl_t *));
 
@@ -228,45 +218,130 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    D = 1;
    Dno = 0;
    Dqmax = -1;
+   if (sign == 1) {
+      d [no] = (int_cl_t *) malloc (2 * sizeof (int_cl_t));
+      d [no][0] = 1;
+      d [no][1] = 0;
+      no++;
+   }
+   if (no_qstar >= 1) {
    /* Loop until we reach the last discriminant; in our depth first tree
       traversal, this is the one with only one prime factor, which is the
       largest one possible. */
-   while (Dno != 1 || Dqmax != no_qstar - 1) {
-      if (Dqmax < no_qstar - 1
-          && (   (D > 0 && (uint_cl_t)   D  < Dmax)
-              || (D < 0 && (uint_cl_t) (-D) < Dmax)))
-         /* Add a level. */
-         Dno++;
-      else {
-         /* Backtrack: If possible, stay at the same level and remove the
-            current prime to replace it by the next candidate. If the
-            current prime is already the largest one, we need to go one
-            level up. Also if the current discriminant is already too
-            large, there is no point in trying even larger primes, and we
-            need to go one level up. */
-         if (Dqmax == no_qstar - 1
-             || (D > 0 && (uint_cl_t)   D  >= Dmax)
-             || (D < 0 && (uint_cl_t) (-D) >= Dmax)) {
+      while (Dno != 1 || Dqmax != no_qstar - 1) {
+         if (Dqmax < no_qstar - 1
+               && (   (D > 0 && (uint_cl_t)   D  < Dmax)
+                  || (D < 0 && (uint_cl_t) (-D) < Dmax)))
+            /* Add a level. */
+            Dno++;
+         else {
+            /* Backtrack: If possible, stay at the same level and remove the
+               current prime to replace it by the next candidate. If the
+               current prime is already the largest one, we need to go one
+               level up. Also if the current discriminant is already too
+               large, there is no point in trying even larger primes, and we
+               need to go one level up. */
+            if (Dqmax == no_qstar - 1
+                  || (D > 0 && (uint_cl_t)   D  >= Dmax)
+                  || (D < 0 && (uint_cl_t) (-D) >= Dmax)) {
+               D /= qstar [Dqmax];
+               Dno--;
+               Dqmax = Dq [Dno - 1];
+            }
+            /* On this level, remove the current prime. */
             D /= qstar [Dqmax];
-            Dno--;
-            Dqmax = Dq [Dno - 1];
          }
-         /* On this level, remove the current prime. */
-         D /= qstar [Dqmax];
-      }
-      /* Add one larger prime. After the "if" case above, Dqmax is the
-         index of the currently largest prime; after the "else" case, it
-         is the index of the prime we just removed. In both cases, it
-         simply needs to be incremented. */
-      Dqmax++;
-      Dq [Dno - 1] = Dqmax;
-      D *= qstar [Dqmax];
+         /* Add one larger prime. After the "if" case above, Dqmax is the
+            index of the currently largest prime; after the "else" case, it
+            is the index of the prime we just removed. In both cases, it
+            simply needs to be incremented. */
+         Dqmax++;
+         Dq [Dno - 1] = Dqmax;
+         D *= qstar [Dqmax];
 
-      /* Register the new discriminant if it satisfies the conditions. */
-      if (D < 0
-          && D % 16 != 0 /* only one of -4, -8 and 8 is included */
-          && Dqmax >= no_qstar_old
-          && (uint_cl_t) (-D) <= Dmax) {
+         /* Register the new discriminant if it satisfies the conditions. */
+         if (D % 16 != 0 /* only one of -4, -8 and 8 is included */
+             && (   (sign > 0 && D > 0 && (uint_cl_t)   D  <= Dmax)
+                 || (sign < 0 && D < 0 && (uint_cl_t) (-D) <= Dmax))) {
+            d [no] = (int_cl_t *) malloc (2 * sizeof (int_cl_t));
+            d [no][0] = D;
+            d [no][1] = Dno;
+            no++;
+         }
+      }
+   }
+
+   *no_d = no;
+   d = realloc (d, no * sizeof (int_cl_t *));
+
+   return d;
+}
+
+/*****************************************************************************/
+
+static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
+   int no_qstar_old, int no_qstar, uint_cl_t Dmax, uint_cl_t hmaxprime,
+   uint_cl_t *h)
+   /* Given an array of no_qstar "signed primes" qstar (ordered by
+      increasing absolute value), return an array of negative fundamental
+      discriminants with factors from the list and of absolute value
+      bounded above by Dmax, and return their number in no_d.
+      Moreover, each discriminant must contain at least one prime larger
+      in absolute value than the first no_qstar_old ones.
+      If it is different from 0, then hmaxprime furthermore is an upper
+      bound on the largest prime factor of the class number. Specifying it
+      will result in the class numbers being factored, which takes
+      additional time.
+      Each element of the array is again an array (of fixed length)
+      recording additional information on the discriminant. So far:
+      0: discriminant
+      1: class number h
+      2: h/g, the class number relative to the genus field
+      3: largest prime factor of h (only computed when hmax>0, otherwise
+         it is set to 0)
+      The additional input h is a precomputed array in which h [(-d)/2]
+      contains the class number of the fundamental discriminant d. */
+{
+   int_cl_t **d;
+      /* result */
+   int_cl_t ***d_part;
+      /* partial results, one for each new element of qstar */
+   int *no_part;
+      /* lengths of the partial results */
+   int l, no;
+   int_cl_t qnew, D, Dno;
+   uint_cl_t hprime;
+      /* largest prime factor of the class number, or 0 if not computed */
+   int i, j;
+
+   l = no_qstar - no_qstar_old;
+   d_part = (int_cl_t ***) malloc (l * sizeof (int_cl_t **));
+   no_part = (int *) malloc (l * sizeof (int));
+   for (i = 0; i < l; i++) {
+      qnew = qstar [no_qstar_old + i];
+      /* Compute all discriminants with primes less than qnew in absolute
+         value that can be multiplied by qnew to to obtain a suitable
+         candidate. */
+      if (qnew > 0)
+         d_part [i] = compute_signed_discriminants (&(no_part [i]),
+            qstar, no_qstar_old + i, Dmax / qnew, -1);
+      else
+         d_part [i] = compute_signed_discriminants (&(no_part [i]),
+            qstar, no_qstar_old + i, Dmax / (-qnew), +1);
+   }
+
+   /* Filter all suitable discriminants and concatenate the lists. */
+   no = 0;
+   for (i = 0; i < l; i++)
+      no += no_part [i];
+   d = (int_cl_t **) malloc (no * sizeof (int_cl_t *));
+
+   no = 0;
+   for (i = 0; i < l; i++) {
+      qnew = qstar [no_qstar_old + i];
+      for (j = 0; j < no_part [i]; j++) {
+         D = qnew * d_part [i][j][0];
+         Dno = 1 + d_part [i][j][1];
          hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
          if (hprime <= hmaxprime) {
             d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
@@ -276,8 +351,12 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
             d [no][3] = hprime;
             no++;
          }
+         free (d_part [i][j]);
       }
+      free (d_part [i]);
    }
+   free (d_part);
+   free (no_part);
 
    *no_d = no;
    d = realloc (d, no * sizeof (int_cl_t *));
@@ -483,11 +562,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       cm_timer_stop (cm_timer1);
 
       /* Precompute a list of potential discriminants for fastECPP. */
-      cm_timer_continue (cm_timer2);
       dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar,
          Dmax, hmaxprime, h);
       qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
-      cm_timer_stop (cm_timer2);
 
       /* Search for the first suitable discriminant in the list. */
       i = -1;
@@ -613,8 +690,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
          printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
          if (debug) {
-            printf ("%5i qstar: %.1f, disclist: %.1f\n",
-                  cm_counter1, cm_timer_get (cm_timer1), cm_timer_get (cm_timer2));
+            printf ("%5i qstar: %.1f\n",
+                  cm_counter1, cm_timer_get (cm_timer1));
             printf ("%5i Trial div: %.1f\n", cm_counter2,
                   cm_timer_get (cm_timer5));
             printf ("%5i is_prime: %.1f\n", cm_counter3,
