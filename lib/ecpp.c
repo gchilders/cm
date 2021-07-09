@@ -27,8 +27,8 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    int no_old, int no_new);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, int no_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, uint_cl_t *h);
+   int no_qstar_old, int no_qstar, uint_cl_t Dmax, uint_cl_t hmaxprime,
+   uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
@@ -144,16 +144,14 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 /*****************************************************************************/
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, int no_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, uint_cl_t *h)
+   int no_qstar_old, int no_qstar, uint_cl_t Dmax, uint_cl_t hmaxprime,
+   uint_cl_t *h)
    /* Given an array of no_qstar "signed primes" qstar (ordered by
       increasing absolute value), return an array of negative fundamental
-      discriminants with at most no_factors prime factors from the list,
-      and return their number in no_d.
+      discriminants with factors from the list and of absolute value
+      bounded above by Dmax, and return their number in no_d.
       Moreover, each discriminant must contain at least one prime larger
       in absolute value than the first no_qstar_old ones.
-      If it is different from 0, then Dmax furthermore is an upper bound
-      on the absolute value of the discriminant.
       If it is different from 0, then hmaxprime furthermore is an upper
       bound on the largest prime factor of the class number. Specifying it
       will result in the class numbers being factored, which takes
@@ -181,64 +179,61 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       /* number of its prime factors, which is also the level in the tree */
    int Dqmax;
       /* largest index in qstar of one of its prime factors */
-   int no;
+   unsigned int no;
       /* number of found discriminants so far */
-   mpz_t Dz;
+   int no_factors;
+   mpz_t tmp, bin;
    uint_cl_t hprime;
       /* largest prime factor of the class number, or 0 if not computed */
    int k;
-   int c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
 
-   if (Dmax != 0)
-      /* The algorithm assumes that at least the primes in qstar are of
-         suitable size; otherwise, forget the largest ones. */
-      while (   (qstar [no_qstar-1] > 0
-                 && (uint_cl_t) (qstar [no_qstar-1]) > Dmax)
-             || (qstar [no_qstar-1] < 0
-                 && (uint_cl_t) (-qstar [no_qstar-1]) > Dmax))
-         no_qstar--;
+   /* The algorithm assumes that at least the primes in qstar are of
+      suitable size; otherwise, forget the largest ones. */
+   while (   (qstar [no_qstar-1] > 0
+              && (uint_cl_t) (qstar [no_qstar-1]) > Dmax)
+          || (qstar [no_qstar-1] < 0
+              && (uint_cl_t) (-qstar [no_qstar-1]) > Dmax))
+      no_qstar--;
 
-   if (no_factors > no_qstar)
-      no_factors = no_qstar;
-
-   if (Dmax != 0) {
-      /* no_factors may be larger than the actual number of factors
-         that can fit under Dmax; since the elements of qstar are
-         sorted, the product of the first no_factors elements must
-         fit. */
-      k = 0;
-      mpz_init_set_ui (Dz, 1);
-      while (k < no_factors && mpz_cmp_ui (Dz, Dmax) <= 0) {
-         if (qstar [k] > 0)
-            mpz_mul_ui (Dz, Dz, (unsigned long int) (qstar [k]));
-         else
-            mpz_mul_ui (Dz, Dz, (unsigned long int) (-qstar [k]));
-         k++;
-      }
-      if (mpz_cmp_ui (Dz, Dmax) > 0)
-         no_factors = k-1;
-      mpz_clear (Dz);
+   /* Compute the maximal number of factors that can fit under Dmax. */
+   k = 0;
+   mpz_init_set_ui (tmp, 1);
+   while (mpz_cmp_ui (tmp, Dmax) <= 0) {
+      if (qstar [k] > 0)
+         mpz_mul_ui (tmp, tmp, (unsigned long int) (qstar [k]));
+      else
+         mpz_mul_ui (tmp, tmp, (unsigned long int) (-qstar [k]));
+      k++;
    }
+   no_factors = k-1;
 
    /* Compute an upper bound on the possible number of discriminants. */
-   no = 0;
-   for (k = 1; k <= no_factors; k++)
-      no += cm_nt_binomial (no_qstar, k);
+   mpz_init (bin);
+   mpz_set_ui (tmp, 0);
+   for (k = 1; k <= no_factors; k++) {
+      mpz_bin_uiui (bin, no_qstar, k);
+      mpz_add (tmp, tmp, bin);
+   }
+   if (mpz_cmp_ui (tmp, Dmax / 2) > 0)
+      no = Dmax / 2;
+   else
+      no = mpz_get_ui (tmp);
+   mpz_clear (bin);
+   mpz_clear (tmp);
+
    d = (int_cl_t **) malloc (no * sizeof (int_cl_t *));
 
    no = 0;
    D = 1;
    Dno = 0;
    Dqmax = -1;
-
    /* Loop until we reach the last discriminant; in our depth first tree
       traversal, this is the one with only one prime factor, which is the
       largest one possible. */
    while (Dno != 1 || Dqmax != no_qstar - 1) {
-      if (Dno < no_factors
-          && Dqmax < no_qstar - 1
-          && (Dmax == 0 || (D > 0 && (uint_cl_t)   D  < Dmax)
-                        || (D < 0 && (uint_cl_t) (-D) < Dmax)))
+      if (Dqmax < no_qstar - 1
+          && (   (D > 0 && (uint_cl_t)   D  < Dmax)
+              || (D < 0 && (uint_cl_t) (-D) < Dmax)))
          /* Add a level. */
          Dno++;
       else {
@@ -249,8 +244,8 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
             large, there is no point in trying even larger primes, and we
             need to go one level up. */
          if (Dqmax == no_qstar - 1
-             || (Dmax > 0 && (   (D > 0 && (uint_cl_t)   D  >= Dmax)
-                              || (D < 0 && (uint_cl_t) (-D) >= Dmax)))) {
+             || (D > 0 && (uint_cl_t)   D  >= Dmax)
+             || (D < 0 && (uint_cl_t) (-D) >= Dmax)) {
             D /= qstar [Dqmax];
             Dno--;
             Dqmax = Dq [Dno - 1];
@@ -265,31 +260,12 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       Dqmax++;
       Dq [Dno - 1] = Dqmax;
       D *= qstar [Dqmax];
-      c1++;
-#if 0
-printf ("%11"PRIicl": ", D);
-for (k = 0; k < Dno; k++)
-printf (" %i", Dq [k]);
-printf ("\n");
-#endif
-      if (D < 0 && D % 16 != 0) {
-         c2++;
-         if (Dqmax >= no_qstar_old) {
-            c3++;
-            if (Dmax == 0 || (uint_cl_t) (-D) <= Dmax) {
-               c4++;
-               hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
-               if (hprime <= hmaxprime)
-                  c5++;
-            }
-         }
-      }
 
       /* Register the new discriminant if it satisfies the conditions. */
       if (D < 0
           && D % 16 != 0 /* only one of -4, -8 and 8 is included */
           && Dqmax >= no_qstar_old
-          && (Dmax == 0 || (uint_cl_t) (-D) <= Dmax)) {
+          && (uint_cl_t) (-D) <= Dmax) {
          hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
          if (hprime <= hmaxprime) {
             d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
@@ -304,15 +280,6 @@ printf ("\n");
 
    *no_d = no;
    d = realloc (d, no * sizeof (int_cl_t *));
-
-#if 0
-printf ("THINGS:        %i\n", c1);
-printf ("DISCRIMINANTS: %i\n", c2);
-printf ("NEW PRIME:     %i\n", c3);
-printf ("SMALL DISC:    %i\n", c4);
-printf ("SMALL PRIME:   %i\n", c5);
-printf ("\n");
-#endif
 
    return d;
 }
@@ -492,7 +459,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       primorialB is passed through to trial division. */
 {
    int no_qstar_old, no_qstar;
-   const int no_factors = 4;
    long int qstar [1000];
    mpz_t root [1000];
    int i, j;
@@ -518,7 +484,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       /* Precompute a list of potential discriminants for fastECPP. */
       cm_timer_continue (cm_timer2);
       dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar,
-         no_factors, Dmax, hmaxprime, h);
+         Dmax, hmaxprime, h);
       qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
       cm_timer_stop (cm_timer2);
 

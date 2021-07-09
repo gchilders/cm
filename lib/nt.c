@@ -124,22 +124,6 @@ int cm_nt_kronecker (int_cl_t a, int_cl_t b)
 
 /*****************************************************************************/
 
-unsigned int cm_nt_binomial (unsigned int n, unsigned int k)
-   /* We assume that k<=n. */
-{
-   unsigned int res = 1;
-   unsigned int d;
-
-   for (d = 1; d <= k; d++) {
-      res *= n - (d-1);
-      res /= d;
-   }
-
-   return res;
-}
-
-/*****************************************************************************/
-
 int cm_nt_is_prime (mpz_t a)
 
 {

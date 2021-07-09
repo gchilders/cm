@@ -62,7 +62,6 @@ extern "C" {
 /* number theoretic functions */
 extern long int cm_nt_gcd (long int a, long int b);
 extern int cm_nt_kronecker (int_cl_t a, int_cl_t b);
-extern unsigned int cm_nt_binomial (unsigned int n, unsigned int k);
 extern int cm_nt_is_prime (mpz_t a);
 extern unsigned long int cm_nt_next_prime (const unsigned long int n);
 extern void cm_nt_factor (uint_cl_t d, uint_cl_t *factors,
