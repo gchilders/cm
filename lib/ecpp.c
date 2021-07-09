@@ -29,8 +29,8 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, uint_cl_t Dmax, uint_cl_t hmaxprime,
-   uint_cl_t *h);
+   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
@@ -280,8 +280,8 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
 /*****************************************************************************/
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, uint_cl_t Dmax, uint_cl_t hmaxprime,
-   uint_cl_t *h)
+   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
    /* Given an array of no_qstar "signed primes" qstar (ordered by
       increasing absolute value), return an array of negative fundamental
       discriminants with factors from the list and of absolute value
@@ -342,14 +342,16 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       for (j = 0; j < no_part [i]; j++) {
          D = qnew * d_part [i][j][0];
          Dno = 1 + d_part [i][j][1];
-         hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
-         if (hprime <= hmaxprime) {
-            d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
-            d [no][0] = D;
-            d [no][1] = h [(-D) / 2];
-            d [no][2] = d [no][1] >> (Dno - 1);
-            d [no][3] = hprime;
-            no++;
+         if (Dno <= max_factors) {
+            hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
+            if (hprime <= hmaxprime) {
+               d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
+               d [no][0] = D;
+               d [no][1] = h [(-D) / 2];
+               d [no][2] = d [no][1] >> (Dno - 1);
+               d [no][3] = hprime;
+               no++;
+            }
          }
          free (d_part [i][j]);
       }
@@ -538,6 +540,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       gained in this step.
       primorialB is passed through to trial division. */
 {
+   const int max_factors = 4;
    int no_qstar_old, no_qstar;
    long int qstar [1000];
    mpz_t root [1000];
@@ -563,7 +566,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
       /* Precompute a list of potential discriminants for fastECPP. */
       dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar,
-         Dmax, hmaxprime, h);
+         max_factors, Dmax, hmaxprime, h);
       qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
 
       /* Search for the first suitable discriminant in the list. */
