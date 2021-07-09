@@ -104,18 +104,12 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    mpz_init (z);
    e = cm_nt_mpz_tonelli_generator (r, z, p);
 
-   if (no_old == 0)
-      q = -3;
-   else
-      q = qstar [no_old - 1];
+   q = (no_old == 0 ? 0 : qstar [no_old - 1]);
+
    while (no_old < no_new) {
-      if (mpz_si_kronecker (q, p) == 1) {
-         qstar [no_old] = q;
-         cm_counter1++;
-         cm_nt_mpz_tonelli_si_with_generator (root [no_old], q, p, e, r, z);
-         no_old++;
-      }
-      if (q == -3)
+      if (q == 0)
+         q = -3;
+      else if (q == -3)
          q = -4;
       else if (q == -4)
          q = 5;
@@ -134,6 +128,13 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
             q = cm_nt_next_prime (-q);
          if (q % 4 == 3)
             q = -q;
+      }
+
+      if (mpz_si_kronecker (q, p) == 1) {
+         qstar [no_old] = q;
+         cm_counter1++;
+         cm_nt_mpz_tonelli_si_with_generator (root [no_old], q, p, e, r, z);
+         no_old++;
       }
    }
 
