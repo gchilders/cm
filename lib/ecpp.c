@@ -797,9 +797,9 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       hf = cm_class_height_factor (param);
       /* Atkin invariants have excellent factors between 24 and 36, but
          the Hecke operators are slow to compute. So do not use them.
-         Simple eta is currently hard-wired to w_3^12 with a factor of 4,
-         which is still better than all others currently available when
-         Weber does not work. */
+         Simple eta uses the best of the w_n^e with n one of
+         3, 5, 7, 13, 4, 9 or 25, the values for which the modular
+         polynomial has genus 0. */
       if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA, false)) {
          new_hf = cm_class_height_factor (new_param);
          if (new_hf > hf) {
@@ -824,8 +824,8 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
 
       if (verbose) {
          printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
-            "for %4li bits: %5.1f\n",
-            d, param->invariant, mpz_sizeinbase (p, 2),
+            "and parameters %s for %4li bits: %5.1f\n",
+            d, param->invariant, param->str, mpz_sizeinbase (p, 2),
             cm_timer_get (clock3));
          if (debug) {
             printf ("   CM:    %5.1f\n", cm_timer_get (clock4));

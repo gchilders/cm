@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
 static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
 
 /*****************************************************************************/
@@ -157,16 +158,8 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          param->e = 1;
          break;
       case CM_INVARIANT_SIMPLEETA:
-         param->p [0] = 3;
-         if (cm_nt_kronecker (d, (int_cl_t) (param->p [0])) == -1) {
-            if (verbose)
-               printf ("*** Unsuited discriminant\n\n");
+         if (!simpleeta_compute_parameter (param, d))
             return false;
-         }
-
-         param->p [1] = 0;
-         param->s = 12;
-         param->e = 12;
          break;
       case CM_INVARIANT_DOUBLEETA:
          if (!doubleeta_compute_parameter (param, d))
@@ -198,6 +191,121 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    }
    else
       param->field = CM_FIELD_REAL;
+
+   return true;
+}
+
+/*****************************************************************************/
+
+static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
+   /* If any exist, compute n and e following [EnMo14] such that w_n^e is a
+      class invariant for d and j can be obtained from w_n without the use
+      of modular polynomials (otherwise said, n is one of 3, 5, 7, 13,
+      4, 9 or 25). If several exist, return in param the one with the best
+      height factor. */
+{
+   int k3, k5, k7, k13;
+   uint_cl_t dmod12, dmod36, dmod108, dmod8, dmod32, dmod64, dmod128;
+
+   k3 = cm_nt_kronecker (d, (int_cl_t) 3);
+   k5 = cm_nt_kronecker (d, (int_cl_t) 5);
+   k7 = cm_nt_kronecker (d, (int_cl_t) 7);
+   k13 = cm_nt_kronecker (d, (int_cl_t) 13);
+   dmod12 = cm_classgroup_mod (d, (uint_cl_t) 12);
+   dmod36 = cm_classgroup_mod (d, (uint_cl_t) 36);
+   dmod108 = cm_classgroup_mod (d, (uint_cl_t) 108);
+   dmod8 = cm_classgroup_mod (d, (uint_cl_t) 8);
+   dmod32 = cm_classgroup_mod (d, (uint_cl_t) 32);
+   dmod64 = cm_classgroup_mod (d, (uint_cl_t) 64);
+   dmod128 = cm_classgroup_mod (d, (uint_cl_t) 128);
+
+   /* According to [EnMo04], we have s=24/(n-1), and the height factor is
+      l+1 for n=l prime and l for n=l^2. Moreover, w_l^s can be used
+      whenever kronecker(d,l) != -1, and w^{l^2}^s can be used whenever
+      kronecker(d,l) == 1 and for some non-fundamental discriminants with
+      kronecker(d,l) == 0; so full powers of squares other than 4 are not
+      of interest, and in particular 25 can be dropped.
+      Test all possible powers in the order of their height factors. */
+   if (k3 != -1 &&
+       (dmod12 == 1 || dmod36 == 33)) {
+      /* w_3^2, factor 24 */
+      param->p [0] = 3;
+      param->e = 2;
+   }
+   else if (k5 != -1 && d % 3 != 0) {
+      /* w_5^2, factor 18 */
+      param->p [0] = 5;
+      param->e = 2;
+   }
+   else if (k7 != -1 && d % 2 != 0) {
+      /* w_7^2, factor 16 */
+      param->p [0] = 7;
+      param->e = 2;
+   }
+   else if (dmod8 == 1 || dmod64 == 48 || dmod128 == 0) {
+      /* w_4, factor 16 */
+      param->p [0] = 4;
+      param->e = 1;
+   }
+   else if (k13 != -1) {
+      /* w_13^2, factor 14 */
+      param->p [0] = 13;
+      param->e = 2;
+   }
+   else if (k3 != -1 &&
+       (dmod12 == 4 || dmod36 == 24)) {
+      /* w_3^4, factor 12 */
+      param->p [0] = 3;
+      param->e = 4;
+   }
+   else if (   dmod108 == 0 || dmod108 == 45
+            || dmod108 == 72 || dmod108 == 81) {
+      /* w_9, factor 9 */
+      param->p [0] = 9;
+      param->e = 1;
+   }
+   else if (k7 != -1) {
+      /* d even, w_7^4, factor 8 */
+      param->p [0] = 7;
+      param->e = 4;
+   }
+   else if (k3 != -1 &&
+       (dmod36 == 9 || dmod36 == 21)) {
+      /* w_3^6, factor 8 */
+      param->p [0] = 3;
+      param->e = 6;
+   }
+   else if (dmod32 == 20 || dmod128 == 64) {
+      /* w_4^2, factor 8 */
+      param->p [0] = 4;
+      param->e = 2;
+   }
+   else if (k5 != -1) {
+      /* 3|d, w_5^6, factor 6 */
+      param->p [0] = 5;
+      param->e = 6;
+   }
+   else if (k3 != -1) {
+      /* w_3^12, factor 4 */
+      param->p [0] = 3;
+      param->e = 12;
+   }
+   else if (   dmod128 == 16 || dmod128 == 32
+            || dmod128 == 80 || dmod128 == 96) {
+      /* w_4^4, factor 4 */
+      param->p [0] = 4;
+      param->e = 4;
+   }
+   else if (d % 2 != 0 || dmod32 == 4) {
+      /* w4^8, factor 2 */
+      param->p [0] = 4;
+      param->e = 8;
+   }
+   else
+      return false;
+
+   param->p [1] = 0;
+   param->s = 24 / (param->p [0] - 1);
 
    return true;
 }
