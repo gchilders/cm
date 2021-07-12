@@ -130,6 +130,7 @@ double cm_class_height_factor (cm_param_srcptr param)
 
 {
    double result;
+   int num, den, i;
 
    switch (param->invariant) {
    case CM_INVARIANT_J:
@@ -155,20 +156,25 @@ double cm_class_height_factor (cm_param_srcptr param)
       result = 72;
       break;
    case CM_INVARIANT_DOUBLEETA:
+      if (param->p [0] == param->p [1])
+         num = param->p [0] * (param->p [0] + 1);
+      else
+         num = (param->p [0] + 1) * (param->p [1] + 1);
+      den = param->s * (param->p [0] - 1) * (param->p [1] - 1) / 12;
+      result = num / (double) den;
+      break;
    case CM_INVARIANT_MULTIETA:
-   {
-      int num = 1, den = 1, i;
+      num = 1;
+      den = 1;
+      /* Here we assume that all primes are different. */
       for (i = 0; param->p [i] != 0; i++) {
          num *= param->p [i] + 1;
          den *= param->p [i] - 1;
       }
-      if (i == 2)
-         result = (12 * num) / (double) den;
-      else if (i == 3)
+      if (i == 3)
          result = (6 * num) / (double) den;
       else /* i == 4 */
          result = (3 * num) / (double) den;
-   }
       break;
    case CM_INVARIANT_SIMPLEETA:
       result = 24 * (param->p [0] + 1) / (double) (param->p [0] - 1);
