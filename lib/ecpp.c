@@ -786,29 +786,52 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
 
       cm_timer_continue (clock4);
       /* Find the invariant with the largest height factor from those
-         not requiring modular polynomials for retrieving the curve. */
+         not requiring modular polynomials for retrieving the curve,
+         and from a limited number of invariants with modular
+         polynomials. */
       /* First test the non-parametric invariants in the good order. */
-      if (   !cm_param_init (param, d, CM_INVARIANT_WEBER, false)
+      if (   !cm_param_init (param, d, CM_INVARIANT_WEBER, 0, false)
           && !(((d - 1) % 8 == 0
-               && cm_param_init (param, 4*d, CM_INVARIANT_WEBER, false)))
-          && !cm_param_init (param, d, CM_INVARIANT_GAMMA2, false)
-          && !cm_param_init (param, d, CM_INVARIANT_GAMMA3, false))
-          cm_param_init (param, d, CM_INVARIANT_J, true);
+               && cm_param_init (param, 4*d, CM_INVARIANT_WEBER, 0, false)))
+          && !cm_param_init (param, d, CM_INVARIANT_GAMMA2, 0, false)
+          && !cm_param_init (param, d, CM_INVARIANT_GAMMA3, 0, false))
+          cm_param_init (param, d, CM_INVARIANT_J, 0, false);
       hf = cm_class_height_factor (param);
       /* Atkin invariants have excellent factors between 24 and 36, but
          the Hecke operators are slow to compute. So do not use them.
          Simple eta uses the best of the w_n^e with n one of
          3, 5, 7, 13, 4, 9 or 25, the values for which the modular
          polynomial has genus 0. */
-      if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA, false)) {
+      if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA, 0, false)) {
          new_hf = cm_class_height_factor (new_param);
          if (new_hf > hf) {
             param [0] = new_param [0];
             hf = new_hf;
          }
       }
-      /* FIXME: For double and multiple eta quotients, one needs to take
-         the degree of the modular polynomial into account. */
+      /* For double eta quotients, we limit the search to a degree
+         of 2 in j. */
+      if (cm_param_init (new_param, d, CM_INVARIANT_DOUBLEETA, -1, false)) {
+         new_hf = cm_class_height_factor (new_param);
+         if (new_hf > hf
+             /* FIXME: This is a stop-gap-measure: In the ramified case, we
+                compute a subfield of index 2, which breaks the tower
+                decomposition, so we disable the invariant. We should
+                compute this subfield and gain a factor of about 4
+                instead. */
+             && d % (new_param->p [0] * new_param->p [1]) != 0) {
+            param [0] = new_param [0];
+            hf = new_hf;
+         }
+      }
+      /* FIXME: Consider multiple eta quotients. */
+
+      if (verbose) {
+         printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
+            "and parameters %s for %4li bits: ",
+            d, param->invariant, param->str, mpz_sizeinbase (p, 2));
+         fflush (stdout);
+      }
 
       /* Compute one of the class field tower or the class polynomial. */
       cm_class_init (c, param, false);
@@ -823,10 +846,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       cm_timer_stop (clock3);
 
       if (verbose) {
-         printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
-            "and parameters %s for %4li bits: %5.1f\n",
-            d, param->invariant, param->str, mpz_sizeinbase (p, 2),
-            cm_timer_get (clock3));
+         printf ("%5.1f\n", cm_timer_get (clock3));
          if (debug) {
             printf ("   CM:    %5.1f\n", cm_timer_get (clock4));
             printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));

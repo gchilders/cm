@@ -24,15 +24,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
-static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
+static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
+   int maxdeg);
 
 /*****************************************************************************/
 
 bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
-   bool verbose)
+   int maxdeg, bool verbose)
    /* Test whether the discriminant is suited for the chosen invariant and
       in this case compute and store the parameters in param and return
-      true; otherwise return false. */
+      true; otherwise return false.
+      If it is positive, then maxdeg is an upper bound on the degree of
+      the modular polynomial in j, which is taken into account for certain
+      infinite families of class invariants. If maxdeg is set to -1, then
+      an internal bound is activated depending on the type of invariant. */
 
 {
    int i;
@@ -167,7 +172,7 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
             return false;
          break;
       case CM_INVARIANT_DOUBLEETA:
-         if (!doubleeta_compute_parameter (param, d))
+         if (!doubleeta_compute_parameter (param, d, maxdeg))
             return false;
          break;
       default: /* should not occur */
@@ -328,7 +333,8 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
 
 /*****************************************************************************/
 
-static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
+static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
+   int maxdeg)
    /* Compute p1 <= p2 prime following Cor. 3.1 of [EnSc04], that is,
       - 24 | (p1-1)(p2-1)
       - p1, p2 are not inert
@@ -337,7 +343,11 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
       The case p1=p2=2 of Cor. 3.1 is excluded by divisibility by 24.
       Minimise with respect to the height factor gained, which is
       12 psi (p1*p2) / (p1-1)(p2-1);
-      then p1, p2 <= the smallest split prime which is 1 (mod 24). */
+      then p1, p2 <= the smallest split prime which is 1 (mod 24).
+      maxdeg has the same meaning as in cm_param_init; if set to -1, it is
+      internally replaced by 2, in which case the modular curve
+      X_0^+ (p1*p2) has genus 0; otherwise said, both roots of the modular
+      polynomial in j lead to curves of the correct cardinality. */
 
 {
    int_cl_t cond2 = d / cm_classgroup_fundamental_discriminant (d);
@@ -351,7 +361,11 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
    bool ok;
    int i, j;
 
-   /* determine all non-inert primes */
+   if (maxdeg == -1)
+      maxdeg = 2;
+
+   /* Determine all non-inert primes up maxprime or a split prime that
+      is 1 modulo 24, whichever comes first. */
    i = 0;
    p1 = 2;
    ok = false;
@@ -369,11 +383,13 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
    while (p1 <= maxprime && !ok);
    primelist [i] = 0;
 
-   /* search for the best tuple */
+   /* Search for the best tuple. */
    opt = 0.0;
    for (j = 0, p2 = primelist [j]; p2 != 0; j++, p2 = primelist [j])
       for (i = 0, p1 = primelist [i]; i <= j; i++, p1 = primelist [i])
          if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
+             && (maxdeg == 0
+                 || (p1 - 1) * (p2 - 1) / 12 <= (unsigned long int) maxdeg)
              && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
                  || (p1 == p2 && ((-d) % p1 != 0 || cond2 % p1 == 0)))) {
             quality = (p1 == p2 ? p1 : p1 + 1) * (p2 + 1) / (double) (p1 - 1)

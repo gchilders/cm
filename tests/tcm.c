@@ -35,7 +35,7 @@ static void test_curve (int_cl_t d, char invariant, bool verbose)
 
    cm_timer_start (clock);
 
-   if (!cm_param_init (param, d, invariant, verbose))
+   if (!cm_param_init (param, d, invariant, 0, verbose))
       exit (1);
    mpz_init (a);
    mpz_init (b);

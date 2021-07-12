@@ -275,7 +275,7 @@ extern void cm_modpol_print_magma (int level, char type, const char* datadir);
 
 /* functions concerned with CM parameters */
 extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
-   bool verbose);
+   int maxdeg, bool verbose);
 
 /* functions for class polynomials */
 extern void cm_pari_init (void);
