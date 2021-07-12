@@ -353,11 +353,13 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
    int_cl_t cond2 = d / cm_classgroup_fundamental_discriminant (d);
       /* square of conductor */
    const unsigned long int maxprime = 997;
-   unsigned long int primelist [169];
-      /* list of suitable primes, terminated by 0; big enough to hold all
+   unsigned long int primelist [168];
+      /* list of suitable primes; big enough to hold all
          primes <= maxprime */
-   unsigned long int p1, p2, p1opt = 0, p2opt = 0;
-   double quality, opt;
+   int length; /* effective length of primelist */
+   unsigned long int p, p1, p2;
+   cm_param_t par;
+   double hf, opt;
    bool ok;
    int i, j;
 
@@ -366,47 +368,48 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
 
    /* Determine all non-inert primes up maxprime or a split prime that
       is 1 modulo 24, whichever comes first. */
-   i = 0;
-   p1 = 2;
+   length = 0;
+   p = 2;
    ok = false;
    do {
-      int kro = cm_nt_kronecker (d, (int_cl_t) p1);
+      int kro = cm_nt_kronecker (d, (int_cl_t) p);
       if (kro != -1) {
-         primelist [i] = p1;
-         i++;
+         primelist [length] = p;
+         length++;
       }
-      if (kro == 1 && (p1 - 1) % 24 == 0)
+      if (kro == 1 && (p - 1) % 24 == 0)
          ok = true;
       else
-         p1 = cm_nt_next_prime (p1);
+         p = cm_nt_next_prime (p);
    }
-   while (p1 <= maxprime && !ok);
-   primelist [i] = 0;
+   while (p <= maxprime && !ok);
 
    /* Search for the best tuple. */
    opt = 0.0;
-   for (j = 0, p2 = primelist [j]; p2 != 0; j++, p2 = primelist [j])
-      for (i = 0, p1 = primelist [i]; i <= j; i++, p1 = primelist [i])
+   par [0] = param [0];
+   par->p [2] = 0;
+   par->s = 1;
+   par->e = 1;
+   for (j = 0; j < length; j++) {
+      p2 = primelist [j];
+      for (i = 0; i <= j; i++) {
+         p1 = primelist [i];
          if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
              && (maxdeg == 0
                  || (p1 - 1) * (p2 - 1) / 12 <= (unsigned long int) maxdeg)
              && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
                  || (p1 == p2 && ((-d) % p1 != 0 || cond2 % p1 == 0)))) {
-            quality = (p1 == p2 ? p1 : p1 + 1) * (p2 + 1) / (double) (p1 - 1)
-               / (double) (p2 - 1);
-            if (quality > opt) {
-               p1opt = p1;
-               p2opt = p2;
-               opt = quality;
+            par->p [0] = p1;
+            par->p [1] = p2;
+            hf = cm_class_height_factor (par);
+            if (hf > opt) {
+               param [0] = par [0];
+               opt = hf;
                ok = true;
             }
          }
-
-   param->p [0] = p1opt;
-   param->p [1] = p2opt;
-   param->p [2] = 0;
-   param->s = 1;
-   param->e = 1;
+      }
+   }
 
    return ok;
 }
