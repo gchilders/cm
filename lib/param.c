@@ -283,8 +283,7 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
       param->p [0] = 3;
       param->e = 12;
    }
-   else if (   dmod128 == 16 || dmod128 == 32
-            || dmod128 == 80 || dmod128 == 96) {
+   else if (dmod64 == 16 || dmod64 == 32) {
       /* w_4^4, factor 4 */
       param->p [0] = 4;
       param->e = 4;
@@ -299,8 +298,30 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
 
    param->p [1] = 0;
    param->s = 24 / (param->p [0] - 1);
-   param->field = CM_FIELD_COMPLEX;
-      /* This should be refined. */
+
+   /* The field is complex by default, but real in some cases worked out
+      in [EnMo14], Theorems 4.4 and 6.1. The condition 16|d for p [0] == 4
+      in Theorem 6.1 is only necessary, but not sufficient. Looking
+      more closely at the conditions for N-systems shows that for
+      p [0] == 4, d = 16 (mod 64) is the only case in which our choice of
+      class invariants above provenly yields a real class polynomial.
+      (Whenever 16|d and s==e, one also obtains a real polynomial; but then
+      one can always choose a lower power, which is usually not real.) */
+   if (param->p [0] == 4)
+      if (dmod64 == 16)
+         param->field = CM_FIELD_REAL;
+      else
+         param->field = CM_FIELD_COMPLEX;
+   else
+      if (d % param->p [0] == 0
+          && (param->e == param->s
+              || (param->p [0] == 3 && param->e == 4
+                  && cm_classgroup_mod (d, 9) == 6)
+              || (param->p [0] == 5 && d % 3 != 0)
+              || (param->p [0] == 13 && cm_classgroup_mod (d, 27) == 18)))
+         param->field = CM_FIELD_REAL;
+      else
+         param->field = CM_FIELD_COMPLEX;
 
    return true;
 }
