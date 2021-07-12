@@ -276,151 +276,145 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
    int h1, h2;
    int i, j;
 
-   /* Compute the targeted b0 for the N-system and (in the real case) the
-      neutral form. */
+   /* Compute the targeted b0 for the N-system and the neutral form. */
 
-   if (param->invariant == CM_INVARIANT_SIMPLEETA) {
+   /* The principal form is the default choice and may be overwritten
+      below. In the complex case it is not used later. */
+   neutral.a = 1;
+   if (d % 2 == 0)
+      neutral.b = 0;
+   else
+      neutral.b = 1;
 
-      /* In any case, start with b0 a square root of d modulo 4*p[0]. */
-      for (b0 = d % 2; (b0*b0 - d) % (4*p[0]) != 0; b0 += 2);
-
-      if (p [0] % 2 != 0 && p [0] % 3 != 0) {
-         /* Section 6.1.1 of [EnMo14].
-            There may be an additional restriction modulo 3:
-            When 3|(s/e), then we need that 3|b0. */
-         if ((s/e) % 3 == 0)
-            while (b0 % 3 != 0)
-               b0 += 2 * p [0];
-      }
-      else if (p [0] == 3) {
-         /* Section 6.1.2 of [EnMo14].
-            When 3 \nmid d, then we need b0^2 = d + 6 (mod 9). */
-         if (d % 3 != 0)
-            while ((b0*b0 - d - 6) % 9 != 0)
-               b0 += 6;
-      }
-      else if (p [0] == 9) {
-         /* Section 6.1.3 of [EnMo14]. There is a restriction for e==1.
-            When 3|d, then we need b0^2 = d + 9 (mod 27),
-            otherwise, b0^2 = d + 18 (mod 27). */
-         if (e == 1) {
-            if (d % 3 == 0)
-               while ((b0*b0 - d - 9) % 27 != 0)
-                  b0 += 6;
-            else
-               while ((b0*b0 - d - 18) % 27 != 0)
-                  b0 += 18;
-         }
-      }
-      else if (p [0] == 4) {
-         /* Section 6.2.2 of [EnMo14]. Depending on d, b0 needs to satisfy
-            a condition modulo a power of 2, with a lot of case
-            distinctions. */
-         if (e < 8) {
-            if (d % 2 != 0)
-               /* e == 1 */
-               while ((b0*b0 - d - 48) % 128 != 0)
-                  b0 += 8;
-            else /* 16 | d */ if (d % 128 == 0)
-               while ((b0*b0 - d - 16) % 128 != 0)
-                  b0 += 4;
-            else if ((d - 48) % 64 == 0)
-               while ((b0*b0 - d - 80) % 128 != 0)
-                  b0 += 4;
-            else if ((d - 64) % 128 == 0)
-               while ((b0*b0 - d - 16) % 64 != 0)
-                  b0 += 4;
-            else if ((d - 20) % 32 == 0)
-               while ((b0*b0 - d - 48) % 64 != 0)
-                  b0 += 4;
-            else if (   (d - 16) % 128 == 0 || (d - 32) % 128 == 0
-                     || (d - 80) % 128 == 0 || (d - 96) % 128 == 0)
-               while ((b0*b0 - d - 16) % 32 != 0)
-                  b0 += 4;
-         }
-      }
-      else {
-         printf ("***** Error: Calling compute_nsystem with bad parameter "
-            "for simple eta quotients.");
-         exit (1);
-      }
-
-      if (verbose)
-         printf ("N %i\ns %i\ne %i\nb0 %"PRIicl"\n", p[0], s, e, b0);
-      N = p[0] * s / e;
-   }
-
-   else {
-      neutral.a = 1;
-      if (d % 2 == 0)
-         neutral.b = 0;
-      else
-         neutral.b = 1;
-
-      switch (param->invariant) {
-         case CM_INVARIANT_J:
-            b0 = d % 2;
-            /* An even N makes c even if 2 is split so that during the
-               evaluation of eta(z/2) for f1 all forms can be taken from
-               the precomputed ones. */
-            N = 2;
-            break;
-         case CM_INVARIANT_GAMMA2:
-            b0 = 3 * (d % 2);
-            /* Use an even N as for j. */
-            N = 6;
-            break;
-         case CM_INVARIANT_GAMMA3:
-            b0 = 1;
-            N = 2;
-            break;
-         case CM_INVARIANT_ATKIN:
-            N = p [0];
-            if (d % 2 == 0)
-               b0 = 0;
-            else
-               b0 = 1;
-            while ((b0*b0 - d) % N != 0)
-               b0 += 2;
-            neutral.a = N;
-            neutral.b = -b0;
-            cm_classgroup_reduce (&neutral, d);
-            break;
-         case CM_INVARIANT_WEBER:
-            neutral.a = 1;
-            neutral.b = 0;
+   switch (param->invariant) {
+      case CM_INVARIANT_J:
+         b0 = d % 2;
+         /* An even N makes c even if 2 is split so that during the
+            evaluation of eta(z/2) for f1 all forms can be taken from
+            the precomputed ones. */
+         N = 2;
+         break;
+      case CM_INVARIANT_GAMMA2:
+         b0 = 3 * (d % 2);
+         /* Use an even N as for j. */
+         N = 6;
+         break;
+      case CM_INVARIANT_GAMMA3:
+         b0 = 1;
+         N = 2;
+         break;
+      case CM_INVARIANT_ATKIN:
+         N = p [0];
+         if (d % 2 == 0)
             b0 = 0;
-            N = 48;
-            break;
-         case CM_INVARIANT_DOUBLEETA:
-         case CM_INVARIANT_MULTIETA:
-         {
-            int_cl_t C;
-            N = 1;
-            for (i = 0; p [i] != 0; i++)
-               N *= p [i];
-            if (d % 2 == 0)
-               b0 = 2;
-            else
-               b0 = 1;
-            while (true) {
-               C = (b0*b0 - d) / 4;
-               if (C % N == 0 && cm_nt_gcd (C / N, N) == 1)
-                  break;
-               b0 += 2;
-            }
-            neutral.a = N;
-            neutral.b = -b0;
-            cm_classgroup_reduce (&neutral, d);
-            /* The neutral form corresponds to the product of the primes,
-               but the n-system needs to take s/e into account. */
-            N *= s / e;
-            break;
+         else
+            b0 = 1;
+         while ((b0*b0 - d) % N != 0)
+            b0 += 2;
+         neutral.a = N;
+         neutral.b = -b0;
+         cm_classgroup_reduce (&neutral, d);
+         break;
+      case CM_INVARIANT_WEBER:
+         neutral.a = 1;
+         neutral.b = 0;
+         b0 = 0;
+         N = 48;
+         break;
+      case CM_INVARIANT_DOUBLEETA:
+      case CM_INVARIANT_MULTIETA:
+         int_cl_t C;
+         N = 1;
+         for (i = 0; p [i] != 0; i++)
+            N *= p [i];
+         if (d % 2 == 0)
+            b0 = 2;
+         else
+            b0 = 1;
+         while (true) {
+            C = (b0*b0 - d) / 4;
+            if (C % N == 0 && cm_nt_gcd (C / N, N) == 1)
+               break;
+            b0 += 2;
          }
-         default: /* should not occur */
-            printf ("compute_nsystem called for unknown class invariant\n");
+         neutral.a = N;
+         neutral.b = -b0;
+         cm_classgroup_reduce (&neutral, d);
+         /* The neutral form corresponds to the product of the primes,
+            but the n-system needs to take s/e into account. */
+         N *= s / e;
+         break;
+      case CM_INVARIANT_SIMPLEETA:
+         /* In any case, start with b0 a square root of d modulo 4*p[0]. */
+         for (b0 = d % 2; (b0*b0 - d) % (4*p[0]) != 0; b0 += 2);
+
+         if (p [0] % 2 != 0 && p [0] % 3 != 0) {
+            /* Section 6.1.1 of [EnMo14].
+               There may be an additional restriction modulo 3:
+               When 3|(s/e), then we need that 3|b0. */
+            if ((s/e) % 3 == 0)
+               while (b0 % 3 != 0)
+                  b0 += 2 * p [0];
+         }
+         else if (p [0] == 3) {
+            /* Section 6.1.2 of [EnMo14].
+               When 3 \nmid d, then we need b0^2 = d + 6 (mod 9). */
+            if (d % 3 != 0)
+               while ((b0*b0 - d - 6) % 9 != 0)
+                  b0 += 6;
+         }
+         else if (p [0] == 9) {
+            /* Section 6.1.3 of [EnMo14]. There is a restriction for e==1.
+               When 3|d, then we need b0^2 = d + 9 (mod 27),
+               otherwise, b0^2 = d + 18 (mod 27). */
+            if (e == 1) {
+               if (d % 3 == 0)
+                  while ((b0*b0 - d - 9) % 27 != 0)
+                     b0 += 6;
+               else
+                  while ((b0*b0 - d - 18) % 27 != 0)
+                     b0 += 18;
+            }
+         }
+         else if (p [0] == 4) {
+            /* Section 6.2.2 of [EnMo14]. Depending on d, b0 needs to satisfy
+               a condition modulo a power of 2, with a lot of case
+               distinctions. */
+            if (e < 8) {
+               if (d % 2 != 0)
+                  /* e == 1 */
+                  while ((b0*b0 - d - 48) % 128 != 0)
+                     b0 += 8;
+               else /* 16 | d */ if (d % 128 == 0)
+                  while ((b0*b0 - d - 16) % 128 != 0)
+                     b0 += 4;
+               else if ((d - 48) % 64 == 0)
+                  while ((b0*b0 - d - 80) % 128 != 0)
+                     b0 += 4;
+               else if ((d - 64) % 128 == 0)
+                  while ((b0*b0 - d - 16) % 64 != 0)
+                     b0 += 4;
+               else if ((d - 20) % 32 == 0)
+                  while ((b0*b0 - d - 48) % 64 != 0)
+                     b0 += 4;
+               else if (   (d - 16) % 128 == 0 || (d - 32) % 128 == 0
+                     || (d - 80) % 128 == 0 || (d - 96) % 128 == 0)
+                  while ((b0*b0 - d - 16) % 32 != 0)
+                     b0 += 4;
+            }
+         }
+         else {
+            printf ("***** Error: Calling compute_nsystem with bad parameter "
+                  "for simple eta quotients.");
             exit (1);
-      }
+         }
+         if (verbose)
+            printf ("N %i\ns %i\ne %i\nb0 %"PRIicl"\n", p[0], s, e, b0);
+         N = p[0] * s / e;
+         break;
+      default: /* should not occur */
+         printf ("compute_nsystem called for unknown class invariant\n");
+         exit (1);
    }
 
    for (i = 0; i < c->cl.h; i++) {

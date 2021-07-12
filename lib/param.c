@@ -49,6 +49,8 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
 
    param->d = d;
    param->invariant = invariant;
+   param->field = CM_FIELD_REAL;
+      /* Default choice; may be overwritten below. */
 
    switch (invariant) {
       case CM_INVARIANT_J:
@@ -156,6 +158,9 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          param->p [3] = 0;
          param->s = 1;
          param->e = 1;
+         for (i = 0; param->p [i] != 0; i++);
+         if (i % 2 != 0)
+            param->field = CM_FIELD_COMPLEX;
          break;
       case CM_INVARIANT_SIMPLEETA:
          if (!simpleeta_compute_parameter (param, d))
@@ -179,18 +184,6 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
       i++;
    } while (param->p [i] != 0);
    sprintf (pointer, "%i_%i", param->e, param->s);
-
-   if (invariant == CM_INVARIANT_SIMPLEETA)
-      param->field = CM_FIELD_COMPLEX;
-   else if (invariant == CM_INVARIANT_MULTIETA) {
-      for (i = 0; param->p [i] != 0; i++);
-      if (i % 2 == 0)
-         param->field = CM_FIELD_REAL;
-      else
-         param->field = CM_FIELD_COMPLEX;
-   }
-   else
-      param->field = CM_FIELD_REAL;
 
    return true;
 }
@@ -306,6 +299,8 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
 
    param->p [1] = 0;
    param->s = 24 / (param->p [0] - 1);
+   param->field = CM_FIELD_COMPLEX;
+      /* This should be refined. */
 
    return true;
 }
