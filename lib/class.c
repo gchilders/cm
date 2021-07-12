@@ -156,11 +156,12 @@ double cm_class_height_factor (cm_param_srcptr param)
       result = 72;
       break;
    case CM_INVARIANT_DOUBLEETA:
+      num = 12 * (param->p [1] + 1);
       if (param->p [0] == param->p [1])
-         num = param->p [0] * (param->p [0] + 1);
+         num *= param->p [0];
       else
-         num = (param->p [0] + 1) * (param->p [1] + 1);
-      den = param->s * (param->p [0] - 1) * (param->p [1] - 1) / 12;
+         num *= param->p [0] + 1;
+      den = (param->p [0] - 1) * (param->p [1] - 1);
       result = num / (double) den;
       break;
    case CM_INVARIANT_MULTIETA:

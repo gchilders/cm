@@ -35,7 +35,7 @@ static void test_curve (int_cl_t d, char invariant, bool verbose)
 
    cm_timer_start (clock);
 
-   if (!cm_param_init (param, d, invariant, 0, verbose))
+   if (!cm_param_init (param, d, invariant, -1, verbose))
       exit (1);
    mpz_init (a);
    mpz_init (b);
@@ -53,7 +53,7 @@ static void test_curve (int_cl_t d, char invariant, bool verbose)
    printf ("class polynomial: ");
    fflush (stdout);
    cm_class_init (c, param, verbose);
-   cm_class_compute (c, param, false, true, verbose);
+   cm_class_compute (c, param, true, false, verbose);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
       verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
@@ -65,7 +65,7 @@ static void test_curve (int_cl_t d, char invariant, bool verbose)
    printf ("class field tower: ");
    fflush (stdout);
    cm_class_init (c, param, verbose);
-   cm_class_compute (c, param, true, false, verbose);
+   cm_class_compute (c, param, false, true, verbose);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
       verbose);
    cm_class_clear (c);
@@ -130,10 +130,8 @@ static void big_test (void)
    test_curve ((int_cl_t) (-299),    CM_INVARIANT_SIMPLEETA, false);
    test_curve ((int_cl_t) (-105131), CM_INVARIANT_MULTIETA, false); /* N=3*5*7 */
 
-   test_curve ((int_cl_t) (-108735), CM_INVARIANT_DOUBLEETA, false); /* N=2*73 */
-   test_curve ((int_cl_t) (-108719), CM_INVARIANT_DOUBLEETA, false); /* N=2*97 */
-   test_curve ((int_cl_t) (-108783), CM_INVARIANT_DOUBLEETA, false); /* N=2*193 */
-   test_curve ((int_cl_t) (-108711), CM_INVARIANT_DOUBLEETA, false); /* N=2*241 */
+   test_curve ((int_cl_t) (-1032), CM_INVARIANT_DOUBLEETA, false);
+      /* N=3*7, s=e=2 */
 }
 
 /*****************************************************************************/

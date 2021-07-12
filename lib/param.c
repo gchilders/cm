@@ -335,15 +335,16 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
 
 static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
    int maxdeg)
-   /* Compute p1 <= p2 prime following Cor. 3.1 of [EnSc04], that is,
-      - 24 | (p1-1)(p2-1)
+   /* Compute p1 <= p2 prime and s following Cor. 3.1 of [EnSc04], that is,
+      - s = 24 / gcd (24, (p1-1)(p2-1))
       - p1, p2 are not inert
       - if p1!=p2, then p1, p2 do not divide the conductor
-      - if p1=p2=p, then either p splits or divides the conductor.
-      The case p1=p2=2 of Cor. 3.1 is excluded by divisibility by 24.
-      Minimise with respect to the height factor gained, which is
-      12 psi (p1*p2) / (p1-1)(p2-1);
-      then p1, p2 <= the smallest split prime which is 1 (mod 24).
+      - if p1=p2=p!=2, then either p splits or divides the conductor
+      - if p1=p2=2, then either 2 splits, or 2 divides the conductor
+        and d != 4 (mod 32).
+      Minimise with respect to the height factor gained; then the
+      optimal primes are bounded above by the smallest split prime
+      that is 1 (mod 24).
       maxdeg has the same meaning as in cm_param_init; if set to -1, it is
       internally replaced by 2, in which case the modular curve
       X_0^+ (p1*p2) has genus 0; otherwise said, both roots of the modular
@@ -352,12 +353,12 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
 {
    int_cl_t cond2 = d / cm_classgroup_fundamental_discriminant (d);
       /* square of conductor */
-   const unsigned long int maxprime = 997;
-   unsigned long int primelist [168];
+   const long int maxprime = 997;
+   long int primelist [168];
       /* list of suitable primes; big enough to hold all
          primes <= maxprime */
    int length; /* effective length of primelist */
-   unsigned long int p, p1, p2;
+   long int p, p1, p2, s;
    cm_param_t par;
    double hf, opt;
    bool ok;
@@ -366,7 +367,7 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
    if (maxdeg == -1)
       maxdeg = 2;
 
-   /* Determine all non-inert primes up maxprime or a split prime that
+   /* Determine all non-inert primes up to maxprime or a split prime that
       is 1 modulo 24, whichever comes first. */
    length = 0;
    p = 2;
@@ -388,19 +389,25 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
    opt = 0.0;
    par [0] = param [0];
    par->p [2] = 0;
-   par->s = 1;
-   par->e = 1;
+   ok = false;
    for (j = 0; j < length; j++) {
       p2 = primelist [j];
       for (i = 0; i <= j; i++) {
          p1 = primelist [i];
-         if (   ((p1 - 1)*(p2 - 1)) % 24 == 0
+         s = 24 / cm_nt_gcd (24, (p1 - 1) * (p2 - 1));
+         if (((p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
+               || (p1 == p2 && p1 != 2
+                   && (d % p1 != 0 || cond2 % p1 == 0))
+               || (p1 == 2 && p2 == 2
+                   && (d % 2 != 0
+                       || (cond2 % 2 == 0
+                           && cm_classgroup_mod (d, 32) != 4))))
              && (maxdeg == 0
-                 || (p1 - 1) * (p2 - 1) / 12 <= (unsigned long int) maxdeg)
-             && (   (p1 != p2 && cond2 % p1 != 0 && cond2 % p2 != 0)
-                 || (p1 == p2 && ((-d) % p1 != 0 || cond2 % p1 == 0)))) {
+                 || s * (p1 - 1) * (p2 - 1) / 12 <= maxdeg)) {
             par->p [0] = p1;
             par->p [1] = p2;
+            par->s = s;
+            par->e = s;
             hf = cm_class_height_factor (par);
             if (hf > opt) {
                param [0] = par [0];
