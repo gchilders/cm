@@ -342,6 +342,9 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
       - if p1=p2=p!=2, then either p splits or divides the conductor
       - if p1=p2=2, then either 2 splits, or 2 divides the conductor
         and d != 4 (mod 32).
+      Additionally consider the lower powers e given in Theorem 1 of
+      [EnSc13] for p1 != p2, and none of them inert or dividing the
+      conductor.
       Minimise with respect to the height factor gained; then the
       optimal primes are bounded above by the smallest split prime
       that is 1 (mod 24).
@@ -407,7 +410,17 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
             par->p [0] = p1;
             par->p [1] = p2;
             par->s = s;
-            par->e = s;
+            /* Choose e according to [EnSc13], Theorem 1. */
+            if (p1 != p2 && p1 != 2) {
+               if (p1 == 3 || d % 3 == 0)
+                  par->e = 3 / cm_nt_gcd (3, (p1 - 1) * (p2 - 1));
+               else
+                  par->e = 1;
+               if (d % 2 == 0)
+                  par->e *= 8 / cm_nt_gcd (8, (p1 - 1) * (p2 - 1));
+            }
+            else
+               par->e = s;
             hf = cm_class_height_factor (par);
             if (hf > opt) {
                param [0] = par [0];

@@ -132,6 +132,8 @@ static void big_test (void)
 
    test_curve ((int_cl_t) (-1032), CM_INVARIANT_DOUBLEETA, false);
       /* N=3*7, s=e=2 */
+   test_curve ((int_cl_t) (-1043), CM_INVARIANT_DOUBLEETA, false);
+      /* N=3*7, s=2, e=1 */
 }
 
 /*****************************************************************************/
