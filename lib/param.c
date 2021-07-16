@@ -288,7 +288,7 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
       param->p [0] = 4;
       param->e = 4;
    }
-   else if (d % 2 != 0 || dmod32 == 4) {
+   else if (dmod8 == 1 || dmod32 == 4) {
       /* w4^8, factor 2 */
       param->p [0] = 4;
       param->e = 8;
