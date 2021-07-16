@@ -332,9 +332,12 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
       case CM_INVARIANT_DOUBLEETA:
       case CM_INVARIANT_MULTIETA:
          int_cl_t C;
+         int k = 0;
          N = 1;
-         for (i = 0; p [i] != 0; i++)
+         for (i = 0; p [i] != 0; i++) {
             N *= p [i];
+            k++;
+         }
          if (d % 2 == 0)
             b0 = 2;
          else
@@ -345,7 +348,13 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
                break;
             b0 += 2;
          }
-         neutral.a = N;
+         if (k % 2 == 0)
+            neutral.a = N;
+         else if (field == CM_FIELD_REAL) {
+            /* Ramified case, see Corollary 8 of [EnSc13]. */
+            for (i = 0; d % p [i] != 0; i++);
+            neutral.a = N / p [i];
+         }
          neutral.b = -b0;
          cm_classgroup_reduce (&neutral, d);
          /* The neutral form corresponds to the product of the primes,

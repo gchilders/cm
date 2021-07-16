@@ -741,7 +741,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    cm_param_t param, new_param;
    double hf, new_hf;
    cm_class_t c;
-   int i, j;
+   int i, j, k;
    cm_timer clock, clock2, clock3, clock4, clock5;
 
    mpz_init (t);
@@ -824,7 +824,25 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
             hf = new_hf;
          }
       }
-      /* FIXME: Consider multiple eta quotients. */
+      /* For multiple eta quotients, we limit the search to a degree
+         of 4 in j. */
+      if (cm_param_init (new_param, d, CM_INVARIANT_MULTIETA, -1, false)) {
+         new_hf = cm_class_height_factor (new_param);
+         if (new_hf > hf) {
+            /* FIXME: As for the double eta quotients, we are in a subfield
+               of index at least 2 whenever at least two primes are
+               ramified, which breaks the tower decomposition. This should
+               be handled in the code. */
+            k = 0;
+            for (j = 0; new_param->p [j] != 0; j++)
+               if (d % new_param->p [j] == 0)
+                  k++;
+            if (k <= 1) {
+               param [0] = new_param [0];
+               hf = new_hf;
+            }
+         }
+      }
 
       if (verbose) {
          printf ("-- Time for discriminant %8"PRIicl" with invariant %c "

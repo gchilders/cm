@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
 static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
    int maxdeg);
+static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
+   int maxdeg);
 
 /*****************************************************************************/
 
@@ -156,23 +158,16 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          param->s = 1;
          param->e = 1;
          break;
-      case CM_INVARIANT_MULTIETA:
-         param->p [0] = 3;
-         param->p [1] = 5;
-         param->p [2] = 7;
-         param->p [3] = 0;
-         param->s = 1;
-         param->e = 1;
-         for (i = 0; param->p [i] != 0; i++);
-         if (i % 2 != 0)
-            param->field = CM_FIELD_COMPLEX;
-         break;
       case CM_INVARIANT_SIMPLEETA:
          if (!simpleeta_compute_parameter (param, d))
             return false;
          break;
       case CM_INVARIANT_DOUBLEETA:
          if (!doubleeta_compute_parameter (param, d, maxdeg))
+            return false;
+         break;
+      case CM_INVARIANT_MULTIETA:
+         if (!multieta_compute_parameter (param, d, maxdeg))
             return false;
          break;
       default: /* should not occur */
@@ -432,6 +427,109 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
    }
 
    return ok;
+}
+
+/*****************************************************************************/
+
+static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
+   int maxdeg)
+   /* We only consider the multiple eta quotients for which the modular
+      polynomial has a degree of at most 8 in j. These are:
+      p1,p2,p3  s  hf   deg
+      2,3,5     3  18    4
+      2,3,7     2  24    4
+      2,3,13    1  42    4
+      2,5,7     1  36    4
+      2,5,13    1  31.5  8
+      3,5,7     1  24    8
+      Of interest could also be the smallest case with four factors,
+      but even in the ramified case its degree in j is not optimal:
+      2,3,5,7   1  36   16
+      If one wanted to go up to a degree 16, the following quotients
+      with three primes would have to be added:
+      2,3,19    2  20   12
+      2,3,37    1  38   12
+      2,5,19    1  30   12
+      2,7,13    1  28   12
+      2,3,17    3  13.5 16
+      2,7,17    1  27   16
+      3,5,13    1  21   16 */
+{
+   int_cl_t cond2 = d / cm_classgroup_fundamental_discriminant (d);
+      /* square of conductor */
+   bool ok2, ok3, ok5, ok7, ok13, ramified;
+   int k;
+
+   if (maxdeg == -1 || (maxdeg >= 4 && maxdeg < 8))
+      maxdeg == 4;
+   else if (maxdeg > 0 && maxdeg < 4)
+      return false;
+   else
+      maxdeg = 8;
+
+   ok2 = cm_nt_kronecker (d, (int_cl_t) 2) != -1 && cond2 % 2 != 0;
+   ok3 = cm_nt_kronecker (d, (int_cl_t) 3) != -1 && cond2 % 3 != 0;
+   ok5 = cm_nt_kronecker (d, (int_cl_t) 5) != -1 && cond2 % 5 != 0;
+   ok7 = cm_nt_kronecker (d, (int_cl_t) 7) != -1 && cond2 % 7 != 0;
+   ok13 = cm_nt_kronecker (d, (int_cl_t) 13) != -1 && cond2 % 13 != 0;
+
+   param->p [3] = 0;
+   param->s = 1; /* default, can be overwritten */
+   if (ok2) {
+      param->p [0] = 2;
+      if (ok3 && ok13) {
+         /* height factor 42 */
+         param->p [1] = 3;
+         param->p [2] = 13;
+      }
+      else if (ok5 && ok7) {
+         /* height factor 36 */
+         param->p [1] = 5;
+         param->p [2] = 7;
+      }
+      else if (maxdeg >= 8 && ok5 && ok13) {
+         /* height factor 31.5 */
+         param->p [1] = 5;
+         param->p [2] = 13;
+      }
+      else if (ok3 && ok7) {
+         /* height factor 24 */
+         param->p [1] = 3;
+         param->p [2] = 7;
+         param->s = 2;
+      }
+      else if (ok3 && ok5) {
+         /* height factor 18 */
+         param->p [1] = 3;
+         param->p [2] = 5;
+         param->s = 3;
+      }
+      else
+         return false;
+   }
+   else if (maxdeg >= 8 && ok3 && ok5 && ok7) {
+      param->p [0] = 3;
+      param->p [1] = 5;
+      param->p [2] = 7;
+   }
+   else
+      return false;
+   param->e = param->s;
+
+   /* The polynomial is real by [EnSc13] if the number of primes is
+      even (Corollary 4), or any of the primes is ramified (Corollary 8).
+      Currently we use exactly three prime factors, but there is no harm
+      in writing more complete code already now. */
+   ramified = false;
+   for (k = 0; param->p [k] != 0; k++)
+      if (!ramified && d % param->p [k] == 0)
+         ramified = true;
+   if (k % 2 == 0 || ramified)
+      param->field = CM_FIELD_REAL;
+   else
+      param->field = CM_FIELD_COMPLEX;
+
+   return true;
 }
 
 /*****************************************************************************/
