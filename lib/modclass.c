@@ -61,11 +61,6 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    cm_classgroup_mpz_set_icl (tmp_z, -cl.d);
    fset_z (mc->root, tmp_z);
    fsqrt (mc->root, mc->root);
-   finit (mc->sqrt2_over2, prec);
-   fsqrt_ui (mc->sqrt2_over2, 2ul);
-   fdiv_2ui (mc->sqrt2_over2, mc->sqrt2_over2, 1ul);
-   finit (mc->sqrt2_over4, prec);
-   fdiv_2ui (mc->sqrt2_over4, mc->sqrt2_over2, 1ul);
 
    mc->eta = (ctype *) malloc (mc->cl.h * sizeof (ctype));
    /* Initialise only one out of two eta conjugates for inverse forms. */
@@ -85,8 +80,6 @@ void cm_modclass_clear (cm_modclass_t *mc)
    int i;
 
    fclear (mc->root);
-   fclear (mc->sqrt2_over2);
-   fclear (mc->sqrt2_over4);
    for (i = 0; i < mc->cl.h; i++)
       if (mc->cl.conj [i] >= i)
          cclear (mc->eta [i]);

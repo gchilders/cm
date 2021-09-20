@@ -44,7 +44,6 @@ typedef struct {
    cm_classgroup_t cl;
    ftype root;
       /* sqrt (-cl.d); */
-   ftype sqrt2_over2, sqrt2_over4;
    ctype *eta;
       /* contains the values of eta with respect to the entries of
          cl.form with the same row index. */

@@ -570,29 +570,33 @@ static void eval (cm_param_srcptr param, cm_modclass_t mc, ctype rop,
    case CM_INVARIANT_WEBER:
       if (param->p [0] == 1) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 2);
-         cmul_fr (rop, rop, mc.sqrt2_over2);
+         cmul_fr (rop, rop, mc.m.sqrt2);
+         cdiv_2ui (rop, rop, 1ul);
       }
       else if (param->p [0] == 3)
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 1);
       else if (param->p [0] == 5) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 2);
          csqr (rop, rop);
-         cdiv_ui (rop, rop, 2ul);
+         cdiv_2ui (rop, rop, 1ul);
       }
       else if (param->p [0] == 7) {
          cm_modclass_f_eval_quad (mc, rop, Q.a, Q.b, 1);
-         cmul_fr (rop, rop, mc.sqrt2_over2);
+         cmul_fr (rop, rop, mc.m.sqrt2);
+         cdiv_2ui (rop, rop, 1ul);
       }
       else if (param->p [0] == 2 || param->p [0] == 6) {
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b, 1);
          csqr (rop, rop);
-         cmul_fr (rop, rop, mc.sqrt2_over2);
+         cmul_fr (rop, rop, mc.m.sqrt2);
+         cdiv_2ui (rop, rop, 1ul);
       }
       else {
          /* param->p [0] == 4 */
          cm_modclass_f1_eval_quad (mc, rop, Q.a, Q.b, 1);
          cpow_ui (rop, rop, 4ul);
-         cmul_fr (rop, rop, mc.sqrt2_over4);
+         cmul_fr (rop, rop, mc.m.sqrt2);
+         cdiv_2ui (rop, rop, 2ul);
       }
 
       if (param->d % 3 == 0)
