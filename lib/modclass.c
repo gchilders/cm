@@ -65,7 +65,7 @@ void cm_modclass_init (cm_modclass_t *mc, int_cl_t d, fprec_t prec,
    mc->eta = (ctype *) malloc (mc->cl.h * sizeof (ctype));
    /* Initialise only one out of two eta conjugates for inverse forms. */
    for (i = 0; i < mc->cl.h; i++)
-      if (mc->cl.conj [i] >= i)
+      if (mc->cl.form [i].b >= 0)
          cinit (mc->eta [i], prec);
    compute_eta (mc->m, mc->cl, mc->root, mc->eta, verbose);
 
@@ -81,7 +81,7 @@ void cm_modclass_clear (cm_modclass_t *mc)
 
    fclear (mc->root);
    for (i = 0; i < mc->cl.h; i++)
-      if (mc->cl.conj [i] >= i)
+      if (mc->cl.form [i].b >= 0)
          cclear (mc->eta [i]);
    free (mc->eta);
 
@@ -123,7 +123,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    q_real = (ftype *) malloc (cl.h * sizeof (ftype));
 
    for (i = 0; i < cl.h; i++)
-      if (cl.conj [i] >= i)
+      if (cl.form [i].b >= 0)
          finit (q_real [i], m.prec);
 
    cm_timer_start (clock2);
@@ -156,14 +156,14 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    for (i = 0; i < cl.h; i++) {
       /* Compute q_real only for the first form in each pair of
          inverse forms. */
-      if (cl.conj [order [i]] >= order [i]) {
+      if (cl.form [order [i]].b >= 0) {
          /* Check whether the current A is a divisor of a previous one;
             if yes, choose the closest one. Since the B are ordered
             increasingly, we find a non-negative one, corresponding to an
             element that has been computed. */
          for (j = i-1;
               j >= 0 &&
-                 (cl.conj [order [j]] < order [j]
+                 (cl.form [order [j]].b < 0
                   || cl.form [order [j]].a % cl.form [order [i]].a != 0);
               j--);
          if (j >= 0) {
@@ -230,7 +230,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    /* put q24 [] = exp (- pi/24 i / A_red), i.e. the primitive root  */
    /* of unity                                                       */
    for (i = cl.h - 1; i >= 0; i--) {
-      if (cl.conj [order [i]] >= order [i]) {
+      if (cl.form [order [i]].b >= 0) {
          /* Check whether the current A is a divisor of a higher one;
             if so, take the higher one which is closest and thus yields
             the lowest quotient.
@@ -239,7 +239,7 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
             this one is chosen; otherwise we need to exclude it. */
          for (j = i+1;
               j < cl.h &&
-                 (cl.conj [order [j]] < order [j]
+                 (cl.form [order [j]].b < 0
                   || A_red [order [j]] % A_red [order [i]] != 0);
               j++);
          if (j < cl.h) {
@@ -276,19 +276,18 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    counter1 = 0;
    counter2 = 0;
    for (i = cl.h - 1; i >= 0; i--)
-      if (cl.conj [order [i]] >= order [i]) {
+      if (cl.form [order [i]].b >= 0) {
          if (B_red [order [i]] == 0)
             cset_ui_ui (q24 [order [i]], 1ul, 0ul);
          else if (B_red [order [i]] > 1) {
             /* Check whether the current B is a multiple of a previous one with */
             /* the same A; if so, take the previous one which is closest.       */
             for (j = i+1;
-                 j < cl.h && A_red [order [j]] == A_red [order [i]]
-                       && B_red [order [j]] > 0
-                       && B_red [order [i]] % B_red [order [j]] != 0;
+                 j < cl.h && (A_red [order [j]] != A_red [order [i]]
+                       || B_red [order [j]] <= 0
+                       || B_red [order [i]] % B_red [order [j]] != 0);
                  j++);
-            if (j < cl.h && A_red [order [j]] == A_red [order [i]]
-                && B_red [order [j]] > 0) {
+            if (j < cl.h) {
                if (B_red [order [i]] == B_red [order [j]])
                   cset (q24 [order [i]], q24 [order [j]]);
                else {
@@ -313,14 +312,14 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
 
    /* Compute the q^(1/24) in q24 */
    for (i = 0; i < cl.h; i++)
-      if (cl.conj [i] >= i)
+      if (cl.form [i].b >= 0)
          cmul_fr (q24 [i], q24 [i], q_real [i]);
    cm_timer_stop (clock2);
    if (verbose)
       printf ("- Time for q^(1/24):              %.1f\n", cm_timer_get (clock2));
 
    for (i = 0; i < cl.h; i++)
-      if (cl.conj [i] >= i)
+      if (cl.form [i].b >= 0)
          fclear (q_real [i]);
 
    free (A_red);
@@ -352,14 +351,14 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_start (clock1);
    q24 = (ctype *) malloc (cl.h * sizeof (ctype));
    for (i = 0; i < cl.h; i++)
-      if (cl.conj [i] >= i)
+      if (cl.form [i].b >= 0)
          cinit (q24 [i], prec);
 
    compute_q24 (m, cl, root, q24, verbose);
 
    cm_timer_start (clock2);
    for (i = 0; i < cl.h; i++) {
-      if (cl.conj [i] >= i)
+      if (cl.form [i].b >= 0)
          cm_modular_eta_series (m, eta [i], q24 [i]);
       if (verbose && i % 200 == 0) {
          printf (".");
@@ -373,7 +372,7 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_stop (clock2);
 
    for (i = 0; i < cl.h; i++)
-      if (cl.conj [i] >= i)
+      if (cl.form [i].b >= 0)
          cclear (q24 [i]);
    free (q24);
 

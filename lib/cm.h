@@ -151,10 +151,6 @@ typedef struct {
    cm_form_t *form;
       /* contains a set of representatives of quadratic forms of             */
       /* discriminant d.                                                     */
-   int *conj;
-      /* references how the forms in form are related by "conjugation",
-         that is, negation; conj [i] == j if and only if form [j] is the
-         inverse of form [i] */
    int h;
       /* the class number */
    int levels;

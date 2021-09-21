@@ -117,7 +117,6 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
    for (i = 0; i < length; i++)
       cl->h *= ord [i];
    cl->form = (cm_form_t *) malloc (cl->h * sizeof (cm_form_t));
-   cl->conj = (int *) malloc (cl->h * sizeof (int));
    if (verbose)
       printf ("Class number: h = %d\n", cl->h);
 
@@ -145,19 +144,6 @@ void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc, bool verbose)
       }
       h *= ord [i];
    }
-
-   /* Pair up inverse forms. */
-   for (i = 0; i < cl->h; i++) {
-      for (j = i;
-           j < cl->h && cl->form [j].b != -cl->form [i].b;
-           j++);
-      if (j == cl->h || cl->form [i].b == 0)
-         cl->conj [i] = i;
-      else {
-         cl->conj [i] = j;
-         cl->conj [j] = i;
-      }
-   }
 }
 
 /*****************************************************************************/
@@ -166,7 +152,6 @@ void cm_classgroup_clear (cm_classgroup_t *cl)
 
 {
    free (cl->form);
-   free (cl->conj);
    free (cl->deg);
 }
 
