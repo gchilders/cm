@@ -45,8 +45,8 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   fprec_t prec, bool verbose)
+void cm_modclass_init (cm_modclass_t *mc, int_cl_t d, fprec_t prec,
+   bool verbose)
 
 {
    int i;
@@ -55,17 +55,17 @@ void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
    mpz_init (tmp_z);
 
    cm_modular_init (&(mc->m), prec);
-   mc->cl = cl;
+   cm_classgroup_init (&(mc->cl), d, false);
 
    finit (mc->root, prec);
-   cm_classgroup_mpz_set_icl (tmp_z, -cl.d);
+   cm_classgroup_mpz_set_icl (tmp_z, -d);
    fset_z (mc->root, tmp_z);
    fsqrt (mc->root, mc->root);
 
    mc->eta = (ctype *) malloc (mc->cl.h * sizeof (ctype));
    /* Initialise only one out of two eta conjugates for inverse forms. */
    for (i = 0; i < mc->cl.h; i++)
-      if (cl.conj [i] >= i)
+      if (mc->cl.conj [i] >= i)
          cinit (mc->eta [i], prec);
    compute_eta (mc->m, mc->cl, mc->root, mc->eta, verbose);
 
@@ -86,6 +86,7 @@ void cm_modclass_clear (cm_modclass_t *mc)
    free (mc->eta);
 
    cm_modular_clear (&(mc->m));
+   cm_classgroup_clear (&(mc->cl));
 }
 
 

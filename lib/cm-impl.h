@@ -148,8 +148,8 @@ extern int cm_classgroup_normalseries (int_cl_t disc, int_cl_t *ramified,
 /* functions for evaluating modular functions at quadratic integers via
    precomputations */
 
-extern void cm_modclass_init (cm_modclass_t *mc, cm_classgroup_t cl,
-   fprec_t prec, bool verbose);
+extern void cm_modclass_init (cm_modclass_t *mc, int_cl_t d, fprec_t prec,
+   bool verbose);
 extern void cm_modclass_clear (cm_modclass_t *mc);
 
 extern void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m,

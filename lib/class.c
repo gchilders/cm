@@ -680,7 +680,7 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
       if (conj [i] >= i)
          cinit (conjugate [i], prec);
    cm_timer_start (clock_local);
-   cm_modclass_init (&mc, c->cl, prec, verbose);
+   cm_modclass_init (&mc, c->cl.d, prec, verbose);
    compute_conjugates (conjugate, nsystem, conj, param, c, mc, verbose);
    cm_modclass_clear (&mc);
    cm_timer_stop (clock_local);
