@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
             : mpz_add_ui (c, a, (unsigned long int) (-b))
 
 static int form_cmp (const void *f1, const void *f2);
+static int form_search (cm_form_t form, cm_form_t *table, int length);
 static void cm_modclass_cset_quadratic (ctype rop, int_cl_t a, int_cl_t b,
    ftype root);
 static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
@@ -124,6 +125,36 @@ static int form_cmp (const void *f1, const void *f2)
       return +1;
    else
       return 0;
+}
+
+/*****************************************************************************/
+
+static int form_search (cm_form_t form, cm_form_t *table, int length)
+   /* Look for form in the sorted array table of the given length. If it
+      is found, then its index is returned, otherwise, -1 is returned. */
+{
+   int mid, cmp;
+
+   if (length == 0)
+      return -1;
+   else if (length == 1) {
+      if (form_cmp (&form, table) == 0)
+         return 0;
+      else
+         return -1;
+   }
+   else {
+      mid = length / 2;
+      cmp = form_cmp (&form, table + mid);
+      if (cmp == 0)
+         return mid;
+      else if (cmp < 0)
+         return form_search (form, table, mid);
+      else {
+         mid++;
+         return mid + form_search (form, table + mid, length - mid);
+      }
+   }
 }
 
 /*****************************************************************************/
@@ -362,35 +393,33 @@ static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
       Return 0 if op itself is already in the fundamental domain,
       1 otherwise. */
 {
-   int_cl_t    a_local, b_local;
+   cm_form_t   form;
    int         transformed, i, sign;
    cm_matrix_t M;
 
-   a_local = a;
-   b_local = b;
-   cm_modclass_fundamental_domain_quad (mc.d, &a_local, &b_local, &M);
-   cm_modclass_cset_quadratic (czplusd, a_local, b_local, mc.root);
+   form.a = a;
+   form.b = b;
+   cm_modclass_fundamental_domain_quad (mc.d, &(form.a), &(form.b), &M);
+   cm_modclass_cset_quadratic (czplusd, form.a, form.b, mc.root);
    transformed = cm_modular_eta_transform (e, czplusd, czplusd, M);
 
-   /* look up the eta value */
-   if (b_local < 0) {
-      b_local = -b_local;
+   /* Try to look up the eta value. */
+   if (form.b < 0) {
+      form.b = -form.b;
       sign = -1;
    }
    else
       sign = 1;
-   for (i = 0;
-      i < mc.h12 && (mc.form [i].a != a_local || mc.form [i].b != b_local);
-      i++);
-   if (i == mc.h12) {
-      /* eta value not found, compute it. May happen when the level of the   */
-      /* modular function and the conductor have a common factor. This case  */
-      /* is rare, and the following computations are not optimised.          */
+   i = form_search (form, mc.form, mc.h12);
+   if (i == -1) {
+      /* The eta value was not found, which may happen when the level of
+         the modular function and the conductor have a common factor. This
+         case is rare, and the following computations are not optimised. */
       printf ("Q");
       if (sign == 1)
-         cm_modclass_cset_quadratic (rop, a_local, b_local, mc.root);
+         cm_modclass_cset_quadratic (rop, form.a, form.b, mc.root);
       else
-         cm_modclass_cset_quadratic (rop, a_local, -b_local, mc.root);
+         cm_modclass_cset_quadratic (rop, form.a, -form.b, mc.root);
       cm_modular_eta_eval (mc.m, rop, rop);
    }
    else {
