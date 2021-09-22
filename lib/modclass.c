@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
    (b >= 0) ? mpz_sub_ui (c, a, (unsigned long int) b) \
             : mpz_add_ui (c, a, (unsigned long int) (-b))
 
+static int form_cmp (const void *f1, const void *f2);
 static void cm_modclass_cset_quadratic (ctype rop,
    int_cl_t a, int_cl_t b, ftype root);
 static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
@@ -75,6 +76,7 @@ void cm_modclass_init (cm_modclass_t *mc, int_cl_t d, fprec_t prec,
       mc->h12 * sizeof (cm_form_t));
    mc->eta = (ctype *) realloc (mc->eta, mc->h12 * sizeof (ctype));
    cm_classgroup_clear (&cl);
+   qsort (mc->form, mc->h12, sizeof (cm_form_t), form_cmp);
 
    compute_eta (*mc, verbose);
 
@@ -97,6 +99,32 @@ void cm_modclass_clear (cm_modclass_t *mc)
    cm_modular_clear (&(mc->m));
 }
 
+/*****************************************************************************/
+/*                                                                           */
+/* Functions for comparing and sorting quadratic forms.                      */
+/*                                                                           */
+/*****************************************************************************/
+
+static int form_cmp (const void *f1, const void *f2)
+   /* All considered forms have a positive a and a non-negative b; they
+      are sorted by increasing a and, for the same a, by decreasing b. */
+{
+   cm_form_t F1, F2;
+
+   F1 = *((cm_form_t *) f1);
+   F2 = *((cm_form_t *) f2);
+
+   if (F1.a < F2.a)
+      return -1;
+   else if (F1.a > F2.a)
+      return +1;
+   else if (F1.b > F2.b)
+      return -1;
+   else if (F1.b < F2.b)
+      return +1;
+   else
+      return 0;
+}
 
 /*****************************************************************************/
 /*                                                                           */
@@ -105,17 +133,13 @@ void cm_modclass_clear (cm_modclass_t *mc)
 /*****************************************************************************/
 
 static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
-   /* Computes the q^(1/24) for all forms of cl with non-negative b;
-      root contains sqrt(-d). */
+   /* Compute the q^(1/24) for all forms in mc and return them in q24. */
 {
-   int i, j, tmp_int;
-   int_cl_t tmp_cli;
+   int i, j;
    ftype Pi24, Pi24_root, tmp;
    ftype *q_real;
-   int_cl_t *A_red, *B_red;
-   int *order;
-   cm_timer  clock2, clock3;
-   int    counter1, counter2;
+   cm_timer clock2, clock3;
+   int counter1, counter2;
 
    finit (Pi24, mc.m.prec);
    finit (Pi24_root, mc.m.prec);
@@ -123,137 +147,44 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
 
    fdiv_ui (Pi24, mc.m.pi, 24ul);
    fmul (Pi24_root, mc.root, Pi24);
-
-   A_red = (int_cl_t *) malloc (mc.h12 * sizeof (int_cl_t));
-   B_red = (int_cl_t *) malloc (mc.h12 * sizeof (int_cl_t));
-   order = (int *) malloc (mc.h12 * sizeof (int));
-   q_real = (ftype *) malloc (mc.h12 * sizeof (ftype));
-
-   for (i = 0; i < mc.h12; i++)
-      finit (q_real [i], mc.m.prec);
+   fneg (Pi24_root, Pi24_root);
 
    cm_timer_start (clock2);
-   /* precompute the absolute values of q^{1/24}, i.e. the */
-   /* exp (- pi/24 * \sqrt (|d|) / A) for the occurring A  */
+   /* Compute in q_real the absolute values of q^{1/24}, i.e. the
+      exp (- pi/24 * \sqrt (|d|) / a) for the occurring a,
+      and at the same time in q24 the roots of unity
+      exp (pi/24 * I / a). */
    cm_timer_start (clock3);
    counter1 = 0;
    counter2 = 0;
-
-   /* Sort the forms by insertion by decreasing A, then by increasing B;
-      the variable order keeps track of the permutation: So order [0] = j
-      means that the A in form j has the largest A, and so on. */
+   q_real = (ftype *) malloc (mc.h12 * sizeof (ftype));
    for (i = 0; i < mc.h12; i++)
-      order [i] = i;
-   for (i = 0; i < mc.h12 - 1; i++) {
-      /* Look for the form with the largest A, and among these for the
-         one with the smallest B. */
-      tmp_int = i;
-      for (j = tmp_int + 1; j < mc.h12; j++)
-         if (mc.form [order [j]].a > mc.form [order [tmp_int]].a
-             || (   mc.form [order [j]].a == mc.form [order [tmp_int]].a
-                 && mc.form [order [j]].b < mc.form [order [tmp_int]].b))
-            tmp_int = j;
-      /* Swap the element with the found one. */
-      j = order [i];
-      order [i] = order [tmp_int];
-      order [tmp_int] = j;
-   }
-
-   for (i = 0; i < mc.h12; i++) {
-      /* Check whether the current A is a divisor of a previous one;
-         if yes, choose the closest one. Since the B are ordered
-         increasingly, we find a non-negative one, corresponding to an
-         element that has been computed. */
-      for (j = i-1;
-           j >= 0 && mc.form [order [j]].a % mc.form [order [i]].a != 0;
-           j--);
-      if (j >= 0) {
-         if (mc.form [order [i]].a == mc.form [order [j]].a)
-            fset (q_real [order [i]], q_real [order [j]]);
-         else {
-            counter1++;
-            fpow_ui (q_real [order [i]], q_real [order [j]],
-                         mc.form [order [j]].a / mc.form [order [i]].a);
-         }
-      }
-      else {
-         counter1++;
-         counter2++;
-         fdiv_ui (q_real [order [i]], Pi24_root, mc.form [order [i]].a);
-         fneg (q_real [order [i]], q_real [order [i]]);
-         fexp (q_real [order [i]], q_real [order [i]]);
-      }
-   }
-   if (verbose && i % 200 == 0) {
-      printf (".");
-      fflush (stdout);
-   }
-   cm_timer_stop (clock3);
-   if (verbose) {
-      printf ("\n- Number of distinct A:           %d\n", counter1);
-      printf ("- Number of exp:                  %d\n", counter2);
-      printf ("- Time for exp:                   %.1f\n", cm_timer_get (clock3));
-   }
-
-   /* precompute the arguments of q^{1/24}, i.e. the
-      exp (- i pi/24 * B / A) for the occurring A, B
-      Write B / A = B_red / A_red with coprime (B_red, A_red).
-      Then order the forms with respect to increasing A_red, and for the
-      same A_red with respect to decreasing B_red: This ensures that forms
-      with a positive B come before their inverse. */
-   cm_timer_start (clock3);
-   counter1 = 0;
-   counter2 = 0;
-   for (i = 0; i < mc.h12; i++) {
-      tmp_cli = cm_classgroup_gcd (mc.form [i].a, mc.form [i].b);
-      A_red [i] = mc.form [i].a / tmp_cli;
-      B_red [i] = mc.form [i].b / tmp_cli;
-      order [i] = i;
-   }
-
-   /* sort by insertion */
-   for (i = 0; i < mc.h12 - 1; i++) {
-      /* Look for the form with the smallest A, and among these for the
-         one with the largest B. */
-      tmp_int = i;
-      for (j = tmp_int + 1; j < mc.h12; j++)
-         if (A_red [order [j]] < A_red [order [tmp_int]]
-             || (   A_red [order [j]] == A_red [order [tmp_int]]
-                 && B_red [order [j]] > B_red [order [tmp_int]]))
-            tmp_int = j;
-      /* Swap the element with the found one. */
-      j = order [i];
-      order [i] = order [tmp_int];
-      order [tmp_int] = j;
-   }
-
-   /* put q24 [] = exp (- pi/24 i / A_red), i.e. the primitive root  */
-   /* of unity                                                       */
+      finit (q_real [i], mc.m.prec);
    for (i = mc.h12 - 1; i >= 0; i--) {
-      /* Check whether the current A is a divisor of a higher one;
-         if so, take the higher one which is closest and thus yields
-         the lowest quotient.
-         Notice that the A's are in increasing order and the B's
-         decreasing: So if there is a form with a non-negative B,
-         this one is chosen; otherwise we need to exclude it. */
+      /* Check whether the current a is a divisor of a previous one.
+         Then the q-values can be computed by an exponentiation. The
+         exponent is minimised by choosing the closest a that is divided. */
       for (j = i+1;
-           j < mc.h12 && A_red [order [j]] % A_red [order [i]] != 0;
+           j < mc.h12 && mc.form [j].a % mc.form [i].a != 0;
            j++);
       if (j < mc.h12) {
-         if (A_red [order [i]] == A_red [order [j]])
-            cset (q24 [order [i]], q24 [order [j]]);
+         if (mc.form [i].a == mc.form [j].a) {
+            fset (q_real [i], q_real [j]);
+            cset (q24 [i], q24 [j]);
+         }
          else {
             counter1++;
-            cpow_ui (q24 [order [i]], q24 [order [j]],
-               (unsigned long int) (A_red [order [j]] / A_red [order [i]]));
+            fpow_ui (q_real [i], q_real [j], mc.form [j].a / mc.form [i].a);
+            cpow_ui (q24 [i], q24 [j], mc.form [j].a / mc.form [i].a);
          }
       }
       else {
          counter1++;
          counter2++;
-         fdiv_ui (tmp, Pi24, A_red [order [i]]);
-         fsin_cos (q24 [order [i]]->im, q24 [order [i]]->re,
-                       tmp);
+         fdiv_ui (q_real [i], Pi24_root, mc.form [i].a);
+         fexp (q_real [i], q_real [i]);
+         fdiv_ui (tmp, Pi24, mc.form [i].a);
+         fsin_cos (q24 [i]->im, q24 [i]->re, tmp);
       }
    }
    if (verbose && i % 200 == 0) {
@@ -262,60 +193,32 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
    }
    cm_timer_stop (clock3);
    if (verbose) {
-      printf ("\n- Number of distinct A_red:       %d\n", counter1);
-      printf ("- Number of sin/cos:              %d\n", counter2);
-      printf ("- Time for sin/cos:               %.1f\n", cm_timer_get (clock3));
+      printf ("\n- Number of distinct A:  %d\n", counter1);
+      printf ("- Number of exp/sin_cos: %d\n", counter2);
+      printf ("- Time for exp/sin_cos:  %.1f\n",
+         cm_timer_get (clock3));
    }
 
-   /* now raise to the power B_red */
+   /* Raise the roots of unity in q24 to the powers b. */
    cm_timer_start (clock3);
-   counter1 = 0;
-   counter2 = 0;
-   for (i = mc.h12 - 1; i >= 0; i--)
-      if (B_red [order [i]] == 0)
-         cset_ui_ui (q24 [order [i]], 1ul, 0ul);
-      else if (B_red [order [i]] > 1) {
-         /* Check whether the current B is a multiple of a previous one with */
-         /* the same A; if so, take the previous one which is closest.       */
-         for (j = i+1;
-              j < mc.h12 && (A_red [order [j]] != A_red [order [i]]
-                    || B_red [order [i]] % B_red [order [j]] != 0);
-              j++);
-         if (j < mc.h12) {
-            if (B_red [order [i]] == B_red [order [j]])
-               cset (q24 [order [i]], q24 [order [j]]);
-            else {
-               counter1++;
-               cpow_ui (q24 [order [i]], q24 [order [j]],
-                           B_red [order [i]] / B_red [order [j]]);
-            }
-         }
-         else {
-            counter2++;
-            cpow_ui (q24 [order[i]], q24 [order [i]],
-                        B_red [order [i]]);
-         }
-      }
+   for (i = 0; i < mc.h12; i++)
+      if (mc.form [i].b == 0)
+         cset_ui_ui (q24 [i], 1ul, 0ul);
+      else if (mc.form [i].b > 1)
+         cpow_ui (q24 [i], q24 [i], (unsigned long int) mc.form [i].b);
    cm_timer_stop (clock3);
-   if (verbose) {
-      printf ("- Number of partial powers:       %d\n", counter1);
-      printf ("- Number of total powers:         %d\n", counter2);
-      printf ("- Time for powers:                %.1f\n", cm_timer_get (clock3));
-   }
+   printf ("- Time for B powers:     %.1f\n", cm_timer_get (clock3));
 
    /* Compute the q^(1/24) in q24 */
    for (i = 0; i < mc.h12; i++)
       cmul_fr (q24 [i], q24 [i], q_real [i]);
+
    cm_timer_stop (clock2);
    if (verbose)
-      printf ("- Time for q^(1/24):              %.1f\n", cm_timer_get (clock2));
+      printf ("- Time for q^(1/24):     %.1f\n", cm_timer_get (clock2));
 
    for (i = 0; i < mc.h12; i++)
       fclear (q_real [i]);
-
-   free (A_red);
-   free (B_red);
-   free (order);
    free (q_real);
 
    fclear (Pi24);
@@ -353,8 +256,7 @@ static void compute_eta (cm_modclass_t mc, bool verbose)
    }
    cm_timer_stop (clock2);
    if (verbose)
-      printf ("\n- Time for series:                %.1f",
-               cm_timer_get (clock2));
+      printf ("\n- Time for series:       %.1f", cm_timer_get (clock2));
    cm_timer_stop (clock2);
 
    for (i = 0; i < mc.h12; i++)
@@ -363,8 +265,7 @@ static void compute_eta (cm_modclass_t mc, bool verbose)
 
    cm_timer_stop (clock1);
    if (verbose)
-      printf ("\n- Time for eta:                   %.1f\n",
-              cm_timer_get (clock1));
+      printf ("\n- Time for eta:          %.1f\n", cm_timer_get (clock1));
 }
 
 /*****************************************************************************/
