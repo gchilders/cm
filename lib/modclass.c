@@ -30,12 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static void cm_modclass_cset_quadratic (ctype rop,
    int_cl_t a, int_cl_t b, ftype root);
 static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
-   ctype czplusd, cm_modular_t m, cm_classgroup_t cl,
-   ctype *eta, int_cl_t a, int_cl_t b, ftype root);
-static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *q24, bool verbose);
-static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *eta, bool verbose);
+   ctype czplusd, cm_modclass_t mc, int_cl_t a, int_cl_t b);
+static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose);
+static void compute_eta (cm_modclass_t mc, bool verbose);
 static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
    ctype rop_den, int_cl_t a, int_cl_t b, const int *p);
 
@@ -51,23 +48,31 @@ void cm_modclass_init (cm_modclass_t *mc, int_cl_t d, fprec_t prec,
 {
    int i;
    mpz_t tmp_z;
+   cm_classgroup_t cl;
 
    mpz_init (tmp_z);
 
    cm_modular_init (&(mc->m), prec);
-   cm_classgroup_init (&(mc->cl), d, false);
 
+   mc->d = d;
    finit (mc->root, prec);
    cm_classgroup_mpz_set_icl (tmp_z, -d);
    fset_z (mc->root, tmp_z);
    fsqrt (mc->root, mc->root);
 
-   mc->eta = (ctype *) malloc (mc->cl.h * sizeof (ctype));
-   /* Initialise only one out of two eta conjugates for inverse forms. */
-   for (i = 0; i < mc->cl.h; i++)
-      if (mc->cl.form [i].b >= 0)
+   cm_classgroup_init (&cl, d, false);
+   mc->h12 = cl.h; /* TODO: Replace by the real h12 and shorten arrays. */
+   mc->form = (cm_form_t *) malloc (cl.h * sizeof (cm_form_t));
+   mc->eta = (ctype *) malloc (cl.h * sizeof (ctype));
+   for (i = 0; i < mc->h12; i++) {
+      mc->form [i] = cl.form [i];
+      /* Initialise only one out of two eta conjugates for inverse forms. */
+      if (mc->form [i].b >= 0)
          cinit (mc->eta [i], prec);
-   compute_eta (mc->m, mc->cl, mc->root, mc->eta, verbose);
+   }
+   cm_classgroup_clear (&cl);
+
+   compute_eta (*mc, verbose);
 
    mpz_clear (tmp_z);
 }
@@ -80,13 +85,13 @@ void cm_modclass_clear (cm_modclass_t *mc)
    int i;
 
    fclear (mc->root);
-   for (i = 0; i < mc->cl.h; i++)
-      if (mc->cl.form [i].b >= 0)
+   for (i = 0; i < mc->h12; i++)
+      if (mc->form [i].b >= 0)
          cclear (mc->eta [i]);
    free (mc->eta);
+   free (mc->form);
 
    cm_modular_clear (&(mc->m));
-   cm_classgroup_clear (&(mc->cl));
 }
 
 
@@ -96,8 +101,7 @@ void cm_modclass_clear (cm_modclass_t *mc)
 /*                                                                           */
 /*****************************************************************************/
 
-static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *q24, bool verbose)
+static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
    /* Computes the q^(1/24) for all forms of cl with non-negative b;
       root contains sqrt(-d). */
 {
@@ -110,21 +114,21 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer  clock2, clock3;
    int    counter1, counter2;
 
-   finit (Pi24, m.prec);
-   finit (Pi24_root, m.prec);
-   finit (tmp, m.prec);
+   finit (Pi24, mc.m.prec);
+   finit (Pi24_root, mc.m.prec);
+   finit (tmp, mc.m.prec);
 
-   fdiv_ui (Pi24, m.pi, 24ul);
-   fmul (Pi24_root, root, Pi24);
+   fdiv_ui (Pi24, mc.m.pi, 24ul);
+   fmul (Pi24_root, mc.root, Pi24);
 
-   A_red = (int_cl_t *) malloc (cl.h * sizeof (int_cl_t));
-   B_red = (int_cl_t *) malloc (cl.h * sizeof (int_cl_t));
-   order = (int *) malloc (cl.h * sizeof (int));
-   q_real = (ftype *) malloc (cl.h * sizeof (ftype));
+   A_red = (int_cl_t *) malloc (mc.h12 * sizeof (int_cl_t));
+   B_red = (int_cl_t *) malloc (mc.h12 * sizeof (int_cl_t));
+   order = (int *) malloc (mc.h12 * sizeof (int));
+   q_real = (ftype *) malloc (mc.h12 * sizeof (ftype));
 
-   for (i = 0; i < cl.h; i++)
-      if (cl.form [i].b >= 0)
-         finit (q_real [i], m.prec);
+   for (i = 0; i < mc.h12; i++)
+      if (mc.form [i].b >= 0)
+         finit (q_real [i], mc.m.prec);
 
    cm_timer_start (clock2);
    /* precompute the absolute values of q^{1/24}, i.e. the */
@@ -136,16 +140,16 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    /* Sort the forms by insertion by decreasing A, then by increasing B;
       the variable order keeps track of the permutation: So order [0] = j
       means that the A in form j has the largest A, and so on. */
-   for (i = 0; i < cl.h; i++)
+   for (i = 0; i < mc.h12; i++)
       order [i] = i;
-   for (i = 0; i < cl.h - 1; i++) {
+   for (i = 0; i < mc.h12 - 1; i++) {
       /* Look for the form with the largest A, and among these for the
          one with the smallest B. */
       tmp_int = i;
-      for (j = tmp_int + 1; j < cl.h; j++)
-         if (cl.form [order [j]].a > cl.form [order [tmp_int]].a
-             || (   cl.form [order [j]].a == cl.form [order [tmp_int]].a
-                 && cl.form [order [j]].b < cl.form [order [tmp_int]].b))
+      for (j = tmp_int + 1; j < mc.h12; j++)
+         if (mc.form [order [j]].a > mc.form [order [tmp_int]].a
+             || (   mc.form [order [j]].a == mc.form [order [tmp_int]].a
+                 && mc.form [order [j]].b < mc.form [order [tmp_int]].b))
             tmp_int = j;
       /* Swap the element with the found one. */
       j = order [i];
@@ -153,32 +157,32 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
       order [tmp_int] = j;
    }
 
-   for (i = 0; i < cl.h; i++) {
+   for (i = 0; i < mc.h12; i++) {
       /* Compute q_real only for the first form in each pair of
          inverse forms. */
-      if (cl.form [order [i]].b >= 0) {
+      if (mc.form [order [i]].b >= 0) {
          /* Check whether the current A is a divisor of a previous one;
             if yes, choose the closest one. Since the B are ordered
             increasingly, we find a non-negative one, corresponding to an
             element that has been computed. */
          for (j = i-1;
               j >= 0 &&
-                 (cl.form [order [j]].b < 0
-                  || cl.form [order [j]].a % cl.form [order [i]].a != 0);
+                 (mc.form [order [j]].b < 0
+                  || mc.form [order [j]].a % mc.form [order [i]].a != 0);
               j--);
          if (j >= 0) {
-            if (cl.form [order [i]].a == cl.form [order [j]].a)
+            if (mc.form [order [i]].a == mc.form [order [j]].a)
                fset (q_real [order [i]], q_real [order [j]]);
             else {
                counter1++;
                fpow_ui (q_real [order [i]], q_real [order [j]],
-                            cl.form [order [j]].a / cl.form [order [i]].a);
+                            mc.form [order [j]].a / mc.form [order [i]].a);
             }
          }
          else {
             counter1++;
             counter2++;
-            fdiv_ui (q_real [order [i]], Pi24_root, cl.form [order [i]].a);
+            fdiv_ui (q_real [order [i]], Pi24_root, mc.form [order [i]].a);
             fneg (q_real [order [i]], q_real [order [i]]);
             fexp (q_real [order [i]], q_real [order [i]]);
          }
@@ -204,19 +208,19 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_start (clock3);
    counter1 = 0;
    counter2 = 0;
-   for (i = 0; i < cl.h; i++) {
-      tmp_cli = cm_classgroup_gcd (cl.form [i].a, cl.form [i].b);
-      A_red [i] = cl.form [i].a / tmp_cli;
-      B_red [i] = cl.form [i].b / tmp_cli;
+   for (i = 0; i < mc.h12; i++) {
+      tmp_cli = cm_classgroup_gcd (mc.form [i].a, mc.form [i].b);
+      A_red [i] = mc.form [i].a / tmp_cli;
+      B_red [i] = mc.form [i].b / tmp_cli;
       order [i] = i;
    }
 
    /* sort by insertion */
-   for (i = 0; i < cl.h - 1; i++) {
+   for (i = 0; i < mc.h12 - 1; i++) {
       /* Look for the form with the smallest A, and among these for the
          one with the largest B. */
       tmp_int = i;
-      for (j = tmp_int + 1; j < cl.h; j++)
+      for (j = tmp_int + 1; j < mc.h12; j++)
          if (A_red [order [j]] < A_red [order [tmp_int]]
              || (   A_red [order [j]] == A_red [order [tmp_int]]
                  && B_red [order [j]] > B_red [order [tmp_int]]))
@@ -229,8 +233,8 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
 
    /* put q24 [] = exp (- pi/24 i / A_red), i.e. the primitive root  */
    /* of unity                                                       */
-   for (i = cl.h - 1; i >= 0; i--) {
-      if (cl.form [order [i]].b >= 0) {
+   for (i = mc.h12 - 1; i >= 0; i--) {
+      if (mc.form [order [i]].b >= 0) {
          /* Check whether the current A is a divisor of a higher one;
             if so, take the higher one which is closest and thus yields
             the lowest quotient.
@@ -238,11 +242,11 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
             decreasing: So if there is a form with a non-negative B,
             this one is chosen; otherwise we need to exclude it. */
          for (j = i+1;
-              j < cl.h &&
-                 (cl.form [order [j]].b < 0
+              j < mc.h12 &&
+                 (mc.form [order [j]].b < 0
                   || A_red [order [j]] % A_red [order [i]] != 0);
               j++);
-         if (j < cl.h) {
+         if (j < mc.h12) {
             if (A_red [order [i]] == A_red [order [j]])
                cset (q24 [order [i]], q24 [order [j]]);
             else {
@@ -275,19 +279,19 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    cm_timer_start (clock3);
    counter1 = 0;
    counter2 = 0;
-   for (i = cl.h - 1; i >= 0; i--)
-      if (cl.form [order [i]].b >= 0) {
+   for (i = mc.h12 - 1; i >= 0; i--)
+      if (mc.form [order [i]].b >= 0) {
          if (B_red [order [i]] == 0)
             cset_ui_ui (q24 [order [i]], 1ul, 0ul);
          else if (B_red [order [i]] > 1) {
             /* Check whether the current B is a multiple of a previous one with */
             /* the same A; if so, take the previous one which is closest.       */
             for (j = i+1;
-                 j < cl.h && (A_red [order [j]] != A_red [order [i]]
+                 j < mc.h12 && (A_red [order [j]] != A_red [order [i]]
                        || B_red [order [j]] <= 0
                        || B_red [order [i]] % B_red [order [j]] != 0);
                  j++);
-            if (j < cl.h) {
+            if (j < mc.h12) {
                if (B_red [order [i]] == B_red [order [j]])
                   cset (q24 [order [i]], q24 [order [j]]);
                else {
@@ -311,15 +315,15 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
    }
 
    /* Compute the q^(1/24) in q24 */
-   for (i = 0; i < cl.h; i++)
-      if (cl.form [i].b >= 0)
+   for (i = 0; i < mc.h12; i++)
+      if (mc.form [i].b >= 0)
          cmul_fr (q24 [i], q24 [i], q_real [i]);
    cm_timer_stop (clock2);
    if (verbose)
       printf ("- Time for q^(1/24):              %.1f\n", cm_timer_get (clock2));
 
-   for (i = 0; i < cl.h; i++)
-      if (cl.form [i].b >= 0)
+   for (i = 0; i < mc.h12; i++)
+      if (mc.form [i].b >= 0)
          fclear (q_real [i]);
 
    free (A_red);
@@ -334,32 +338,29 @@ static void compute_q24 (cm_modular_t m, cm_classgroup_t cl, ftype root,
 
 /*****************************************************************************/
 
-static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
-   ctype *eta, bool verbose)
-   /* computes the values of the Dedekind eta function for all reduced forms */
-   /* of the class group cl and stores them in eta; the precision is taken   */
-   /* from eta [0], and root contains sqrt(-d).                              */
-
+static void compute_eta (cm_modclass_t mc, bool verbose)
+   /* Compute the values of the Dedekind eta function for all reduced forms
+      in mc and store them in mc. */
 {
    int i;
    cm_timer clock1;
-   fprec_t prec = cget_prec (eta [0]);
+   fprec_t prec = mc.m.prec;
 
    ctype *q24;
    cm_timer clock2;
 
    cm_timer_start (clock1);
-   q24 = (ctype *) malloc (cl.h * sizeof (ctype));
-   for (i = 0; i < cl.h; i++)
-      if (cl.form [i].b >= 0)
+   q24 = (ctype *) malloc (mc.h12 * sizeof (ctype));
+   for (i = 0; i < mc.h12; i++)
+      if (mc.form [i].b >= 0)
          cinit (q24 [i], prec);
 
-   compute_q24 (m, cl, root, q24, verbose);
+   compute_q24 (mc, q24, verbose);
 
    cm_timer_start (clock2);
-   for (i = 0; i < cl.h; i++) {
-      if (cl.form [i].b >= 0)
-         cm_modular_eta_series (m, eta [i], q24 [i]);
+   for (i = 0; i < mc.h12; i++) {
+      if (mc.form [i].b >= 0)
+         cm_modular_eta_series (mc.m, mc.eta [i], q24 [i]);
       if (verbose && i % 200 == 0) {
          printf (".");
          fflush (stdout);
@@ -371,8 +372,8 @@ static void compute_eta (cm_modular_t m, cm_classgroup_t cl, ftype root,
                cm_timer_get (clock2));
    cm_timer_stop (clock2);
 
-   for (i = 0; i < cl.h; i++)
-      if (cl.form [i].b >= 0)
+   for (i = 0; i < mc.h12; i++)
+      if (mc.form [i].b >= 0)
          cclear (q24 [i]);
    free (q24);
 
@@ -483,21 +484,18 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
 /*****************************************************************************/
 
 static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
-   ctype czplusd, cm_modular_t m, cm_classgroup_t cl,
-   ctype *eta, int_cl_t a, int_cl_t b, ftype root)
-   /* Transform the quadratic integer op = (b + sqrt (cl.d)) / (2a) into the
+   ctype czplusd, cm_modclass_t mc, int_cl_t a, int_cl_t b)
+   /* Assume that mc is initialised with the discriminant d and that the
+      corresponding eta values have been precomputed.
+      Transform the quadratic integer op = (b + sqrt (mc.d)) / (2a) into the
       element op1 in the fundamental domain.
-      Returns eta (op1) in rop and e and czplusd such that
+      Return eta (op1) in rop and e and czplusd such that
       eta (op) = zeta_24^e * sqrt (czplusd) * rop.
       This can be used to decide at a higher level what to do with the
       transformation data (for instance, if an even exponent is to be
       applied, the square root can be saved).
-      Returns 0 if op itself is already in the fundamental domain,
-      1 otherwise.
-      root needs to be set to sqrt (|d|).
-      eta is a list of precomputed values, indexed in the same way as the
-      list of reduced quadratic forms in cl. */
-
+      Return 0 if op itself is already in the fundamental domain,
+      1 otherwise. */
 {
    int_cl_t    a_local, b_local;
    int         transformed, i, sign;
@@ -505,8 +503,8 @@ static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
 
    a_local = a;
    b_local = b;
-   cm_modclass_fundamental_domain_quad (cl.d, &a_local, &b_local, &M);
-   cm_modclass_cset_quadratic (czplusd, a_local, b_local, root);
+   cm_modclass_fundamental_domain_quad (mc.d, &a_local, &b_local, &M);
+   cm_modclass_cset_quadratic (czplusd, a_local, b_local, mc.root);
    transformed = cm_modular_eta_transform (e, czplusd, czplusd, M);
 
    /* look up the eta value */
@@ -517,24 +515,24 @@ static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
    else
       sign = 1;
    for (i = 0;
-      i < cl.h && (cl.form [i].a != a_local || cl.form [i].b != b_local);
+      i < mc.h12 && (mc.form [i].a != a_local || mc.form [i].b != b_local);
       i++);
-   if (i == cl.h) {
+   if (i == mc.h12) {
       /* eta value not found, compute it. May happen when the level of the   */
       /* modular function and the conductor have a common factor. This case  */
       /* is rare, and the following computations are not optimised.          */
       printf ("Q");
       if (sign == 1)
-         cm_modclass_cset_quadratic (rop, a_local, b_local, root);
+         cm_modclass_cset_quadratic (rop, a_local, b_local, mc.root);
       else
-         cm_modclass_cset_quadratic (rop, a_local, -b_local, root);
-      cm_modular_eta_eval (m, rop, rop);
+         cm_modclass_cset_quadratic (rop, a_local, -b_local, mc.root);
+      cm_modular_eta_eval (mc.m, rop, rop);
    }
    else {
       if (sign == 1)
-         cset (rop, eta [i]);
+         cset (rop, mc.eta [i]);
       else
-         cconj (rop, eta [i]);
+         cconj (rop, mc.eta [i]);
    }
 
    return (transformed);
@@ -546,26 +544,22 @@ static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m, cm_classgroup_t cl,
-   ctype *eta, int_cl_t a, int_cl_t b, ftype root)
+void cm_modclass_eta_eval_quad (cm_modclass_t mc, ctype rop,
+   int_cl_t a, int_cl_t b)
    /* Evaluate the eta function at the quadratic integer
-      (b + sqrt (cl.d)) / (2a)
-      root needs to be set to sqrt (|d|).
-      eta is a list of precomputed values, indexed in the same way as the
-      list of reduced quadratic forms in cl. */
-
+      (b + sqrt (mc.d)) / (2a). */
 {
    ctype    czplusd;
    long int e;
    int      transformed;
 
    cinit (czplusd, cget_prec (rop));
-   transformed = cm_modclass_eta_transform_eval_quad (rop, &e, czplusd, m, cl,
-      eta, a, b, root);
+   transformed = cm_modclass_eta_transform_eval_quad (rop, &e, czplusd, mc,
+      a, b);
    if (transformed) {
       csqrt (czplusd, czplusd);
       cmul (rop, rop, czplusd);
-      cmul (rop, rop, m.zeta24 [e]);
+      cmul (rop, rop, mc.m.zeta24 [e]);
    }
 }
 
@@ -574,7 +568,7 @@ void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m, cm_classgroup_t cl,
 void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, int e)
    /* Evaluate the Weber f-function, raised to the power e, at the quadratic
-     integer (b + sqrt (d)) / (2*a).
+     integer (b + sqrt (mc.d)) / (2*a).
      e may be 1 or 2. */
 
 {
@@ -586,17 +580,16 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    cinit (czplusd1, cget_prec (rop));
    cinit (czplusd2, cget_prec (rop));
 
-   cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc.m, mc.cl, 
-      mc.eta, a, b, mc.root);
+   cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc, a, b);
 
    /* The argument (z+1)/2 of the numerator corresponds to the quadratic
       form [2*a, b+2*a, (a+b+c)/2]. Here, (a+b+c)/2 need not be integral;
       if it is, the form need not be primitive any more, but may have a
       common divisor 2. */
-   c = a + b + cm_classgroup_compute_c (a, b, mc.cl.d);
+   c = a + b + cm_classgroup_compute_c (a, b, mc.d);
    if (c % 2 == 0 && (b % 2 != 0 || c % 4 != 0))
-         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m, mc.cl,
-            mc.eta, 2*a, b + 2*a, mc.root);
+         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc,
+            2*a, b + 2*a);
    else {
       ctype z;
       cinit (z, cget_prec (rop));
@@ -639,7 +632,7 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
 void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, int e)
    /* Evaluate the Weber f-function, raised to the power e, at the quadratic
-     integer (b + sqrt (d)) / (2*a).
+     integer (b + sqrt (mc.d)) / (2*a).
      e may be 1 or 2. */
 
 {
@@ -651,16 +644,15 @@ void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
    cinit (czplusd1, cget_prec (rop));
    cinit (czplusd2, cget_prec (rop));
 
-   cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc.m, mc.cl,
-      mc.eta, a, b, mc.root);
+   cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc, a, b);
 
    /* The argument z/2 of the numerator corresponds to the quadratic form
       [2*a, b, c/2]. Here, c/2 need not be integral; if it is, the form need
       not be primitive any more, but may have a common divisor 2. */
-   c = cm_classgroup_compute_c (a, b, mc.cl.d);
+   c = cm_classgroup_compute_c (a, b, mc.d);
    if (c % 2 == 0 && (b % 2 != 0 || c % 4 != 0))
-         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc.m,
-            mc.cl, mc.eta, 2*a, b, mc.root);
+         cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc,
+            2*a, b);
    else {
       ctype z;
       cinit (z, cget_prec (rop));
@@ -762,28 +754,24 @@ void cm_modclass_j_eval_quad (cm_modclass_t mc, ctype rop,
 
 static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
    ctype rop_den, int_cl_t a, int_cl_t b, const int *p)
-   /* Evaluates a multiple eta quotient, whose transformation degress are    */
-   /* given by the numbers in p, which is an array terminated by 0; the      */
-   /* result is given by rop_num / rop_den. This approach replaces complex   */
-   /* divisions by faster multiplications.                                   */
-   /* Assumes that p contains at least one number.                           */
-
+   /* Evaluate a multiple eta quotient, whose transformation degrees are
+      given by the numbers in p, a 0-terminated array with at least one
+      entry.
+      The result is given by rop_num / rop_den. This approach replaces
+      complex divisions by faster multiplications. */
 {
    if (p [1] == 0) {
-      /* simple eta quotient */
-      cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta, a * p [0], b,
-         mc.root);
-      cm_modclass_eta_eval_quad (rop_den, mc.m, mc.cl, mc.eta, a, b, mc.root);
+      /* Simple eta quotient. */
+      cm_modclass_eta_eval_quad (mc, rop_num, a * p [0], b);
+      cm_modclass_eta_eval_quad (mc, rop_den, a, b);
    }
    else if (p [2] == 0 && p [0] == p [1]) {
-      /* special, faster code for double eta quotients with twice the same   */
-      /* transformation degree                                               */
-      cm_modclass_eta_eval_quad (rop_den, mc.m, mc.cl, mc.eta, a, b, mc.root);
-      cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta,
-         a * p [0] * p [0], b, mc.root);
+      /* Special, faster code for double eta quotients with twice the same
+         transformation degree. */
+      cm_modclass_eta_eval_quad (mc, rop_den, a, b);
+      cm_modclass_eta_eval_quad (mc, rop_num, a * p [0] * p [0], b);
       cmul (rop_den, rop_den, rop_num);
-      cm_modclass_eta_eval_quad (rop_num, mc.m, mc.cl, mc.eta, a * p [0], b,
-         mc.root);
+      cm_modclass_eta_eval_quad (mc, rop_num, a * p [0], b);
       csqr (rop_num, rop_num);
    }
    else {
@@ -807,11 +795,9 @@ static void multieta_eval_quad_rec (cm_modclass_t mc, ctype rop_num,
 
 void cm_modclass_multieta_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, const int *p, int e)
-   /* Evaluates a multiple eta quotient, whose transformation degress are    */
-   /* given by the numbers in p, which is an array terminated by 0; the      */
-   /* quotient is additionally raised to the power e.                        */
-   /* Assumes that p contains at least one number.                           */
-
+   /* Evaluate a multiple eta quotient, whose transformation degrees are
+      given by the numbers in p, a 0-terminated array with at least one
+      entry. The quotient is additionally raised to the power e. */
 {
    ctype tmp;
 

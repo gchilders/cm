@@ -41,12 +41,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 typedef struct {
    cm_modular_t m;
-   cm_classgroup_t cl;
+   int_cl_t d;
+      /* discriminant */
+   int h12;
+      /* number of forms up to negation */
+   cm_form_t *form;
+      /* primitive quadratic forms of discriminant d up to negation */
    ftype root;
-      /* sqrt (-cl.d); */
+      /* sqrt (-d); */
    ctype *eta;
-      /* contains the values of eta with respect to the entries of
-         cl.form with the same row index. */
+      /* eta [i] contains the value of the Dedekind eta function in the
+         root of the quadratic form form [i]. */
 } cm_modclass_t;
 
 
@@ -152,8 +157,8 @@ extern void cm_modclass_init (cm_modclass_t *mc, int_cl_t d, fprec_t prec,
    bool verbose);
 extern void cm_modclass_clear (cm_modclass_t *mc);
 
-extern void cm_modclass_eta_eval_quad (ctype rop, cm_modular_t m,
-   cm_classgroup_t cl, ctype *eta, int_cl_t a, int_cl_t b, ftype root);
+extern void cm_modclass_eta_eval_quad (cm_modclass_t mc, ctype rop,
+   int_cl_t a, int_cl_t b);
 extern void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, int e);
 extern void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
