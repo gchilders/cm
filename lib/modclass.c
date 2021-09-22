@@ -28,8 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
             : mpz_add_ui (c, a, (unsigned long int) (-b))
 
 static int form_cmp (const void *f1, const void *f2);
-static void cm_modclass_cset_quadratic (ctype rop,
-   int_cl_t a, int_cl_t b, ftype root);
+static void cm_modclass_cset_quadratic (ctype rop, int_cl_t a, int_cl_t b,
+   ftype root);
 static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
    ctype czplusd, cm_modclass_t mc, int_cl_t a, int_cl_t b);
 static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose);
@@ -199,13 +199,17 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
          cm_timer_get (clock3));
    }
 
-   /* Raise the roots of unity in q24 to the powers b. */
+   /* Raise the roots of unity in q24 to the powers -b. */
    cm_timer_start (clock3);
    for (i = 0; i < mc.h12; i++)
       if (mc.form [i].b == 0)
          cset_ui_ui (q24 [i], 1ul, 0ul);
-      else if (mc.form [i].b > 1)
+      else if (mc.form [i].b == 1)
+         cconj (q24 [i], q24 [i]);
+      else {
          cpow_ui (q24 [i], q24 [i], (unsigned long int) mc.form [i].b);
+         cconj (q24 [i], q24 [i]);
+      }
    cm_timer_stop (clock3);
    printf ("- Time for B powers:     %.1f\n", cm_timer_get (clock3));
 
@@ -274,12 +278,11 @@ static void compute_eta (cm_modclass_t mc, bool verbose)
 /*                                                                           */
 /*****************************************************************************/
 
-static void cm_modclass_cset_quadratic (ctype rop,
-   int_cl_t a, int_cl_t b, ftype root)
-   /* sets rop to (b + i*root) / (2a)                                      */
-
+static void cm_modclass_cset_quadratic (ctype rop, int_cl_t a, int_cl_t b,
+   ftype root)
+   /* Set rop to (-b + i*root) / (2a). */
 {
-   fset_si (rop->re, b);
+   fset_si (rop->re, -b);
    fset (rop->im, root);
    cdiv_ui (rop, rop, 2*a);
 }
@@ -288,11 +291,11 @@ static void cm_modclass_cset_quadratic (ctype rop,
 
 static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
    int_cl_t *b, cm_matrix_t *M)
-      /* transforms (b + sqrt (d)) / (2a) into the fundamental domain and   */
-      /* returns the inverse transformation matrix M                        */
-      /* Unfortunately we have to compute internally with multiprecision;   */
-      /* although the final result fits into a long, intermediate results   */
-      /* can be quite large.                                                */
+      /* Transform (-b + sqrt (d)) / (2a) into the fundamental domain and
+         return the inverse transformation matrix M.
+         Unfortunately we have to compute internally with multiprecision;
+         although the final result fits into a long, intermediate results
+         can be quite large. */
 {
    bool reduced = false;
    static mpz_t a_local, b_local, b_minus_a, two_a, offset, c;
@@ -326,9 +329,9 @@ static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
       mpz_cdiv_q (offset, b_minus_a, two_a);
 
       tmp_int = mpz_get_si (offset);
-      /* multiply M from the right by T^{tmp_int} */
-      M->b += M->a * tmp_int;
-      M->d += M->c * tmp_int;
+      /* multiply M from the right by T^{-tmp_int} */
+      M->b -= M->a * tmp_int;
+      M->d -= M->c * tmp_int;
 
       mpz_mul (offset, offset, two_a);
       mpz_sub (b_local, b_local, offset);
@@ -372,8 +375,8 @@ static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
    ctype czplusd, cm_modclass_t mc, int_cl_t a, int_cl_t b)
    /* Assume that mc is initialised with the discriminant d and that the
       corresponding eta values have been precomputed.
-      Transform the quadratic integer op = (b + sqrt (mc.d)) / (2a) into the
-      element op1 in the fundamental domain.
+      Transform the quadratic integer op = (-b + sqrt (mc.d)) / (2a) into
+      the element op1 in the fundamental domain.
       Return eta (op1) in rop and e and czplusd such that
       eta (op) = zeta_24^e * sqrt (czplusd) * rop.
       This can be used to decide at a higher level what to do with the
@@ -431,8 +434,8 @@ static int cm_modclass_eta_transform_eval_quad (ctype rop, long int *e,
 
 void cm_modclass_eta_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b)
-   /* Evaluate the eta function at the quadratic integer
-      (b + sqrt (mc.d)) / (2a). */
+   /* Evaluate the eta function at the quadratic number
+      (-b + sqrt (mc.d)) / (2a). */
 {
    ctype    czplusd;
    long int e;
@@ -453,8 +456,8 @@ void cm_modclass_eta_eval_quad (cm_modclass_t mc, ctype rop,
 void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, int e)
    /* Evaluate the Weber f-function, raised to the power e, at the quadratic
-     integer (b + sqrt (mc.d)) / (2*a).
-     e may be 1 or 2. */
+      number (-b + sqrt (mc.d)) / (2*a).
+      e may be 1 or 2. */
 
 {
    ctype    rop1, czplusd1, czplusd2;
@@ -468,13 +471,13 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
    cm_modclass_eta_transform_eval_quad (rop1, &e1, czplusd1, mc, a, b);
 
    /* The argument (z+1)/2 of the numerator corresponds to the quadratic
-      form [2*a, b+2*a, (a+b+c)/2]. Here, (a+b+c)/2 need not be integral;
+      form [2*a, b-2*a, (a-b+c)/2]. Here, (a-b+c)/2 need not be integral;
       if it is, the form need not be primitive any more, but may have a
       common divisor 2. */
-   c = a + b + cm_classgroup_compute_c (a, b, mc.d);
+   c = a - b + cm_classgroup_compute_c (a, b, mc.d);
    if (c % 2 == 0 && (b % 2 != 0 || c % 4 != 0))
          cm_modclass_eta_transform_eval_quad (rop, &e2, czplusd2, mc,
-            2*a, b + 2*a);
+            2*a, b - 2*a);
    else {
       ctype z;
       cinit (z, cget_prec (rop));
@@ -517,8 +520,8 @@ void cm_modclass_f_eval_quad (cm_modclass_t mc, ctype rop,
 void cm_modclass_f1_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b, int e)
    /* Evaluate the Weber f-function, raised to the power e, at the quadratic
-     integer (b + sqrt (mc.d)) / (2*a).
-     e may be 1 or 2. */
+      number (-b + sqrt (mc.d)) / (2*a).
+      e may be 1 or 2. */
 
 {
    ctype    rop1, czplusd1, czplusd2;
@@ -594,8 +597,7 @@ void cm_modclass_gamma2_eval_quad (cm_modclass_t mc, ctype rop,
 
 void cm_modclass_gamma3_eval_quad (cm_modclass_t mc, ctype rop,
    int_cl_t a, int_cl_t b)
-   /* evaluates sqrt (d) * gamma3 */
-
+   /* Evaluate sqrt (d) * gamma3. */
 {
    ctype f, tmp;
    ftype tmp_fr;
