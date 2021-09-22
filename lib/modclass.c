@@ -426,6 +426,7 @@ void cm_modclass_eta_eval_quad (cm_modclass_t mc, ctype rop,
       cmul (rop, rop, czplusd);
       cmul (rop, rop, mc.m.zeta24 [e]);
    }
+   cclear (czplusd);
 }
 
 /*****************************************************************************/
