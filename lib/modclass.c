@@ -292,75 +292,52 @@ static void cm_modclass_cset_quadratic (ctype rop, int_cl_t a, int_cl_t b,
 static void cm_modclass_fundamental_domain_quad (int_cl_t d, int_cl_t *a,
    int_cl_t *b, cm_matrix_t *M)
       /* Transform (-b + sqrt (d)) / (2a) into the fundamental domain and
-         return the inverse transformation matrix M.
-         Unfortunately we have to compute internally with multiprecision;
-         although the final result fits into a long, intermediate results
-         can be quite large. */
+         return the inverse transformation matrix M. */
 {
    bool reduced = false;
-   static mpz_t a_local, b_local, b_minus_a, two_a, offset, c;
-   static bool first_time = true;
-   int_cl_t     tmp_int;
-
-   if (first_time)
-   {
-      mpz_init (a_local);
-      mpz_init (b_local);
-      mpz_init (b_minus_a);
-      mpz_init (two_a);
-      mpz_init (offset);
-      mpz_init (c);
-      first_time = false;
-   }
+   int_cl_t two_a, c, tmp;
 
    M->a = 1;
    M->b = 0;
    M->c = 0;
    M->d = 1;
-   cm_classgroup_mpz_set_icl (a_local, *a);
-   cm_classgroup_mpz_set_icl (b_local, *b);
 
    while (!reduced) {
-      /* obtain -a < b <= a                                                   */
-      /* basically, compute offset as b / (2a) rounded towards the closest    */
-      /* integer. If the quotient is exactly between two integers, round down */
-      mpz_sub (b_minus_a, b_local, a_local);
-      mpz_mul_2exp (two_a, a_local, 1);
-      mpz_cdiv_q (offset, b_minus_a, two_a);
+      /* Obtain -a < b <= a.
+         Compute b / (2a) rounded towards the closest integer.
+         If the quotient is exactly between two integers, round down.
+         Take into account that division in C rounds the quotient to 0. */
+      two_a = *a << 1;
+      if (*b >= 0)
+         tmp = (*b + *a - 1) / two_a;
+      else
+         tmp = (*b - *a) / two_a;
+      *b -= tmp * two_a;
 
-      tmp_int = mpz_get_si (offset);
-      /* multiply M from the right by T^{-tmp_int} */
-      M->b -= M->a * tmp_int;
-      M->d -= M->c * tmp_int;
+      /* Multiply M from the right by T^{-tmp}. */
+      M->b -= M->a * tmp;
+      M->d -= M->c * tmp;
 
-      mpz_mul (offset, offset, two_a);
-      mpz_sub (b_local, b_local, offset);
+      /* Compute c. */
+      c = cm_classgroup_compute_c (*a, *b, d);
 
-      /* compute c */
-      mpz_mul (c, b_local, b_local);
-      mpz_sub_si (c, c, d);
-      mpz_fdiv_q_2exp (c, c, 2);
-      mpz_divexact (c, c, a_local);
-      /* if not reduced, invert */
-      if (mpz_cmp (a_local, c) < 0 ||
-          (mpz_cmp (a_local, c) == 0 && mpz_sgn (b_local) >= 0))
+      /* If not reduced, invert and multiply M from the right by S. */
+      if (*a < c || (*a == c && *b >= 0))
          reduced = true;
       else {
-         mpz_set (a_local, c);
-         mpz_neg (b_local, b_local);
-         tmp_int = M->a;
+         *a = c;
+         *b = -(*b);
+         tmp = M->a;
          M->a = M->b;
-         M->b = -tmp_int;
-         tmp_int = M->c;
+         M->b = -tmp;
+         tmp = M->c;
          M->c = M->d;
-         M->d = -tmp_int;
+         M->d = -tmp;
          reduced = false;
       }
    }
 
-   *a = mpz_get_si (a_local);
-   *b = mpz_get_si (b_local);
-   /* normalise the matrix */
+   /* Normalise the matrix. */
    if (M->c < 0 || (M->c == 0 && M->d < 0)) {
       M->a = -M->a;
       M->b = -M->b;
