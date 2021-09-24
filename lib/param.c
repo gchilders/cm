@@ -355,9 +355,7 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
       Additionally consider the lower powers e given in Theorem 1 of
       [EnSc13] for p1 != p2, and none of them inert or dividing the
       conductor.
-      Minimise with respect to the height factor gained; then the
-      optimal primes are bounded above by the smallest split prime
-      that is 1 (mod 24).
+      Minimise with respect to the height factor gained.
       maxdeg has the same meaning as in cm_param_init; if set to -1, it is
       internally replaced by 2, in which case the modular curve
       X_0^+ (p1*p2) has genus 0; otherwise said, both roots of the modular
@@ -380,23 +378,13 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
    if (maxdeg == -1)
       maxdeg = 2;
 
-   /* Determine all non-inert primes up to maxprime or a split prime that
-      is 1 modulo 24, whichever comes first. */
+   /* Determine all non-inert primes up to maxprime. */
    length = 0;
-   p = 2;
-   ok = false;
-   do {
-      int kro = cm_nt_kronecker (d, (int_cl_t) p);
-      if (kro != -1) {
+   for (p = 2; p < maxprime; p = cm_nt_next_prime (p))
+      if (cm_nt_kronecker (d, (int_cl_t) p) != -1) {
          primelist [length] = p;
          length++;
       }
-      if (kro == 1 && (p - 1) % 24 == 0)
-         ok = true;
-      else
-         p = cm_nt_next_prime (p);
-   }
-   while (p <= maxprime && !ok);
 
    /* Search for the best tuple. */
    opt = 0.0;
