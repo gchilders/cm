@@ -741,7 +741,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    cm_param_t param, new_param;
    double hf, new_hf;
    cm_class_t c;
-   int i, j, k;
+   int i, j;
    cm_timer clock, clock2, clock3, clock4, clock5;
 
    mpz_init (t);
@@ -790,19 +790,25 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
          and from a limited number of invariants with modular
          polynomials. */
       /* First test the non-parametric invariants in the good order. */
-      if (   !cm_param_init (param, d, CM_INVARIANT_WEBER, 0, false)
+      if (   !cm_param_init (param, d, CM_INVARIANT_WEBER,
+                 CM_SUBFIELD_PREFERRED, 0, false)
           && !(((d - 1) % 8 == 0
-               && cm_param_init (param, 4*d, CM_INVARIANT_WEBER, 0, false)))
-          && !cm_param_init (param, d, CM_INVARIANT_GAMMA2, 0, false)
-          && !cm_param_init (param, d, CM_INVARIANT_GAMMA3, 0, false))
-          cm_param_init (param, d, CM_INVARIANT_J, 0, false);
+               && cm_param_init (param, 4*d, CM_INVARIANT_WEBER,
+                     0, CM_SUBFIELD_PREFERRED, false)))
+          && !cm_param_init (param, d, CM_INVARIANT_GAMMA2,
+                 0, CM_SUBFIELD_PREFERRED, false)
+          && !cm_param_init (param, d, CM_INVARIANT_GAMMA3,
+                 0, CM_SUBFIELD_PREFERRED, false))
+          cm_param_init (param, d, CM_INVARIANT_J,
+                 0, CM_SUBFIELD_PREFERRED, false);
       hf = cm_class_height_factor (param);
       /* Atkin invariants have excellent factors between 24 and 36, but
          the Hecke operators are slow to compute. So do not use them.
          Simple eta uses the best of the w_n^e with n one of
          3, 5, 7, 13, 4, 9 or 25, the values for which the modular
          polynomial has genus 0. */
-      if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA, 0, false)) {
+      if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA,
+             0, CM_SUBFIELD_PREFERRED, false)) {
          new_hf = cm_class_height_factor (new_param);
          if (new_hf > hf) {
             param [0] = new_param [0];
@@ -811,36 +817,23 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       }
       /* For double eta quotients, we limit the search to a degree
          of 2 in j. */
-      if (cm_param_init (new_param, d, CM_INVARIANT_DOUBLEETA, -1, false)) {
+      if (cm_param_init (new_param, d, CM_INVARIANT_DOUBLEETA,
+             -1, CM_SUBFIELD_PREFERRED, false)) {
          new_hf = cm_class_height_factor (new_param);
-         if (new_hf > hf
-             /* FIXME: This is a stop-gap-measure: In the ramified case, we
-                compute a subfield of index 2, which breaks the tower
-                decomposition, so we disable the invariant. We should
-                compute this subfield and gain a factor of about 4
-                instead. */
-             && d % (new_param->p [0] * new_param->p [1]) != 0) {
+         if (new_hf > hf) {
             param [0] = new_param [0];
             hf = new_hf;
          }
       }
       /* For multiple eta quotients, we limit the search to a degree
          of 4 in j. */
-      if (cm_param_init (new_param, d, CM_INVARIANT_MULTIETA, -1, false)) {
+      if (cm_param_init (new_param, d, CM_INVARIANT_MULTIETA,
+             -1, CM_SUBFIELD_NEVER, false)) {
+         /* TODO: Enable subfields. */
          new_hf = cm_class_height_factor (new_param);
          if (new_hf > hf) {
-            /* FIXME: As for the double eta quotients, we are in a subfield
-               of index at least 2 whenever at least two primes are
-               ramified, which breaks the tower decomposition. This should
-               be handled in the code. */
-            k = 0;
-            for (j = 0; new_param->p [j] != 0; j++)
-               if (d % new_param->p [j] == 0)
-                  k++;
-            if (k <= 1) {
-               param [0] = new_param [0];
-               hf = new_hf;
-            }
+            param [0] = new_param [0];
+            hf = new_hf;
          }
       }
 

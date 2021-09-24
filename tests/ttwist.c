@@ -43,7 +43,7 @@ static void test_curve (int_cl_t d, mpz_srcptr p, mpz_srcptr l,
    printf ("p="); mpz_out_str (stdout, 10, p); printf ("\n");
    printf ("l="); mpz_out_str (stdout, 10, l); printf ("\n");
    printf ("c="); mpz_out_str (stdout, 10, co); printf ("\n");
-   cm_param_init (param, d, CM_INVARIANT_J, 0, false);
+   cm_param_init (param, d, CM_INVARIANT_J, 0, CM_SUBFIELD_NEVER, false);
    cm_class_init (c, param, false);
    cm_class_compute (c, param, false, true, false);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,

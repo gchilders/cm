@@ -39,7 +39,8 @@ int main (int argc, char* argv [])
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 
-   if (!cm_param_init (param, d, invariant, 0, verbose))
+   if (!cm_param_init (param, d, invariant,
+      0, CM_SUBFIELD_NEVER, verbose))
       exit (1);
    cm_pari_init ();
    cm_class_init (c, param, verbose);

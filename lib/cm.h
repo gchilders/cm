@@ -61,6 +61,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_INVARIANT_MULTIETA  'm'
 #define CM_INVARIANT_ATKIN     'a'
 
+#define CM_SUBFIELD_NEVER     0
+#define CM_SUBFIELD_PREFERRED 1
+#define CM_SUBFIELD_OPTIMAL   2
+
 
 typedef struct {
    clock_t time_old;
@@ -275,7 +279,7 @@ extern void cm_modpol_print_magma (int level, char type, const char* datadir);
 
 /* functions concerned with CM parameters */
 extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
-   int maxdeg, bool verbose);
+   int maxdeg, int subfield, bool verbose);
 
 /* functions for class polynomials */
 extern void cm_pari_init (void);

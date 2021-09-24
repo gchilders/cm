@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static void param_string (char *str, cm_param_ptr param);
 static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
-static bool doubleeta_compute_parameter (cm_param_ptr param,
+static void doubleeta_compute_parameter (cm_param_ptr param,
    cm_param_ptr paramsf, int_cl_t d, int maxdeg);
 static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
    int maxdeg);
@@ -33,17 +33,27 @@ static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
 /*****************************************************************************/
 
 bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
-   int maxdeg, bool verbose)
+   int maxdeg, int subfield, bool verbose)
    /* Test whether the discriminant is suited for the chosen invariant and
       in this case compute and store the parameters in param and return
       true; otherwise return false.
       If it is positive, then maxdeg is an upper bound on the degree of
       the modular polynomial in j, which is taken into account for certain
       infinite families of class invariants. If maxdeg is set to -1, then
-      an internal bound is activated depending on the type of invariant. */
-
+      an internal bound is activated depending on the type of invariant.
+      subfield is one of the following three constants:
+      - CM_SUBFIELD_NEVER: Indicates that a generator of the class field
+        is desired.
+      - CM_SUBFIELD_PREFERRED: Indicates that whenever possible, a subfield
+        of minimal degree of the class field should be computed, even if
+        this leads to a worse height. This should be preferable for ECPP,
+        where most of the time is spent in factoring class polynomials.
+      - CM_SUBFIELD_OPTIMAL: Indicates that the smallest polynomial should
+        be computed, taking the degree and the height of the class
+        polynomial into account. */
 {
-   cm_param_t paramsf;
+   cm_param_t paramsf2;
+   double size, sizesf2;
 
    if (d >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -59,7 +69,7 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    param->field = CM_FIELD_REAL;
    param->r [0] = 0;
       /* Default choices; may be overwritten below. */
-   memcpy (paramsf, param, sizeof (__cm_param_struct));
+   memcpy (paramsf2, param, sizeof (__cm_param_struct));
 
    switch (invariant) {
       case CM_INVARIANT_J:
@@ -165,14 +175,43 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
             return false;
          break;
       case CM_INVARIANT_DOUBLEETA:
-         if (!doubleeta_compute_parameter (param, paramsf, d, maxdeg))
-            return false;
-         if (paramsf->r [0] != 0) {
-            param [0] = paramsf [0];
-            param->field = CM_FIELD_COMPLEX;
-               /* In reality the field is real, but identification of
-                  complex conjugate roots of the class polynomial has not
-                  yet been implemented. */
+         doubleeta_compute_parameter (param, paramsf2, d, maxdeg);
+         if (subfield == CM_SUBFIELD_NEVER) {
+            if (param->p [0] == 0)
+               return false;
+         }
+         else if (subfield == CM_SUBFIELD_PREFERRED) {
+            if (paramsf2->p [0] != 0) {
+               param [0] = paramsf2 [0];
+               param->field = CM_FIELD_COMPLEX;
+                  /* In reality the field is real, but identification of
+                     complex conjugate roots of the class polynomial has not
+                     yet been implemented. */
+            }
+            else if (param->p [0] == 0)
+               return false;
+         }
+         else /* CM_SUBFIELD_OPTIMAL */ {
+            if (param->p [0] == 0)
+               if (paramsf2->p [0] == 0)
+                  return false;
+               else {
+                  param [0] = paramsf2 [0];
+                  param->field = CM_FIELD_COMPLEX; /* should be real */
+               }
+            else if (paramsf2->p [0] != 0) {
+               size = cm_class_height_factor (param);
+               sizesf2 = 2 * cm_class_height_factor (paramsf2);
+                  /* The computed height already takes into account that the
+                     size of the coefficients is divided by about 2; the
+                     additional factor 2 takes the degree halving into
+                     account, so that the total size of the class polynomial
+                     is measured. */
+               if (sizesf2 > size) {
+                  param [0] = paramsf2 [0];
+                  param->field = CM_FIELD_COMPLEX; /* should be real */
+               }
+            }
          }
          break;
       case CM_INVARIANT_MULTIETA:
@@ -353,7 +392,7 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
 
 /*****************************************************************************/
 
-static bool doubleeta_compute_parameter (cm_param_ptr param,
+static void doubleeta_compute_parameter (cm_param_ptr param,
    cm_param_ptr paramsf, int_cl_t d, int maxdeg)
    /* Compute and return in param a parameter combination for a double eta
       quotient that, as far as we know, does not lead to a subfield; and in
@@ -363,8 +402,7 @@ static bool doubleeta_compute_parameter (cm_param_ptr param,
       X_0^+ (p1*p2) has genus 0; otherwise said, both roots of the modular
       polynomial in j lead to curves of the correct cardinality.
       If a suitable param or paramsf does not exist, this is indicated
-      by setting their p [0] value to 0. If none of them exists, the
-      return value is false, otherwise it is true.
+      by setting their p [0] value to 0.
       It is up to the calling function to decide which of param or paramsf
       to use.
       Compute p1 <= p2 prime and s following Cor. 3.1 of [EnSc04], that is,
@@ -488,8 +526,6 @@ static bool doubleeta_compute_parameter (cm_param_ptr param,
          }
       }
    }
-
-   return (param->p [0] != 0 || paramsf->p [0] != 0);
 }
 
 /*****************************************************************************/
