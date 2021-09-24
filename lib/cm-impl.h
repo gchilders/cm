@@ -101,7 +101,7 @@ extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    bool verbose);
 extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
-extern int cm_pari_classgroup_2quotient (int_cl_t d, int_cl_t *p,
+extern int cm_pari_classgroup_2quotient (int_cl_t d, const int *p,
    int_cl_t *ord, cm_form_t *gen);
 
 /* functions for integral polynomials */
@@ -127,7 +127,7 @@ extern void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr,
 /* functions for classgroups of imaginary-quadratic number fields */
 
 extern void cm_classgroup_init (cm_classgroup_t *cl, int_cl_t disc,
-   bool verbose);
+   const int *ramified, bool verbose);
 extern void cm_classgroup_clear (cm_classgroup_t *cl);
 
 extern void cm_classgroup_mpz_set_icl (mpz_t rop, int_cl_t op);
@@ -145,9 +145,6 @@ extern void cm_classgroup_compose (cm_form_t *Q, cm_form_t Q1,
    cm_form_t Q2, int_cl_t d);
 extern void cm_classgroup_pow (cm_form_t *Q, cm_form_t P, uint_cl_t n,
    int_cl_t d);
-
-extern int cm_classgroup_normalseries (int_cl_t disc, int_cl_t *ramified,
-   int_cl_t *ord, cm_form_t *gen);
 
 
 /* functions for evaluating modular functions at quadratic integers via

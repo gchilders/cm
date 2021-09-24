@@ -43,8 +43,6 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
       an internal bound is activated depending on the type of invariant. */
 
 {
-   int i, j;
-   int_cl_t cond2;
    cm_param_t paramsf;
 
    if (d >= 0) {
@@ -169,6 +167,13 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
       case CM_INVARIANT_DOUBLEETA:
          if (!doubleeta_compute_parameter (param, paramsf, d, maxdeg))
             return false;
+         if (paramsf->r [0] != 0) {
+            param [0] = paramsf [0];
+            param->field = CM_FIELD_COMPLEX;
+               /* In reality the field is real, but identification of
+                  complex conjugate roots of the class polynomial has not
+                  yet been implemented. */
+         }
          break;
       case CM_INVARIANT_MULTIETA:
          if (!multieta_compute_parameter (param, d, maxdeg))
@@ -178,18 +183,6 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          printf ("class_compute_parameter called for "
                   "unknown class invariant '%c'\n", invariant);
          exit (1);
-   }
-
-   if (invariant == CM_INVARIANT_MULTIETA) {
-      /* Compute the primes dividing the level that are ramified, but
-         do not divide the conductor. */
-      j = 0;
-      cond2 = d / cm_classgroup_fundamental_discriminant (d);
-      for (i = 0; param->p [i] != 0; i++)
-         if (d % param->p[i] == 0 && cond2 % param->p [i] != 0) {
-            param->r [j] = param->p [i];
-            j++;
-         }
    }
 
    /* Create parameter string. */

@@ -63,7 +63,7 @@ void cm_modclass_init (cm_modclass_t *mc, int_cl_t d, fprec_t prec,
    fsqrt (mc->root, mc->root);
 
    /* Compute the reduced forms of discriminant d with non-negative b. */
-   cm_classgroup_init (&cl, d, false);
+   cm_classgroup_init (&cl, d, NULL, false);
    mc->form = (cm_form_t *) malloc (cl.h * sizeof (cm_form_t));
    mc->eta = (ctype *) malloc (cl.h * sizeof (ctype));
    mc->h12 = 0;

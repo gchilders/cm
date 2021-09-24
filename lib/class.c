@@ -83,7 +83,10 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool verbose)
                "\nInvariant %c, parameter %s\n",
                param->d, c->dfund, param->invariant, param->str);
 
-   cm_classgroup_init (&(c->cl), param->d, verbose);
+   if (param->r [0] == 0)
+      cm_classgroup_init (&(c->cl), param->d, NULL, verbose);
+   else
+      cm_classgroup_init (&(c->cl), param->d, param->r, verbose);
    mpzx_init (c->classpol, c->cl.h);
    if (param->field == CM_FIELD_COMPLEX)
       mpzx_init (c->classpol_c, c->cl.h);

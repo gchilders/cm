@@ -236,7 +236,7 @@ int cm_pari_classgroup (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
 
 /*****************************************************************************/
 
-int cm_pari_classgroup_2quotient (int_cl_t disc, int_cl_t *p,
+int cm_pari_classgroup_2quotient (int_cl_t disc, const int *p,
    int_cl_t *ord, cm_form_t *gen)
    /* Given a negative discriminant disc and a 0-terminated list of primes
       p [0], p [1], ..., p [n-1] dividing the fundamental part of disc
@@ -300,13 +300,13 @@ int cm_pari_classgroup_2quotient (int_cl_t disc, int_cl_t *p,
    M = zeromat (length, 0);
    if (disc % p [0] != 0) {
       printf ("***** Error: Calling cm_pari_classgroup_2quotient with "
-              "non-ramified prime %"PRIicl".\n", p [0]);
+              "non-ramified prime %i.\n", p [0]);
       exit (1);
    }
    for (i = 1; p [i] != 0; i++) {
       if (disc % p [i] != 0) {
          printf ("***** Error: Calling cm_pari_classgroup_2quotient with "
-                 "non-ramified prime %"PRIicl".\n", p [i]);
+                 "non-ramified prime %i.\n", p [i]);
          exit (1);
       }
       /* Compute the form of norm p [0] * p [i]. */
