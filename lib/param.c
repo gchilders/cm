@@ -23,9 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static void param_string (char *str, cm_param_ptr param);
 static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
-static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
-   int maxdeg);
+static bool doubleeta_compute_parameter (cm_param_ptr param,
+   cm_param_ptr paramsf, int_cl_t d, int maxdeg);
 static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
    int maxdeg);
 
@@ -43,8 +44,8 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
 
 {
    int i, j;
-   char* pointer;
    int_cl_t cond2;
+   cm_param_t paramsf;
 
    if (d >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -58,7 +59,9 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    param->d = d;
    param->invariant = invariant;
    param->field = CM_FIELD_REAL;
-      /* Default choice; may be overwritten below. */
+   param->r [0] = 0;
+      /* Default choices; may be overwritten below. */
+   memcpy (paramsf, param, sizeof (__cm_param_struct));
 
    switch (invariant) {
       case CM_INVARIANT_J:
@@ -164,7 +167,7 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
             return false;
          break;
       case CM_INVARIANT_DOUBLEETA:
-         if (!doubleeta_compute_parameter (param, d, maxdeg))
+         if (!doubleeta_compute_parameter (param, paramsf, d, maxdeg))
             return false;
          break;
       case CM_INVARIANT_MULTIETA:
@@ -177,11 +180,10 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          exit (1);
    }
 
-   j = 0;
-   if (   invariant == CM_INVARIANT_DOUBLEETA
-       || invariant == CM_INVARIANT_MULTIETA) {
+   if (invariant == CM_INVARIANT_MULTIETA) {
       /* Compute the primes dividing the level that are ramified, but
          do not divide the conductor. */
+      j = 0;
       cond2 = d / cm_classgroup_fundamental_discriminant (d);
       for (i = 0; param->p [i] != 0; i++)
          if (d % param->p[i] == 0 && cond2 % param->p [i] != 0) {
@@ -189,18 +191,33 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
             j++;
          }
    }
-   param->r [j] = 0;
 
    /* Create parameter string. */
-   pointer = param->str;
-   i = 0;
-   do {
-      pointer += sprintf (pointer, "%i_", param->p [i]);
-      i++;
-   } while (param->p [i] != 0);
-   sprintf (pointer, "%i_%i", param->e, param->s);
+   param_string (param->str, param);
 
    return true;
+}
+
+/*****************************************************************************/
+
+static void param_string (char *str, cm_param_ptr param)
+   /* Write the numerical parameters from param into str, which needs to be
+      allocated with sufficient space. */
+{
+   int i;
+
+   if (param->p [0] != 0) {
+      i = 0;
+      do {
+         str += sprintf (str, "%i_", param->p [i]);
+         i++;
+      } while (param->p [i] != 0);
+      str += sprintf (str, "%i_%i", param->e, param->s);
+      for (i = 0; param->r [i] != 0; i++)
+         str += sprintf (str, "_%i", param->r [i]);
+   }
+   else
+      str [0] = '\0';
 }
 
 /*****************************************************************************/
@@ -343,9 +360,21 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
 
 /*****************************************************************************/
 
-static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
-   int maxdeg)
-   /* Compute p1 <= p2 prime and s following Cor. 3.1 of [EnSc04], that is,
+static bool doubleeta_compute_parameter (cm_param_ptr param,
+   cm_param_ptr paramsf, int_cl_t d, int maxdeg)
+   /* Compute and return in param a parameter combination for a double eta
+      quotient that, as far as we know, does not lead to a subfield; and in
+      paramsf a parameter combination that leads to a subfield of index 2.
+      maxdeg has the same meaning as in cm_param_init; if set to -1, it is
+      internally replaced by 2, in which case the modular curve
+      X_0^+ (p1*p2) has genus 0; otherwise said, both roots of the modular
+      polynomial in j lead to curves of the correct cardinality.
+      If a suitable param or paramsf does not exist, this is indicated
+      by setting their p [0] value to 0. If none of them exists, the
+      return value is false, otherwise it is true.
+      It is up to the calling function to decide which of param or paramsf
+      to use.
+      Compute p1 <= p2 prime and s following Cor. 3.1 of [EnSc04], that is,
       - s = 24 / gcd (24, (p1-1)(p2-1))
       - p1, p2 are not inert
       - if p1!=p2, then p1, p2 do not divide the conductor
@@ -355,12 +384,17 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
       Additionally consider the lower powers e given in Theorem 1 of
       [EnSc13] for p1 != p2, and none of them inert or dividing the
       conductor.
-      Minimise with respect to the height factor gained.
-      maxdeg has the same meaning as in cm_param_init; if set to -1, it is
-      internally replaced by 2, in which case the modular curve
-      X_0^+ (p1*p2) has genus 0; otherwise said, both roots of the modular
-      polynomial in j lead to curves of the correct cardinality. */
-
+      For the subfield case, use Theorem 5 of [EnSc13]. A subfield of
+      index 2 is obtained if additionally to the previous condition,
+      p1!=p2 are ramified and d is neither -p1*p2 nor -4*p1*p2, and
+      one of the following condition holds:
+      - e is even;
+      - p1, p2 != 2 and at least one of them is 1 mod 4;
+      - p1 = 2 and p2 = +- 1 mod 8.
+      If none of these three conditions holds for the optimal e and
+      s is even (which implies that p1 and p2 are 3 mod 4), then we
+      may also use 2*e.
+      Minimise with respect to the height factor gained. */
 {
    int_cl_t cond2 = d / cm_classgroup_fundamental_discriminant (d);
       /* square of conductor */
@@ -369,10 +403,10 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
       /* list of suitable primes; big enough to hold all
          primes <= maxprime */
    int length; /* effective length of primelist */
-   long int p, p1, p2, s;
+   int p, p1, p2, s, e;
    cm_param_t par;
-   double hf, opt;
-   bool ok;
+   double opt, optsf;
+   double hf;
    int i, j;
 
    if (maxdeg == -1)
@@ -388,9 +422,12 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
 
    /* Search for the best tuple. */
    opt = 0.0;
-   par [0] = param [0];
+   optsf = 0.0;
+   param->p [0] = 0;
+   paramsf->p [0] = 0;
+   par [0] = param [0]; /* copy d and invariant fields */
    par->p [2] = 0;
-   ok = false;
+   par->r [2] = 0;
    for (j = 0; j < length; j++) {
       p2 = primelist [j];
       for (i = 0; i <= j; i++) {
@@ -405,31 +442,61 @@ static bool doubleeta_compute_parameter (cm_param_ptr param, int_cl_t d,
                            && cm_classgroup_mod (d, 32) != 4))))
              && (maxdeg == 0
                  || s * (p1 - 1) * (p2 - 1) / 12 <= maxdeg)) {
-            par->p [0] = p1;
-            par->p [1] = p2;
-            par->s = s;
+
             /* Choose e according to [EnSc13], Theorem 1. */
             if (p1 != p2 && p1 != 2) {
                if (p1 == 3 || d % 3 == 0)
-                  par->e = 3 / cm_nt_gcd (3, (p1 - 1) * (p2 - 1));
+                  e = 3 / cm_nt_gcd (3, (p1 - 1) * (p2 - 1));
                else
-                  par->e = 1;
+                  e = 1;
                if (d % 2 == 0)
-                  par->e *= 8 / cm_nt_gcd (8, (p1 - 1) * (p2 - 1));
+                  e *= 8 / cm_nt_gcd (8, (p1 - 1) * (p2 - 1));
             }
             else
-               par->e = s;
+               e = s;
+
+            par->p [0] = p1;
+            par->p [1] = p2;
+            par->s = s;
+            par->e = e;
             hf = cm_class_height_factor (par);
-            if (hf > opt) {
-               param [0] = par [0];
-               opt = hf;
-               ok = true;
+            if (hf > opt || hf > optsf) {
+               if (p1 == p2 || d % p1 != 0 || d % p2 != 0
+                   || d == -p1*p2 || d == -4*p1*p2) {
+                  /* We are not in the subfield case regardless of e. */
+                  if (hf > opt) {
+                     param [0] = par [0];
+                     opt = hf;
+                  }
+               }
+               else if (e % 2 == 0
+                        || (p1 != 2 && (p1 % 4 == 1 || p2 % 4 == 1))
+                        || (p1 == 2 && (p2 % 8 == 1 || p2 % 8 == 7))) {
+                  /* We are in the subfield case. */
+                  if (hf > optsf) {
+                     paramsf [0] = par [0];
+                     paramsf->r [0] = p1;
+                     paramsf->r [1] = p2;
+                     optsf = hf;
+                  }
+               }
+               else if (s % 2 == 0) {
+                  /* We are in the subfield case for 2*e. */
+                  hf /= 2;
+                  par->e *= 2;
+                  if (hf > optsf) {
+                     paramsf [0] = par [0];
+                     paramsf->r [0] = p1;
+                     paramsf->r [1] = p2;
+                     optsf = hf;
+                  }
+               }
             }
          }
       }
    }
 
-   return ok;
+   return (param->p [0] != 0 || paramsf->p [0] != 0);
 }
 
 /*****************************************************************************/

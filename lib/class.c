@@ -73,26 +73,15 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool verbose)
 
 {
    int one [] = {1};
-   int i;
 
    c->field = param->field;
    c->computed_classpol = false;
    c->computed_tower = false;
    c->dfund = cm_classgroup_fundamental_discriminant (param->d);
-   if (verbose) {
+   if (verbose)
       printf ("\nDiscriminant %"PRIicl", fundamental discriminant %"PRIicl
                "\nInvariant %c, parameter %s\n",
                param->d, c->dfund, param->invariant, param->str);
-      if (   (   param->invariant == CM_INVARIANT_DOUBLEETA
-              || param->invariant == CM_INVARIANT_MULTIETA)
-          && param->r [0] != 0) {
-         printf ("Ramified ");
-         for (i = 0; param->r [i] != 0; i++) {
-            printf ("%i", param->r [i]);
-            printf (param->r [i+1] == 0 ? "\n" : ", ");
-         }
-      }
-   }
 
    cm_classgroup_init (&(c->cl), param->d, verbose);
    mpzx_init (c->classpol, c->cl.h);
@@ -135,14 +124,17 @@ void cm_class_clear (cm_class_ptr c)
 /*****************************************************************************/
 
 double cm_class_height_factor (cm_param_srcptr param)
-   /* Return the height factor gained through using this function, the
-      inverse of the negative of the order of the modular function at
-      infinity. */
+   /* Return the height factor gained through using this function.
+      In general, this is the inverse of the negative of the order of the
+      modular function at infinity.
+      In case of ramified primes dividing the level leading to subfields,
+      the height factor is multiplied by the index of the subfield. */
 
 {
    double result;
    int num, den, i;
 
+   /* Compute the height factor for the fictitious case e=1. */
    switch (param->invariant) {
    case CM_INVARIANT_J:
       result = 1;
@@ -198,6 +190,10 @@ double cm_class_height_factor (cm_param_srcptr param)
    }
 
    result /= param->e;
+   /* Correct by the subfield index. */
+   if (param->r [0] != 0)
+      for (i = 1; param->r [i] != 0; i++)
+         result *= 2;
 
    return result;
 }
