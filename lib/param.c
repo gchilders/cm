@@ -42,8 +42,9 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
       an internal bound is activated depending on the type of invariant. */
 
 {
-   int i;
+   int i, j;
    char* pointer;
+   int_cl_t cond2;
 
    if (d >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -176,7 +177,21 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          exit (1);
    }
 
-   /* create parameter string */
+   j = 0;
+   if (   invariant == CM_INVARIANT_DOUBLEETA
+       || invariant == CM_INVARIANT_MULTIETA) {
+      /* Compute the primes dividing the level that are ramified, but
+         do not divide the conductor. */
+      cond2 = d / cm_classgroup_fundamental_discriminant (d);
+      for (i = 0; param->p [i] != 0; i++)
+         if (d % param->p[i] == 0 && cond2 % param->p [i] != 0) {
+            param->r [j] = param->p [i];
+            j++;
+         }
+   }
+   param->r [j] = 0;
+
+   /* Create parameter string. */
    pointer = param->str;
    i = 0;
    do {

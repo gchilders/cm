@@ -177,6 +177,10 @@ typedef struct {
       /* The actual parameters attached to the class invariant.
          p is a 0-terminated list of integers (often the primes dividing the
          level); s is the canonical power, e the power actually used. */
+   int r [6];
+      /* The 0-terminated list of ramified primes not dividing the
+         conductor, which is used for double and multiple eta quotients
+         to determine subfields of the ring class field. */
    char str [255];
       /* A string encoding the previous characters, used in files and their
          names. */

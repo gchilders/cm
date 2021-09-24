@@ -73,15 +73,26 @@ void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool verbose)
 
 {
    int one [] = {1};
+   int i;
 
    c->field = param->field;
    c->computed_classpol = false;
    c->computed_tower = false;
    c->dfund = cm_classgroup_fundamental_discriminant (param->d);
-   if (verbose)
+   if (verbose) {
       printf ("\nDiscriminant %"PRIicl", fundamental discriminant %"PRIicl
-               ", invariant %c, parameter %s\n",
+               "\nInvariant %c, parameter %s\n",
                param->d, c->dfund, param->invariant, param->str);
+      if (   (   param->invariant == CM_INVARIANT_DOUBLEETA
+              || param->invariant == CM_INVARIANT_MULTIETA)
+          && param->r [0] != 0) {
+         printf ("Ramified ");
+         for (i = 0; param->r [i] != 0; i++) {
+            printf ("%i", param->r [i]);
+            printf (param->r [i+1] == 0 ? "\n" : ", ");
+         }
+      }
+   }
 
    cm_classgroup_init (&(c->cl), param->d, verbose);
    mpzx_init (c->classpol, c->cl.h);
