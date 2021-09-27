@@ -27,7 +27,8 @@ static void param_string (char *str, cm_param_ptr param);
 static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d);
 static void doubleeta_compute_parameter (cm_param_ptr param,
    cm_param_ptr paramsf, int_cl_t d, int maxdeg);
-static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
+static void multieta_compute_parameter (cm_param_ptr param,
+   cm_param_ptr paramsf2, cm_param_ptr paramsf4, int_cl_t d,
    int maxdeg);
 
 /*****************************************************************************/
@@ -52,8 +53,8 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
         be computed, taking the degree and the height of the class
         polynomial into account. */
 {
-   cm_param_t paramsf2;
-   double size, sizesf2;
+   cm_param_t paramsf2, paramsf4;
+   double size, sizesf2, sizesf4;
 
    if (d >= 0) {
       printf ("\n*** The discriminant must be negative.\n");
@@ -70,6 +71,7 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    param->r [0] = 0;
       /* Default choices; may be overwritten below. */
    memcpy (paramsf2, param, sizeof (__cm_param_struct));
+   memcpy (paramsf4, param, sizeof (__cm_param_struct));
 
    switch (invariant) {
       case CM_INVARIANT_J:
@@ -215,8 +217,47 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
          }
          break;
       case CM_INVARIANT_MULTIETA:
-         if (!multieta_compute_parameter (param, d, maxdeg))
-            return false;
+         multieta_compute_parameter (param, paramsf2, paramsf4, d, maxdeg);
+         if (subfield == CM_SUBFIELD_NEVER) {
+            if (param->p [0] == 0)
+               return false;
+         }
+         else if (subfield == CM_SUBFIELD_PREFERRED) {
+            if (paramsf4->p [0] != 0) {
+               param [0] = paramsf4 [0];
+               param->field = CM_FIELD_COMPLEX;
+                  /* should not be touched, but identification of complex
+                     conjugate values is not yet identified */
+            }
+            else if (paramsf2->p [0] != 0){
+               param [0] = paramsf2 [0];
+               param->field = CM_FIELD_COMPLEX; /* should not be touched */
+            }
+            else if (param->p [0] == 0)
+               return false;
+         }
+         else /* CM_SUBFIELD_OPTIMAL */ {
+            if (param->p [0] == 0 && paramsf2->p [0] == 0
+                && paramsf4->p [0] == 0)
+                return false;
+            size = (param->p [0] == 0 ? 0.0 :
+                    cm_class_height_factor (param));
+            sizesf2 = (paramsf2->p [0] == 0 ? 0.0 :
+                       2 * cm_class_height_factor (paramsf2));
+            sizesf4 = (paramsf4->p [0] == 0 ? 0.0 :
+                       4 * cm_class_height_factor (paramsf4));
+               /* The height factor already takes the reduced height due
+                  to subfields into account, the additional factors 2 and 4
+                  correspond to the gain in the number of factors. */
+            if (sizesf4 >= sizesf2 && sizesf4 >= size) {
+               param [0] = paramsf4 [0];
+               param->field = CM_FIELD_COMPLEX; /* should not be touched */
+            }
+            else if (sizesf2 >= size) {
+               param [0] = paramsf2 [0];
+               param->field = CM_FIELD_COMPLEX; /* should not be touched */
+            }
+         }
          break;
       default: /* should not occur */
          printf ("class_compute_parameter called for "
@@ -530,9 +571,13 @@ static void doubleeta_compute_parameter (cm_param_ptr param,
 
 /*****************************************************************************/
 
-static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
-   int maxdeg)
-   /* We only consider the multiple eta quotients for which the modular
+static void multieta_compute_parameter (cm_param_ptr param,
+   cm_param_ptr paramsf2, cm_param_ptr paramsf4, int_cl_t d, int maxdeg)
+   /* Choose parameter combinations for triple eta quotients that (as far
+      as we know) lead to a full class field, a subfield of index 2 in the
+      class field or a subfield of index 4. If no suitable choice exists,
+      then the p [0] value of the corresponding parameter is set to 0.
+      We consider only the multiple eta quotients for which the modular
       polynomial has a degree of at most 8 in j. These are:
       p1,p2,p3  s  hf   deg
       2,3,5     3  18    4
@@ -541,8 +586,8 @@ static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
       2,5,7     1  36    4
       2,5,13    1  31.5  8
       3,5,7     1  24    8
-      Of interest could also be the smallest case with four factors,
-      but even in the ramified case its degree in j is not optimal:
+      Of interest could also be the smallest case with four factors, but
+      even in the totally ramified case its degree in j is not optimal:
       2,3,5,7   1  36   16
       If one wanted to go up to a degree 16, the following quotients
       with three primes would have to be added:
@@ -554,81 +599,111 @@ static bool multieta_compute_parameter (cm_param_ptr param, int_cl_t d,
       2,7,17    1  27   16
       3,5,13    1  21   16 */
 {
-   int_cl_t cond2 = d / cm_classgroup_fundamental_discriminant (d);
-      /* square of conductor */
-   bool ok2, ok3, ok5, ok7, ok13, ramified;
-   int k;
+   int_cl_t dfund = cm_classgroup_fundamental_discriminant (d);
+   int_cl_t cond2 = d / dfund;
+   int prime [] = {2, 3, 5, 7, 13};
+   const int prime_l = sizeof (prime) / sizeof (int);
+   cm_param_t cand [6];
+   int deg [6];
+   const int cand_l = sizeof (cand) / sizeof (cm_param_t);
+   bool ok [14], ram [14];
+   int i, j;
 
-   if (maxdeg == -1 || (maxdeg >= 4 && maxdeg < 8))
-      maxdeg == 4;
-   else if (maxdeg > 0 && maxdeg < 4)
-      return false;
-   else
-      maxdeg = 8;
+   if (maxdeg == -1)
+      maxdeg = 4;
 
-   ok2 = cm_nt_kronecker (d, (int_cl_t) 2) != -1 && cond2 % 2 != 0;
-   ok3 = cm_nt_kronecker (d, (int_cl_t) 3) != -1 && cond2 % 3 != 0;
-   ok5 = cm_nt_kronecker (d, (int_cl_t) 5) != -1 && cond2 % 5 != 0;
-   ok7 = cm_nt_kronecker (d, (int_cl_t) 7) != -1 && cond2 % 7 != 0;
-   ok13 = cm_nt_kronecker (d, (int_cl_t) 13) != -1 && cond2 % 13 != 0;
-
-   param->p [3] = 0;
-   param->s = 1; /* default, can be overwritten */
-   if (ok2) {
-      param->p [0] = 2;
-      if (ok3 && ok13) {
-         /* height factor 42 */
-         param->p [1] = 3;
-         param->p [2] = 13;
-      }
-      else if (ok5 && ok7) {
-         /* height factor 36 */
-         param->p [1] = 5;
-         param->p [2] = 7;
-      }
-      else if (maxdeg >= 8 && ok5 && ok13) {
-         /* height factor 31.5 */
-         param->p [1] = 5;
-         param->p [2] = 13;
-      }
-      else if (ok3 && ok7) {
-         /* height factor 24 */
-         param->p [1] = 3;
-         param->p [2] = 7;
-         param->s = 2;
-      }
-      else if (ok3 && ok5) {
-         /* height factor 18 */
-         param->p [1] = 3;
-         param->p [2] = 5;
-         param->s = 3;
-      }
-      else
-         return false;
+   for (i = 0; i < prime_l; i++) {
+      ok [prime [i]] = cm_nt_kronecker (d, (int_cl_t) prime [i]) != -1
+                       && cond2 % prime [i] != 0;
+      ram [prime [i]] = (dfund % prime [i] == 0);
    }
-   else if (maxdeg >= 8 && ok3 && ok5 && ok7) {
-      param->p [0] = 3;
-      param->p [1] = 5;
-      param->p [2] = 7;
+
+   /* Initialise parameter combinations with decreasing height factors
+      and, for the same height factor, with increasing degree in j. */
+   for (i = 0; i < cand_l; i++) {
+      cand [i][0] = param [0];
+         /* Copies in particular the discriminant. */
+      cand [i]->p [0] = 2;
+      cand [i]->p [1] = 3;
+      cand [i]->p [2] = 13;
+      cand [i]->p [3] = 0;
+      cand [i]->s = 1;
+      cand [i]->e = 1;
+      cand [i]->r [0] = 0;
+      deg [i] = 4;
    }
-   else
-      return false;
-   param->e = param->s;
+   cand [1]->p [1] = 5;
+   cand [1]->p [2] = 7;
+   cand [2]->p [1] = 5;
+   deg [2] = 8;
+   cand [3]->p [2] = 7;
+   cand [3]->s = 2;
+   cand [3]->e = 2;
+   cand [4]->p [0] = 3;
+   cand [4]->p [1] = 5;
+   cand [4]->p [2] = 7;
+   deg [4] = 8;
+   cand [5]->p [2] = 5;
+   cand [5]->s = 3;
+   cand [5]->e = 3;
+
+   param->p [0] = 0;
+   paramsf2->p [0] = 0;
+   paramsf4->p [0] = 0;
+   for (i = 0; i < cand_l; i++) {
+      if (   (maxdeg == 0 || deg [i] <= maxdeg)
+          && ok [cand [i]->p [0]]
+          && ok [cand [i]->p [1]]
+          && ok [cand [i]->p [2]]) {
+         /* Parameter combination yields a class invariant, check
+            ramification and determine subfield. */
+         if (ram [cand [i]->p [0]] && ram [cand [i]->p [1]]
+            && ram [cand [i]->p [2]]) {
+            if (paramsf4->p [0] == 0) {
+               paramsf4 [0] = cand [i][0];
+               for (j = 0; j < 3; j++)
+                  paramsf4->r [j] = cand [i]->p [j];
+            }
+         }
+         else if (ram [cand [i]->p [0]] && ram [cand [i]->p [1]]) {
+            if (paramsf2->p [0] == 0) {
+               paramsf2 [0] = cand [i][0];
+               paramsf2->r [0] = cand [i]->p [0];
+               paramsf2->r [1] = cand [i]->p [1];
+            }
+         }
+         else if (ram [cand [i]->p [0]] && ram [cand [i]->p [2]]) {
+            if (paramsf2->p [0] == 0) {
+               paramsf2 [0] = cand [i][0];
+               paramsf2->r [0] = cand [i]->p [0];
+               paramsf2->r [1] = cand [i]->p [2];
+            }
+         }
+         else if (ram [cand [i]->p [1]] && ram [cand [i]->p [2]]) {
+            if (paramsf2->p [0] == 0) {
+               paramsf2 [0] = cand [i][0];
+               paramsf2->r [0] = cand [i]->p [1];
+               paramsf2->r [1] = cand [i]->p [2];
+            }
+         }
+         else {
+            if (param->p [0] == 0)
+               param [0] = cand [i][0];
+         }
+      }
+   }
+   paramsf2->r [2] = 0;
+   paramsf4->r [3] = 0;
 
    /* The polynomial is real by [EnSc13] if the number of primes is
-      even (Corollary 4), or any of the primes is ramified (Corollary 8).
-      Currently we use exactly three prime factors, but there is no harm
-      in writing more complete code already now. */
-   ramified = false;
-   for (k = 0; param->p [k] != 0; k++)
-      if (!ramified && d % param->p [k] == 0)
-         ramified = true;
-   if (k % 2 == 0 || ramified)
-      param->field = CM_FIELD_REAL;
-   else
-      param->field = CM_FIELD_COMPLEX;
-
-   return true;
+      even (Corollary 4), or any of the primes is ramified (Corollary 8). */
+   param->field = CM_FIELD_COMPLEX;
+   if (param->p [0] != 0)
+      for (j = 0; j < 3; j++)
+         if (ram [param->p [j]])
+            param->field = CM_FIELD_REAL;
+   paramsf2->field = CM_FIELD_REAL;
+   paramsf4->field = CM_FIELD_REAL;
 }
 
 /*****************************************************************************/
