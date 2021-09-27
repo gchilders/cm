@@ -183,13 +183,8 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
                return false;
          }
          else if (subfield == CM_SUBFIELD_PREFERRED) {
-            if (paramsf2->p [0] != 0) {
+            if (paramsf2->p [0] != 0)
                param [0] = paramsf2 [0];
-               param->field = CM_FIELD_COMPLEX;
-                  /* In reality the field is real, but identification of
-                     complex conjugate roots of the class polynomial has not
-                     yet been implemented. */
-            }
             else if (param->p [0] == 0)
                return false;
          }
@@ -197,10 +192,8 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
             if (param->p [0] == 0)
                if (paramsf2->p [0] == 0)
                   return false;
-               else {
+               else
                   param [0] = paramsf2 [0];
-                  param->field = CM_FIELD_COMPLEX; /* should be real */
-               }
             else if (paramsf2->p [0] != 0) {
                size = cm_class_height_factor (param);
                sizesf2 = 2 * cm_class_height_factor (paramsf2);
@@ -209,10 +202,8 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
                      additional factor 2 takes the degree halving into
                      account, so that the total size of the class polynomial
                      is measured. */
-               if (sizesf2 > size) {
+               if (sizesf2 > size)
                   param [0] = paramsf2 [0];
-                  param->field = CM_FIELD_COMPLEX; /* should be real */
-               }
             }
          }
          break;

@@ -286,6 +286,7 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
 {
    int_cl_t d = param->d;
    const int *p = param->p;
+   const int *r = param->r;
    int e = param->e;
    int s = param->s;
    int field = param->field;
@@ -367,8 +368,16 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
                break;
             b0 += 2;
          }
-         if (k % 2 == 0)
+         if (k % 2 == 0) {
             neutral [0].a = N;
+            if (k == 2 && r [0] != 0) {
+               /* Ramified case for double eta quotient. */
+               neutral [1].a = 1;
+               neutral [1].b = -b0;
+               cm_classgroup_reduce (&(neutral [1]), d);
+               neutral_l = 2;
+            }
+         }
          else if (field == CM_FIELD_REAL) {
             /* Ramified case, see Corollary 8 of [EnSc13]. */
             for (i = 0; d % p [i] != 0; i++);
@@ -479,8 +488,9 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
             /* The form did not yet occur in a pair; look for its inverse
                with respect to neutral_class */
             nsystem [i].b = -nsystem [i].b;
-            cm_classgroup_compose (&(inverse [0]), neutral [0],
-               nsystem [i], d);
+            for (k = 0; k < neutral_l; k++)
+               cm_classgroup_compose (&(inverse [k]), neutral [k],
+                  nsystem [i], d);
             nsystem [i].b = -nsystem [i].b;
             /* So far, nsystem still contains the reduced forms, so we may
                look for the (reduced) inverse form; notice that this may
