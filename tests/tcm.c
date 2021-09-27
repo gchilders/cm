@@ -131,12 +131,12 @@ static void big_test (void)
    test_curve ((int_cl_t) (-299),    CM_INVARIANT_SIMPLEETA, false);
 
    test_curve ((int_cl_t) (-1032), CM_INVARIANT_DOUBLEETA, false);
-      /* N=3*7, s=e=2 */
+      /* N=3*43, s=e=2, both primes ramified */
    test_curve ((int_cl_t) (-1043), CM_INVARIANT_DOUBLEETA, false);
       /* N=3*7, s=2, e=1 */
 
    test_curve ((int_cl_t) (-455), CM_INVARIANT_MULTIETA, false);
-      /* N=2*3*13, s=e=1, 13 is ramified */
+      /* N=2*5*5, s=e=1, 5 and 7 ramified */
    test_curve ((int_cl_t) (-1919), CM_INVARIANT_MULTIETA, false);
       /* N=2*3*5, s=e=3, complex */
 }
