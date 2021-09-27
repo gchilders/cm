@@ -290,19 +290,28 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
    int s = param->s;
    int field = param->field;
    int_cl_t b0, N;
-   cm_form_t neutral, inverse;
+   cm_form_t neutral [2], inverse [2];
+   int neutral_l;
+   bool found;
    int h1, h2;
-   int i, j;
+   int i, j, k;
 
-   /* Compute the targeted b0 for the N-system and the neutral form. */
-
-   /* The principal form is the default choice and may be overwritten
+   /* Compute the targeted b0 for the N-system and the neutral forms
+      such that in the real case the forms af and af^(-1)*neutral yield
+      complex conjugate values. If a full class polynomial is computed,
+      then there is only one neutral form; if a subfield is computed,
+      then we work with a quotient of the class group and need to consider
+      all possible lifts from the quotient to the class group, so that
+      the number neutral_l of neutral forms is given by the index of the
+      subfield.
+      The principal form is the default choice and may be overwritten
       below. In the complex case it is not used later. */
-   neutral.a = 1;
+   neutral [0].a = 1;
    if (d % 2 == 0)
-      neutral.b = 0;
+      neutral [0].b = 0;
    else
-      neutral.b = 1;
+      neutral [0].b = 1;
+   neutral_l = 1;
 
    switch (param->invariant) {
       case CM_INVARIANT_J:
@@ -329,20 +338,20 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
             b0 = 1;
          while ((b0*b0 - d) % N != 0)
             b0 += 2;
-         neutral.a = N;
-         neutral.b = -b0;
-         cm_classgroup_reduce (&neutral, d);
+         neutral [0].a = N;
+         neutral [0].b = -b0;
+         cm_classgroup_reduce (&(neutral [0]), d);
          break;
       case CM_INVARIANT_WEBER:
-         neutral.a = 1;
-         neutral.b = 0;
+         neutral [0].a = 1;
+         neutral [0].b = 0;
          b0 = 0;
          N = 48;
          break;
       case CM_INVARIANT_DOUBLEETA:
       case CM_INVARIANT_MULTIETA:
          int_cl_t C;
-         int k = 0;
+         k = 0;
          N = 1;
          for (i = 0; p [i] != 0; i++) {
             N *= p [i];
@@ -359,14 +368,14 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
             b0 += 2;
          }
          if (k % 2 == 0)
-            neutral.a = N;
+            neutral [0].a = N;
          else if (field == CM_FIELD_REAL) {
             /* Ramified case, see Corollary 8 of [EnSc13]. */
             for (i = 0; d % p [i] != 0; i++);
-            neutral.a = N / p [i];
+            neutral [0].a = N / p [i];
          }
-         neutral.b = -b0;
-         cm_classgroup_reduce (&neutral, d);
+         neutral [0].b = -b0;
+         cm_classgroup_reduce (&(neutral [0]), d);
          /* The neutral form corresponds to the product of the primes,
             but the n-system needs to take s/e into account. */
          N *= s / e;
@@ -467,16 +476,26 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
       /* Pair forms yielding complex conjugate roots. */
       if (param->field == CM_FIELD_REAL) {
          if (conj [i] == -1) {
-            /* form did not yet occur in a pair; look for its inverse
+            /* The form did not yet occur in a pair; look for its inverse
                with respect to neutral_class */
             nsystem [i].b = -nsystem [i].b;
-            cm_classgroup_compose (&inverse, neutral, nsystem [i], d);
+            cm_classgroup_compose (&(inverse [0]), neutral [0],
+               nsystem [i], d);
             nsystem [i].b = -nsystem [i].b;
-            j = 0;
-            /* So far, nsystem still contains the reduced forms, so we may look
-               for the inverse form. */
-            while (nsystem [j].a != inverse.a || nsystem [j].b != inverse.b)
+            /* So far, nsystem still contains the reduced forms, so we may
+               look for the (reduced) inverse form; notice that this may
+               be the current form itself, in which case we have found a
+               real conjugate. */
+            found = false;
+            j = i-1;
+            while (!found) {
                j++;
+               for (k = 0; !found && k < neutral_l; k++) {
+                  if (   nsystem [j].a == inverse [k].a
+                      && nsystem [j].b == inverse [k].b)
+                     found = true;
+               }
+            }
             conj [i] = j;
             conj [j] = i;
          }
