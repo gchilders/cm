@@ -214,16 +214,10 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
                return false;
          }
          else if (subfield == CM_SUBFIELD_PREFERRED) {
-            if (paramsf4->p [0] != 0) {
+            if (paramsf4->p [0] != 0)
                param [0] = paramsf4 [0];
-               param->field = CM_FIELD_COMPLEX;
-                  /* should not be touched, but identification of complex
-                     conjugate values is not yet identified */
-            }
-            else if (paramsf2->p [0] != 0){
+            else if (paramsf2->p [0] != 0)
                param [0] = paramsf2 [0];
-               param->field = CM_FIELD_COMPLEX; /* should not be touched */
-            }
             else if (param->p [0] == 0)
                return false;
          }
@@ -240,14 +234,10 @@ bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
                /* The height factor already takes the reduced height due
                   to subfields into account, the additional factors 2 and 4
                   correspond to the gain in the number of factors. */
-            if (sizesf4 >= sizesf2 && sizesf4 >= size) {
+            if (sizesf4 >= sizesf2 && sizesf4 >= size)
                param [0] = paramsf4 [0];
-               param->field = CM_FIELD_COMPLEX; /* should not be touched */
-            }
-            else if (sizesf2 >= size) {
+            else if (sizesf2 >= size)
                param [0] = paramsf2 [0];
-               param->field = CM_FIELD_COMPLEX; /* should not be touched */
-            }
          }
          break;
       default: /* should not occur */

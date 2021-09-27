@@ -291,7 +291,7 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
    int s = param->s;
    int field = param->field;
    int_cl_t b0, N;
-   cm_form_t neutral [2], inverse [2];
+   cm_form_t neutral [4], inverse [4];
    int neutral_l;
    bool found;
    int h1, h2;
@@ -341,7 +341,6 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
             b0 += 2;
          neutral [0].a = N;
          neutral [0].b = -b0;
-         cm_classgroup_reduce (&(neutral [0]), d);
          break;
       case CM_INVARIANT_WEBER:
          neutral [0].a = 1;
@@ -371,20 +370,39 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
          if (k % 2 == 0) {
             neutral [0].a = N;
             if (k == 2 && r [0] != 0) {
-               /* Ramified case for double eta quotient. */
+               /* Subfield case for double eta quotient. */
                neutral [1].a = 1;
                neutral [1].b = -b0;
-               cm_classgroup_reduce (&(neutral [1]), d);
                neutral_l = 2;
             }
          }
          else if (field == CM_FIELD_REAL) {
-            /* Ramified case, see Corollary 8 of [EnSc13]. */
+            /* At least one ramified prime, see Corollary 8 of [EnSc13]. */
             for (i = 0; d % p [i] != 0; i++);
             neutral [0].a = N / p [i];
+            if (r [0] != 0) {
+               /* Subfield. */
+               neutral [1].a = neutral [0].a * r [0] * r [1];
+               neutral [1].b = -b0;
+               neutral_l = 2;
+               if (r [2] != 0) {
+                  /* Subfield of index at least 4. */
+                  neutral [2].a = neutral [0].a * r [0] * r [2];
+                  neutral [2].b = -b0;
+                  neutral [3].a = neutral [0].a * r [1] * r [2];
+                  neutral [3].b = -b0;
+                  neutral_l = 4;
+                  if (r [3] != 0) {
+                     printf ("*** Houston, we have a problem in "
+                             "compute_nsystem!\n");
+                     printf ("Computing real subfield of index 8, "
+                             "not yet implemented.\n");
+                     exit (1);
+                  }
+               }
+            }
          }
          neutral [0].b = -b0;
-         cm_classgroup_reduce (&(neutral [0]), d);
          /* The neutral form corresponds to the product of the primes,
             but the n-system needs to take s/e into account. */
          N *= s / e;
@@ -475,6 +493,8 @@ static void compute_nsystem (cm_form_t *nsystem, int *conj, cm_class_srcptr c,
          printf ("compute_nsystem called for unknown class invariant\n");
          exit (1);
    }
+   for (k = 0; k < neutral_l; k++)
+      cm_classgroup_reduce (&(neutral [k]), d);
 
    for (i = 0; i < c->cl.h; i++) {
       nsystem [i] = c->cl.form [i];
