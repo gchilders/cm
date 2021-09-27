@@ -825,17 +825,8 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
             hf = new_hf;
          }
       }
-      /* For multiple eta quotients, we limit the search to a degree
-         of 4 in j. */
-      if (cm_param_init (new_param, d, CM_INVARIANT_MULTIETA,
-             -1, CM_SUBFIELD_NEVER, false)) {
-         /* TODO: Enable subfields. */
-         new_hf = cm_class_height_factor (new_param);
-         if (new_hf > hf) {
-            param [0] = new_param [0];
-            hf = new_hf;
-         }
-      }
+      /* Multiple eta quotients slow the code down; this is probably due
+         to the need for factoring the modular polynomials of degree 4. */
 
       if (verbose) {
          printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
