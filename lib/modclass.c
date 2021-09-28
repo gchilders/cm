@@ -242,7 +242,8 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
          cconj (q24 [i], q24 [i]);
       }
    cm_timer_stop (clock3);
-   printf ("- Time for B powers:     %.1f\n", cm_timer_get (clock3));
+   if (verbose)
+      printf ("- Time for B powers:     %.1f\n", cm_timer_get (clock3));
 
    /* Compute the q^(1/24) in q24 */
    for (i = 0; i < mc.h12; i++)
