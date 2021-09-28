@@ -39,6 +39,8 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB);
+static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
+   const char* modpoldir, bool tower, bool verbose, bool debug);
 
 /*****************************************************************************/
 
@@ -715,17 +717,22 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
 
 /*****************************************************************************/
 
-void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
-   bool print, bool verbose, bool debug)
-   /* Assuming that N is a (probable) prime, compute an ECPP certificate.
+static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
+   const char* modpoldir, bool tower, bool verbose, bool debug)
+   /* Given the result of the ECPP down-run in cert1, an array of length
+      depth as computed by cm_ecpp1 or cm_pari_ecpp1, execute the second
+      step of the ECPP algorithm and compute the certificate proper in
+      cert2, which needs to be pre-allocated as an array of length depth
+      with each entry an array of length 6 to contain p, t, co, a, x and y:
+      the prime p to be certified, the trace t of the elliptic curve, the
+      co-factor such that p+1-t = co*l with l the next prime, the curve
+      parameter a, and the coordinates (x,y) of a point of prime order l
+      on the curve; the curve parameter b is implicit.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
       of the class polynomial.
-      pari indicates whether the first, downrun step of PARI is used
-      instead of the built-in function.
       tower indicates whether a class field tower decomposition is used
       instead of only the class polynomial.
-      print indicates whether the result is printed.
       verbose indicates whether intermediate computations output progress
       information.
       debug indicates whether additional developer information (mainly
@@ -733,16 +740,14 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       the case that verbose is set as well. */
 
 {
-   int depth;
-   mpz_t **cert;
    mpz_srcptr p, n, l;
    int_cl_t d;
    mpz_t t, co, a, b, x, y;
    cm_param_t param, new_param;
    double hf, new_hf;
    cm_class_t c;
-   int i, j;
-   cm_timer clock, clock2, clock3, clock4, clock5;
+   int i;
+   cm_timer clock, clock2, clock3;
 
    mpz_init (t);
    mpz_init (co);
@@ -751,40 +756,27 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    mpz_init (x);
    mpz_init (y);
 
-   cm_timer_start (clock);
-   cm_timer_start (clock2);
-   if (pari)
-      cert = cm_pari_ecpp1 (&depth, N);
-   else
-      cert = cm_ecpp1 (&depth, N, verbose, debug);
-   cm_timer_stop (clock2);
-   if (verbose)
-      printf ("--- Time for first ECPP step, depth %i:  %.1f\n", depth,
-         cm_timer_get (clock2));
-
-   cm_timer_start (clock2);
-   cm_timer_reset (clock4);
-   cm_timer_reset (clock5);
+   cm_timer_reset (clock2);
+   cm_timer_reset (clock3);
    cm_timer_reset (cm_timer1);
    cm_timer_reset (cm_timer2);
    cm_timer_reset (cm_timer3);
    cm_timer_reset (cm_timer4);
    cm_timer_reset (cm_timer5);
    cm_timer_reset (cm_timer6);
-   if (print)
-      printf ("c = [");
+
    for (i = 0; i < depth; i++) {
-      cm_timer_start (clock3);
-      p = cert [i][0];
-      d = mpz_get_si (cert [i][1]);
-      n = cert [i][2];
-      l = cert [i][3];
+      cm_timer_start (clock);
+      p = cert1 [i][0];
+      d = mpz_get_si (cert1 [i][1]);
+      n = cert1 [i][2];
+      l = cert1 [i][3];
 
       mpz_add_ui (t, p, 1);
       mpz_sub (t, t, n);
       mpz_divexact (co, n, l);
 
-      cm_timer_continue (clock4);
+      cm_timer_continue (clock2);
       /* Find the invariant with the largest height factor from those
          not requiring modular polynomials for retrieving the curve,
          and from a limited number of invariants with modular
@@ -838,19 +830,19 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       /* Compute one of the class field tower or the class polynomial. */
       cm_class_init (c, param, false);
       cm_class_compute (c, param, !tower, tower, false);
-      cm_timer_stop (clock4);
+      cm_timer_stop (clock2);
 
-      cm_timer_continue (clock5);
+      cm_timer_continue (clock3);
       cm_curve_and_point (a, b, x, y, param, c, p, l, co,
          modpoldir, false);
       cm_class_clear (c);
-      cm_timer_stop (clock5);
       cm_timer_stop (clock3);
+      cm_timer_stop (clock);
 
       if (verbose) {
-         printf ("%5.1f\n", cm_timer_get (clock3));
+         printf ("%5.1f\n", cm_timer_get (clock));
          if (debug) {
-            printf ("   CM:    %5.1f\n", cm_timer_get (clock4));
+            printf ("   CM:    %5.1f\n", cm_timer_get (clock));
             printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
             printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
             printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
@@ -860,26 +852,13 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
          }
       }
 
-      if (print) {
-         printf ("[");
-         mpz_out_str (stdout, 10, p);
-         printf (", ");
-         mpz_out_str (stdout, 10, t);
-         printf (", ");
-         mpz_out_str (stdout, 10, co);
-         printf (", ");
-         mpz_out_str (stdout, 10, a);
-         printf (", [");
-         mpz_out_str (stdout, 10, x);
-         printf (", ");
-         mpz_out_str (stdout, 10, y);
-         printf ("]]");
-         if (i != depth - 1)
-            printf (", ");
-      }
+      mpz_set (cert2 [i][0], p);
+      mpz_set (cert2 [i][1], t);
+      mpz_set (cert2 [i][2], co);
+      mpz_set (cert2 [i][3], a);
+      mpz_set (cert2 [i][4], x);
+      mpz_set (cert2 [i][5], y);
    }
-   if (print)
-      printf ("];\n");
 
    mpz_clear (t);
    mpz_clear (co);
@@ -887,17 +866,89 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    mpz_clear (b);
    mpz_clear (x);
    mpz_clear (y);
+
+   if (verbose) {
+      printf ("--- Time for CM:               %.1f\n", cm_timer_get (clock2));
+      printf ("--- Time for curves:           %.1f\n", cm_timer_get (clock3));
+   }
+}
+
+/*****************************************************************************/
+
+void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
+   bool print, bool verbose, bool debug)
+   /* Assuming that N is a (probable) prime, compute an ECPP certificate.
+      modpoldir gives the directory where modular polynomials are stored;
+      it is passed through to the function computing a curve from a root
+      of the class polynomial.
+      pari indicates whether the first, downrun step of PARI is used
+      instead of the built-in function.
+      tower indicates whether a class field tower decomposition is used
+      instead of only the class polynomial.
+      print indicates whether the result is printed.
+      verbose indicates whether intermediate computations output progress
+      information.
+      debug indicates whether additional developer information (mainly
+      timings and counters for tuning) is output; this is done only in
+      the case that verbose is set as well. */
+
+{
+   int depth;
+   mpz_t **cert1, **cert2;
+   int i, j;
+   cm_timer clock, clock2;
+
+   cm_timer_start (clock);
+   cm_timer_start (clock2);
+   if (pari)
+      cert1 = cm_pari_ecpp1 (&depth, N);
+   else
+      cert1 = cm_ecpp1 (&depth, N, verbose, debug);
+   cm_timer_stop (clock2);
+   if (verbose)
+      printf ("--- Time for first ECPP step, depth %i:  %.1f\n", depth,
+         cm_timer_get (clock2));
+
+   cm_timer_start (clock2);
+   cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));
+   for (i = 0; i < depth; i++) {
+      cert2 [i] = (mpz_t *) malloc (6 * sizeof (mpz_t));
+      for (j = 0; j < 6; j++)
+         mpz_init (cert2 [i][j]);
+   }
+   cm_ecpp2 (cert2, cert1, depth, modpoldir, tower, verbose, debug);
+   if (print) {
+      printf ("c = [");
+      for (i = 0; i < depth; i++) {
+         printf ("[");
+         for (j = 0; j < 4; j++) {
+            mpz_out_str (stdout, 10, cert2 [i][j]);
+            printf (", ");
+         }
+         printf ("[");
+         mpz_out_str (stdout, 10, cert2 [i][4]);
+         printf (", ");
+         mpz_out_str (stdout, 10, cert2 [i][5]);
+         printf ("]]");
+         if (i != depth - 1)
+            printf (", ");
+      }
+      printf ("];\n");
+   }
+
    for (i = 0; i < depth; i++) {
       for (j = 0; j < 4; j++)
-         mpz_clear (cert [i][j]);
-      free (cert [i]);
+         mpz_clear (cert1 [i][j]);
+      for (j = 0; j < 6; j++)
+         mpz_clear (cert2 [i][j]);
+      free (cert1 [i]);
+      free (cert2 [i]);
    }
-   free (cert);
+   free (cert1);
+   free (cert2);
    cm_timer_stop (clock2);
    cm_timer_stop (clock);
    if (verbose) {
-      printf ("--- Time for CM:               %.1f\n", cm_timer_get (clock4));
-      printf ("--- Time for curves:           %.1f\n", cm_timer_get (clock5));
       printf ("--- Time for second ECPP step: %.1f\n", cm_timer_get (clock2));
       printf ("--- Total time for ECPP:       %.1f\n", cm_timer_get (clock));
    }
