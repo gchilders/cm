@@ -183,7 +183,6 @@ extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
 extern mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    bool debug);
 extern mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p);
-extern void cm_pari_trialdiv (mpz_ptr p, mpz_srcptr n, unsigned long int B);
 
 #if defined (__cplusplus)
 }
