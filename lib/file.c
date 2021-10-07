@@ -210,17 +210,11 @@ void cm_class_print_pari (FILE* file, cm_class_srcptr c,
 
    if (c->computed_classpol) {
       printf ("%s = ", f);
-      if (c->field == CM_FIELD_REAL) {
+      if (c->field == CM_FIELD_REAL)
          mpzx_print_pari (file, c->classpol, x);
-         printf ("\n");
-      }
-      else {
-         printf ("(");
-         mpzx_print_pari (file, c->classpol, x);
-         printf (")+o*(");
-         mpzx_print_pari (file, c->classpol_c, x);
-         printf (")\n");
-      }
+      else
+         mpzxx_print_pari (file, c->classpol, c->classpol_c, x);
+      printf ("\n");
    }
    if (c->computed_tower) {
       if (c->field == CM_FIELD_REAL)

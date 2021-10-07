@@ -112,6 +112,8 @@ extern bool cm_mpcx_get_quadraticx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
    int_cl_t d);
 extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);
 extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
+extern void mpzxx_print_pari (FILE* file, mpzx_srcptr g, mpzx_srcptr h,
+   char *x);
 
 /* functions for number field towers */
 extern void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d);

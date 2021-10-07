@@ -164,7 +164,8 @@ size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f)
 
 void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *var)
    /* Print the polynomial f in a format understood by PARI.
-      var contains the variable name; if it is NULL, the function uses "x". */
+      var contains the variable name; if it is NULL, the function
+      uses "x". */
 {
    const char *x = (var == NULL ? "x" : var);
    int i, cmp;
@@ -199,6 +200,20 @@ void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *var)
    }
 }
 
+
+/*****************************************************************************/
+
+void mpzxx_print_pari (FILE* file, mpzx_srcptr g, mpzx_srcptr h, char *var)
+   /* Print the polynomial f = g + omega*h in a format understood by PARI.
+      var contains the variable name; if it is NULL, the function
+      uses "x". */
+{
+   fprintf (file, "(");
+   mpzx_print_pari (file, g, var);
+   fprintf (file, ")+o*(");
+   mpzx_print_pari (file, h, var);
+   fprintf (file, ")");
+}
 
 /*****************************************************************************/
 /*****************************************************************************/
