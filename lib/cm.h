@@ -291,7 +291,7 @@ extern double cm_class_height_factor (cm_param_srcptr param);
 extern bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param,
    bool classpol, bool tower, bool verbose);
 extern void cm_class_print_pari (FILE* file, cm_class_srcptr c,
-   char *fun, char *fun_c, char *var);
+   char *fun, char *var);
 
 /* functions for computing parameters of a complex multiplication curve */
 extern void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l,

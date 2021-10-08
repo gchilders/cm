@@ -345,4 +345,45 @@ void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr, char *fun,
 }
 
 /*****************************************************************************/
+
+void mpzxx_tower_print_pari (FILE* file, mpzx_tower_srcptr g,
+   mpzx_tower_srcptr h, char *fun,
+   char *var)
+   /* Print the number field tower f = g + omega * h in a format
+      understood by PARI.
+      fun contains the base name used for the polynomials; if it is NULL,
+      the function uses "f". var contains the base name for the variables;
+      if it is NULL, the function uses "x". */
+
+{
+   const char *f = (fun == NULL ? "f" : fun);
+   const char *x = (var == NULL ? "x" : var);
+   int i, j;
+   char xi [22]; /* long enough to hold x18446744073709551615; assumes that
+                    var contains only one character */
+
+   fprintf (file, "%s1 = ", f);
+   sprintf (xi, "%s1", x);
+   mpzxx_print_pari (file, g->W [0][0], h->W [0][0], xi);
+   printf (";\n");
+   for (i = 1; i < g->levels; i++) {
+      printf ("%s%i = ", f, i+1);
+      sprintf (xi, "%s%u", x, (unsigned int) i);
+      for (j = g->d [i]; j >= 0; j--) {
+         if (j < g->d [i])
+            printf ("+");
+         printf ("(");
+         mpzxx_print_pari (file, g->W [i][j], h->W [i][j], xi);
+         if (j >= 2)
+            printf (")*%s%i^%i", x, i+1, j);
+         else if (j == 1)
+            printf (")*%s%i", x, i+1);
+         else
+            printf (")");
+      }
+      printf (";\n");
+   }
+}
+
+/*****************************************************************************/
 /*****************************************************************************/

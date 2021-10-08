@@ -124,6 +124,8 @@ extern bool cm_mpcx_tower_get_quadratic_tower (mpzx_tower_ptr t1,
    mpzx_tower_ptr t2, mpcx_tower_srcptr tc, int_cl_t d);
 extern void mpzx_tower_print_pari (FILE* file, mpzx_tower_srcptr twr,
    char *fun, char *var);
+extern void mpzxx_tower_print_pari (FILE* file, mpzx_tower_srcptr g,
+   mpzx_tower_srcptr h, char *fun, char *var);
 
 
 /* functions for classgroups of imaginary-quadratic number fields */

@@ -49,7 +49,7 @@ int main (int argc, char* argv [])
       true /* classpol */,
       false /* tower */,
       verbose);
-   cm_class_print_pari (stdout, c, NULL, NULL, NULL);
+   cm_class_print_pari (stdout, c, NULL, NULL);
    cm_class_clear (c);
    cm_pari_clear ();
 

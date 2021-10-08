@@ -541,22 +541,20 @@ If @var{verbose} is set to @code{true}, some information is printed on
 screen during execution.
 @end deftypefun
 
-@deftypefun void cm_class_print_pari (FILE* @var{file}, cm_class_srcptr @var{c}, char* @var{fun}, char* @var{fun_c}, char* @var{var})
+@deftypefun void cm_class_print_pari (FILE* @var{file}, cm_class_srcptr @var{c}, char* @var{fun}, char* @var{var})
 Print the computed class polynomial or the relative polynomials defining a
 number field tower from @var{c} to @var{file} (which may be @code{stdout},
 for instance) in a format that can be copy-pasted or loaded into PARI/GP.
-The arguments @var{fun}, @var{fun_c} and @var{var} define the function and
-variable names used; if set to @code{NULL}, default values are given.
+The arguments @var{fun} and @var{var} define the function and variable
+names used; if set to @code{NULL}, default values are given.
 
 If computed, the class polynomial is printed with @var{fun} (default
 @code {f}) as the name of the polynomial in the variable @var{var} (default
 @code {x}); if it is complex, then the second basis element @math{\omega}
 is abbreviated to @code{o}.
 
-If computed, the real part of the class polynomial tower is printed with
-@var{fun}@math{_i} as the name of the polynomial in @var{var}, and the
-complex part is printed separately with
-@var{fun_c}@math{_i} (default @code {g}) as the name of the polynomial.
+If computed, the class polynomial tower is printed with @var{fun}@math{_i}
+as the name of the @math{i}-th polynomial in @var{var}.
 @end deftypefun
 
 
