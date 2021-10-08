@@ -35,8 +35,7 @@ int main (int argc, char* argv [])
 
    cm_timer_start (clock);
 
-   if (!evaluate_parameters (argc, argv, &d, &invariant, &verbose))
-      exit (1);
+   evaluate_parameters (argc, argv, &d, &invariant, &verbose);
    if (invariant == CM_INVARIANT_NONE)
       invariant = CM_INVARIANT_J;
 

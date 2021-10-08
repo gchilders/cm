@@ -25,14 +25,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define __PARAMS_H
 
 #include <pari/pari.h>
-#include "cm.h"
 #include <string.h>
+#include <getopt.h>
+#include "cm.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-extern bool evaluate_parameters (int argc, char* argv [], int_cl_t *d,
+extern void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
    char *invariant, bool *verbose);
 
 #if defined (__cplusplus)

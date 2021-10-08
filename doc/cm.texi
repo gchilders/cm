@@ -681,24 +681,28 @@ illustrate the library interface.
 @cindex classpol
 
 The @code{classpol} application takes one mandatory argument,
-@code{-d} directly followed (without separating space) by the absolute
+@code{-d} followed by the absolute
 value @math{|D|} of the discriminant. It computes and prints on screen
 the class polynomial for @math{D} obtained using the @math{j}-invariant.
 The additional parameter @code{-v} enables more verbose output for the
 different steps of the algorithm.
 @verbatim
-$ classpol -d207
-f = x^6+42653766018394018375*x^5-5002547112103664005187500*x^4+1819343755841562591564610147379736328125*x^3-210672109851582446065248197114115955810546875*x^2+12041028291910181818274355885092809398864746093750*x-183426864580818496179793649372867188930511474609375
+$ classpol -d 207
+f = x^6+42653766018394018375*x^5-5002547112103664005187500*x^4
++1819343755841562591564610147379736328125*x^3
+-210672109851582446065248197114115955810546875*x^2
++12041028291910181818274355885092809398864746093750*x
+-183426864580818496179793649372867188930511474609375
 @end verbatim
 
 Class polynomials for alternative class invariants are selected using the
-@code{-i} argument directly followed by the type of class function; this
+@code{-i} argument followed by the type of class function; this
 is the same as the library constants given in
 @ref{cm_param,,CM parameters}, with
 the prefix @code{CM_INVARIANT_} left out and transformed to lower case;
 so @code{CM_INVARIANT_WEBER} becomes @code{-iweber}, and so on.
 @verbatim
-$ classpol -d207 -idoubleeta -v
+$ classpol -d 207 -i doubleeta -v
 Discriminant -207, fundamental discriminant -23
 Invariant d, parameter 2_73_1_1
 Class number 6
@@ -755,7 +759,7 @@ over a prime field of 256 bits such that its cardinality is
 to print the computed parameters on screen.
 
 @verbatim
-cm -d207 -idoubleeta -v
+cm -d 207 -i doubleeta -v
 Invariant d, parameter 2_13_2_2
 ...
 p = 115792089237316195398462578067141184809496427448121806131696094238314668839633
