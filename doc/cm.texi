@@ -569,7 +569,7 @@ curve over a finite field. The CM library implements the computation of
 curves over prime fields, and also returns a point of prime order on such
 a curve.
 
-@deftypefun void cm_curve_and_point (mpz_t @var{a}, mpz_t @var{b}, mpz_t @var{x}, mpz_t @var{y}, cm_param_t @var{param}, cm_class_t @var{c}, mpz_t @var{p}, mpz_t @var{l}, mpz_t @var{co}, const char* @var{modpoldir}, bool @var{verbose})
+@deftypefun void cm_curve_and_point (mpz_t @var{a}, mpz_t @var{b}, mpz_t @var{x}, mpz_t @var{y}, cm_param_t @var{param}, cm_class_t @var{c}, mpz_t @var{p}, mpz_t @var{l}, mpz_t @var{co}, const char* @var{modpoldir}, bool @var{print}, bool @var{verbose})
 Let @var{c} contain a computed class polynomial for the CM parameters
 @var{param}. Let @var{p}@math{\geq 5} be a prime such that the elliptic
 curve with CM by the discriminant @math{D} in @var{param} has
@@ -587,8 +587,11 @@ finite field @math{F_p} and in @var{x} and @var{y} a point
 with modular polynomials for the different families of class functions;
 for a standard installation, this is @code{/usr/local/share/cm}.
 
-If @var{verbose} is set to @code{true}, some information is printed on
-screen during execution.
+If @var{print} is set to true, the computed curve and point coordinates
+are output on screen.
+
+If @var{verbose} is set to @code{true}, some additional information is
+printed on screen during execution.
 @end deftypefun
 
 @deftypefun void cm_curve_crypto_param (mpz_t @var{p}, mpz_t @var{n}, mpz_t @var{l}, mpz_t @var{co}, int_cl_t @var{d}, int @var{fieldsize}, bool @var{verbose})
@@ -773,7 +776,8 @@ if (!cm_param_init (param, d, invariant, -1, CM_SUBFIELD_OPTIMAL, verbose))
    exit (1);
 cm_class_compute (c, param, false, true, verbose);
 cm_curve_crypto_param (p, n, l, co, d, 256, verbose);
-cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR, verbose);
+cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
+   true, verbose);
 @end verbatim
 
 Parameter initialisation uses the arguments @code{CM_SUBFIELD_OPTIMAL}
@@ -790,8 +794,8 @@ The boolean arguments to @code{cm_class_compute} lead to the computation
 of the tower decomposition of the class field instead of the full class
 polynomial. The call to @code{cm_curve_crypto_param} determines a suitable
 256 bit prime and curve cardinality @var{n}, and the call to
-@code{cm_curve_and_point} obtains the curve and the coordinates of a
-point of prime order @var{l} on the curve.
+@code{cm_curve_and_point} obtains and prints the curve and the coordinates
+of a point of prime order @var{l} on the curve.
 
 
 @node ecpp

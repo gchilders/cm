@@ -61,7 +61,7 @@ int main (int argc, char* argv [])
       verbose);
    cm_curve_crypto_param (p, n, l, co, d, 256, verbose);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
-      verbose);
+      true, verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
 

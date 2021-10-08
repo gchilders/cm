@@ -56,7 +56,7 @@ static void test_curve (int_cl_t d, char invariant, bool verbose)
    cm_class_init (c, param, verbose);
    cm_class_compute (c, param, true, false, verbose);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
-      verbose);
+      false, verbose);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
    cm_class_clear (c);
@@ -68,7 +68,7 @@ static void test_curve (int_cl_t d, char invariant, bool verbose)
    cm_class_init (c, param, verbose);
    cm_class_compute (c, param, false, true, verbose);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
-      verbose);
+      false, verbose);
    cm_class_clear (c);
    printf ("ok\n");
 

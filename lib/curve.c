@@ -696,7 +696,7 @@ void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l, mpz_ptr c,
 void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool verbose)
+   const char* modpoldir, bool print, bool verbose)
    /* Given CM parameters param, a class polynomial or class field tower
       stored in c, and curve cardinality parameters p (>=5, the cardinality
       of the prime field), a prime order l and a cofactor co, return curve
@@ -705,7 +705,10 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       The algorithm will work in a slightly more general context
       (l and c are coprime, and gcd (exponent of curve group, l^\infty)=l),
       but the situation above is the common case for getting crypto curves
-      or for ECPP. */
+      or for ECPP.
+      The parameter print indicates whether the resulting curve and point
+      parameters are output on screen; verbose indicates whether additional
+      information is printed during the execution. */
 {
    mpz_t *j, *A, *B;
    mpz_t  twister;
@@ -830,13 +833,17 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    }
 
    cm_timer_stop (clock);
-   if (verbose) {
+   if (print || verbose) {
       printf ("p = "); mpz_out_str (stdout, 10, p); printf ("\n");
       printf ("n = "); mpz_out_str (stdout, 10, co);
       printf (" * "); mpz_out_str (stdout, 10, l); printf ("\n");
-      printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
       printf ("a = "); mpz_out_str (stdout, 10, a); printf ("\n");
       printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
+      printf ("x = "); mpz_out_str (stdout, 10, x); printf ("\n");
+      printf ("y = "); mpz_out_str (stdout, 10, y); printf ("\n");
+   }
+   if (verbose) {
+      printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
       printf ("--- Time for curve: %.1f\n", cm_timer_get (clock));
    }
 

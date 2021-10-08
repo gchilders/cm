@@ -834,7 +834,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
       cm_timer_continue (clock3);
       cm_curve_and_point (a, b, x, y, param, c, p, l, co,
-         modpoldir, false);
+         modpoldir, false, false);
       cm_class_clear (c);
       cm_timer_stop (clock3);
       cm_timer_stop (clock);

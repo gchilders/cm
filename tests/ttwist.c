@@ -47,7 +47,7 @@ static void test_curve (int_cl_t d, mpz_srcptr p, mpz_srcptr l,
    cm_class_init (c, param, false);
    cm_class_compute (c, param, false, true, false);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co, CM_MODPOLDIR,
-      false);
+      false, false);
       /* CM_MODPOLDIR is a preprocessor variable defined by the -D
          parameter of gcc */
    cm_class_clear (c);
