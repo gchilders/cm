@@ -718,9 +718,9 @@ power that might be needed for this level).
 After evaluating the command line parameters, the essential part of
 the code implementing this functionality takes less than ten lines:
 @verbatim
+cm_pari_init ();
 if (!cm_param_init (param, d, invariant, 0, CM_SUBFIELD_NEVER, verbose))
    exit (1);
-cm_pari_init ();
 cm_class_init (c, param, verbose);
 cm_class_compute (c, param, true, false, verbose);
 cm_class_print_pari (stdout, c, NULL, NULL, NULL);

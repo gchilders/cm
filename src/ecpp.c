@@ -29,8 +29,8 @@ int main (int argc, char* argv [])
    bool output, verbose, debug;
 
    mpz_init (n);
-   evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug);
    cm_pari_init ();
+   evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug);
 
    cm_ecpp (n, CM_MODPOLDIR,
       false /* pari */,

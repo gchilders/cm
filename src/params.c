@@ -123,13 +123,11 @@ static void print_libraries (void)
          mpc_get_version ());
    printf ("MPFRCX: include %s, lib %s\n", MPFRCX_VERSION_STRING,
          mpfrcx_get_version ());
-   pari_init (100000, 0);
    v = pari_version ();
    printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
          PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
          PARI_VERSION_CODE & 255ul,
          itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
-   pari_close ();
 }
 
 /*****************************************************************************/
