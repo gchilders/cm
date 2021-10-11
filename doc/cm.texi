@@ -626,9 +626,11 @@ implements the asymptotically fast version fastECPP of
 Certificates are computed and printed in a format compatible with
 PARI/GP.
 
-@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{pari}, bool @var{tower}, bool @var{print}, bool @var{verbose}, bool @var{debug})
+@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{pari}, bool @var{tower}, bool @var{print}, bool @var{check}, bool @var{verbose}, bool @var{debug})
 Given a prime number @var{N}, the function computes an ECPP certificate
 and prints it to screen if @var{print} is set to @code{true}.
+If @var{check} is set to @code{true}, then the certificate is checked;
+the outcome is printed if @var{verbose} is also set to @code{true}.
 The directory @var{modpoldir}, usually @code{/usr/local/share/cm}, in which
 modular polynomials are stored, is required to be passed to
 @code{cm_curve_and_point}.

@@ -393,3 +393,33 @@ mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p)
 }
 
 /*****************************************************************************/
+
+bool cm_pari_ecpp_check (mpz_t **cert, int depth)
+   /* Given a complete ECPP certificate (after step 2) of length depth in
+      cert, use PARI to check it and return its validity. */
+{
+   pari_sp av;
+   bool res;
+   GEN c;
+   int i, j;
+
+   av = avma;
+
+   c = cgetg (depth + 1, t_VEC);
+   for (i = 0; i < depth; i++) {
+      gel (c, i+1) = cgetg (6, t_VEC);
+      for (j = 0; j < 4; j++)
+         gmael (c, i+1, j+1) = mpz_get_Z (cert [i][j]);
+      gmael (c, i+1, 5) = cgetg (3, t_VEC);
+      gel (gmael2 (c, i+1, 5), 1) = mpz_get_Z (cert [i][4]);
+      gel (gmael2 (c, i+1, 5), 2) = mpz_get_Z (cert [i][5]);
+   }
+
+   res = (primecertisvalid (c) == 1);
+
+   avma = av;
+
+   return res;
+}
+
+/*****************************************************************************/

@@ -1,6 +1,6 @@
 /*
 
-ecpp.c - executable for elliptic curve primality proofs
+tecpp.c - test of ECPP
 
 Copyright (C) 2021 Andreas Enge
 
@@ -21,26 +21,46 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#include "params.h"
+#include "cm.h"
 
-int main (int argc, char* argv [])
+/*****************************************************************************/
+
+static void test_ecpp (mpz_srcptr n)
+   /* Try to compute an ECPP certificate for n. */
 {
-   mpz_t n;
-   bool output, verbose, debug;
+   bool res;
 
-   mpz_init (n);
-   cm_pari_init ();
-   evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug);
-
-   cm_ecpp (n, CM_MODPOLDIR,
+   res =    cm_ecpp (n, CM_MODPOLDIR,
       false /* pari */,
       true /* tower */,
-      output /* print */,
-      false /* check */,
-      verbose /* verbose */,
-      debug /* debug */);
+      false /* print */,
+      true /* check */,
+      false /* verbose */,
+      false /* debug */);
 
+   if (!res) {
+      printf ("ECPP certificate verification failed for\n");
+      mpz_out_str (stdout, 10, n);
+      printf ("\n");
+      exit (1);
+   }
+}
+
+/*****************************************************************************/
+
+int main (void)
+{
+   mpz_t n;
+
+   mpz_init (n);
+   mpz_set_ui (n, 10);
+   mpz_pow_ui (n, n, 200);
+   mpz_nextprime (n, n);
+
+   cm_pari_init ();
+   test_ecpp (n);
    cm_pari_clear ();
+
    mpz_clear (n);
 
    return 0;

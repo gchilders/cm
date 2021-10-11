@@ -187,6 +187,7 @@ extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
 extern mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    bool debug);
 extern mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p);
+extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 
 #if defined (__cplusplus)
 }

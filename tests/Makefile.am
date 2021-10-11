@@ -4,7 +4,7 @@ AM_LDFLAGS = -no-install
 
 LDADD = $(top_builddir)/lib/libcm.la
 
-check_PROGRAMS = tcm ttwist
+check_PROGRAMS = tcm ttwist tecpp
 
 TESTS_ENVIRONMENT = $(VALGRIND)
 TESTS = $(check_PROGRAMS)

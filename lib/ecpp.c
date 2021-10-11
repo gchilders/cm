@@ -875,8 +875,8 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 /*****************************************************************************/
 
-void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
-   bool print, bool verbose, bool debug)
+bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
+   bool print, bool check, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
@@ -886,6 +886,9 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       tower indicates whether a class field tower decomposition is used
       instead of only the class polynomial.
       print indicates whether the result is printed.
+      check indicates whether the certificate should be checked.
+      If yes, the return value of the function is the result of the check;
+      otherwise the return value is true.
       verbose indicates whether intermediate computations output progress
       information.
       debug indicates whether additional developer information (mainly
@@ -893,6 +896,7 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       the case that verbose is set as well. */
 
 {
+   bool res = true;
    int depth;
    mpz_t **cert1, **cert2;
    int i, j;
@@ -936,6 +940,24 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       printf ("];\n");
    }
 
+   cm_timer_stop (clock2);
+   cm_timer_stop (clock);
+   if (verbose) {
+      printf ("--- Time for second ECPP step: %.1f\n",
+         cm_timer_get (clock2));
+      printf ("--- Total time for ECPP:       %.1f\n",
+         cm_timer_get (clock));
+   }
+
+   if (check) {
+      cm_timer_start (clock);
+      res = cm_pari_ecpp_check (cert2, depth);
+      cm_timer_stop (clock);
+      if (verbose)
+         printf ("--- Time for ECPP check (%s): %.1f\n",
+            (res ? "true" : "false"), cm_timer_get (clock));
+   }
+
    for (i = 0; i < depth; i++) {
       for (j = 0; j < 4; j++)
          mpz_clear (cert1 [i][j]);
@@ -946,12 +968,8 @@ void cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    }
    free (cert1);
    free (cert2);
-   cm_timer_stop (clock2);
-   cm_timer_stop (clock);
-   if (verbose) {
-      printf ("--- Time for second ECPP step: %.1f\n", cm_timer_get (clock2));
-      printf ("--- Total time for ECPP:       %.1f\n", cm_timer_get (clock));
-   }
+
+   return res;
 }
 
 /*****************************************************************************/
