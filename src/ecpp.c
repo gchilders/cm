@@ -23,26 +23,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "params.h"
 
-int main (void)
+int main (int argc, char* argv [])
 {
-   mpz_t N;
+   mpz_t n;
+   bool output, verbose, debug;
 
+   mpz_init (n);
+   evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug);
    cm_pari_init ();
-   mpz_init (N);
 
-   mpz_set_ui (N, 10);
-   mpz_pow_ui (N, N, 1000);
-   mpz_nextprime (N, N);
-
-   cm_ecpp (N, CM_MODPOLDIR,
+   cm_ecpp (n, CM_MODPOLDIR,
       false /* pari */,
       true /* tower */,
-      false /* print */,
-      true /* verbose */,
-      true /* debug */);
+      output /* print */,
+      verbose /* verbose */,
+      debug /* debug */);
 
    cm_pari_clear ();
-   mpz_clear (N);
+   mpz_clear (n);
 
    return 0;
 }

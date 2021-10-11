@@ -35,6 +35,8 @@ extern "C" {
 
 extern void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
    char *invariant, bool *verbose);
+extern void evaluate_parameters_ecpp (int argc, char* argv [],
+   mpz_ptr n, bool *output, bool *verbose, bool *debug);
 
 #if defined (__cplusplus)
 }
