@@ -1095,7 +1095,7 @@ ecpp_step1(GEN N, GEN param, GEN* X0)
 /* The input is an integer N.
    It uses the precomputation step0 done in ecpp_step0. */
 static GEN
-ecpp0(GEN N, GEN param)
+cm_ecpp0(GEN N, GEN param)
 {
 
   GEN step1, answer, Tv, Cv, X0;
@@ -1192,7 +1192,7 @@ ecpp(GEN N)
       err_printf(ANSI_BRIGHT_WHITE "\n%Ps" ANSI_RESET, x);
       err_printf(ANSI_WHITE "  %8ld" ANSI_RESET, timer_delay(&T));
     }
-    if ((C = ecpp0(N, param))) return C;
+    if ((C = cm_ecpp0(N, param))) return C;
     x[1] *= 2;
     x[2] *= 2;
     x[3] = minss(x[3]+1, 30);

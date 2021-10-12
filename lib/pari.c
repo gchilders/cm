@@ -283,13 +283,22 @@ int cm_pari_classgroup_2quotient (int_cl_t disc, const int *p,
    group2 = cgetg (size2 + 1, t_VEC);
    dlog2 = cgetg (size2 + 1, t_VEC);
    size2 = 1;
+#if PARI_VERSION_CODE < PARI_VERSION (2, 14, 0)
    gel (group2, 1) = qfi_1 (gel (gens, 1));
+#else
+   gel (group2, 1) = qfb_1 (gel (gens, 1));
+#endif
    gel (dlog2, 1) = zerocol (length);
    for (i = 1; i <= length2; i++) {
       halforder = shifti (gel (orders, i), -1);
       for (j = 1; j <= size2; j++) {
+#if PARI_VERSION_CODE < PARI_VERSION (2, 14, 0)
          gel (group2, size2 + j)
             = qficomp (gel (group2, j), gel (gens2, i));
+#else
+         gel (group2, size2 + j)
+            = qfbcomp (gel (group2, j), gel (gens2, i));
+#endif
          gel (dlog2, size2 + j) = shallowcopy (gel (dlog2, j));
          gmael (dlog2, size2 + j, i) = halforder;
       }
@@ -318,8 +327,14 @@ int cm_pari_classgroup_2quotient (int_cl_t disc, const int *p,
       else
          p0pi.b = p0pi.a;
       cm_classgroup_reduce (&p0pi, disc);
+#if PARI_VERSION_CODE < PARI_VERSION (2, 14, 0)
       qfb = qfi (icl_get_Z (p0pi.a), icl_get_Z (p0pi.b),
          icl_get_Z (cm_classgroup_compute_c (p0pi.a, p0pi.b, disc)));
+#else
+      qfb = mkqfb (icl_get_Z (p0pi.a), icl_get_Z (p0pi.b),
+         icl_get_Z (cm_classgroup_compute_c (p0pi.a, p0pi.b, disc)),
+         icl_get_Z (disc));
+#endif
       /* Look up its discrete logarithm. */
       for (j = 1; !gequal (qfb, gel (group2, j)); j++);
       M = shallowconcat (M, gel (dlog2, j));
