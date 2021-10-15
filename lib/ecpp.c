@@ -39,9 +39,9 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    int_cl_t d);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d);
-static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
-   int_cl_t d);
+static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
+   mpz_srcptr N, const unsigned int delta, mpz_srcptr primorialB,
+   int_cl_t *d, int no_d, mpz_t *root);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB);
@@ -609,35 +609,31 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
 
 /*****************************************************************************/
 
-static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
-   int_cl_t d)
-   /* The function tests whether d is a suitable discriminant to perform
-      one step in the ECPP downrun from the (probable) prime N>=787 and
-      returns the result. If true, n becomes the cardinality of the
-      elliptic curve and l its largest prime factor; otherwise n and l are
-      unchanged.
-      root is a square root of d modulo N.
+static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
+   mpz_srcptr N, const unsigned int delta, mpz_srcptr primorialB,
+   int_cl_t *d, int no_d, mpz_t *root)
+   /* The function goes through the no_d discriminants in d and tests
+      whether one of them is a suitable discriminant to perform one step in
+      the ECPP downrun from the (probable) prime N>=787. If one is found,
+      the discriminant with the best gain is returned, and n becomes the
+      cardinality of the elliptic curve and l its largest prime factor;
+      otherwise 0 is returned and n and l are unchanged.
       delta >= 1 is the minimum number of bits to be gained in this step.
       primorialB is related to the trial division bound and is passed on
-      to trial_div. */
+      to trial_div.
+      root is an array of square roots of the d modulo N. */
 
 {
-   int_cl_t d_batch [1];
-   mpz_t root_batch [1];
+   int_cl_t res;
    int no_card;
    mpz_t *card;
    int_cl_t *card_d;
    mpz_t *co;
    size_t size_co, size_N, size_opt;
    int i;
-   bool ok;
 
-   ok = false;
-   d_batch [0] = d;
-   mpz_init_set (root_batch [0], root);
-   card = compute_cardinalities (&no_card, &card_d, N, 1, root_batch,
-      d_batch);
+   res = 0;
+   card = compute_cardinalities (&no_card, &card_d, N, no_d, root, d);
 
    if (no_card > 0) {
       co = (mpz_t *) malloc (no_card * sizeof (mpz_t));
@@ -647,7 +643,8 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       cm_counter2 += no_card;
       trial_div_batch (co, card, no_card, primorialB);
       cm_timer_stop (cm_timer5);
-      /* Look for a suitable twist with a point of smallest prime order. */
+      /* Look for a suitable cardinality with a point of smallest
+         prime order. */
       size_N = mpz_sizeinbase (N, 2);
       size_opt = size_N;
       for (i = 0; i < no_card; i++) {
@@ -660,33 +657,32 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             f-1 >= (e+1)/2, or equivalently f >= floor (e/2) + 2.
             We also want to gain at least one bit; otherwise we might
             even increase the prime a little bit. */
-         cm_timer_continue (cm_timer3);
          size_co = mpz_sizeinbase (co [i], 2);
          if (size_co < size_opt
              && size_co <= size_N - delta
              && size_co >= size_N / 2 + 2) {
             cm_counter3++;
+            cm_timer_continue (cm_timer3);
             if (cm_nt_is_prime (co [i])) {
-               ok = true;
+               res = card_d [i];
                size_opt = size_co;
                mpz_set (n, card [i]);
                mpz_set (l, co [i]);
             }
+            cm_timer_stop (cm_timer3);
          }
-         cm_timer_stop (cm_timer3);
       }
       for (i = 0; i < no_card; i++)
          mpz_clear (co [i]);
       free (co);
    }
 
-   mpz_clear (root_batch [0]);
    for (i = 0; i < no_card; i++)
       mpz_clear (card [i]);
    free (card);
    free (card_d);
 
-   return ok;
+   return res;
 }
 
 /*****************************************************************************/
@@ -707,20 +703,27 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    long int qstar [1000];
    mpz_t root [1000];
    int i, j;
-   int_cl_t d;
+   int_cl_t d, tmp;
    int_cl_t **dlist;
    int no_d;
-   mpz_t Droot;
-   bool ok;
+   mpz_t Droot [1];
 
-   ok = false;
-   no_qstar_old = 0;
-   no_qstar = 10;
-   mpz_init (Droot);
+   d = 0;
+   no_qstar = 0;
+   mpz_init (Droot [0]);
 
-   do {
+   while (d == 0) {
       /* Extend the prime and square root list. */
       cm_timer_continue (cm_timer1);
+      no_qstar_old = no_qstar;
+      if (no_qstar <= 10)
+         no_qstar += 10;
+      else
+         no_qstar += 20;
+      if (no_qstar > 1000) {
+         printf ("Error in find_ecpp_discriminant: qstar array too short\n");
+         exit (1);
+      }
       for (i = no_qstar_old; i < no_qstar; i++)
          mpz_init (root [i]);
       compute_qstar (qstar, root, N, no_qstar_old, no_qstar);
@@ -732,41 +735,26 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
 
       /* Search for the first suitable discriminant in the list. */
-      i = -1;
-      do {
-         i++;
-         d = dlist [i][0];
+      for (i = 0; d == 0 && i < no_d; i++) {
+         tmp = dlist [i][0];
          /* Compute the square root of the discriminant by multiplying the
             roots of all its prime factors. d can be trial divided over qstar,
             but the "even primes" need special care, in particular for the
             sign of 8. */
-         mpz_set_ui (Droot, 1);
+         mpz_set_ui (Droot [0], 1);
          for (j = 0; j < no_qstar; j++)
-            if (qstar [j] % 2 != 0 && d % qstar [j] == 0) {
-               mpz_mul (Droot, Droot, root [j]);
-               mpz_mod (Droot, Droot, N);
-               d /= qstar [j];
+            if (qstar [j] % 2 != 0 && tmp % qstar [j] == 0) {
+               mpz_mul (Droot [0], Droot [0], root [j]);
+               mpz_mod (Droot [0], Droot [0], N);
+               tmp /= qstar [j];
             }
-         if (d != 1)
+         if (tmp != 1)
             for (j = 0; j < no_qstar; j++)
-               if (d == qstar [j]) {
-                  mpz_mul (Droot, Droot, root [j]);
-                  mpz_mod (Droot, Droot, N);
+               if (tmp == qstar [j]) {
+                  mpz_mul (Droot [0], Droot [0], root [j]);
+                  mpz_mod (Droot [0], Droot [0], N);
                }
-         d = dlist [i][0];
-         ok = is_ecpp_discriminant (n, l, N, Droot, delta, primorialB, d);
-      } while (!ok && i < no_d - 1);
-
-      if (!ok) {
-         no_qstar_old = no_qstar;
-         if (no_qstar <= 10)
-            no_qstar += 10;
-         else
-            no_qstar += 20;
-         if (no_qstar > 1000) {
-            printf ("Error in find_ecpp_discriminant: qstar array too short\n");
-            exit (1);
-         }
+         d = contains_ecpp_discriminant (n, l, N, delta, primorialB, dlist [i], 1, Droot);
       }
 
       /* Free the discriminant list. */
@@ -774,9 +762,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          free (dlist [i]);
       free (dlist);
 
-   } while (!ok);
+   }
 
-   mpz_clear (Droot);
+   mpz_clear (Droot [0]);
    for (i = 0; i < no_qstar; i++)
       mpz_clear (root [i]);
 
