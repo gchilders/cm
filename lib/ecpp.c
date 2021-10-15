@@ -42,6 +42,8 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, const unsigned int delta, mpz_srcptr primorialB,
    int_cl_t *d, int no_d, mpz_t *root);
+static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *root);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB);
@@ -328,7 +330,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    for (i = 0; i < l; i++) {
       qnew = qstar [no_qstar_old + i];
       /* Compute all discriminants with primes less than qnew in absolute
-         value that can be multiplied by qnew to to obtain a suitable
+         value that can be multiplied by qnew to obtain a suitable
          candidate. */
       if (qnew > 0)
          d_part [i] = compute_signed_discriminants (&(no_part [i]),
@@ -689,6 +691,38 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 
 /*****************************************************************************/
 
+static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *root)
+   /* Given an array of no_d discriminants d which factor over the array
+      of no_qstar "signed primes" qstar, and given the roots of qstar
+      modulo N in root, compute and return in Droot the roots of the d.
+      Droots needs to contain enough space with all entries initialised.
+      By trial dividing d over qstar, it is enough to multiply the
+      corresponding roots together; however, the "even primes" need special
+      care, in particular for the sign of 8. */
+{
+   int i, j;
+   int_cl_t disc;
+
+   for (i = 0; i < no_d; i++) {
+      disc = d [i];
+      mpz_set_ui (Droot [i], 1);
+      for (j = 0; j < no_qstar; j++)
+         if (qstar [j] % 2 != 0 && disc % qstar [j] == 0) {
+            mpz_mul (Droot [i], Droot [i], root [j]);
+            mpz_mod (Droot [i], Droot [i], N);
+            disc /= qstar [j];
+         }
+      if (disc != 1) {
+         for (j = 0; disc != qstar [j]; j++);
+         mpz_mul (Droot [i], Droot [i], root [j]);
+         mpz_mod (Droot [i], Droot [i], N);
+      }
+   }
+}
+
+/*****************************************************************************/
+
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB)
@@ -704,8 +738,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int no_qstar_old, no_qstar;
    long int qstar [1000];
    mpz_t root [1000];
-   int i, j;
-   int_cl_t d, tmp;
+   int i;
+   int_cl_t d;
    int_cl_t **dlist;
    int no_d;
    mpz_t Droot [1];
@@ -738,32 +772,15 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
       /* Search for the first suitable discriminant in the list. */
       for (i = 0; d == 0 && i < no_d; i++) {
-         tmp = dlist [i][0];
-         /* Compute the square root of the discriminant by multiplying the
-            roots of all its prime factors. d can be trial divided over qstar,
-            but the "even primes" need special care, in particular for the
-            sign of 8. */
-         mpz_set_ui (Droot [0], 1);
-         for (j = 0; j < no_qstar; j++)
-            if (qstar [j] % 2 != 0 && tmp % qstar [j] == 0) {
-               mpz_mul (Droot [0], Droot [0], root [j]);
-               mpz_mod (Droot [0], Droot [0], N);
-               tmp /= qstar [j];
-            }
-         if (tmp != 1)
-            for (j = 0; j < no_qstar; j++)
-               if (tmp == qstar [j]) {
-                  mpz_mul (Droot [0], Droot [0], root [j]);
-                  mpz_mod (Droot [0], Droot [0], N);
-               }
-         d = contains_ecpp_discriminant (n, l, N, delta, primorialB, dlist [i], 1, Droot);
+         root_of_d (Droot, dlist [i], 1, N, qstar, no_qstar, root);
+         d = contains_ecpp_discriminant (n, l, N, delta, primorialB,
+            dlist [i], 1, Droot);
       }
 
       /* Free the discriminant list. */
       for (i = 0; i < no_d; i++)
          free (dlist [i]);
       free (dlist);
-
    }
 
    mpz_clear (Droot [0]);
