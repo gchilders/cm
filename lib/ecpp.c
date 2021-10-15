@@ -33,6 +33,8 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
+static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
+   mpz_srcptr primorialB);
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    int_cl_t d);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
@@ -429,6 +431,22 @@ static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB)
 
 /*****************************************************************************/
 
+static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
+   mpz_srcptr primorialB)
+   /* primorialB is supposed to be the product of the primes up to the
+      smoothness bound B.
+      The function removes all occurrences of the primes up to B from the
+      no_n entries in n and stores the results in l, which needs to have
+      the correct size and all entries of which need to be initialised. */
+{
+   int i;
+
+   for (i = 0; i < no_n; i++)
+      trial_div (l [i], n [i], primorialB);
+}
+
+/*****************************************************************************/
+
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    int_cl_t d)
    /* Given N prime, a discriminant d composed of split primes modulo N,
@@ -556,8 +574,8 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int no_card;
    mpz_t *card;
    int_cl_t *card_d;
-   mpz_t co;
-   size_t size_co, size_N;
+   mpz_t *co;
+   size_t size_co, size_N, size_opt;
    int i;
    bool ok;
 
@@ -568,13 +586,17 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       d_batch);
 
    if (no_card > 0) {
-      mpz_init (co);
-      /* Cycle through the twists and look for a suitable cardinality. */
-      for (i = 0; !ok && i < no_card; i++) {
-         cm_timer_continue (cm_timer5);
-         cm_counter2++;
-         trial_div (co, card [i], primorialB);
-         cm_timer_stop (cm_timer5);
+      co = (mpz_t *) malloc (no_card * sizeof (mpz_t));
+      for (i = 0; i < no_card; i++)
+         mpz_init (co [i]);
+      cm_timer_continue (cm_timer5);
+      cm_counter2 += no_card;
+      trial_div_batch (co, card, no_card, primorialB);
+      cm_timer_stop (cm_timer5);
+      /* Look for a suitable twist with a point of smallest prime order. */
+      size_N = mpz_sizeinbase (N, 2);
+      size_opt = size_N;
+      for (i = 0; i < no_card; i++) {
          /* We need to check whether co > (N^1/4 + 1)^2.
             Let N have e bits, that is, 2^(e-1) <= N < 2^e,
             and co have f bits, that is, 2^(f-1) <= co < 2^f. Then
@@ -585,19 +607,23 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             We also want to gain at least one bit; otherwise we might
             even increase the prime a little bit. */
          cm_timer_continue (cm_timer3);
-         size_co = mpz_sizeinbase (co, 2);
-         size_N = mpz_sizeinbase (N, 2);
-         if (size_co <= size_N - delta && size_co >= size_N / 2 + 2) {
+         size_co = mpz_sizeinbase (co [i], 2);
+         if (size_co < size_opt
+             && size_co <= size_N - delta
+             && size_co >= size_N / 2 + 2) {
             cm_counter3++;
-            if (cm_nt_is_prime (co)) {
+            if (cm_nt_is_prime (co [i])) {
                ok = true;
+               size_opt = size_co;
                mpz_set (n, card [i]);
-               mpz_set (l, co);
+               mpz_set (l, co [i]);
             }
          }
          cm_timer_stop (cm_timer3);
       }
-      mpz_clear (co);
+      for (i = 0; i < no_card; i++)
+         mpz_clear (co [i]);
+      free (co);
    }
 
    mpz_clear (root_batch [0]);
