@@ -31,6 +31,9 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
+static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
+   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m);
 static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
@@ -374,6 +377,34 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 
    *no_d = no;
    d = realloc (d, no * sizeof (int_cl_t *));
+
+   return d;
+}
+
+/*****************************************************************************/
+
+static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
+   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
+   /* The function takes the same parameters as compute_discriminants (and
+      most of them are just passed through). But instead of an unsorted
+      double array, it returns a simple array of discriminants sorted
+      according to the usefulness in ECPP. */
+{
+   int_cl_t **dlist;
+   int_cl_t *d;
+   int i;
+
+   dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar,
+      max_factors, Dmax, hmaxprime, h);
+   qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
+
+   d = (int_cl_t *) malloc (*no_d * sizeof (int_cl_t));
+   for (i = 0; i < *no_d; i++) {
+      d [i] = dlist [i][0];
+      free (dlist [i]);
+   }
+   free (dlist);
 
    return d;
 }
@@ -740,7 +771,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *root;
    int i;
    int_cl_t d;
-   int_cl_t **dlist;
+   int_cl_t *dlist;
    int no_d;
    mpz_t Droot [1];
 
@@ -766,20 +797,17 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       cm_timer_stop (cm_timer1);
 
       /* Precompute a list of potential discriminants for fastECPP. */
-      dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar,
-         max_factors, Dmax, hmaxprime, h);
-      qsort (dlist, no_d, sizeof (int_cl_t *), disc_cmp);
+      dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
+         no_qstar, max_factors, Dmax, hmaxprime, h);
 
       /* Search for the first suitable discriminant in the list. */
       for (i = 0; d == 0 && i < no_d; i++) {
-         root_of_d (Droot, dlist [i], 1, N, qstar, no_qstar, root);
+         root_of_d (Droot, dlist + i, 1, N, qstar, no_qstar, root);
          d = contains_ecpp_discriminant (n, l, N, delta, primorialB,
-            dlist [i], 1, Droot);
+            dlist + i, 1, Droot);
       }
 
       /* Free the discriminant list. */
-      for (i = 0; i < no_d; i++)
-         free (dlist [i]);
       free (dlist);
    }
 
