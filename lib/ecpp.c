@@ -35,6 +35,8 @@ static int disc_cmp (const void* d1, const void* d2);
 static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    int_cl_t d);
+static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
    int_cl_t d);
@@ -492,6 +494,49 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
 
 /*****************************************************************************/
 
+static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d)
+   /* Given a prime N, a list of no_d fastECPP discriminants in d and an
+      array of their square roots modulo N in root, compute and return the
+      array of possible CM cardinalities. The number of cardinalities is
+      returned via no_card. The newly allocated array card_d contains for
+      each cardinality the associated discriminant. */
+{
+   mpz_t* res;
+   mpz_t card [6];
+   int no_card_old, twists;
+   int i, j;
+
+   for (i = 0; i < 6; i++)
+      mpz_init (card [i]);
+   no_card_old = 0;
+   *no_card = 0;
+   res = (mpz_t *) malloc (0);
+   *card_d = (int_cl_t *) malloc (0);
+
+   for (i = 0; i < no_d; i++) {
+      twists = curve_cardinalities (card, N, root [i], d [i]);
+      if (twists > 0) {
+         *no_card = no_card_old + twists;
+         res = (mpz_t *) realloc (res, *no_card * sizeof (mpz_t));
+         *card_d = (int_cl_t *) realloc (*card_d,
+                                         *no_card * sizeof (int_cl_t));
+         for (j = 0; j < twists; j++) {
+            (*card_d) [j] = d [i];
+            mpz_init_set (res [no_card_old + j], card [j]);
+         }
+         no_card_old = *no_card;
+      }
+   }
+
+   for (i = 0; i < 6; i++)
+      mpz_clear (card [i]);
+
+   return res;
+}
+
+/*****************************************************************************/
+
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
    int_cl_t d)
@@ -506,24 +551,26 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       to trial_div. */
 
 {
+   int_cl_t d_batch [1];
+   mpz_t root_batch [1];
+   int no_card;
+   mpz_t *card;
+   int_cl_t *card_d;
    mpz_t co;
-   int twists;
-   mpz_t card [6];
-      /* The number of twists and the 2, 4, or 6 possible cardinalities
-         of the curves. */
    size_t size_co, size_N;
    int i;
    bool ok;
 
    ok = false;
-   for (i = 0; i < 6; i++)
-      mpz_init (card [i]);
-   twists = curve_cardinalities (card, N, root, d);
+   d_batch [0] = d;
+   mpz_init_set (root_batch [0], root);
+   card = compute_cardinalities (&no_card, &card_d, N, 1, root_batch,
+      d_batch);
 
-   if (twists > 0) {
+   if (no_card > 0) {
       mpz_init (co);
       /* Cycle through the twists and look for a suitable cardinality. */
-      for (i = 0; !ok && i < twists; i++) {
+      for (i = 0; !ok && i < no_card; i++) {
          cm_timer_continue (cm_timer5);
          cm_counter2++;
          trial_div (co, card [i], primorialB);
@@ -553,8 +600,11 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       mpz_clear (co);
    }
 
-   for (i = 0; i < 6; i++)
+   mpz_clear (root_batch [0]);
+   for (i = 0; i < no_card; i++)
       mpz_clear (card [i]);
+   free (card);
+   free (card_d);
 
    return ok;
 }
