@@ -682,7 +682,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          prime order. */
       size_N = mpz_sizeinbase (N, 2);
       size_opt = size_N;
-      for (i = 0; i < no_card; i++) {
+      for (i = 0; size_opt == size_N && i < no_card; i++) {
          /* We need to check whether co > (N^1/4 + 1)^2.
             Let N have e bits, that is, 2^(e-1) <= N < 2^e,
             and co have f bits, that is, 2^(f-1) <= co < 2^f. Then
@@ -766,7 +766,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       primorialB is passed through to trial division. */
 {
    const int max_factors = 4;
-   const int batch = 3;
+   const int batch = 100;
    int no_qstar_old, no_qstar;
    long int *qstar;
    mpz_t *root;
