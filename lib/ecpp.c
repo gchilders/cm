@@ -1047,7 +1047,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       if (verbose) {
          printf ("%5.1f\n", cm_timer_get (clock));
          if (debug) {
-            printf ("   CM:    %5.1f\n", cm_timer_get (clock));
+            printf ("   CM:    %5.1f\n", cm_timer_get (clock2));
             printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
             printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
             printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
