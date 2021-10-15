@@ -33,6 +33,8 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
+static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
+   int_cl_t d);
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
    int_cl_t d);
@@ -425,6 +427,71 @@ static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB)
 
 /*****************************************************************************/
 
+static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
+   int_cl_t d)
+   /* Given N prime, a discriminant d composed of split primes modulo N,
+      and a square root of d modulo N in root, the function computes the
+      array of 0 (in the case that N is not a norm in Q(\sqrt d), which
+      happens with probability 1 - 1 / (h/g)), 2, 4 or 6 (depending on
+      the number of twists) possible cardinalities of elliptic curves
+      modulo N with CM by d. The cardinalities are stored in n, the entries
+      of which need to be initialised, and their number is returned. */
+{
+   int res;
+   mpz_t t, v;
+   mpz_ptr V;
+   int twists;
+
+   mpz_init (t);
+   if (d == -3 || d == -4) {
+      mpz_init (v);
+      V = v;
+      if (d == -3)
+         twists = 6;
+      else
+         twists = 4;
+   }
+   else {
+      V = NULL;
+      twists = 2;
+   }
+
+   if (cm_nt_mpz_cornacchia (t, V, N, root, d)) {
+      res = twists;
+      /* Compute the cardinalities of all the twists. */
+      mpz_add_ui (n [0], N, 1);
+      mpz_add (n [1], n [0], t);
+      if (d == -3) {
+         /* The sextic twists have trace (\pm t \pm 3*v)/2. */
+         mpz_mul_ui (v, v, 3);
+         mpz_sub (v, v, t);
+         mpz_divexact_ui (v, v, 2);
+         mpz_add (n [2], n [0], v);
+         mpz_sub (n [3], n [0], v);
+         mpz_add (v, v, t);
+         mpz_add (n [4], n [0], v);
+         mpz_sub (n [5], n [0], v);
+      }
+      else if (d == -4) {
+         /* The quartic twists have trace \pm 2*v. */
+         mpz_mul_2exp (v, v, 1);
+         mpz_sub (n [2], n [0], v);
+         mpz_add (n [3], n [0], v);
+      }
+      mpz_sub (n [0], n [0], t);
+   }
+   else
+      res = 0;
+
+   if (d == -3 || d == -4)
+      mpz_clear (v);
+   mpz_clear (t);
+
+   return res;
+}
+
+/*****************************************************************************/
+
 static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_srcptr root, const unsigned int delta, mpz_srcptr primorialB,
    int_cl_t d)
@@ -439,8 +506,7 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       to trial_div. */
 
 {
-   mpz_t t, v, co;
-   mpz_ptr V;
+   mpz_t co;
    int twists;
    mpz_t card [6];
       /* The number of twists and the 2, 4, or 6 possible cardinalities
@@ -449,47 +515,13 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int i;
    bool ok;
 
-   mpz_init (t);
    ok = false;
-   if (d == -3 || d == -4) {
-      mpz_init (v);
-      V = v;
-      if (d == -3)
-         twists = 6;
-      else
-         twists = 4;
-   }
-   else {
-      V = NULL;
-      twists = 2;
-   }
-   if (cm_nt_mpz_cornacchia (t, V, N, root, d)) {
+   for (i = 0; i < 6; i++)
+      mpz_init (card [i]);
+   twists = curve_cardinalities (card, N, root, d);
 
-      /* Compute the cardinalities of all the twists. */
+   if (twists > 0) {
       mpz_init (co);
-      for (i = 0; i < twists; i++)
-         mpz_init (card [i]);
-      mpz_add_ui (card [0], N, 1);
-      mpz_add (card [1], card [0], t);
-      if (d == -3) {
-         /* The sextic twists have trace (\pm t \pm 3*v)/2. */
-         mpz_mul_ui (v, v, 3);
-         mpz_sub (v, v, t);
-         mpz_divexact_ui (v, v, 2);
-         mpz_add (card [2], card [0], v);
-         mpz_sub (card [3], card [0], v);
-         mpz_add (v, v, t);
-         mpz_add (card [4], card [0], v);
-         mpz_sub (card [5], card [0], v);
-      }
-      else if (d == -4) {
-         /* The quartic twists have trace \pm 2*v. */
-         mpz_mul_2exp (v, v, 1);
-         mpz_sub (card [2], card [0], v);
-         mpz_add (card [3], card [0], v);
-      }
-      mpz_sub (card [0], card [0], t);
-
       /* Cycle through the twists and look for a suitable cardinality. */
       for (i = 0; !ok && i < twists; i++) {
          cm_timer_continue (cm_timer5);
@@ -519,12 +551,10 @@ static bool is_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          cm_timer_stop (cm_timer3);
       }
       mpz_clear (co);
-      for (i = 0; i < twists; i++)
-         mpz_clear (card [i]);
    }
-   if (d == -3 || d == -4)
-      mpz_clear (v);
-   mpz_clear (t);
+
+   for (i = 0; i < 6; i++)
+      mpz_clear (card [i]);
 
    return ok;
 }
