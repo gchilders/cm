@@ -349,16 +349,18 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       qnew = qstar [no_qstar_old + i];
       for (j = 0; j < no_part [i]; j++) {
          D = qnew * d_part [i][j][0];
-         Dno = 1 + d_part [i][j][1];
-         if (Dno <= max_factors) {
-            hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
-            if (hprime <= hmaxprime) {
-               d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
-               d [no][0] = D;
-               d [no][1] = h [(-D) / 2];
-               d [no][2] = d [no][1] >> (Dno - 1);
-               d [no][3] = hprime;
-               no++;
+         if (D % 16 != 0) {
+            Dno = 1 + d_part [i][j][1];
+            if (Dno <= max_factors) {
+               hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
+               if (hprime <= hmaxprime) {
+                  d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
+                  d [no][0] = D;
+                  d [no][1] = h [(-D) / 2];
+                  d [no][2] = d [no][1] >> (Dno - 1);
+                  d [no][3] = hprime;
+                  no++;
+               }
             }
          }
          free (d_part [i][j]);
