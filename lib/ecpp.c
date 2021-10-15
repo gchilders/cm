@@ -629,7 +629,7 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
          *card_d = (int_cl_t *) realloc (*card_d,
                                          *no_card * sizeof (int_cl_t));
          for (j = 0; j < twists; j++) {
-            (*card_d) [j] = d [i];
+            (*card_d) [no_card_old + j] = d [i];
             mpz_init_set (res [no_card_old + j], card [j]);
          }
          no_card_old = *no_card;
@@ -766,20 +766,23 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       primorialB is passed through to trial division. */
 {
    const int max_factors = 4;
+   const int batch = 3;
    int no_qstar_old, no_qstar;
    long int *qstar;
    mpz_t *root;
-   int i;
+   int i, j;
    int_cl_t d;
    int_cl_t *dlist;
    int no_d;
-   mpz_t Droot [1];
+   mpz_t *Droot;
 
    d = 0;
    no_qstar = 0;
    qstar = (long int *) malloc (0);
    root = (mpz_t *) malloc (0);
-   mpz_init (Droot [0]);
+   Droot = (mpz_t *) malloc (batch * sizeof (mpz_t));
+   for (i = 0; i < batch; i++)
+      mpz_init (Droot [i]);
 
    while (d == 0) {
       /* Extend the prime and square root list. */
@@ -800,18 +803,23 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
          no_qstar, max_factors, Dmax, hmaxprime, h);
 
-      /* Search for the first suitable discriminant in the list. */
-      for (i = 0; d == 0 && i < no_d; i++) {
-         root_of_d (Droot, dlist + i, 1, N, qstar, no_qstar, root);
+      /* Go through the list, treating batch discriminants at a time. */
+      for (i = 0; d == 0 && i < (no_d + batch - 1) / batch; i++) {
+         j = no_d - i * batch;
+         if (j > batch)
+            j = batch;
+         root_of_d (Droot, dlist + i * batch, j, N, qstar, no_qstar, root);
          d = contains_ecpp_discriminant (n, l, N, delta, primorialB,
-            dlist + i, 1, Droot);
+            dlist + i * batch, j, Droot);
       }
 
       /* Free the discriminant list. */
       free (dlist);
    }
 
-   mpz_clear (Droot [0]);
+   for (i = 0; i < batch; i++)
+      mpz_clear (Droot [i]);
+   free (Droot);
    for (i = 0; i < no_qstar; i++)
       mpz_clear (root [i]);
    free (root);
