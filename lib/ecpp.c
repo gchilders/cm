@@ -736,8 +736,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 {
    const int max_factors = 4;
    int no_qstar_old, no_qstar;
-   long int qstar [1000];
-   mpz_t root [1000];
+   long int *qstar;
+   mpz_t *root;
    int i;
    int_cl_t d;
    int_cl_t **dlist;
@@ -746,6 +746,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
    d = 0;
    no_qstar = 0;
+   qstar = (long int *) malloc (0);
+   root = (mpz_t *) malloc (0);
    mpz_init (Droot [0]);
 
    while (d == 0) {
@@ -756,10 +758,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          no_qstar += 10;
       else
          no_qstar += 20;
-      if (no_qstar > 1000) {
-         printf ("Error in find_ecpp_discriminant: qstar array too short\n");
-         exit (1);
-      }
+      qstar = (long int *) realloc (qstar, no_qstar * sizeof (long int));
+      root = (mpz_t *) realloc (root, no_qstar * sizeof (mpz_t));
       for (i = no_qstar_old; i < no_qstar; i++)
          mpz_init (root [i]);
       compute_qstar (qstar, root, N, no_qstar_old, no_qstar);
@@ -786,6 +786,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_clear (Droot [0]);
    for (i = 0; i < no_qstar; i++)
       mpz_clear (root [i]);
+   free (root);
+   free (qstar);
 
    return d;
 }
