@@ -32,7 +32,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
-static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB);
+static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m);
 static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
    mpz_srcptr primorialB);
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
@@ -406,27 +406,61 @@ static int disc_cmp (const void* d1, const void* d2)
 
 /*****************************************************************************/
 
-static void trial_div (mpz_ptr l, mpz_srcptr n, mpz_srcptr primorialB)
-   /* primorialB is supposed to be the product of the primes up to the
-      smoothness bound B.
-      The function removes all occurrences of the primes up to B from n
-      and stores the result in l. */
+static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m)
+   /* Given a positive integer n and an array of no_m positive moduli in m,
+      compute n mod all the m and return them in mod, which needs to
+      provide sufficient space and initialised entries. For the
+      implementation to be efficient, it is required that the product of
+      all the m be less than n; otherwise the calling function should
+      split the array m into suitable chunks. */
 {
-   mpz_t mod, gcd;
+   mpz_t **tree;
+   int *width;
+   int levels;
+   int i, j;
 
-   mpz_init (mod);
-   mpz_init (gcd);
-
-   mpz_set (l, n);
-   mpz_mod (mod, primorialB, l);
-   mpz_gcd (gcd, l, mod);
-   while (mpz_cmp_ui (gcd, 1)) {
-      mpz_divexact (l, l, gcd);
-      mpz_gcd (gcd, l, mod);
+   /* Compute bottom-up a subproduct tree with m on the leaves. */
+   for (i = no_m, levels = 1; i > 1; i = (i+1) / 2, levels++);
+   tree = (mpz_t **) malloc (levels * sizeof (mpz_t *));
+   width = (int *) malloc (levels * sizeof (int));
+   width [0] = no_m;
+   tree [0] = (mpz_t *) malloc (no_m * sizeof (mpz_t));
+   for (j = 0; j < no_m; j++)
+      mpz_init_set (tree [0][j], m [j]);
+   for (i = 1; i < levels; i++) {
+      width [i] = (width [i-1] + 1) / 2;
+      tree [i] = (mpz_t *) malloc (width [i] * sizeof (mpz_t));
+      for (j = 0; j < width [i-1] / 2; j++) {
+         mpz_init (tree [i][j]);
+         mpz_mul (tree [i][j], tree [i-1][2*j], tree [i-1][2*j+1]);
+      }
+      if (width [i-1] % 2 != 0) {
+         mpz_init (tree [i][j]);
+         mpz_set (tree [i][j], tree [i-1][2*j]);
+      }
    }
 
-   mpz_clear (mod);
-   mpz_clear (gcd);
+   /* Replace top-down the tree entries by n modulo the entry. */
+   mpz_mod (tree [levels-1][0], n, tree [levels-1][0]);
+   for (i = levels - 2; i >= 0; i--) {
+      for (j = 0; j < (width [i] / 2) * 2; j++)
+         mpz_mod (tree [i][j], tree [i+1][j/2], tree [i][j]);
+      if (width [i] % 2 != 0)
+         mpz_set (tree [i][j], tree [i+1][j/2]);
+   }
+
+   /* Copy the leaves into the result. */
+   for (j = 0; j < no_m; j++)
+      mpz_set (mod [j], tree [0][j]);
+
+   /* Clear the tree. */
+   for (i = 0; i < levels; i++) {
+      for (j = 0; j < width [i]; j++)
+         mpz_clear (tree [i][j]);
+      free (tree [i]);
+   }
+   free (tree);
+   free (width);
 }
 
 /*****************************************************************************/
@@ -439,10 +473,30 @@ static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
       no_n entries in n and stores the results in l, which needs to have
       the correct size and all entries of which need to be initialised. */
 {
+   mpz_t *mod;
    int i;
 
+   mod = (mpz_t *) malloc (no_n * sizeof (mpz_t));
    for (i = 0; i < no_n; i++)
-      trial_div (l [i], n [i], primorialB);
+      mpz_init (mod [i]);
+
+   /* Compute in mod [i] the gcd of n [i] and primorialB. */
+   mpz_tree_mod (mod, primorialB, n, no_n);
+   for (i = 0; i < no_n; i++)
+      mpz_gcd (mod [i], n [i], mod [i]);
+   /* Remove the gcd from n [i] and recompute it until all primes
+      are removed. */
+   for (i = 0; i < no_n; i++) {
+      mpz_set (l [i], n [i]);
+      while (mpz_cmp_ui (mod [i], 1ul) != 0) {
+         mpz_divexact (l [i], l [i], mod [i]);
+         mpz_gcd (mod [i], l [i], mod [i]);
+      }
+   }
+
+   for (i = 0; i < no_n; i++)
+      mpz_clear (mod [i]);
+   free (mod);
 }
 
 /*****************************************************************************/
