@@ -184,6 +184,8 @@ extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
 
 
 /* functions for ECPP */
+extern bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
+   mpz_srcptr root, const int_cl_t d);
 extern mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    bool debug);
 extern mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p);

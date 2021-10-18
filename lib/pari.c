@@ -405,11 +405,34 @@ int cm_pari_classgroup_2quotient (int_cl_t disc, const int *p,
    return lengthq;
 }
 
-
 /*****************************************************************************/
 /*                                                                           */
 /* Functions used for ECPP                                                   */
 /*                                                                           */
+/*****************************************************************************/
+
+bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
+   mpz_srcptr root, const int_cl_t d)
+   /* The function has the same interface as cm_nt_mpz_cornacchia. As PARI
+      uses a half gcd, it should be asymptotically faster. */
+{
+   pari_sp av;
+   GEN px, py;
+   long res;
+
+   av = avma;
+   res = cornacchia2_sqrt (icl_get_Z (-d), mpz_get_Z (p), mpz_get_Z (root),
+      &px, &py);
+   if (res == 1) {
+      Z_get_mpz (t, px);
+      if (v != NULL)
+         Z_get_mpz (v, py);
+   }
+   avma = av;
+
+   return (res == 1);
+}
+
 /*****************************************************************************/
 
 mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p)
