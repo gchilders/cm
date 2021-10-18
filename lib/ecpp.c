@@ -614,35 +614,47 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
       returned via no_card. The newly allocated array card_d contains for
       each cardinality the associated discriminant. */
 {
-   mpz_t* res;
-   mpz_t card [6];
-   int no_card_old, twists;
-   int i, j;
+   mpz_t *res;
+   mpz_t **card;
+   int *twists;
+   int i, j, k;
 
-   for (i = 0; i < 6; i++)
-      mpz_init (card [i]);
-   no_card_old = 0;
-   *no_card = 0;
-   res = (mpz_t *) malloc (0);
-   *card_d = (int_cl_t *) malloc (0);
-
+   /* For each discriminant, compute the potential cardinalities in
+      separate memory locations. */
+   twists = (int *) malloc (no_d * sizeof (int));
+   card = (mpz_t **) malloc (no_d * sizeof (mpz_t *));
    for (i = 0; i < no_d; i++) {
-      twists = curve_cardinalities (card, N, root [i], d [i]);
-      if (twists > 0) {
-         *no_card = no_card_old + twists;
-         res = (mpz_t *) realloc (res, *no_card * sizeof (mpz_t));
-         *card_d = (int_cl_t *) realloc (*card_d,
-                                         *no_card * sizeof (int_cl_t));
-         for (j = 0; j < twists; j++) {
-            (*card_d) [no_card_old + j] = d [i];
-            mpz_init_set (res [no_card_old + j], card [j]);
-         }
-         no_card_old = *no_card;
-      }
+      card [i] = (mpz_t *) malloc (6 * sizeof (mpz_t));
+      for (j = 0; j < 6; j++)
+         mpz_init (card [i][j]);
    }
 
-   for (i = 0; i < 6; i++)
-      mpz_clear (card [i]);
+   for (i = 0; i < no_d; i++)
+      twists [i] = curve_cardinalities (card [i], N, root [i], d [i]);
+
+   /* Count the number of obtained cardinalities. */
+   *no_card = 0;
+   for (i = 0; i < no_d; i++)
+      *no_card += twists [i];
+
+   /* Copy the results. */
+   res = (mpz_t *) malloc (*no_card * sizeof (mpz_t));
+   *card_d = (int_cl_t *) malloc (*no_card * sizeof (int_cl_t));
+   k = 0;
+   for (i = 0; i < no_d; i++)
+      for (j = 0; j < twists [i]; j++) {
+         (*card_d) [k] = d [i];
+         mpz_init_set (res [k], card [i][j]);
+         k++;
+      }
+
+   for (i = 0; i < no_d; i++) {
+      for (j = 0; j < 6; j++)
+         mpz_clear (card [i][j]);
+      free (card [i]);
+   }
+   free (card);
+   free (twists);
 
    return res;
 }
