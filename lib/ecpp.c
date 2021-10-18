@@ -550,6 +550,7 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    mpz_t t, v;
    mpz_ptr V;
    int twists;
+   bool cornacchia;
 
    mpz_init (t);
    if (d == -3 || d == -4) {
@@ -565,7 +566,11 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
       twists = 2;
    }
 
-   if (cm_nt_mpz_cornacchia (t, V, N, root, d)) {
+   cm_timer_continue (cm_timer4);
+   cm_counter4++;
+   cornacchia = cm_nt_mpz_cornacchia (t, V, N, root, d);
+   cm_timer_stop (cm_timer4);
+   if (cornacchia) {
       res = twists;
       /* Compute the cardinalities of all the twists. */
       mpz_add_ui (n [0], N, 1);
@@ -674,10 +679,10 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
       co = (mpz_t *) malloc (no_card * sizeof (mpz_t));
       for (i = 0; i < no_card; i++)
          mpz_init (co [i]);
-      cm_timer_continue (cm_timer5);
-      cm_counter2 += no_card;
+      cm_timer_continue (cm_timer2);
+      cm_counter2++;
       trial_div_batch (co, card, no_card, primorialB);
-      cm_timer_stop (cm_timer5);
+      cm_timer_stop (cm_timer2);
       /* Look for a suitable cardinality with a point of smallest
          prime order. */
       size_N = mpz_sizeinbase (N, 2);
@@ -882,16 +887,16 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    cm_timer_reset (cm_timer2);
    cm_timer_reset (cm_timer3);
    cm_timer_reset (cm_timer4);
-   cm_timer_reset (cm_timer5);
+   cm_counter1 = 0;
+   cm_counter2 = 0;
+   cm_counter3 = 0;
+   cm_counter4 = 0;
    while (mpz_sizeinbase (N, 2) > 64) {
       c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
       c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
       for (i = 0; i < 4; i++)
          mpz_init (c [*depth][i]);
       mpz_set (c [*depth][0], N);
-      cm_counter1 = 0;
-      cm_counter2 = 0;
-      cm_counter3 = 0;
       cm_timer_start (clock);
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
          hmaxprime, h, delta, primorialB);
@@ -900,12 +905,14 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
          printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
             d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
          if (debug) {
-            printf ("%5i qstar: %.1f\n",
+            printf ("%6i qstar:      %.1f\n",
                   cm_counter1, cm_timer_get (cm_timer1));
-            printf ("%5i Trial div: %.1f\n", cm_counter2,
-                  cm_timer_get (cm_timer5));
-            printf ("%5i is_prime: %.1f\n", cm_counter3,
+            printf ("%6i Trial div:  %.1f\n", cm_counter2,
+                  cm_timer_get (cm_timer2));
+            printf ("%6i is_prime:   %.1f\n", cm_counter3,
                   cm_timer_get (cm_timer3));
+            printf ("%6i Cornacchia: %.1f\n", cm_counter4,
+                  cm_timer_get (cm_timer4));
          }
       }
       mpz_set_si (c [*depth][1], d);
@@ -965,10 +972,6 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    cm_timer_reset (clock3);
    cm_timer_reset (cm_timer1);
    cm_timer_reset (cm_timer2);
-   cm_timer_reset (cm_timer3);
-   cm_timer_reset (cm_timer4);
-   cm_timer_reset (cm_timer5);
-   cm_timer_reset (cm_timer6);
 
    for (i = 0; i < depth; i++) {
       cm_timer_start (clock);
@@ -1049,11 +1052,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
          if (debug) {
             printf ("   CM:    %5.1f\n", cm_timer_get (clock2));
             printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
-            printf ("   curve: %5.1f\n", cm_timer_get (cm_timer2));
-            printf ("     random:   %5.1f\n", cm_timer_get (cm_timer3));
-            printf ("     multiply: %5.1f\n", cm_timer_get (cm_timer4));
-            printf ("       dbl: %5.1f\n", cm_timer_get (cm_timer5));
-            printf ("       add: %5.1f\n", cm_timer_get (cm_timer6));
+            printf ("   point: %5.1f\n", cm_timer_get (cm_timer2));
          }
       }
 

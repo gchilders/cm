@@ -89,7 +89,6 @@ static void elliptic_curve_double (mpz_ptr x, mpz_ptr y, mpz_ptr z,
    mpz_init (t2);
    mpz_init (tmp);
 
-   cm_timer_continue (cm_timer5);
    if (mpz_cmp_ui (z, 0ul)) {
       /* There is nothing to do when P is already infinity.
          Otherwise we use the formula of
@@ -140,7 +139,6 @@ static void elliptic_curve_double (mpz_ptr x, mpz_ptr y, mpz_ptr z,
       mpz_set (z, z2);
       mpz_set (t, t2);
    }
-   cm_timer_stop (cm_timer5);
 
    mpz_clear (xx);
    mpz_clear (yy);
@@ -165,7 +163,6 @@ static void elliptic_curve_mixedadd (mpz_ptr x1, mpz_ptr y1, mpz_ptr z1,
 {
    mpz_t z1z1, h, hh, i, j, r, v, x3, y3, z3, t3, tmp;
 
-   cm_timer_continue (cm_timer6);
    if (!mpz_cmp_ui (z1, 0ul)) {
       /* P1 is zero */
       mpz_set (x1, x2);
@@ -275,7 +272,6 @@ static void elliptic_curve_mixedadd (mpz_ptr x1, mpz_ptr y1, mpz_ptr z1,
       mpz_clear (h);
       mpz_clear (r);
    }
-   cm_timer_stop (cm_timer6);
 }
 
 /*****************************************************************************/
@@ -812,15 +808,11 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       for (k = 0; k < no_twists && !ok; k++) {
          mpz_set (a, A [k]);
          mpz_set (b, B [k]);
-         cm_timer_continue (cm_timer3);
          elliptic_curve_random (P_x, P_y, co, a, b, p);
-         cm_timer_stop (cm_timer3);
          mpz_set (x, P_x);
          mpz_set (y, P_y);
          P_infty = false;
-         cm_timer_continue (cm_timer4);
          elliptic_curve_multiply (P_x, P_y, &P_infty, l, a, p);
-         cm_timer_stop (cm_timer4);
          if (P_infty)
             ok = true;
       }
