@@ -2,7 +2,7 @@
 
 params.c - command line parameter evaluation
 
-Copyright (C) 2009, 2010 Andreas Enge
+Copyright (C) 2009, 2010, 2021 Andreas Enge
 
 This file is part of CM.
 
@@ -31,6 +31,7 @@ static void print_n_options (void);
 static void print_v_options (void);
 static void print_o_options (void);
 static void print_g_options (void);
+static void print_c_options (void);
 static void print_help (void);
 static void print_help_ecpp (void);
 static void print_libraries (void);
@@ -85,6 +86,13 @@ static void print_g_options (void)
 
 /*****************************************************************************/
 
+static void print_c_options (void)
+{
+   printf ("-c enables checking of the certificate.\n");
+}
+
+/*****************************************************************************/
+
 static void print_help (void)
 {
    printf ("The following options are recognised: "
@@ -100,12 +108,13 @@ static void print_help (void)
 static void print_help_ecpp (void)
 {
    printf ("The following options are recognised: "
-      "'-n', '-o', '-v', '-g', '-h'.\n"
+      "'-n', '-o', '-v', '-g', '-c', '-h'.\n"
       "-h prints this help.\n");
    print_n_options ();
    print_o_options ();
    print_v_options ();
    print_g_options ();
+   print_c_options ();
 }
 
 /*****************************************************************************/
@@ -218,7 +227,7 @@ void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
 /*****************************************************************************/
 
 void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
-   bool *output, bool *verbose, bool *debug)
+   bool *output, bool *verbose, bool *debug, bool *check)
    /* Since ECPP requires different parameter types, the easiest solution
       appears to be a separate function, albeit with a lot of copy and
       paste. */
@@ -230,7 +239,7 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    *verbose = false;
    *debug = false;
 
-   while ((opt = getopt (argc, argv, "hn:ogv")) != -1) {
+   while ((opt = getopt (argc, argv, "hn:ogvc")) != -1) {
       switch (opt) {
          case 'v':
             *verbose = true;
@@ -241,6 +250,9 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
          case 'g':
             *verbose = true;
             *debug = true;
+            break;
+         case 'c':
+            *check = true;
             break;
          case 'n':
             if (!cm_pari_eval_int (n, optarg) || mpz_cmp_si (n, 0ul) <= 0) {

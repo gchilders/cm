@@ -839,6 +839,9 @@ PARI/GP session and checked using
 @end verbatim
 with expected result 1.
 
+Alternatively, the argument @code{-c} checks the validity of the computed
+certificate; to see the result, the option @code{-v} needs to be enabled.
+
 
 @node References
 @unnumbered References
