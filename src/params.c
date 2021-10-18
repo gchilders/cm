@@ -243,7 +243,10 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
             *debug = true;
             break;
          case 'n':
-            mpz_set_str (n, optarg, 10);
+            if (!cm_pari_eval_int (n, optarg) || mpz_cmp_si (n, 0ul) <= 0) {
+               print_n_options ();
+               exit (1);
+            }
             break;
          case 'h':
             print_help_ecpp ();
@@ -264,11 +267,6 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
             /* Should not occur. */
             exit (1);
       }
-   }
-
-   if (mpz_cmp_ui (n, 0ul) <= 0) {
-      print_n_options ();
-      exit (1);
    }
 
    if (*verbose)

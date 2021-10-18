@@ -281,9 +281,12 @@ extern void cm_modpol_print_magma (int level, char type, const char* datadir);
 extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    int maxdeg, int subfield, bool verbose);
 
-/* functions for class polynomials */
+/* functions depending on PARI */
 extern void cm_pari_init (void);
 extern void cm_pari_clear (void);
+extern bool cm_pari_eval_int (mpz_ptr n, char *e);
+
+/* functions for class polynomials */
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
    bool verbose);
 extern void cm_class_clear (cm_class_ptr c);

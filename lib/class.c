@@ -52,23 +52,6 @@ static void compute_conjugates (ctype *conjugate, cm_form_t *nsystem,
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_pari_init ()
-{
-   pari_init_opts (2000000, 0, INIT_JMPm | INIT_DFTm);
-      /* Do not capture SIGSEGV. */
-   paristack_setsize (2000000, 1000000000);
-}
-
-/*****************************************************************************/
-
-void cm_pari_clear ()
-
-{
-   pari_close ();
-}
-
-/*****************************************************************************/
-
 void cm_class_init (cm_class_ptr c, cm_param_srcptr param, bool verbose)
 
 {

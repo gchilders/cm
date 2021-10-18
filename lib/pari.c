@@ -134,6 +134,51 @@ static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p)
 
 /*****************************************************************************/
 /*                                                                           */
+/* Exported functions.                                                       */
+/*                                                                           */
+/*****************************************************************************/
+
+void cm_pari_init ()
+{
+   pari_init_opts (2000000, 0, INIT_JMPm | INIT_DFTm);
+      /* Do not capture SIGSEGV. */
+   paristack_setsize (2000000, 1000000000);
+}
+
+/*****************************************************************************/
+
+void cm_pari_clear ()
+
+{
+   pari_close ();
+}
+
+/*****************************************************************************/
+
+bool cm_pari_eval_int (mpz_ptr n, char *e)
+   /* If the PARI expression e evaluates to a t_INT, set n to this integer
+      and return true; otherwise keep n unchanged and return false. */
+{
+   pari_sp av;
+   GEN z;
+   bool ok = true;
+
+   av = avma;
+
+   z = gp_read_str (e);
+   if (typ (z) == t_INT)
+      Z_get_mpz (n, z);
+   else
+      ok = false;
+
+   avma = av;
+
+   return ok;
+}
+
+
+/*****************************************************************************/
+/*                                                                           */
 /* Functions for finding roots of polynomials.                               */
 /*                                                                           */
 /*****************************************************************************/

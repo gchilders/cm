@@ -815,13 +815,15 @@ primality of the number passed with the @code{-n} command line argument.
 It is assumed that this number is a suitably tested pseudo-prime; in
 particular, if it is smaller than @math{2^{64}} then it is assumed to be
 prime, and no certificate is computed.
+The number can simply be given in decimal notation, but also by an
+arbitrary GP expression.
 
 The argument @code{-o} causes output of the certificate on the screen,
 @code{-v} enables printing of progress information, and @code{-g}
 enables even more verbose debug output.
 
 @verbatim
-$ ecpp -n 10000000000000000000000000000033 -o
+$ ecpp -n 'nextprime(10^31)' -o
 c = [[10000000000000000000000000000033, -5882759018432034, 12103604, 25,
 [3876868516114165308082393519623, 7268598020338906447634857503614]],
 [826200196239071096737717, 667597927066, 916, 0,
