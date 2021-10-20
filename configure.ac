@@ -245,12 +245,6 @@ error
          AC_MSG_ERROR([PARI version >= 2.11.0 required])
          ])
 
-# Checks for gcc version, result in variables CM_GCC etc. inside config.h
-AX_GCC_VERSION
-AC_DEFINE_UNQUOTED([CM_GCC], ["$GCC"], [Gcc yes or no])
-AC_DEFINE_UNQUOTED([CM_CC], ["$CC"], [C compiler])
-AC_DEFINE_UNQUOTED([CM_GCC_VERSION], ["$GCC_VERSION"], [Version of gcc])
-
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT
