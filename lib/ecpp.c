@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax);
 static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    int no_old, int no_new);
@@ -55,46 +56,95 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 /*****************************************************************************/
 
-static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
-   /* Assuming that h is an array of length (Dmax/2)+1 for even Dmax,
-      compute in h [|D|/2] the class number for fundamental discriminants D
-      such that |D| <= Dmax.
+static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax)
+   /* Assuming that h is an array of length (Dmax-Dmin)/2 for Dmin and Dmax
+      both divisible by 4, compute in h [(|D|-Dmin)/2-1] the class number
+      for fundamental discriminants D such that Dmin < |D| <= Dmax.
       Non-fundamental positions need not contain the class number.
-      Precisely, h [|D|] counts the number of quadratic forms [A, B, C]
-      such that 0 <= |B| <= A <= C of discriminant D = B^2-4*A*C,
+      Precisely, h [(|D|-Dmin)/2-1] counts the number of quadratic forms
+      [A, B, C] such that 0 <= |B| <= A <= C of discriminant D = B^2-4*A*C,
       and B>=0 if |B| = A or A = C. We may include in this count some or
       all of the non-primitive forms, since they belong to non-fundamental
       discriminants. */
 {
-   uint_cl_t Dmax2, A, B, D2, Amax, Alocmax, i;
+   uint_cl_t Dmin2, Dmax2, length, D2, A, B, A2, Amax, Alocmax, i;
 
+   if (Dmin % 4 != 0 || Dmax % 4 != 0) {
+      printf ("***** Error: compute_h_chunk called with parameters not "
+              "divisible by 4.\n");
+      exit (1);
+   }
+
+   Dmin2 = Dmin / 2;
    Dmax2 = Dmax / 2;
-   for (i = 0; i <= Dmax2; i++)
+   length = Dmax2 - Dmin2;
+   for (i = 0; i < length; i++)
       h [i] = 0;
 
    Amax = (uint_cl_t) sqrt (Dmax / 3.0);
 
    /* Consider forms with B=0. */
-   for (A = 1; A <= Amax; A++)
-      /* C = A, occurs as primitive form only for |D| = 4  */
-      for (D2 = 2*A*A; D2 <= Dmax2; h [D2]++, D2 += 2*A);
+   Alocmax = (uint_cl_t) sqrt (Dmax2);
+   for (A = 1; A <= Alocmax; A++) {
+      A2 = 2 * A;
+      /* Compute D2 = |D| / 2 corresponding to C = A. */
+      D2 = A2 * A;
+      if (D2 <= Dmin2)
+         D2 += A2 * ((Dmin2 - D2 + A2) / A2);
+      for (i = D2 - Dmin2 - 1; i < length; h [i]++, i += A2);
+   }
 
-   /* Consider forms with 0 < |B| = A <= C. */
-   for (A = 1; A <= Amax; A++)
-      /* C = A, occurs as primitive form only for |D| = 3 */
-      for (D2 = 3 * A * A / 2; D2 <= Dmax2; h [D2]++, D2 += 2*A);
+   /* Consider forms with 0 < B = A <= C. */
+   for (A = 1; A <= Amax; A++) {
+      A2 = 2 * A;
+      /* Compute D2 corresponding to C = A. */
+      D2 = 3*A*A / 2;
+      if (D2 <= Dmin2)
+         D2 += A2 * ((Dmin2 - D2 + A2) / A2);
+      for (i = D2 - Dmin2 - 1; i < length; h [i]++, i += A2);
+   }
 
    /* Consider forms with 0 < |B| < A <= C. */
    for (B = 1; B < Amax; B++) {
-      Alocmax = (uint_cl_t) sqrt ((Dmax + B * B) / 4);
+      Alocmax = (uint_cl_t) sqrt ((Dmax + B * B) / 4.0);
       for (A = B + 1; A <= Alocmax; A++) {
-         /* C = A */
-         D2 = (2 * A - B) * (2 * A + B) / 2;
-         h [D2]++;
-         /* C = A + 1 */
-         for (D2 += 2*A; D2 <= Dmax2; h [D2] += 2, D2 += 2*A);
+         A2 = 2 * A;
+         /* Compute D2 corresponding to C = A; if this is in the correct
+            range, then the ambiguous form needs to be counted once. */
+         D2 = (A2 - B) * (A2 + B) / 2;
+         if (D2 > Dmin2) {
+            h [D2 - Dmin2 - 1]++;
+            D2 += A2;
+         }
+         else
+            D2 += A2 * ((Dmin2 - D2 + A2) / A2);
+         for (i = D2 - Dmin2 - 1; i < length; h [i] += 2, i += A2);
       }
    }
+}
+
+/*****************************************************************************/
+
+static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
+   /* The function behaves as compute_h_chunk (h, 0, Dmax), but computing
+      the class numbers in ranges of 100000 (that is, 50000 discriminants
+      at a time). Experimentally, this optimises the running time on my
+      laptop for Dmax=10^7. The optimal value probably depends on the cache
+      size. */
+{
+   const uint_cl_t size = 100000;
+   int chunks, i;
+
+   if (Dmax % 4 != 0) {
+      printf ("***** Error: compute_h called with parameter not "
+              "divisible by 4.\n");
+      exit (1);
+   }
+
+   chunks = (Dmax + size - 1) / size;
+   for (i = 0; i < chunks - 1; i++)
+      compute_h_chunk (h + i * size / 2, i * size, (i+1) * size);
+   compute_h_chunk (h + i * size / 2, i * size, Dmax);
 }
 
 /*****************************************************************************/
@@ -357,11 +407,12 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
          if (D % 16 != 0) {
             Dno = 1 + d_part [i][j][1];
             if (Dno <= max_factors) {
-               hprime = (hmaxprime > 0 ? cm_nt_largest_factor (h [(-D) / 2]) : 0);
+               hprime = (hmaxprime > 0 ?
+                         cm_nt_largest_factor (h [(-D) / 2 - 1]) : 0);
                if (hprime <= hmaxprime) {
                   d [no] = (int_cl_t *) malloc (4 * sizeof (int_cl_t));
                   d [no][0] = D;
-                  d [no][1] = h [(-D) / 2];
+                  d [no][1] = h [(-D) / 2 - 1];
                   d [no][2] = d [no][1] >> (Dno - 1);
                   d [no][3] = hprime;
                   no++;
@@ -876,8 +927,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    /* Precompute class numbers. */
    cm_timer_start (clock);
    Dmax = mpz_sizeinbase (p, 2);
-   Dmax = ((Dmax * Dmax) >> 3) << 1;
-   h = (uint_cl_t *) malloc ((Dmax / 2 + 1) * sizeof (uint_cl_t));
+   Dmax = ((Dmax * Dmax) >> 4) << 2;
+   h = (uint_cl_t *) malloc ((Dmax / 2) * sizeof (uint_cl_t));
    compute_h (h, Dmax);
    cm_timer_stop (clock);
    if (verbose)
