@@ -53,6 +53,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    const unsigned int delta, mpz_srcptr primorialB,
    bool verbose, bool debug);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
+static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
+   const char* modpoldir, bool tower, bool verbose, bool debug);
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug);
 
@@ -1063,6 +1065,95 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d)
 
 /*****************************************************************************/
 
+static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
+   const char* modpoldir, bool tower, bool verbose, bool debug)
+   /* The function takes the same parameters as cm_ecpp2, except that cert1
+      contains only one entry of the first ECPP step, and that only one
+      step of the certificate is output in cert2, which needs be to a
+      pre-allocated and initialised array with 6 entries. This function
+      has been separated to help with parallelisation. */
+{
+   mpz_srcptr p, n, l;
+   int_cl_t d;
+   mpz_t t, co, a, b, x, y;
+   cm_param_t param;
+   cm_class_t c;
+   cm_timer clock, clock2, clock3;
+
+   mpz_init (t);
+   mpz_init (co);
+   mpz_init (a);
+   mpz_init (b);
+   mpz_init (x);
+   mpz_init (y);
+
+   cm_timer_reset (clock2);
+   cm_timer_reset (clock3);
+   cm_timer_reset (cm_timer1);
+   cm_timer_reset (cm_timer2);
+
+   cm_timer_start (clock);
+   p = cert1 [0];
+   d = mpz_get_si (cert1 [1]);
+   n = cert1 [2];
+   l = cert1 [3];
+
+   mpz_add_ui (t, p, 1);
+   mpz_sub (t, t, n);
+   mpz_divexact (co, n, l);
+
+   cm_timer_continue (clock2);
+   ecpp_param_init (param, d);
+   if (verbose) {
+      printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
+         "and parameters %s for %4li bits: ",
+         d, param->invariant, param->str, mpz_sizeinbase (p, 2));
+      fflush (stdout);
+   }
+
+   /* Compute one of the class field tower or the class polynomial. */
+   cm_class_init (c, param, false);
+   cm_class_compute (c, param, !tower, tower, false);
+   cm_timer_stop (clock2);
+
+   cm_timer_continue (clock3);
+   cm_curve_and_point (a, b, x, y, param, c, p, l, co,
+      modpoldir, false, false);
+   cm_class_clear (c);
+   cm_timer_stop (clock3);
+   cm_timer_stop (clock);
+
+   if (verbose) {
+      printf ("%5.1f\n", cm_timer_get (clock));
+      if (debug) {
+         printf ("   CM:    %5.1f\n", cm_timer_get (clock2));
+         printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
+         printf ("   point: %5.1f\n", cm_timer_get (cm_timer2));
+      }
+   }
+
+   mpz_set (cert2 [0], p);
+   mpz_set (cert2 [1], t);
+   mpz_set (cert2 [2], co);
+   mpz_set (cert2 [3], a);
+   mpz_set (cert2 [4], x);
+   mpz_set (cert2 [5], y);
+
+   mpz_clear (t);
+   mpz_clear (co);
+   mpz_clear (a);
+   mpz_clear (b);
+   mpz_clear (x);
+   mpz_clear (y);
+
+   if (verbose) {
+      printf ("--- Time for CM:               %.1f\n", cm_timer_get (clock2));
+      printf ("--- Time for curves:           %.1f\n", cm_timer_get (clock3));
+   }
+}
+
+/*****************************************************************************/
+
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug)
    /* Given the result of the ECPP down-run in cert1, an array of length
@@ -1086,86 +1177,11 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       the case that verbose is set as well. */
 
 {
-   mpz_srcptr p, n, l;
-   int_cl_t d;
-   mpz_t t, co, a, b, x, y;
-   cm_param_t param;
-   cm_class_t c;
    int i;
-   cm_timer clock, clock2, clock3;
 
-   mpz_init (t);
-   mpz_init (co);
-   mpz_init (a);
-   mpz_init (b);
-   mpz_init (x);
-   mpz_init (y);
-
-   cm_timer_reset (clock2);
-   cm_timer_reset (clock3);
-   cm_timer_reset (cm_timer1);
-   cm_timer_reset (cm_timer2);
-
-   for (i = 0; i < depth; i++) {
-      cm_timer_start (clock);
-      p = cert1 [i][0];
-      d = mpz_get_si (cert1 [i][1]);
-      n = cert1 [i][2];
-      l = cert1 [i][3];
-
-      mpz_add_ui (t, p, 1);
-      mpz_sub (t, t, n);
-      mpz_divexact (co, n, l);
-
-      cm_timer_continue (clock2);
-      ecpp_param_init (param, d);
-      if (verbose) {
-         printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
-            "and parameters %s for %4li bits: ",
-            d, param->invariant, param->str, mpz_sizeinbase (p, 2));
-         fflush (stdout);
-      }
-
-      /* Compute one of the class field tower or the class polynomial. */
-      cm_class_init (c, param, false);
-      cm_class_compute (c, param, !tower, tower, false);
-      cm_timer_stop (clock2);
-
-      cm_timer_continue (clock3);
-      cm_curve_and_point (a, b, x, y, param, c, p, l, co,
-         modpoldir, false, false);
-      cm_class_clear (c);
-      cm_timer_stop (clock3);
-      cm_timer_stop (clock);
-
-      if (verbose) {
-         printf ("%5.1f\n", cm_timer_get (clock));
-         if (debug) {
-            printf ("   CM:    %5.1f\n", cm_timer_get (clock2));
-            printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
-            printf ("   point: %5.1f\n", cm_timer_get (cm_timer2));
-         }
-      }
-
-      mpz_set (cert2 [i][0], p);
-      mpz_set (cert2 [i][1], t);
-      mpz_set (cert2 [i][2], co);
-      mpz_set (cert2 [i][3], a);
-      mpz_set (cert2 [i][4], x);
-      mpz_set (cert2 [i][5], y);
-   }
-
-   mpz_clear (t);
-   mpz_clear (co);
-   mpz_clear (a);
-   mpz_clear (b);
-   mpz_clear (x);
-   mpz_clear (y);
-
-   if (verbose) {
-      printf ("--- Time for CM:               %.1f\n", cm_timer_get (clock2));
-      printf ("--- Time for curves:           %.1f\n", cm_timer_get (clock3));
-   }
+   for (i = 0; i < depth; i++)
+      ecpp2_one_step (cert2 [i], cert1 [i], modpoldir, tower,
+         verbose, debug);
 }
 
 /*****************************************************************************/
