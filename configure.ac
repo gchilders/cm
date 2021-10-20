@@ -109,9 +109,6 @@ AC_CHECK_LIB([m], [sqrt], , AC_MSG_ERROR([libm not found.]))
 AC_CHECK_LIB([z], [gzopen], , AC_MSG_ERROR([libz not found.]))
 AC_CHECK_FUNCS([sqrt])
 
-# Checks if compiler accepts warning flags.
-MPC_C_CHECK_WARNINGCFLAGS
-
 # Gmp
 AC_CHECK_LIB([gmp], [__gmpz_init],
              [LIBS="-lgmp $LIBS"],
