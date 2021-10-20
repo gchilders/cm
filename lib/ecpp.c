@@ -52,6 +52,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB,
    bool verbose, bool debug);
+static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug);
 
@@ -1005,6 +1006,63 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
 
 /*****************************************************************************/
 
+static void ecpp_param_init (cm_param_ptr param, uint_cl_t d)
+   /* Given the discriminant d, find the best parameter combination in the
+      ECPP setting. To minimise the number of polynomial factorisations, we
+      only use invariants that do not require modular polynomials, and
+      additionally a small number of invariants with low-degree modular
+      polynomials. Among these, we use the one with the best height
+      factor. */
+{
+   cm_param_t new_param;
+   double hf, new_hf;
+
+   /* First test the non-parametric invariants in the good order. */
+   if (   !cm_param_init (param, d, CM_INVARIANT_WEBER,
+              CM_SUBFIELD_PREFERRED, 0, false)
+       && !(((d - 1) % 8 == 0
+            && cm_param_init (param, 4*d, CM_INVARIANT_WEBER,
+                  0, CM_SUBFIELD_PREFERRED, false)))
+       && !cm_param_init (param, d, CM_INVARIANT_GAMMA2,
+              0, CM_SUBFIELD_PREFERRED, false)
+       && !cm_param_init (param, d, CM_INVARIANT_GAMMA3,
+              0, CM_SUBFIELD_PREFERRED, false))
+       cm_param_init (param, d, CM_INVARIANT_J,
+              0, CM_SUBFIELD_PREFERRED, false);
+   hf = cm_class_height_factor (param);
+
+   /* Atkin invariants have excellent factors between 24 and 36, but
+      the Hecke operators are slow to compute. So do not use them. */
+
+   /* Simple eta uses the best of the w_n^e with n one of
+      3, 5, 7, 13, 4, 9 or 25, the values for which the modular
+      polynomial has genus 0. */
+   if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA,
+          0, CM_SUBFIELD_PREFERRED, false)) {
+      new_hf = cm_class_height_factor (new_param);
+      if (new_hf > hf) {
+         param [0] = new_param [0];
+         hf = new_hf;
+      }
+   }
+
+   /* For double eta quotients, we limit the search to a degree
+      of 2 in j. */
+   if (cm_param_init (new_param, d, CM_INVARIANT_DOUBLEETA,
+          -1, CM_SUBFIELD_PREFERRED, false)) {
+      new_hf = cm_class_height_factor (new_param);
+      if (new_hf > hf) {
+         param [0] = new_param [0];
+         hf = new_hf;
+      }
+   }
+
+   /* Multiple eta quotients slow the code down; this is probably due
+      to the need for factoring the modular polynomials of degree 4. */
+}
+
+/*****************************************************************************/
+
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug)
    /* Given the result of the ECPP down-run in cert1, an array of length
@@ -1031,8 +1089,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    mpz_srcptr p, n, l;
    int_cl_t d;
    mpz_t t, co, a, b, x, y;
-   cm_param_t param, new_param;
-   double hf, new_hf;
+   cm_param_t param;
    cm_class_t c;
    int i;
    cm_timer clock, clock2, clock3;
@@ -1061,49 +1118,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       mpz_divexact (co, n, l);
 
       cm_timer_continue (clock2);
-      /* Find the invariant with the largest height factor from those
-         not requiring modular polynomials for retrieving the curve,
-         and from a limited number of invariants with modular
-         polynomials. */
-      /* First test the non-parametric invariants in the good order. */
-      if (   !cm_param_init (param, d, CM_INVARIANT_WEBER,
-                 CM_SUBFIELD_PREFERRED, 0, false)
-          && !(((d - 1) % 8 == 0
-               && cm_param_init (param, 4*d, CM_INVARIANT_WEBER,
-                     0, CM_SUBFIELD_PREFERRED, false)))
-          && !cm_param_init (param, d, CM_INVARIANT_GAMMA2,
-                 0, CM_SUBFIELD_PREFERRED, false)
-          && !cm_param_init (param, d, CM_INVARIANT_GAMMA3,
-                 0, CM_SUBFIELD_PREFERRED, false))
-          cm_param_init (param, d, CM_INVARIANT_J,
-                 0, CM_SUBFIELD_PREFERRED, false);
-      hf = cm_class_height_factor (param);
-      /* Atkin invariants have excellent factors between 24 and 36, but
-         the Hecke operators are slow to compute. So do not use them.
-         Simple eta uses the best of the w_n^e with n one of
-         3, 5, 7, 13, 4, 9 or 25, the values for which the modular
-         polynomial has genus 0. */
-      if (cm_param_init (new_param, d, CM_INVARIANT_SIMPLEETA,
-             0, CM_SUBFIELD_PREFERRED, false)) {
-         new_hf = cm_class_height_factor (new_param);
-         if (new_hf > hf) {
-            param [0] = new_param [0];
-            hf = new_hf;
-         }
-      }
-      /* For double eta quotients, we limit the search to a degree
-         of 2 in j. */
-      if (cm_param_init (new_param, d, CM_INVARIANT_DOUBLEETA,
-             -1, CM_SUBFIELD_PREFERRED, false)) {
-         new_hf = cm_class_height_factor (new_param);
-         if (new_hf > hf) {
-            param [0] = new_param [0];
-            hf = new_hf;
-         }
-      }
-      /* Multiple eta quotients slow the code down; this is probably due
-         to the need for factoring the modular polynomials of degree 4. */
-
+      ecpp_param_init (param, d);
       if (verbose) {
          printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
             "and parameters %s for %4li bits: ",
