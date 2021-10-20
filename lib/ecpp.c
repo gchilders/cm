@@ -50,7 +50,8 @@ static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *root);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const unsigned int delta, mpz_srcptr primorialB);
+   const unsigned int delta, mpz_srcptr primorialB,
+   bool verbose, bool debug);
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug);
 
@@ -823,7 +824,8 @@ static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const unsigned int delta, mpz_srcptr primorialB)
+   const unsigned int delta, mpz_srcptr primorialB,
+   bool verbose, bool debug)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
@@ -873,6 +875,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       /* Precompute a list of potential discriminants for fastECPP. */
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
          no_qstar_new, max_factors, Dmax, hmaxprime, h);
+      if (verbose && debug)
+         printf ("%6i discriminants for %3i primes\n", no_d, no_qstar);
 
       /* Go through the list, treating batch discriminants at a time. */
       for (i = 0; d == 0 && i < (no_d + batch - 1) / batch; i++) {
@@ -964,13 +968,19 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
          mpz_init (c [*depth][i]);
       mpz_set (c [*depth][0], N);
       cm_timer_start (clock);
+      if (verbose)
+         printf ("-- Size %4li bits\n", mpz_sizeinbase (N, 2));
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
-         hmaxprime, h, delta, primorialB);
+         hmaxprime, h, delta, primorialB, verbose, debug);
       cm_timer_stop (clock);
       if (verbose) {
-         printf ("-- Time for discriminant %8"PRIicl" for %4li bits: %5.1f\n",
-            d, mpz_sizeinbase (N, 2), cm_timer_get (clock));
+         printf ("   Time for discriminant %8"PRIicl": %5.1f\n",
+            d, cm_timer_get (clock));
          if (debug) {
+            printf ("   largest prime of d: %"PRIucl"\n",
+                    cm_nt_largest_factor (-d));
+            printf ("   largest prime of h: %"PRIucl"\n",
+                    cm_nt_largest_factor (h [(-d) / 2 - 1]));
             printf ("%6i qstar:      %.1f\n",
                   cm_counter1, cm_timer_get (cm_timer1));
             printf ("%6i Trial div:  %.1f\n", cm_counter2,
