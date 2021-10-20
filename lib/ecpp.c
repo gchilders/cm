@@ -26,14 +26,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax);
 static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   int no_old, int no_new);
+   long int *q, int no);
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   int no_qstar_old, int no_qstar_new, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   int no_qstar_old, int no_qstar_new, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int disc_cmp (const void* d1, const void* d2);
 static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m);
@@ -150,58 +150,58 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
 /*****************************************************************************/
 
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   int no_old, int no_new)
-   /* Compute and return via qstar a list of "signed primes" suitable
+   long int *q, int no)
+   /* Compute and return via qstar an array of no "signed primes" suitable
       for dividing the discriminant to prove the primality of p, and via
       root their square roots modulo p. The entries in qstar are ordered
-      by increasing absolute value.
-      To make repeated calls possible for increasing the number of primes,
-      no_old indicates the number of elements already present before the
-      call, no_new the desired total number of elements.
+      by increasing absolute value. On first call, *q should be 0; it is
+      then replaced by the largest found signed prime, and should be given
+      for later calls to continue with the next signed primes.
       qstar and root need to be initialised to the correct size,
       and the entries of root need to be initialised as well. */
 {
-   long int q;
    unsigned int e;
    mpz_t r, z;
+   int i;
 
    mpz_init (r);
    mpz_init (z);
-   e = cm_nt_mpz_tonelli_generator (r, z, p);
 
-   q = (no_old == 0 ? 0 : qstar [no_old - 1]);
-
-   while (no_old < no_new) {
-      if (q == 0)
-         q = -3;
-      else if (q == -3)
-         q = -4;
-      else if (q == -4)
-         q = 5;
-      else if (q == 5)
-         q = -7;
-      else if (q == -7)
-         q = -8;
-      else if (q == -8)
-         q = 8;
-      else if (q == 8)
-         q = -11;
+   i = 0;
+   while (i < no) {
+      if (*q == 0)
+         *q = -3;
+      else if (*q == -3)
+         *q = -4;
+      else if (*q == -4)
+         *q = 5;
+      else if (*q == 5)
+         *q = -7;
+      else if (*q == -7)
+         *q = -8;
+      else if (*q == -8)
+         *q = 8;
+      else if (*q == 8)
+         *q = -11;
       else {
-         if (q > 0)
-            q = cm_nt_next_prime (q);
+         if (*q > 0)
+            *q = cm_nt_next_prime (*q);
          else
-            q = cm_nt_next_prime (-q);
-         if (q % 4 == 3)
-            q = -q;
+            *q = cm_nt_next_prime (-*q);
+         if (*q % 4 == 3)
+            *q = -*q;
       }
 
-      if (mpz_si_kronecker (q, p) == 1) {
-         qstar [no_old] = q;
-         cm_counter1++;
-         cm_nt_mpz_tonelli_si_with_generator (root [no_old], q, p, e, r, z);
-         no_old++;
+      if (mpz_si_kronecker (*q, p) == 1) {
+         qstar [i] = *q;
+         i++;
       }
    }
+
+   e = cm_nt_mpz_tonelli_generator (r, z, p);
+   cm_counter1 += no;
+   for (i = 0; i < no; i++)
+      cm_nt_mpz_tonelli_si_with_generator (root [i], qstar [i], p, e, r, z);
 
    mpz_clear (r);
    mpz_clear (z);
@@ -343,14 +343,14 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
 /*****************************************************************************/
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   int no_qstar_old, int no_qstar_new, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
-   /* Given an array of no_qstar "signed primes" qstar (ordered by
-      increasing absolute value), return an array of negative fundamental
-      discriminants with factors from the list and of absolute value
-      bounded above by Dmax, and return their number in no_d.
+   /* Given an array of no_qstar_old + no_qstar_new "signed primes" qstar
+      (ordered by increasing absolute value), return an array of negative
+      fundamental discriminants with factors from the list and of absolute
+      value bounded above by Dmax, and return their number in no_d.
       Moreover, each discriminant must contain at least one prime larger
-      in absolute value than the first no_qstar_old ones.
+      from the last no_qstar_new ones.
       If it is different from 0, then hmaxprime furthermore is an upper
       bound on the largest prime factor of the class number. Specifying it
       will result in the class numbers being factored, which takes
@@ -371,16 +371,15 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       /* partial results, one for each new element of qstar */
    int *no_part;
       /* lengths of the partial results */
-   int l, no;
+   int no;
    int_cl_t qnew, D, Dno;
    uint_cl_t hprime;
       /* largest prime factor of the class number, or 0 if not computed */
    int i, j;
 
-   l = no_qstar - no_qstar_old;
-   d_part = (int_cl_t ***) malloc (l * sizeof (int_cl_t **));
-   no_part = (int *) malloc (l * sizeof (int));
-   for (i = 0; i < l; i++) {
+   d_part = (int_cl_t ***) malloc (no_qstar_new * sizeof (int_cl_t **));
+   no_part = (int *) malloc (no_qstar_new * sizeof (int));
+   for (i = 0; i < no_qstar_new; i++) {
       qnew = qstar [no_qstar_old + i];
       /* Compute all discriminants with primes less than qnew in absolute
          value that can be multiplied by qnew to obtain a suitable
@@ -395,12 +394,12 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 
    /* Filter all suitable discriminants and concatenate the lists. */
    no = 0;
-   for (i = 0; i < l; i++)
+   for (i = 0; i < no_qstar_new; i++)
       no += no_part [i];
    d = (int_cl_t **) malloc (no * sizeof (int_cl_t *));
 
    no = 0;
-   for (i = 0; i < l; i++) {
+   for (i = 0; i < no_qstar_new; i++) {
       qnew = qstar [no_qstar_old + i];
       for (j = 0; j < no_part [i]; j++) {
          D = qnew * d_part [i][j][0];
@@ -435,7 +434,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 /*****************************************************************************/
 
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
-   int no_qstar_old, int no_qstar, unsigned int max_factors,
+   int no_qstar_old, int no_qstar_new, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). But instead of an unsorted
@@ -446,7 +445,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int_cl_t *d;
    int i;
 
-   dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar,
+   dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar_new,
       max_factors, Dmax, hmaxprime, h);
    qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
 
@@ -835,8 +834,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 {
    const int max_factors = 4;
    const int batch = 100;
-   int no_qstar_old, no_qstar;
+   int no_qstar_old, no_qstar_new, no_qstar;
    long int *qstar;
+   long int q;
    mpz_t *root;
    int i, j;
    int_cl_t d;
@@ -846,6 +846,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
    d = 0;
    no_qstar = 0;
+   q = 0;
    qstar = (long int *) malloc (0);
    root = (mpz_t *) malloc (0);
    Droot = (mpz_t *) malloc (batch * sizeof (mpz_t));
@@ -856,20 +857,22 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       /* Extend the prime and square root list. */
       cm_timer_continue (cm_timer1);
       no_qstar_old = no_qstar;
-      if (no_qstar <= 10)
-         no_qstar += 10;
+      if (no_qstar_old <= 10)
+         no_qstar_new = 10;
       else
-         no_qstar += 20;
+         no_qstar_new = 20;
+      no_qstar = no_qstar_old + no_qstar_new;
       qstar = (long int *) realloc (qstar, no_qstar * sizeof (long int));
       root = (mpz_t *) realloc (root, no_qstar * sizeof (mpz_t));
       for (i = no_qstar_old; i < no_qstar; i++)
          mpz_init (root [i]);
-      compute_qstar (qstar, root, N, no_qstar_old, no_qstar);
+      compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
+         no_qstar_new);
       cm_timer_stop (cm_timer1);
 
       /* Precompute a list of potential discriminants for fastECPP. */
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
-         no_qstar, max_factors, Dmax, hmaxprime, h);
+         no_qstar_new, max_factors, Dmax, hmaxprime, h);
 
       /* Go through the list, treating batch discriminants at a time. */
       for (i = 0; d == 0 && i < (no_d + batch - 1) / batch; i++) {
