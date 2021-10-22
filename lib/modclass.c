@@ -169,7 +169,7 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
    int i, j;
    ftype Pi24, Pi24_root, tmp;
    ftype *q_real;
-   cm_timer clock2, clock3;
+   cm_timer_t clock2, clock3;
    int counter1, counter2;
 
    finit (Pi24, mc.m.prec);
@@ -269,11 +269,9 @@ static void compute_eta (cm_modclass_t mc, bool verbose)
       in mc and store them in mc. */
 {
    int i;
-   cm_timer clock1;
+   cm_timer_t clock1, clock2;
    fprec_t prec = mc.m.prec;
-
    ctype *q24;
-   cm_timer clock2;
 
    cm_timer_start (clock1);
    q24 = (ctype *) malloc (mc.h12 * sizeof (ctype));

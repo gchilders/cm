@@ -712,7 +712,7 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    bool   P_infty;
    int    i, k, no_twists, no_j;
    bool   ok;
-   cm_timer  clock;
+   cm_timer_t clock;
 
    mpz_init (tmp);
    mpz_init (e);

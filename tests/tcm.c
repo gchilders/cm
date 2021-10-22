@@ -31,7 +31,7 @@ static void test_curve (int_cl_t d, char invariant, bool verbose)
    cm_param_t param;
    cm_class_t c;
    mpz_t a, b, x, y, p, n, l, co;
-   cm_timer clock;
+   cm_timer_t clock;
 
    cm_timer_start (clock);
 

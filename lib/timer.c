@@ -23,12 +23,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-cm_timer cm_timer1, cm_timer2, cm_timer3, cm_timer4, cm_timer5, cm_timer6;
+cm_timer_t cm_timer1, cm_timer2, cm_timer3, cm_timer4, cm_timer5, cm_timer6;
 int cm_counter1, cm_counter2, cm_counter3, cm_counter4;
 
 /*****************************************************************************/
 
-void cm_timer_start (cm_timer t)
+void cm_timer_start (cm_timer_t t)
 
 {
    t->elapsed = 0;
@@ -37,7 +37,7 @@ void cm_timer_start (cm_timer t)
 
 /*****************************************************************************/
 
-void cm_timer_reset (cm_timer t)
+void cm_timer_reset (cm_timer_t t)
 
 {
    t->elapsed = 0;
@@ -45,7 +45,7 @@ void cm_timer_reset (cm_timer t)
 
 /*****************************************************************************/
 
-void cm_timer_continue (cm_timer t)
+void cm_timer_continue (cm_timer_t t)
 
 {
    t->time_old = clock ();
@@ -53,7 +53,7 @@ void cm_timer_continue (cm_timer t)
 
 /*****************************************************************************/
 
-void cm_timer_stop (cm_timer t)
+void cm_timer_stop (cm_timer_t t)
 
 {
    clock_t time_new;
@@ -63,7 +63,7 @@ void cm_timer_stop (cm_timer t)
 
 /*****************************************************************************/
 
-double cm_timer_get (cm_timer t)
+double cm_timer_get (cm_timer_t t)
 
 {
    return t->elapsed;

@@ -698,7 +698,7 @@ bool cm_class_compute (cm_class_ptr c, cm_param_srcptr param, bool classpol,
    mpcx_tower_t tc;
    int i;
    bool ok = true;
-   cm_timer clock_global, clock_local;
+   cm_timer_t clock_global, clock_local;
 
    if (!classpol && !tower) {
       printf ("***** Error: cm_class_compute_classpol called with nothing "

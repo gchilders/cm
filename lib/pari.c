@@ -191,7 +191,7 @@ void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p, bool verbose)
 {
    pari_sp av;
    GEN fp, pp, rootp;
-   cm_timer clock;
+   cm_timer_t clock;
 
    av = avma;
 

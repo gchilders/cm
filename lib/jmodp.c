@@ -169,7 +169,7 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
    /* Return a root of the minimal polynomial modulo P in root. */
 
 {
-   cm_timer clock;
+   cm_timer_t clock;
    mpz_t omega;
    mpzx_t classpol_p;
 
@@ -440,7 +440,7 @@ mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
 {
    mpz_t *j;
    mpz_t root, d_mpz, tmp, tmp2, f24;
-   cm_timer clock;
+   cm_timer_t clock;
 
    cm_timer_start (clock);
    mpz_init (root);

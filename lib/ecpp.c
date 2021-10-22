@@ -932,7 +932,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    uint_cl_t *h;
    uint_cl_t Dmax;
    int_cl_t d;
-   cm_timer clock;
+   cm_timer_t clock;
    int i;
 
    /* Precompute class numbers. */
@@ -1079,7 +1079,7 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    mpz_t t, co, a, b, x, y;
    cm_param_t param;
    cm_class_t c;
-   cm_timer clock;
+   cm_timer_t clock;
 
    mpz_init (t);
    mpz_init (co);
@@ -1201,7 +1201,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
    int depth;
    mpz_t **cert1, **cert2;
    int i, j;
-   cm_timer clock, clock2;
+   cm_timer_t clock, clock2;
 
    cm_timer_start (clock);
    cm_timer_start (clock2);

@@ -70,7 +70,7 @@ typedef struct {
    clock_t time_old;
    double     elapsed;
 } __cm_timer_struct;
-typedef __cm_timer_struct cm_timer [1];
+typedef __cm_timer_struct cm_timer_t [1];
 
 typedef struct {
    long int a, b, c, d;
@@ -239,11 +239,11 @@ extern "C" {
 #endif
 
 /* functions for measuring the passing time */
-extern void cm_timer_start (cm_timer t);
-extern void cm_timer_reset (cm_timer t);
-extern void cm_timer_continue (cm_timer t);
-extern void cm_timer_stop (cm_timer t);
-extern double cm_timer_get (cm_timer t);
+extern void cm_timer_start (cm_timer_t t);
+extern void cm_timer_reset (cm_timer_t t);
+extern void cm_timer_continue (cm_timer_t t);
+extern void cm_timer_stop (cm_timer_t t);
+extern double cm_timer_get (cm_timer_t t);
 
 /* generic functions for opening files */
 extern bool cm_file_open_write (FILE **f, char *filename);

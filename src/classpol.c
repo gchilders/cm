@@ -29,7 +29,7 @@ int main (int argc, char* argv [])
    char       invariant;
    bool       verbose;
    cm_class_t c;
-   cm_timer clock;
+   cm_timer_t clock;
    cm_param_t param;
 
    cm_timer_start (clock);
