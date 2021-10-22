@@ -137,8 +137,8 @@ unsigned long int cm_nt_next_prime (const unsigned long int n)
 
 {
    static bool init = true;
-   static unsigned long int P [1229];
-      /* primes up to 10000 */
+   static unsigned long int P [9592];
+      /* primes up to 100000 */
    const unsigned int size = sizeof (P) / sizeof (unsigned long int);
 
    if (init) {
