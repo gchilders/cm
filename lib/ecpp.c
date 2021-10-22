@@ -1079,7 +1079,7 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    mpz_t t, co, a, b, x, y;
    cm_param_t param;
    cm_class_t c;
-   cm_timer clock, clock2, clock3;
+   cm_timer clock;
 
    mpz_init (t);
    mpz_init (co);
@@ -1087,11 +1087,6 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    mpz_init (b);
    mpz_init (x);
    mpz_init (y);
-
-   cm_timer_reset (clock2);
-   cm_timer_reset (clock3);
-   cm_timer_reset (cm_timer1);
-   cm_timer_reset (cm_timer2);
 
    cm_timer_start (clock);
    p = cert1 [0];
@@ -1103,31 +1098,25 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    mpz_sub (t, t, n);
    mpz_divexact (co, n, l);
 
-   cm_timer_continue (clock2);
+   cm_timer_continue (cm_timer3);
    ecpp_param_init (param, d);
-   if (verbose) {
-      printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
-         "and parameters %s for %4li bits: ",
-         d, param->invariant, param->str, mpz_sizeinbase (p, 2));
-      fflush (stdout);
-   }
 
    /* Compute one of the class field tower or the class polynomial. */
    cm_class_init (c, param, false);
    cm_class_compute (c, param, !tower, tower, false);
-   cm_timer_stop (clock2);
+   cm_timer_stop (cm_timer3);
 
-   cm_timer_continue (clock3);
    cm_curve_and_point (a, b, x, y, param, c, p, l, co,
       modpoldir, false, false);
    cm_class_clear (c);
-   cm_timer_stop (clock3);
-   cm_timer_stop (clock);
 
    if (verbose) {
-      printf ("%5.1f\n", cm_timer_get (clock));
+      printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
+         "and parameters %s for %4li bits: %5.1f\n",
+         d, param->invariant, param->str, mpz_sizeinbase (p, 2),
+         cm_timer_get (clock));
       if (debug) {
-         printf ("   CM:    %5.1f\n", cm_timer_get (clock2));
+         printf ("   CM:    %5.1f\n", cm_timer_get (cm_timer3));
          printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
          printf ("   point: %5.1f\n", cm_timer_get (cm_timer2));
       }
@@ -1146,11 +1135,6 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    mpz_clear (b);
    mpz_clear (x);
    mpz_clear (y);
-
-   if (verbose) {
-      printf ("--- Time for CM:               %.1f\n", cm_timer_get (clock2));
-      printf ("--- Time for curves:           %.1f\n", cm_timer_get (clock3));
-   }
 }
 
 /*****************************************************************************/
@@ -1179,6 +1163,10 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 {
    int i;
+
+   cm_timer_reset (cm_timer1);
+   cm_timer_reset (cm_timer2);
+   cm_timer_reset (cm_timer3);
 
    for (i = 0; i < depth; i++)
       ecpp2_one_step (cert2 [i], cert1 [i], modpoldir, tower,
