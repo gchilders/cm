@@ -1109,6 +1109,7 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    cm_curve_and_point (a, b, x, y, param, c, p, l, co,
       modpoldir, false, false);
    cm_class_clear (c);
+   cm_timer_stop (clock);
 
    if (verbose) {
       printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
