@@ -689,10 +689,10 @@ void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l, mpz_ptr c,
 
 /*****************************************************************************/
 
-void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
+void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool print, bool verbose)
+   const char* modpoldir, bool print, bool verbose, cm_stat_t stat)
    /* Given CM parameters param, a class polynomial or class field tower
       stored in c, and curve cardinality parameters p (>=5, the cardinality
       of the prime field), a prime order l and a cofactor co, return curve
@@ -751,12 +751,15 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       mpz_init (B [i]);
    }
 
-   cm_timer_continue (cm_stat->timer [1]);
+   if (stat != NULL)
+      cm_timer_continue (stat->timer [1]);
    j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
-   cm_timer_stop (cm_stat->timer [1]);
+   if (stat != NULL)
+      cm_timer_stop (stat->timer [1]);
 
    cm_timer_start (clock);
-   cm_timer_continue (cm_stat->timer [2]);
+   if (stat !=NULL)
+      cm_timer_continue (stat->timer [2]);
    ok = false;
    for (i = 0; i < no_j && !ok; i++) {
       /* Construct one curve with the given j-invariant. */
@@ -817,7 +820,8 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
             ok = true;
       }
    }
-   cm_timer_stop (cm_stat->timer [2]);
+   if (stat != NULL)
+      cm_timer_stop (stat->timer [2]);
 
    if (!ok) {
       printf ("\n*** No suitable curve found!\n");
@@ -853,6 +857,17 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    mpz_clear (P_x);
    mpz_clear (P_y);
    mpz_clear (twister);
+}
+
+/*****************************************************************************/
+
+void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
+   cm_param_srcptr param, cm_class_srcptr c,
+   mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
+   const char* modpoldir, bool print, bool verbose)
+{
+   cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co, modpoldir,
+      print, verbose, NULL);
 }
 
 /*****************************************************************************/

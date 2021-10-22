@@ -60,8 +60,6 @@ typedef struct {
    cm_timer_t timer [4];
 } __cm_stat_struct;
 typedef __cm_stat_struct cm_stat_t [1];
-/* Define a few auxiliary timers and counters. */
-extern cm_stat_t cm_stat;
 
 
 #if defined (__cplusplus)
@@ -186,6 +184,12 @@ extern bool cm_class_write (cm_class_srcptr c, cm_param_srcptr param);
 extern bool cm_class_read (cm_class_ptr c, cm_param_srcptr param);
 extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
    cm_class_srcptr c, mpz_srcptr p, const char* modpoldir, bool verbose);
+
+/* functions for computing parameters of a complex multiplication curve */
+extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
+   mpz_ptr y, cm_param_srcptr param, cm_class_srcptr c,
+   mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
+   const char* modpoldir, bool print, bool verbose, cm_stat_t stat);
 
 
 /* functions for ECPP */

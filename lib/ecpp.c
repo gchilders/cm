@@ -40,21 +40,22 @@ static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m);
 static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
    mpz_srcptr primorialB);
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
-   int_cl_t d);
+   int_cl_t d, cm_stat_t stat);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d);
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, const unsigned int delta, mpz_srcptr primorialB,
-   int_cl_t *d, int no_d, mpz_t *root);
+   int_cl_t *d, int no_d, mpz_t *root, cm_stat_t stat);
 static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *root);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB,
-   bool verbose, bool debug);
+   bool verbose, bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
-   const char* modpoldir, bool tower, bool verbose, bool debug);
+   const char* modpoldir, bool tower, bool verbose, bool debug,
+   cm_stat_t stat);
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug);
 
@@ -203,7 +204,6 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    }
 
    e = cm_nt_mpz_tonelli_generator (r, z, p);
-   cm_stat->counter [0] += no;
    for (i = 0; i < no; i++)
       cm_nt_mpz_tonelli_si_with_generator (root [i], qstar [i], p, e, r, z);
 
@@ -591,7 +591,7 @@ static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
 /*****************************************************************************/
 
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
-   int_cl_t d)
+   int_cl_t d, cm_stat_t stat)
    /* Given N prime, a discriminant d composed of split primes modulo N,
       and a square root of d modulo N in root, the function computes the
       array of 0 (in the case that N is not a norm in Q(\sqrt d), which
@@ -620,10 +620,10 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
       twists = 2;
    }
 
-   cm_timer_continue (cm_stat->timer [3]);
-   cm_stat->counter [3]++;
+   cm_timer_continue (stat->timer [3]);
+   stat->counter [3]++;
    cornacchia = cm_nt_mpz_cornacchia (t, V, N, root, d);
-   cm_timer_stop (cm_stat->timer [3]);
+   cm_timer_stop (stat->timer [3]);
    if (cornacchia) {
       res = twists;
       /* Compute the cardinalities of all the twists. */
@@ -661,7 +661,7 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
 /*****************************************************************************/
 
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d)
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat)
    /* Given a prime N, a list of no_d fastECPP discriminants in d and an
       array of their square roots modulo N in root, compute and return the
       array of possible CM cardinalities. The number of cardinalities is
@@ -684,7 +684,7 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    }
 
    for (i = 0; i < no_d; i++)
-      twists [i] = curve_cardinalities (card [i], N, root [i], d [i]);
+      twists [i] = curve_cardinalities (card [i], N, root [i], d [i], stat);
 
    /* Count the number of obtained cardinalities. */
    *no_card = 0;
@@ -717,7 +717,7 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
 
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, const unsigned int delta, mpz_srcptr primorialB,
-   int_cl_t *d, int no_d, mpz_t *root)
+   int_cl_t *d, int no_d, mpz_t *root, cm_stat_t stat)
    /* The function goes through the no_d discriminants in d and tests
       whether one of them is a suitable discriminant to perform one step in
       the ECPP downrun from the (probable) prime N>=787. If one is found,
@@ -739,16 +739,16 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    int i;
 
    res = 0;
-   card = compute_cardinalities (&no_card, &card_d, N, no_d, root, d);
+   card = compute_cardinalities (&no_card, &card_d, N, no_d, root, d, stat);
 
    if (no_card > 0) {
       co = (mpz_t *) malloc (no_card * sizeof (mpz_t));
       for (i = 0; i < no_card; i++)
          mpz_init (co [i]);
-      cm_timer_continue (cm_stat->timer [1]);
-      cm_stat->counter [1]++;
+      cm_timer_continue (stat->timer [1]);
+      stat->counter [1]++;
       trial_div_batch (co, card, no_card, primorialB);
-      cm_timer_stop (cm_stat->timer [1]);
+      cm_timer_stop (stat->timer [1]);
       /* Look for a suitable cardinality with a point of smallest
          prime order. */
       size_N = mpz_sizeinbase (N, 2);
@@ -767,15 +767,15 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          if (size_co < size_opt
              && size_co <= size_N - delta
              && size_co >= size_N / 2 + 2) {
-            cm_stat->counter [2]++;
-            cm_timer_continue (cm_stat->timer [2]);
+            stat->counter [2]++;
+            cm_timer_continue (stat->timer [2]);
             if (cm_nt_is_prime (co [i])) {
                res = card_d [i];
                size_opt = size_co;
                mpz_set (n, card [i]);
                mpz_set (l, co [i]);
             }
-            cm_timer_stop (cm_stat->timer [2]);
+            cm_timer_stop (stat->timer [2]);
          }
       }
       for (i = 0; i < no_card; i++)
@@ -828,7 +828,7 @@ static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB,
-   bool verbose, bool debug)
+   bool verbose, bool debug, cm_stat_t stat)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
@@ -860,7 +860,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
    while (d == 0) {
       /* Extend the prime and square root list. */
-      cm_timer_continue (cm_stat->timer [0]);
+      cm_timer_continue (stat->timer [0]);
       no_qstar_old = no_qstar;
       if (no_qstar_old <= 10)
          no_qstar_new = 10;
@@ -873,7 +873,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          mpz_init (root [i]);
       compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
          no_qstar_new);
-      cm_timer_stop (cm_stat->timer [0]);
+      stat->counter [0] += no_qstar_new;
+      cm_timer_stop (stat->timer [0]);
 
       /* Precompute a list of potential discriminants for fastECPP. */
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
@@ -888,7 +889,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             j = batch;
          root_of_d (Droot, dlist + i * batch, j, N, qstar, no_qstar, root);
          d = contains_ecpp_discriminant (n, l, N, delta, primorialB,
-            dlist + i * batch, j, Droot);
+            dlist + i * batch, j, Droot, stat);
       }
 
       /* Free the discriminant list. */
@@ -933,6 +934,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    uint_cl_t Dmax;
    int_cl_t d;
    cm_timer_t clock;
+   cm_stat_t stat;
    int i;
 
    /* Precompute class numbers. */
@@ -957,7 +959,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    mpz_init_set (N, p);
    *depth = 0;
    c = (mpz_t**) malloc (*depth);
-   cm_stat_init (cm_stat);
+   cm_stat_init (stat);
    while (mpz_sizeinbase (N, 2) > 64) {
       c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
       c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
@@ -968,24 +970,24 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
       if (verbose)
          printf ("-- Size %4li bits\n", mpz_sizeinbase (N, 2));
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
-         hmaxprime, h, delta, primorialB, verbose, debug);
+         hmaxprime, h, delta, primorialB, verbose, debug, stat);
       cm_timer_stop (clock);
       if (verbose) {
          printf ("   Time for discriminant %8"PRIicl": %5.1f\n",
             d, cm_timer_get (clock));
          if (debug) {
             printf ("   largest prime of d: %"PRIucl"\n",
-                    cm_nt_largest_factor (-d));
+               cm_nt_largest_factor (-d));
             printf ("   largest prime of h: %"PRIucl"\n",
-                    cm_nt_largest_factor (h [(-d) / 2 - 1]));
-            printf ("%6i qstar:      %.1f\n",
-                  cm_stat->counter [0], cm_timer_get (cm_stat->timer [0]));
-            printf ("%6i Trial div:  %.1f\n", cm_stat->counter [1],
-                  cm_timer_get (cm_stat->timer [1]));
-            printf ("%6i is_prime:   %.1f\n", cm_stat->counter [2],
-                  cm_timer_get (cm_stat->timer [2]));
-            printf ("%6i Cornacchia: %.1f\n", cm_stat->counter [3],
-                  cm_timer_get (cm_stat->timer [3]));
+               cm_nt_largest_factor (h [(-d) / 2 - 1]));
+            printf ("%6i qstar:      %.1f\n", stat->counter [0],
+               cm_timer_get (stat->timer [0]));
+            printf ("%6i Trial div:  %.1f\n", stat->counter [1],
+               cm_timer_get (stat->timer [1]));
+            printf ("%6i is_prime:   %.1f\n", stat->counter [2],
+                  cm_timer_get (stat->timer [2]));
+            printf ("%6i Cornacchia: %.1f\n", stat->counter [3],
+                  cm_timer_get (stat->timer [3]));
          }
       }
       mpz_set_si (c [*depth][1], d);
@@ -1060,7 +1062,8 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d)
 /*****************************************************************************/
 
 static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
-   const char* modpoldir, bool tower, bool verbose, bool debug)
+   const char* modpoldir, bool tower, bool verbose, bool debug,
+   cm_stat_t stat)
    /* The function takes the same parameters as cm_ecpp2, except that cert1
       contains only one entry of the first ECPP step, and that only one
       step of the certificate is output in cert2, which needs be to a
@@ -1091,16 +1094,16 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    mpz_sub (t, t, n);
    mpz_divexact (co, n, l);
 
-   cm_timer_continue (cm_stat->timer [0]);
+   cm_timer_continue (stat->timer [0]);
    ecpp_param_init (param, d);
 
    /* Compute one of the class field tower or the class polynomial. */
    cm_class_init (c, param, false);
    cm_class_compute (c, param, !tower, tower, false);
-   cm_timer_stop (cm_stat->timer [0]);
+   cm_timer_stop (stat->timer [0]);
 
-   cm_curve_and_point (a, b, x, y, param, c, p, l, co,
-      modpoldir, false, false);
+   cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co,
+      modpoldir, false, false, stat);
    cm_class_clear (c);
    cm_timer_stop (clock);
 
@@ -1110,9 +1113,9 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
          d, param->invariant, param->str, mpz_sizeinbase (p, 2),
          cm_timer_get (clock));
       if (debug) {
-         printf ("   CM:    %5.1f\n", cm_timer_get (cm_stat->timer [0]));
-         printf ("   roots: %5.1f\n", cm_timer_get (cm_stat->timer [1]));
-         printf ("   point: %5.1f\n", cm_timer_get (cm_stat->timer [2]));
+         printf ("   CM:    %5.1f\n", cm_timer_get (stat->timer [0]));
+         printf ("   roots: %5.1f\n", cm_timer_get (stat->timer [1]));
+         printf ("   point: %5.1f\n", cm_timer_get (stat->timer [2]));
       }
    }
 
@@ -1156,13 +1159,14 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       the case that verbose is set as well. */
 
 {
+   cm_stat_t stat;
    int i;
 
-   cm_stat_init (cm_stat);
+   cm_stat_init (stat);
 
    for (i = 0; i < depth; i++)
       ecpp2_one_step (cert2 [i], cert1 [i], modpoldir, tower,
-         verbose, debug);
+         verbose, debug, stat);
 }
 
 /*****************************************************************************/

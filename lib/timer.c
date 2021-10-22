@@ -23,8 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-cm_stat_t cm_stat;
-
 /*****************************************************************************/
 
 void cm_timer_start (cm_timer_t t)
