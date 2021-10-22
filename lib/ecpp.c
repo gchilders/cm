@@ -920,7 +920,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
       The downrun stops as soon as the prime is less than 2^64. */
 
 {
-   const unsigned long int B = 1000000;
+   const size_t L = mpz_sizeinbase (p, 2);
+   const unsigned long int B = (L >> 5) * (L >> 5) * (L >> 5);
    const unsigned int delta = (unsigned int) (log2 (B) / 2) + 1;
       /* According to [FrKlMoWi04] the average factor removed by trial
          division up to B, assuming that what remains is prime, is B;
@@ -936,8 +937,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
 
    /* Precompute class numbers. */
    cm_timer_start (clock);
-   Dmax = mpz_sizeinbase (p, 2);
-   Dmax = ((Dmax * Dmax) >> 4) << 2;
+   Dmax = ((L * L) >> 4) << 2;
    h = (uint_cl_t *) malloc ((Dmax / 2) * sizeof (uint_cl_t));
    compute_h (h, Dmax);
    cm_timer_stop (clock);
@@ -951,7 +951,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    mpz_primorial_ui (primorialB, B);
    cm_timer_stop (clock);
    if (verbose)
-      printf ("-- Time for primorial: %5.1f\n", cm_timer_get (clock));
+      printf ("-- Time for primorial of B=%lu: %5.1f\n", B,
+         cm_timer_get (clock));
 
    mpz_init_set (N, p);
    *depth = 0;
