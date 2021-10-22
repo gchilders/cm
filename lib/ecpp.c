@@ -203,7 +203,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    }
 
    e = cm_nt_mpz_tonelli_generator (r, z, p);
-   cm_counter1 += no;
+   cm_stat->counter [0] += no;
    for (i = 0; i < no; i++)
       cm_nt_mpz_tonelli_si_with_generator (root [i], qstar [i], p, e, r, z);
 
@@ -620,10 +620,10 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
       twists = 2;
    }
 
-   cm_timer_continue (cm_timer4);
-   cm_counter4++;
+   cm_timer_continue (cm_stat->timer [3]);
+   cm_stat->counter [3]++;
    cornacchia = cm_nt_mpz_cornacchia (t, V, N, root, d);
-   cm_timer_stop (cm_timer4);
+   cm_timer_stop (cm_stat->timer [3]);
    if (cornacchia) {
       res = twists;
       /* Compute the cardinalities of all the twists. */
@@ -745,10 +745,10 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
       co = (mpz_t *) malloc (no_card * sizeof (mpz_t));
       for (i = 0; i < no_card; i++)
          mpz_init (co [i]);
-      cm_timer_continue (cm_timer2);
-      cm_counter2++;
+      cm_timer_continue (cm_stat->timer [1]);
+      cm_stat->counter [1]++;
       trial_div_batch (co, card, no_card, primorialB);
-      cm_timer_stop (cm_timer2);
+      cm_timer_stop (cm_stat->timer [1]);
       /* Look for a suitable cardinality with a point of smallest
          prime order. */
       size_N = mpz_sizeinbase (N, 2);
@@ -767,15 +767,15 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          if (size_co < size_opt
              && size_co <= size_N - delta
              && size_co >= size_N / 2 + 2) {
-            cm_counter3++;
-            cm_timer_continue (cm_timer3);
+            cm_stat->counter [2]++;
+            cm_timer_continue (cm_stat->timer [2]);
             if (cm_nt_is_prime (co [i])) {
                res = card_d [i];
                size_opt = size_co;
                mpz_set (n, card [i]);
                mpz_set (l, co [i]);
             }
-            cm_timer_stop (cm_timer3);
+            cm_timer_stop (cm_stat->timer [2]);
          }
       }
       for (i = 0; i < no_card; i++)
@@ -860,7 +860,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
    while (d == 0) {
       /* Extend the prime and square root list. */
-      cm_timer_continue (cm_timer1);
+      cm_timer_continue (cm_stat->timer [0]);
       no_qstar_old = no_qstar;
       if (no_qstar_old <= 10)
          no_qstar_new = 10;
@@ -873,7 +873,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          mpz_init (root [i]);
       compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
          no_qstar_new);
-      cm_timer_stop (cm_timer1);
+      cm_timer_stop (cm_stat->timer [0]);
 
       /* Precompute a list of potential discriminants for fastECPP. */
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
@@ -957,14 +957,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    mpz_init_set (N, p);
    *depth = 0;
    c = (mpz_t**) malloc (*depth);
-   cm_timer_reset (cm_timer1);
-   cm_timer_reset (cm_timer2);
-   cm_timer_reset (cm_timer3);
-   cm_timer_reset (cm_timer4);
-   cm_counter1 = 0;
-   cm_counter2 = 0;
-   cm_counter3 = 0;
-   cm_counter4 = 0;
+   cm_stat_init (cm_stat);
    while (mpz_sizeinbase (N, 2) > 64) {
       c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
       c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
@@ -986,13 +979,13 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
             printf ("   largest prime of h: %"PRIucl"\n",
                     cm_nt_largest_factor (h [(-d) / 2 - 1]));
             printf ("%6i qstar:      %.1f\n",
-                  cm_counter1, cm_timer_get (cm_timer1));
-            printf ("%6i Trial div:  %.1f\n", cm_counter2,
-                  cm_timer_get (cm_timer2));
-            printf ("%6i is_prime:   %.1f\n", cm_counter3,
-                  cm_timer_get (cm_timer3));
-            printf ("%6i Cornacchia: %.1f\n", cm_counter4,
-                  cm_timer_get (cm_timer4));
+                  cm_stat->counter [0], cm_timer_get (cm_stat->timer [0]));
+            printf ("%6i Trial div:  %.1f\n", cm_stat->counter [1],
+                  cm_timer_get (cm_stat->timer [1]));
+            printf ("%6i is_prime:   %.1f\n", cm_stat->counter [2],
+                  cm_timer_get (cm_stat->timer [2]));
+            printf ("%6i Cornacchia: %.1f\n", cm_stat->counter [3],
+                  cm_timer_get (cm_stat->timer [3]));
          }
       }
       mpz_set_si (c [*depth][1], d);
@@ -1098,13 +1091,13 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    mpz_sub (t, t, n);
    mpz_divexact (co, n, l);
 
-   cm_timer_continue (cm_timer3);
+   cm_timer_continue (cm_stat->timer [0]);
    ecpp_param_init (param, d);
 
    /* Compute one of the class field tower or the class polynomial. */
    cm_class_init (c, param, false);
    cm_class_compute (c, param, !tower, tower, false);
-   cm_timer_stop (cm_timer3);
+   cm_timer_stop (cm_stat->timer [0]);
 
    cm_curve_and_point (a, b, x, y, param, c, p, l, co,
       modpoldir, false, false);
@@ -1117,9 +1110,9 @@ static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
          d, param->invariant, param->str, mpz_sizeinbase (p, 2),
          cm_timer_get (clock));
       if (debug) {
-         printf ("   CM:    %5.1f\n", cm_timer_get (cm_timer3));
-         printf ("   roots: %5.1f\n", cm_timer_get (cm_timer1));
-         printf ("   point: %5.1f\n", cm_timer_get (cm_timer2));
+         printf ("   CM:    %5.1f\n", cm_timer_get (cm_stat->timer [0]));
+         printf ("   roots: %5.1f\n", cm_timer_get (cm_stat->timer [1]));
+         printf ("   point: %5.1f\n", cm_timer_get (cm_stat->timer [2]));
       }
    }
 
@@ -1165,9 +1158,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 {
    int i;
 
-   cm_timer_reset (cm_timer1);
-   cm_timer_reset (cm_timer2);
-   cm_timer_reset (cm_timer3);
+   cm_stat_init (cm_stat);
 
    for (i = 0; i < depth; i++)
       ecpp2_one_step (cert2 [i], cert1 [i], modpoldir, tower,

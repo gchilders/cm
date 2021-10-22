@@ -751,12 +751,12 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       mpz_init (B [i]);
    }
 
-   cm_timer_continue (cm_timer1);
+   cm_timer_continue (cm_stat->timer [1]);
    j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
-   cm_timer_stop (cm_timer1);
+   cm_timer_stop (cm_stat->timer [1]);
 
    cm_timer_start (clock);
-   cm_timer_continue (cm_timer2);
+   cm_timer_continue (cm_stat->timer [2]);
    ok = false;
    for (i = 0; i < no_j && !ok; i++) {
       /* Construct one curve with the given j-invariant. */
@@ -817,7 +817,7 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
             ok = true;
       }
    }
-   cm_timer_stop (cm_timer2);
+   cm_timer_stop (cm_stat->timer [2]);
 
    if (!ok) {
       printf ("\n*** No suitable curve found!\n");

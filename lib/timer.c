@@ -23,8 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-cm_timer_t cm_timer1, cm_timer2, cm_timer3, cm_timer4, cm_timer5, cm_timer6;
-int cm_counter1, cm_counter2, cm_counter3, cm_counter4;
+cm_stat_t cm_stat;
 
 /*****************************************************************************/
 
@@ -69,4 +68,19 @@ double cm_timer_get (cm_timer_t t)
    return t->elapsed;
 }
 
+/*****************************************************************************/
+/*****************************************************************************/
+
+void cm_stat_init (cm_stat_t stat)
+{
+   int i;
+
+   for (i = 0; i < sizeof (stat->counter) / sizeof (stat->counter [0]);
+        i++)
+      stat->counter [i] = 0;
+   for (i = 0; i < sizeof (stat->timer) / sizeof (stat->timer [0]); i++)
+      cm_timer_reset (stat->timer [i]);
+}
+
+/*****************************************************************************/
 /*****************************************************************************/

@@ -55,9 +55,14 @@ typedef struct {
 } cm_modclass_t;
 
 
+typedef struct {
+   int counter [4];
+   cm_timer_t timer [4];
+} __cm_stat_struct;
+typedef __cm_stat_struct cm_stat_t [1];
 /* Define a few auxiliary timers and counters. */
-extern cm_timer_t cm_timer1, cm_timer2, cm_timer3, cm_timer4, cm_timer5, cm_timer6;
-extern int cm_counter1, cm_counter2, cm_counter3, cm_counter4;
+extern cm_stat_t cm_stat;
+
 
 #if defined (__cplusplus)
 extern "C" {
@@ -190,6 +195,10 @@ extern mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    bool debug);
 extern mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p);
 extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
+
+
+/* internal functions related to timers and counters */
+extern void cm_stat_init (cm_stat_t stat);
 
 #if defined (__cplusplus)
 }
