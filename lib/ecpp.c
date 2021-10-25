@@ -43,9 +43,9 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    int_cl_t d, cm_stat_t stat);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat);
-static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
-   mpz_srcptr N, const unsigned int delta, mpz_srcptr primorialB,
-   int_cl_t *d, int no_d, mpz_t *root, cm_stat_t stat);
+static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
+   mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
+   const unsigned int delta, cm_stat_t stat);
 static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *root);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
@@ -437,6 +437,36 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 
 /*****************************************************************************/
 
+static int disc_cmp (const void* d1, const void* d2)
+{
+   int_cl_t *D1, *D2;
+
+   D1 = (*((int_cl_t **) d1));
+   D2 = (*((int_cl_t **) d2));
+
+   /* First sort by increasing h/g. */
+   if (D1 [2] < D2 [2])
+      return -1;
+   else if (D1 [2] > D2 [2])
+      return +1;
+   else
+      /* Then sort by increasing h. */
+      if (D1 [1] < D2 [1])
+         return -1;
+      else if (D1 [1] > D2 [1])
+         return +1;
+      else
+         /* Finally sort by increasing |d|. */
+         if (D1 [0] < D2 [0])
+            return +1;
+         else if (D1 [0] > D2 [0])
+            return -1;
+         else
+            return 0;
+}
+
+/*****************************************************************************/
+
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
@@ -465,32 +495,156 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 
 /*****************************************************************************/
 
-static int disc_cmp (const void* d1, const void* d2)
+static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *root)
+   /* Given an array of no_d discriminants d which factor over the array
+      of no_qstar "signed primes" qstar, and given the roots of qstar
+      modulo N in root, compute and return in Droot the roots of the d.
+      Droots needs to contain enough space with all entries initialised.
+      By trial dividing d over qstar, it is enough to multiply the
+      corresponding roots together; however, the "even primes" need special
+      care, in particular for the sign of 8. */
 {
-   int_cl_t *D1, *D2;
+   int i, j;
+   int_cl_t disc;
 
-   D1 = (*((int_cl_t **) d1));
-   D2 = (*((int_cl_t **) d2));
+   for (i = 0; i < no_d; i++) {
+      disc = d [i];
+      mpz_set_ui (Droot [i], 1);
+      for (j = 0; j < no_qstar; j++)
+         if (qstar [j] % 2 != 0 && disc % qstar [j] == 0) {
+            mpz_mul (Droot [i], Droot [i], root [j]);
+            mpz_mod (Droot [i], Droot [i], N);
+            disc /= qstar [j];
+         }
+      if (disc != 1) {
+         for (j = 0; disc != qstar [j]; j++);
+         mpz_mul (Droot [i], Droot [i], root [j]);
+         mpz_mod (Droot [i], Droot [i], N);
+      }
+   }
+}
 
-   /* First sort by increasing h/g. */
-   if (D1 [2] < D2 [2])
-      return -1;
-   else if (D1 [2] > D2 [2])
-      return +1;
-   else
-      /* Then sort by increasing h. */
-      if (D1 [1] < D2 [1])
-         return -1;
-      else if (D1 [1] > D2 [1])
-         return +1;
+/*****************************************************************************/
+
+static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
+   int_cl_t d, cm_stat_t stat)
+   /* Given N prime, a discriminant d composed of split primes modulo N,
+      and a square root of d modulo N in root, the function computes the
+      array of 0 (in the case that N is not a norm in Q(\sqrt d), which
+      happens with probability 1 - 1 / (h/g)), 2, 4 or 6 (depending on
+      the number of twists) possible cardinalities of elliptic curves
+      modulo N with CM by d. The cardinalities are stored in n, the entries
+      of which need to be initialised, and their number is returned. */
+{
+   int res;
+   mpz_t t, v;
+   mpz_ptr V;
+   int twists;
+   bool cornacchia;
+
+   mpz_init (t);
+   if (d == -3 || d == -4) {
+      mpz_init (v);
+      V = v;
+      if (d == -3)
+         twists = 6;
       else
-         /* Finally sort by increasing |d|. */
-         if (D1 [0] < D2 [0])
-            return +1;
-         else if (D1 [0] > D2 [0])
-            return -1;
-         else
-            return 0;
+         twists = 4;
+   }
+   else {
+      V = NULL;
+      twists = 2;
+   }
+
+   cornacchia = cm_nt_mpz_cornacchia (t, V, N, root, d);
+   if (cornacchia) {
+      res = twists;
+      /* Compute the cardinalities of all the twists. */
+      mpz_add_ui (n [0], N, 1);
+      mpz_add (n [1], n [0], t);
+      if (d == -3) {
+         /* The sextic twists have trace (\pm t \pm 3*v)/2. */
+         mpz_mul_ui (v, v, 3);
+         mpz_sub (v, v, t);
+         mpz_divexact_ui (v, v, 2);
+         mpz_add (n [2], n [0], v);
+         mpz_sub (n [3], n [0], v);
+         mpz_add (v, v, t);
+         mpz_add (n [4], n [0], v);
+         mpz_sub (n [5], n [0], v);
+      }
+      else if (d == -4) {
+         /* The quartic twists have trace \pm 2*v. */
+         mpz_mul_2exp (v, v, 1);
+         mpz_sub (n [2], n [0], v);
+         mpz_add (n [3], n [0], v);
+      }
+      mpz_sub (n [0], n [0], t);
+   }
+   else
+      res = 0;
+
+   if (d == -3 || d == -4)
+      mpz_clear (v);
+   mpz_clear (t);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat)
+   /* Given a prime N, a list of no_d fastECPP discriminants in d and an
+      array of their square roots modulo N in root, compute and return the
+      array of possible CM cardinalities. The number of cardinalities is
+      returned via no_card. The newly allocated array card_d contains for
+      each cardinality the associated discriminant. */
+{
+   mpz_t *res;
+   mpz_t **card;
+   int *twists;
+   int i, j, k;
+
+   /* For each discriminant, compute the potential cardinalities in
+      separate memory locations. */
+   twists = (int *) malloc (no_d * sizeof (int));
+   card = (mpz_t **) malloc (no_d * sizeof (mpz_t *));
+   for (i = 0; i < no_d; i++) {
+      card [i] = (mpz_t *) malloc (6 * sizeof (mpz_t));
+      for (j = 0; j < 6; j++)
+         mpz_init (card [i][j]);
+   }
+
+   for (i = 0; i < no_d; i++)
+      twists [i] = curve_cardinalities (card [i], N, root [i], d [i], stat);
+
+   /* Count the number of obtained cardinalities. */
+   *no_card = 0;
+   for (i = 0; i < no_d; i++)
+      *no_card += twists [i];
+
+   /* Copy the results. */
+   res = (mpz_t *) malloc (*no_card * sizeof (mpz_t));
+   *card_d = (int_cl_t *) malloc (*no_card * sizeof (int_cl_t));
+   k = 0;
+   for (i = 0; i < no_d; i++)
+      for (j = 0; j < twists [i]; j++) {
+         (*card_d) [k] = d [i];
+         mpz_init_set (res [k], card [i][j]);
+         k++;
+      }
+
+   for (i = 0; i < no_d; i++) {
+      for (j = 0; j < 6; j++)
+         mpz_clear (card [i][j]);
+      free (card [i]);
+   }
+   free (card);
+   free (twists);
+
+   return res;
 }
 
 /*****************************************************************************/
@@ -590,237 +744,51 @@ static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
 
 /*****************************************************************************/
 
-static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
-   int_cl_t d, cm_stat_t stat)
-   /* Given N prime, a discriminant d composed of split primes modulo N,
-      and a square root of d modulo N in root, the function computes the
-      array of 0 (in the case that N is not a norm in Q(\sqrt d), which
-      happens with probability 1 - 1 / (h/g)), 2, 4 or 6 (depending on
-      the number of twists) possible cardinalities of elliptic curves
-      modulo N with CM by d. The cardinalities are stored in n, the entries
-      of which need to be initialised, and their number is returned. */
-{
-   int res;
-   mpz_t t, v;
-   mpz_ptr V;
-   int twists;
-   bool cornacchia;
-
-   mpz_init (t);
-   if (d == -3 || d == -4) {
-      mpz_init (v);
-      V = v;
-      if (d == -3)
-         twists = 6;
-      else
-         twists = 4;
-   }
-   else {
-      V = NULL;
-      twists = 2;
-   }
-
-   cm_timer_continue (stat->timer [3]);
-   stat->counter [3]++;
-   cornacchia = cm_nt_mpz_cornacchia (t, V, N, root, d);
-   cm_timer_stop (stat->timer [3]);
-   if (cornacchia) {
-      res = twists;
-      /* Compute the cardinalities of all the twists. */
-      mpz_add_ui (n [0], N, 1);
-      mpz_add (n [1], n [0], t);
-      if (d == -3) {
-         /* The sextic twists have trace (\pm t \pm 3*v)/2. */
-         mpz_mul_ui (v, v, 3);
-         mpz_sub (v, v, t);
-         mpz_divexact_ui (v, v, 2);
-         mpz_add (n [2], n [0], v);
-         mpz_sub (n [3], n [0], v);
-         mpz_add (v, v, t);
-         mpz_add (n [4], n [0], v);
-         mpz_sub (n [5], n [0], v);
-      }
-      else if (d == -4) {
-         /* The quartic twists have trace \pm 2*v. */
-         mpz_mul_2exp (v, v, 1);
-         mpz_sub (n [2], n [0], v);
-         mpz_add (n [3], n [0], v);
-      }
-      mpz_sub (n [0], n [0], t);
-   }
-   else
-      res = 0;
-
-   if (d == -3 || d == -4)
-      mpz_clear (v);
-   mpz_clear (t);
-
-   return res;
-}
-
-/*****************************************************************************/
-
-static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat)
-   /* Given a prime N, a list of no_d fastECPP discriminants in d and an
-      array of their square roots modulo N in root, compute and return the
-      array of possible CM cardinalities. The number of cardinalities is
-      returned via no_card. The newly allocated array card_d contains for
-      each cardinality the associated discriminant. */
-{
-   mpz_t *res;
-   mpz_t **card;
-   int *twists;
-   int i, j, k;
-
-   /* For each discriminant, compute the potential cardinalities in
-      separate memory locations. */
-   twists = (int *) malloc (no_d * sizeof (int));
-   card = (mpz_t **) malloc (no_d * sizeof (mpz_t *));
-   for (i = 0; i < no_d; i++) {
-      card [i] = (mpz_t *) malloc (6 * sizeof (mpz_t));
-      for (j = 0; j < 6; j++)
-         mpz_init (card [i][j]);
-   }
-
-   for (i = 0; i < no_d; i++)
-      twists [i] = curve_cardinalities (card [i], N, root [i], d [i], stat);
-
-   /* Count the number of obtained cardinalities. */
-   *no_card = 0;
-   for (i = 0; i < no_d; i++)
-      *no_card += twists [i];
-
-   /* Copy the results. */
-   res = (mpz_t *) malloc (*no_card * sizeof (mpz_t));
-   *card_d = (int_cl_t *) malloc (*no_card * sizeof (int_cl_t));
-   k = 0;
-   for (i = 0; i < no_d; i++)
-      for (j = 0; j < twists [i]; j++) {
-         (*card_d) [k] = d [i];
-         mpz_init_set (res [k], card [i][j]);
-         k++;
-      }
-
-   for (i = 0; i < no_d; i++) {
-      for (j = 0; j < 6; j++)
-         mpz_clear (card [i][j]);
-      free (card [i]);
-   }
-   free (card);
-   free (twists);
-
-   return res;
-}
-
-/*****************************************************************************/
-
-static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
-   mpz_srcptr N, const unsigned int delta, mpz_srcptr primorialB,
-   int_cl_t *d, int no_d, mpz_t *root, cm_stat_t stat)
-   /* The function goes through the no_d discriminants in d and tests
-      whether one of them is a suitable discriminant to perform one step in
-      the ECPP downrun from the (probable) prime N>=787. If one is found,
-      the discriminant with the best gain is returned, and n becomes the
-      cardinality of the elliptic curve and l its largest prime factor;
-      otherwise 0 is returned and n and l are unchanged.
-      delta >= 1 is the minimum number of bits to be gained in this step.
-      primorialB is related to the trial division bound and is passed on
-      to trial_div.
-      root is an array of square roots of the d modulo N. */
+static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
+   mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
+   const unsigned int delta, cm_stat_t stat)
+   /* For the no_card discriminants in d, card is supposed to contain
+      corresponding curve cardinalities and l_list their non-smooth parts.
+      The function tests whether one of them is suitable to perform one
+      step in the ECPP downrun from the (probable) prime N>=787. If one is
+      found, the corresponding discriminant from d is returned, and n
+      becomes the cardinality of the elliptic curve and l its largest prime
+      factor; otherwise 0 is returned and n and l are unchanged.
+      delta >= 1 is the minimum number of bits to be gained in this
+      step. */
 
 {
    int_cl_t res;
-   int no_card;
-   mpz_t *card;
-   int_cl_t *card_d;
-   mpz_t *co;
-   size_t size_co, size_N, size_opt;
+   size_t size_l, size_N;
    int i;
 
    res = 0;
-   card = compute_cardinalities (&no_card, &card_d, N, no_d, root, d, stat);
-
-   if (no_card > 0) {
-      co = (mpz_t *) malloc (no_card * sizeof (mpz_t));
-      for (i = 0; i < no_card; i++)
-         mpz_init (co [i]);
-      cm_timer_continue (stat->timer [1]);
-      stat->counter [1]++;
-      trial_div_batch (co, card, no_card, primorialB);
-      cm_timer_stop (stat->timer [1]);
-      /* Look for a suitable cardinality with a point of smallest
-         prime order. */
-      size_N = mpz_sizeinbase (N, 2);
-      size_opt = size_N;
-      for (i = 0; size_opt == size_N && i < no_card; i++) {
-         /* We need to check whether co > (N^1/4 + 1)^2.
-            Let N have e bits, that is, 2^(e-1) <= N < 2^e,
-            and co have f bits, that is, 2^(f-1) <= co < 2^f. Then
-            (N^(1/4) + 1)^2 = N^(1/2) * (1+1/N^(1/4))^2
-                            < 2^(e/2) * sqrt (2) for N >= 781
-            So it is sufficient to check that
-            f-1 >= (e+1)/2, or equivalently f >= floor (e/2) + 2.
-            We also want to gain at least one bit; otherwise we might
-            even increase the prime a little bit. */
-         size_co = mpz_sizeinbase (co [i], 2);
-         if (size_co < size_opt
-             && size_co <= size_N - delta
-             && size_co >= size_N / 2 + 2) {
-            stat->counter [2]++;
-            cm_timer_continue (stat->timer [2]);
-            if (cm_nt_is_prime (co [i])) {
-               res = card_d [i];
-               size_opt = size_co;
-               mpz_set (n, card [i]);
-               mpz_set (l, co [i]);
-            }
-            cm_timer_stop (stat->timer [2]);
+   /* Look for a suitable cardinality with a point of smallest
+      prime order. */
+   size_N = mpz_sizeinbase (N, 2);
+   for (i = 0; res == 0 && i < no_card; i++) {
+      /* We need to check whether l > (N^1/4 + 1)^2.
+         Let N have e bits, that is, 2^(e-1) <= N < 2^e,
+         and l have f bits, that is, 2^(f-1) <= l < 2^f. Then
+         (N^(1/4) + 1)^2 = N^(1/2) * (1+1/N^(1/4))^2
+         < 2^(e/2) * sqrt (2) for N >= 781.
+         So it is sufficient to check that
+         f-1 >= (e+1)/2, or equivalently f >= floor (e/2) + 2. */
+      size_l = mpz_sizeinbase (l_list [i], 2);
+      if (   size_l <= size_N - delta
+          && size_l >= size_N / 2 + 2) {
+         stat->counter [2]++;
+         cm_timer_continue (stat->timer [2]);
+         if (cm_nt_is_prime (l_list [i])) {
+            res = d [i];
+            mpz_set (n, card [i]);
+            mpz_set (l, l_list [i]);
          }
+         cm_timer_stop (stat->timer [2]);
       }
-      for (i = 0; i < no_card; i++)
-         mpz_clear (co [i]);
-      free (co);
    }
-
-   for (i = 0; i < no_card; i++)
-      mpz_clear (card [i]);
-   free (card);
-   free (card_d);
 
    return res;
-}
-
-/*****************************************************************************/
-
-static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
-   long int *qstar, int no_qstar, mpz_t *root)
-   /* Given an array of no_d discriminants d which factor over the array
-      of no_qstar "signed primes" qstar, and given the roots of qstar
-      modulo N in root, compute and return in Droot the roots of the d.
-      Droots needs to contain enough space with all entries initialised.
-      By trial dividing d over qstar, it is enough to multiply the
-      corresponding roots together; however, the "even primes" need special
-      care, in particular for the sign of 8. */
-{
-   int i, j;
-   int_cl_t disc;
-
-   for (i = 0; i < no_d; i++) {
-      disc = d [i];
-      mpz_set_ui (Droot [i], 1);
-      for (j = 0; j < no_qstar; j++)
-         if (qstar [j] % 2 != 0 && disc % qstar [j] == 0) {
-            mpz_mul (Droot [i], Droot [i], root [j]);
-            mpz_mod (Droot [i], Droot [i], N);
-            disc /= qstar [j];
-         }
-      if (disc != 1) {
-         for (j = 0; disc != qstar [j]; j++);
-         mpz_mul (Droot [i], Droot [i], root [j]);
-         mpz_mod (Droot [i], Droot [i], N);
-      }
-   }
 }
 
 /*****************************************************************************/
@@ -841,12 +809,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int no_qstar_old, no_qstar_new, no_qstar;
    long int *qstar;
    long int q;
-   mpz_t *root;
-   int i, j;
+   mpz_t *root, *Droot, *card, *l_list;;
    int_cl_t d;
-   int_cl_t *dlist;
-   int no_d;
-   mpz_t *Droot;
+   int_cl_t *dlist, *d_card;
+   int no_d, no_card;
+   int i, j;
 
    d = 0;
    no_qstar = 0;
@@ -868,7 +835,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       for (i = no_qstar_old; i < no_qstar; i++)
          mpz_init (root [i]);
       compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
-         no_qstar_new);
+            no_qstar_new);
       stat->counter [0] += no_qstar_new;
       cm_timer_stop (stat->timer [0]);
 
@@ -876,7 +843,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          roots. */
       cm_timer_continue (stat->timer [4]);
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
-         no_qstar_new, max_factors, Dmax, hmaxprime, h);
+            no_qstar_new, max_factors, Dmax, hmaxprime, h);
       Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
       for (i = 0; i < no_d; i++)
          mpz_init (Droot [i]);
@@ -884,14 +851,38 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       stat->counter [4] += no_d;
       cm_timer_stop (stat->timer [4]);
 
-      d = contains_ecpp_discriminant (n, l, N, delta, primorialB, dlist,
-         no_d, Droot, stat);
+      /* Compute the cardinalities of the corresponding elliptic curves. */
+      cm_timer_continue (stat->timer [3]);
+      card = compute_cardinalities (&no_card, &d_card, N,
+            no_d, Droot, dlist, stat);
+      stat->counter [3] += no_d;
+      cm_timer_stop (stat->timer [3]);
 
-      /* Free the discriminant list. */
+      if (no_card > 0) {
+         /* Remove smooth parts of cardinalities. */
+         l_list = (mpz_t *) malloc (no_card * sizeof (mpz_t));
+         for (i = 0; i < no_card; i++)
+            mpz_init (l_list [i]);
+         cm_timer_continue (stat->timer [1]);
+         stat->counter [1]++;
+         trial_div_batch (l_list, card, no_card, primorialB);
+         cm_timer_stop (stat->timer [1]);
+
+         d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
+            no_card, delta, stat);
+
+         for (i = 0; i < no_card; i++)
+            mpz_clear (l_list [i]);
+         free (l_list);
+      }
+
       free (dlist);
       for (i = 0; i < no_d; i++)
          mpz_clear (Droot [i]);
       free (Droot);
+      for (i = 0; i < no_card; i++)
+         mpz_clear (card [i]);
+      free (card);
    }
 
    for (i = 0; i < no_qstar; i++)
