@@ -34,7 +34,8 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
+   const double prob, bool debug);
 static int disc_cmp (const void* d1, const void* d2);
 static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m);
 static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
@@ -470,26 +471,44 @@ static int disc_cmp (const void* d1, const void* d2)
 
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
+   const double prob, bool debug)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). But instead of an unsorted
       double array, it returns a simple array of discriminants sorted
-      according to the usefulness in ECPP. */
+      according to the usefulness in ECPP.
+      The argument prob serves for debugging purposes; it gives the
+      probability, computed from the size of the number to be proved prime
+      and the trial division bound, that a curve cardinality will lead to
+      success in this step. */
 {
    int_cl_t **dlist;
    int_cl_t *d;
+   double exp_card;
+      /* the expected number of curve cardinalities; the sum over
+         #twists * (g/h) */
    int i;
 
    dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar_new,
       max_factors, Dmax, hmaxprime, h);
    qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
 
+   exp_card = 0;
    d = (int_cl_t *) malloc (*no_d * sizeof (int_cl_t));
    for (i = 0; i < *no_d; i++) {
       d [i] = dlist [i][0];
+      if (d [i] == -3)
+         exp_card += 6.0;
+      else if (d [i] == -4)
+         exp_card += 4.0;
+      else
+         exp_card += 2.0 / dlist [i][2];
       free (dlist [i]);
    }
    free (dlist);
+
+   if (debug)
+      printf ("   expected number of primes: %.1f\n", exp_card * prob);
 
    return d;
 }
@@ -857,6 +876,13 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int_cl_t *dlist, *d_card;
    int no_d, no_card;
    int i, j;
+   const double prob = 1.7811
+      * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
+      / mpz_sizeinbase (N, 2);
+      /* According to [FrKlMoWi04], the probability that a number N is
+         a B-smooth part times a prime is exp (gamma) * log B / log N.
+         Here we do not know B, but it is quite precisely the logarithm
+         of its primorial. */
 
    d = 0;
    no_qstar = 0;
@@ -887,7 +913,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          roots. */
       cm_timer_continue (stat->timer [4]);
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
-            no_qstar_new, max_factors, Dmax, hmaxprime, h);
+            no_qstar_new, max_factors, Dmax, hmaxprime, h, prob, debug);
       Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
       for (i = 0; i < no_d; i++)
          mpz_init (Droot [i]);
