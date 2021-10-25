@@ -56,8 +56,8 @@ typedef struct {
 
 
 typedef struct {
-   int counter [4];
-   cm_timer_t timer [4];
+   int counter [5];
+   cm_timer_t timer [5];
 } __cm_stat_struct;
 typedef __cm_stat_struct cm_stat_t [1];
 

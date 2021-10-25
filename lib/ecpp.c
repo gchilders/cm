@@ -838,7 +838,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       primorialB is passed through to trial division. */
 {
    const int max_factors = 4;
-   const int batch = 100;
    int no_qstar_old, no_qstar_new, no_qstar;
    long int *qstar;
    long int q;
@@ -854,9 +853,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    q = 0;
    qstar = (long int *) malloc (0);
    root = (mpz_t *) malloc (0);
-   Droot = (mpz_t *) malloc (batch * sizeof (mpz_t));
-   for (i = 0; i < batch; i++)
-      mpz_init (Droot [i]);
 
    while (d == 0) {
       /* Extend the prime and square root list. */
@@ -876,29 +872,28 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       stat->counter [0] += no_qstar_new;
       cm_timer_stop (stat->timer [0]);
 
-      /* Precompute a list of potential discriminants for fastECPP. */
+      /* Precompute a list of potential discriminants and their square
+         roots. */
+      cm_timer_continue (stat->timer [4]);
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
          no_qstar_new, max_factors, Dmax, hmaxprime, h);
-      if (verbose && debug)
-         printf ("%6i discriminants for %3i primes\n", no_d, no_qstar);
+      Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
+      for (i = 0; i < no_d; i++)
+         mpz_init (Droot [i]);
+      root_of_d (Droot, dlist, no_d, N, qstar, no_qstar, root);
+      stat->counter [4] += no_d;
+      cm_timer_stop (stat->timer [4]);
 
-      /* Go through the list, treating batch discriminants at a time. */
-      for (i = 0; d == 0 && i < (no_d + batch - 1) / batch; i++) {
-         j = no_d - i * batch;
-         if (j > batch)
-            j = batch;
-         root_of_d (Droot, dlist + i * batch, j, N, qstar, no_qstar, root);
-         d = contains_ecpp_discriminant (n, l, N, delta, primorialB,
-            dlist + i * batch, j, Droot, stat);
-      }
+      d = contains_ecpp_discriminant (n, l, N, delta, primorialB, dlist,
+         no_d, Droot, stat);
 
       /* Free the discriminant list. */
       free (dlist);
+      for (i = 0; i < no_d; i++)
+         mpz_clear (Droot [i]);
+      free (Droot);
    }
 
-   for (i = 0; i < batch; i++)
-      mpz_clear (Droot [i]);
-   free (Droot);
    for (i = 0; i < no_qstar; i++)
       mpz_clear (root [i]);
    free (root);
@@ -982,12 +977,14 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
                cm_nt_largest_factor (h [(-d) / 2 - 1]));
             printf ("%6i qstar:      %.1f\n", stat->counter [0],
                cm_timer_get (stat->timer [0]));
+            printf ("%6i roots:      %.1f\n", stat->counter [4],
+               cm_timer_get (stat->timer [4]));
+            printf ("%6i Cornacchia: %.1f\n", stat->counter [3],
+                  cm_timer_get (stat->timer [3]));
             printf ("%6i Trial div:  %.1f\n", stat->counter [1],
                cm_timer_get (stat->timer [1]));
             printf ("%6i is_prime:   %.1f\n", stat->counter [2],
                   cm_timer_get (stat->timer [2]));
-            printf ("%6i Cornacchia: %.1f\n", stat->counter [3],
-                  cm_timer_get (stat->timer [3]));
          }
       }
       mpz_set_si (c [*depth][1], d);
