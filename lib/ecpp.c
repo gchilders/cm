@@ -846,6 +846,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       primorialB is passed through to trial division. */
 {
    const int max_factors = 4;
+   const int no_qstar_delta [] = { 20, 40, 50 };
+      /* Number of new qstar to add, roughly optimised through removing the
+         first 1000 bits of nextprime (10^(1000*i)). */
    int no_qstar_old, no_qstar_new, no_qstar;
    long int *qstar;
    long int q;
@@ -861,14 +864,15 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    qstar = (long int *) malloc (0);
    root = (mpz_t *) malloc (0);
 
+   i = mpz_sizeinbase (N, 2) / 3322;
+   if (i >= sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0]))
+      i = sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0]) - 1;
+   no_qstar_new = no_qstar_delta [i];
+
    while (d == 0) {
       /* Extend the prime and square root list. */
       cm_timer_continue (stat->timer [0]);
       no_qstar_old = no_qstar;
-      if (no_qstar_old <= 10)
-         no_qstar_new = 10;
-      else
-         no_qstar_new = 20;
       no_qstar = no_qstar_old + no_qstar_new;
       qstar = (long int *) realloc (qstar, no_qstar * sizeof (long int));
       root = (mpz_t *) realloc (root, no_qstar * sizeof (mpz_t));
@@ -994,7 +998,8 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
       mpz_set (c [*depth][0], N);
       cm_timer_start (clock);
       if (verbose)
-         printf ("-- Size %4li bits\n", mpz_sizeinbase (N, 2));
+         printf ("-- Size [%i]: %4li bits\n", *depth,
+            mpz_sizeinbase (N, 2));
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
          hmaxprime, h, delta, primorialB, verbose, debug, stat);
       cm_timer_stop (clock);
