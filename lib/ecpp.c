@@ -43,6 +43,7 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    int_cl_t d, cm_stat_t stat);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat);
+static int card_cmp (const void* c1, const void* c2);
 static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const unsigned int delta, cm_stat_t stat);
@@ -744,6 +745,19 @@ static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
 
 /*****************************************************************************/
 
+static int card_cmp (const void* c1, const void* c2)
+{
+   mpz_t *C1, *C2;
+
+   C1 = (*((mpz_t **) c1));
+   C2 = (*((mpz_t **) c2));
+
+   /* Sort by the first component. */
+   return mpz_cmp (C1 [0], C2 [0]);
+}
+
+/*****************************************************************************/
+
 static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const unsigned int delta, cm_stat_t stat)
@@ -760,13 +774,19 @@ static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 {
    int_cl_t res;
    size_t size_l, size_N;
-   int i;
+   int i, no, index;
+   mpz_t **c;
 
    res = 0;
-   /* Look for a suitable cardinality with a point of smallest
-      prime order. */
    size_N = mpz_sizeinbase (N, 2);
-   for (i = 0; res == 0 && i < no_card; i++) {
+
+   /* Filter out suitable cardinalities and copy them to a new array;
+      each entry is a 2-dimensional array containing the potential prime
+      factor and its original index, so that the cardinality and the
+      discriminant can be found again after sorting. */
+   c = (mpz_t **) malloc (no_card * sizeof (mpz_t *));
+   no = 0;
+   for (i = 0; i < no_card; i++) {
       /* We need to check whether l > (N^1/4 + 1)^2.
          Let N have e bits, that is, 2^(e-1) <= N < 2^e,
          and l have f bits, that is, 2^(f-1) <= l < 2^f. Then
@@ -777,16 +797,36 @@ static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       size_l = mpz_sizeinbase (l_list [i], 2);
       if (   size_l <= size_N - delta
           && size_l >= size_N / 2 + 2) {
-         stat->counter [2]++;
-         cm_timer_continue (stat->timer [2]);
-         if (cm_nt_is_prime (l_list [i])) {
-            res = d [i];
-            mpz_set (n, card [i]);
-            mpz_set (l, l_list [i]);
-         }
-         cm_timer_stop (stat->timer [2]);
+         c [no] = (mpz_t *) malloc (2 * sizeof (mpz_t));
+         mpz_init_set (c [no][0], l_list [i]);
+         mpz_init_set_ui (c [no][1], i);
+         no++;
       }
    }
+   c = (mpz_t **) realloc (c, no * sizeof (mpz_t *));
+
+   /* Sort by increasing gain. */
+   qsort (c, no, sizeof (mpz_t *), card_cmp);
+
+   /* Search for the first prime factor. */
+   for (i = 0; res == 0 && i < no; i++) {
+      stat->counter [2]++;
+      cm_timer_continue (stat->timer [2]);
+      if (cm_nt_is_prime (c [i][0])) {
+         index = mpz_get_ui (c [i][1]);
+         res = d [index];
+         mpz_set (n, card [index]);
+         mpz_set (l, l_list [index]);
+      }
+      cm_timer_stop (stat->timer [2]);
+   }
+
+   for (i = 0; i < no; i++) {
+      mpz_clear (c [i][0]);
+      mpz_clear (c [i][1]);
+      free (c [i]);
+   }
+   free (c);
 
    return res;
 }
