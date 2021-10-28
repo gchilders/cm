@@ -577,7 +577,7 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
       twists = 2;
    }
 
-   cornacchia = cm_nt_mpz_cornacchia (t, V, N, root, d);
+   cornacchia = cm_pari_cornacchia (t, V, N, root, d);
    if (cornacchia) {
       res = twists;
       /* Compute the cardinalities of all the twists. */
