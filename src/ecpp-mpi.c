@@ -26,28 +26,28 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 int main (int argc, char* argv [])
 {
-   mpz_t n;
-   bool output, verbose, debug, check;
    int rank;
 
-   mpz_init (n);
    cm_pari_init ();
-   evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug, &check);
-
-   cm_mpi_init (debug);
+   cm_mpi_init (true);
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-   if (rank == 0)
+   if (rank == 0) {
+      mpz_t n;
+      bool output, verbose, debug, check;
+      mpz_init (n);
+      evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug,
+         &check);
       cm_ecpp (n, CM_MODPOLDIR,
-         false /* pari */,
-         true /* tower */,
-         output /* print */,
-         check /* check */,
-         verbose /* verbose */,
-         debug /* debug */);
-   cm_mpi_clear (debug);
-
+            false /* pari */,
+            true /* tower */,
+            output /* print */,
+            check /* check */,
+            verbose /* verbose */,
+            debug /* debug */);
+      mpz_clear (n);
+   }
+   cm_mpi_clear (true);
    cm_pari_clear ();
-   mpz_clear (n);
 
    return 0;
 }

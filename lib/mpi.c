@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_DATA        3
 #define MPI_TAG_JOB_TONELLI 4
 
-#define mpi_log(rk, ...) {printf ("[%2i] ", rk); printf (__VA_ARGS__);}
+#define mpi_log(rk, ...) {printf ("MPI [%2i] ", rk); printf (__VA_ARGS__);}
 
 static int *worker_queue;
 static int worker_queue_size;
@@ -164,8 +164,6 @@ static void mpi_worker (const int rank, bool debug)
 
          /* Compute the result. */
          cm_nt_mpz_tonelli_si_with_generator (root, a, p, e, q, z);
-         if (debug)
-            mpi_log (rank, "Tonelli %i\n", job);
 
          /* Notify and send the result. */
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
