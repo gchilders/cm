@@ -15,10 +15,12 @@
 Makefile
 
 lib/libcm.la
+lib/libcm_mpi.la
 
 src/classpol
 src/cm
 src/ecpp
+src/ecpp-mpi
 
 aclocal.m4
 autom4te.cache/

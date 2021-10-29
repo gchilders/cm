@@ -29,6 +29,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
+#ifdef WITH_MPI
+#include <mpi.h>
+#endif
 #include <pari/pari.h>
 #include "cm.h"
 
@@ -203,6 +206,13 @@ extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 
 /* internal functions related to timers and counters */
 extern void cm_stat_init (cm_stat_t stat);
+
+/* functions for MPI */
+void cm_mpi_queue_push (int rank);
+int cm_mpi_queue_pop (void);
+void cm_mpi_submit_tonelli (int rank, int job, const long int a,
+   mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
+void cm_mpi_get_tonelli (mpz_ptr root, int rank);
 
 #if defined (__cplusplus)
 }

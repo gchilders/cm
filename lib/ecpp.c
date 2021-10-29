@@ -170,6 +170,10 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    unsigned int e;
    mpz_t r, z;
    int i;
+#ifdef WITH_MPI
+   MPI_Status status;
+   int sent, received, rank, job;
+#endif
 
    mpz_init (r);
    mpz_init (z);
@@ -206,8 +210,29 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    }
 
    e = cm_nt_mpz_tonelli_generator (r, z, p);
+#ifndef WITH_MPI
    for (i = 0; i < no; i++)
       cm_nt_mpz_tonelli_si_with_generator (root [i], qstar [i], p, e, r, z);
+#else
+   sent = 0;
+   received = 0;
+   while (received < no) {
+      if (sent < no && (rank = cm_mpi_queue_pop ()) != -1) {
+         cm_mpi_submit_tonelli (rank, sent, qstar [sent], p, e, r, z);
+         sent++;
+      }
+      else {
+         /* There is either nothing to send, or all workers are busy.
+            Wait for a result. */
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+            MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         cm_mpi_get_tonelli (root [job], rank);
+         cm_mpi_queue_push (rank);
+         received++;
+      }
+   }
+#endif
 
    mpz_clear (r);
    mpz_clear (z);

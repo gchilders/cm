@@ -78,10 +78,22 @@ AC_ARG_ENABLE([valgrind-tests],
               esac
              ]
              )
+AC_ARG_ENABLE([mpi],
+   [AS_HELP_STRING([--enable-mpi],[use mpi to compile a parallel version [default=no]])],
+   ,
+   [enable_mpi=no])
+
 
 # Checks for programs.
 AC_PROG_CC
 AC_LANG(C)
+
+# Look for MPI if required.
+AM_CONDITIONAL([MPI], [test x"$enable_mpi" = xyes])
+AS_IF([test x"$enable_mpi" = xyes],
+   [LX_FIND_MPI
+    AS_IF([test x"$have_C_mpi" != xyes],
+       [AC_MSG_ERROR(MPI not usable)])])
 
 # Set up LibTool
 LT_INIT

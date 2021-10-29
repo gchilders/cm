@@ -308,6 +308,10 @@ extern void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
 extern bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari,
    bool tower, bool print, bool check, bool verbose, bool debug);
 
+/* functions for MPI */
+void cm_mpi_init (bool debug);
+void cm_mpi_clear (bool debug);
+
 #if defined (__cplusplus)
 }
 #endif
