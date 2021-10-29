@@ -103,11 +103,16 @@ void cm_mpi_submit_tonelli (int rank, int job, const long int a,
 
 /*****************************************************************************/
 
-void cm_mpi_get_tonelli (mpz_ptr root, int rank)
+double cm_mpi_get_tonelli (mpz_ptr root, int rank)
    /* Get the result of a Tonelli job from worker rank and put it
-      into root. */
+      into root. Return the timing information from the worker. */
 {
+   double t;
+
    mpi_recv_mpz (root, rank);
+   MPI_Recv (&t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+
+   return t;
 }
 
 /*****************************************************************************/
@@ -123,6 +128,8 @@ static void mpi_worker (const int rank, bool debug)
    MPI_Status status;
    int job;
    bool finish;
+   cm_timer_t clock;
+   double t;
    
    /* Tonelli */
    long int a;
@@ -143,6 +150,7 @@ static void mpi_worker (const int rank, bool debug)
    while (!finish) {
       /* Wait for a message from the server. */
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      cm_timer_start (clock);
       switch (status.MPI_TAG) {
       case MPI_TAG_JOB_TONELLI:
          /* Receive the input. */
@@ -155,13 +163,16 @@ static void mpi_worker (const int rank, bool debug)
          mpi_recv_mpz (z, 0);
 
          /* Compute the result. */
+         cm_nt_mpz_tonelli_si_with_generator (root, a, p, e, q, z);
          if (debug)
             mpi_log (rank, "Tonelli %i\n", job);
-         cm_nt_mpz_tonelli_si_with_generator (root, a, p, e, q, z);
 
          /* Notify and send the result. */
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
          mpi_send_mpz (root, 0);
+         cm_timer_stop (clock);
+         t = cm_timer_get (clock);
+         MPI_Send (&t, 1, MPI_DOUBLE, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
          break;
       case MPI_TAG_FINISH:
          if (debug)

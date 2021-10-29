@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax);
 static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   long int *q, int no);
+   long int *q, int no, cm_stat_t stat);
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
@@ -157,7 +157,7 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
 /*****************************************************************************/
 
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   long int *q, int no)
+   long int *q, int no, cm_stat_t stat)
    /* Compute and return via qstar an array of no "signed primes" suitable
       for dividing the discriminant to prove the primality of p, and via
       root their square roots modulo p. The entries in qstar are ordered
@@ -173,6 +173,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 #ifdef WITH_MPI
    MPI_Status status;
    int sent, received, rank, job;
+   double t;
 #endif
 
    mpz_init (r);
@@ -211,11 +212,16 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
 
    e = cm_nt_mpz_tonelli_generator (r, z, p);
 #ifndef WITH_MPI
+   cm_timer_continue (stat->timer [0]);
    for (i = 0; i < no; i++)
       cm_nt_mpz_tonelli_si_with_generator (root [i], qstar [i], p, e, r, z);
+   cm_timer_stop (stat->timer [0]);
 #else
    sent = 0;
    received = 0;
+   t = cm_timer_get (stat->timer [0]);
+      /* Memorise CPU time to avoid confusion with server CPU time. */
+   cm_timer_continue (stat->timer [0]);
    while (received < no) {
       if (sent < no && (rank = cm_mpi_queue_pop ()) != -1) {
          cm_mpi_submit_tonelli (rank, sent, qstar [sent], p, e, r, z);
@@ -227,11 +233,14 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
             MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
-         cm_mpi_get_tonelli (root [job], rank);
+         t += cm_mpi_get_tonelli (root [job], rank);
          cm_mpi_queue_push (rank);
          received++;
       }
    }
+   cm_timer_stop (stat->timer [0]);
+   stat->timer [0]->elapsed = t;
+      /* Restore CPU time containing all the workers. */
 #endif
 
    mpz_clear (r);
@@ -922,7 +931,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
    while (d == 0) {
       /* Extend the prime and square root list. */
-      cm_timer_continue (stat->timer [0]);
       no_qstar_old = no_qstar;
       no_qstar = no_qstar_old + no_qstar_new;
       qstar = (long int *) realloc (qstar, no_qstar * sizeof (long int));
@@ -930,9 +938,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       for (i = no_qstar_old; i < no_qstar; i++)
          mpz_init (root [i]);
       compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
-            no_qstar_new);
+            no_qstar_new, stat);
       stat->counter [0] += no_qstar_new;
-      cm_timer_stop (stat->timer [0]);
 
       /* Precompute a list of potential discriminants and their square
          roots. */
@@ -1062,8 +1069,9 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
                cm_nt_largest_factor (-d));
             printf ("   largest prime of h: %"PRIucl"\n",
                cm_nt_largest_factor (h [(-d) / 2 - 1]));
-            printf ("%6i qstar:      %.1f\n", stat->counter [0],
-               cm_timer_get (stat->timer [0]));
+            printf ("%6i qstar:      %.1f (%.1f)\n", stat->counter [0],
+               cm_timer_get (stat->timer [0]),
+               cm_timer_wc_get (stat->timer [0]));
             printf ("%6i roots:      %.1f\n", stat->counter [4],
                cm_timer_get (stat->timer [4]));
             printf ("%6i Cornacchia: %.1f\n", stat->counter [3],
@@ -1290,8 +1298,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       cert1 = cm_ecpp1 (&depth, N, verbose, debug);
    cm_timer_stop (clock2);
    if (verbose)
-      printf ("--- Time for first ECPP step, depth %i:  %.1f\n", depth,
-         cm_timer_get (clock2));
+      printf ("--- Time for first ECPP step, depth %i:  %.1f (%.1f)\n",
+         depth, cm_timer_get (clock2), cm_timer_wc_get (clock2));
 
    cm_timer_start (clock2);
    cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));

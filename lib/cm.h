@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <stdbool.h>
 #include <zlib.h>
 #include <inttypes.h>
+#include <sys/time.h>
 #include "cm-arith.h"
 #include "mpfrcx.h"
 
@@ -68,7 +69,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 typedef struct {
    clock_t time_old;
-   double     elapsed;
+   double elapsed;
+   struct timeval wc_time_old [1];
+   double wc_elapsed;
+
 } __cm_timer_struct;
 typedef __cm_timer_struct cm_timer_t [1];
 
@@ -244,6 +248,7 @@ extern void cm_timer_reset (cm_timer_t t);
 extern void cm_timer_continue (cm_timer_t t);
 extern void cm_timer_stop (cm_timer_t t);
 extern double cm_timer_get (cm_timer_t t);
+extern double cm_timer_wc_get (cm_timer_t t);
 
 /* generic functions for opening files */
 extern bool cm_file_open_write (FILE **f, char *filename);

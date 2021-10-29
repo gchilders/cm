@@ -212,7 +212,7 @@ void cm_mpi_queue_push (int rank);
 int cm_mpi_queue_pop (void);
 void cm_mpi_submit_tonelli (int rank, int job, const long int a,
    mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
-void cm_mpi_get_tonelli (mpz_ptr root, int rank);
+double cm_mpi_get_tonelli (mpz_ptr root, int rank);
 
 #if defined (__cplusplus)
 }

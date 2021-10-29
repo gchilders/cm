@@ -25,19 +25,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /*****************************************************************************/
 
-void cm_timer_start (cm_timer_t t)
-
-{
-   t->elapsed = 0;
-   t->time_old = clock ();
-}
-
-/*****************************************************************************/
-
 void cm_timer_reset (cm_timer_t t)
 
 {
    t->elapsed = 0;
+   t->wc_elapsed = 0;
 }
 
 /*****************************************************************************/
@@ -46,6 +38,16 @@ void cm_timer_continue (cm_timer_t t)
 
 {
    t->time_old = clock ();
+   gettimeofday (t->wc_time_old, NULL);
+}
+
+/*****************************************************************************/
+
+void cm_timer_start (cm_timer_t t)
+
+{
+   cm_timer_reset (t);
+   cm_timer_continue (t);
 }
 
 /*****************************************************************************/
@@ -54,8 +56,15 @@ void cm_timer_stop (cm_timer_t t)
 
 {
    clock_t time_new;
+   struct timeval wc_time_new [1];
+
    time_new = clock ();
    t->elapsed += ((double) (time_new - t->time_old)) / CLOCKS_PER_SEC;
+   gettimeofday (wc_time_new, NULL);
+   t->wc_elapsed +=   (double) wc_time_new->tv_sec
+                    - (double) t->wc_time_old->tv_sec
+                    + (  (double) wc_time_new->tv_usec
+                       - (double) t->wc_time_old->tv_usec) / 1e6;
 }
 
 /*****************************************************************************/
@@ -64,6 +73,14 @@ double cm_timer_get (cm_timer_t t)
 
 {
    return t->elapsed;
+}
+
+/*****************************************************************************/
+
+double cm_timer_wc_get (cm_timer_t t)
+
+{
+   return t->wc_elapsed;
 }
 
 /*****************************************************************************/
