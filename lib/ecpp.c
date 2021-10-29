@@ -41,9 +41,9 @@ static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m);
 static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
    mpz_srcptr primorialB);
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
-   int_cl_t d, cm_stat_t stat);
+   int_cl_t d);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat);
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d);
 static int card_cmp (const void* c1, const void* c2);
 static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
@@ -53,7 +53,7 @@ static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB,
-   bool verbose, bool debug, cm_stat_t stat);
+   bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
@@ -548,7 +548,7 @@ static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
 /*****************************************************************************/
 
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
-   int_cl_t d, cm_stat_t stat)
+   int_cl_t d)
    /* Given N prime, a discriminant d composed of split primes modulo N,
       and a square root of d modulo N in root, the function computes the
       array of 0 (in the case that N is not a norm in Q(\sqrt d), which
@@ -615,7 +615,7 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
 /*****************************************************************************/
 
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_t stat)
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d)
    /* Given a prime N, a list of no_d fastECPP discriminants in d and an
       array of their square roots modulo N in root, compute and return the
       array of possible CM cardinalities. The number of cardinalities is
@@ -638,7 +638,7 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    }
 
    for (i = 0; i < no_d; i++)
-      twists [i] = curve_cardinalities (card [i], N, root [i], d [i], stat);
+      twists [i] = curve_cardinalities (card [i], N, root [i], d [i]);
 
    /* Count the number of obtained cardinalities. */
    *no_card = 0;
@@ -855,7 +855,7 @@ static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB,
-   bool verbose, bool debug, cm_stat_t stat)
+   bool debug, cm_stat_t stat)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
@@ -871,11 +871,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int no_qstar_old, no_qstar_new, no_qstar;
    long int *qstar;
    long int q;
-   mpz_t *root, *Droot, *card, *l_list;;
+   mpz_t *root, *Droot, *card, *l_list;
    int_cl_t d;
    int_cl_t *dlist, *d_card;
    int no_d, no_card;
-   int i, j;
+   int i;
    const double prob = 1.7811
       * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
       / mpz_sizeinbase (N, 2);
@@ -891,7 +891,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    root = (mpz_t *) malloc (0);
 
    i = mpz_sizeinbase (N, 2) / 3322;
-   if (i >= sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0]))
+   if (i >= (int) (sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0])))
       i = sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0]) - 1;
    no_qstar_new = no_qstar_delta [i];
 
@@ -924,7 +924,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       /* Compute the cardinalities of the corresponding elliptic curves. */
       cm_timer_continue (stat->timer [3]);
       card = compute_cardinalities (&no_card, &d_card, N,
-            no_d, Droot, dlist, stat);
+            no_d, Droot, dlist);
       stat->counter [3] += no_d;
       cm_timer_stop (stat->timer [3]);
 
@@ -1027,7 +1027,7 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
          printf ("-- Size [%i]: %4li bits\n", *depth,
             mpz_sizeinbase (N, 2));
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
-         hmaxprime, h, delta, primorialB, verbose, debug, stat);
+         hmaxprime, h, delta, primorialB, debug, stat);
       cm_timer_stop (clock);
       if (verbose) {
          printf ("   Time for discriminant %8"PRIicl": %5.1f\n",

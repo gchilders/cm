@@ -71,7 +71,7 @@ double cm_timer_get (cm_timer_t t)
 
 void cm_stat_init (cm_stat_t stat)
 {
-   int i;
+   unsigned long int i;
 
    for (i = 0; i < sizeof (stat->counter) / sizeof (stat->counter [0]);
         i++)
