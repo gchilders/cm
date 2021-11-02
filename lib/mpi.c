@@ -137,19 +137,18 @@ void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
 
 /*****************************************************************************/
 
-double cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank)
+void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
    /* Get the result of an ECPP curve creation job from worker rank and
       put it into cert2, as output by cm_ecpp_one_step2 in ecpp.c.
-      Return the timing information from the worker. */
+      Timing information from the worker is returned in stat. */
 {
-   double t;
    int i;
 
    for (i = 0; i < 6; i++)
       mpi_recv_mpz (cert2 [i], rank);
-   MPI_Recv (&t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-
-   return t;
+   for (i = 1; i <= 3 ; i++)
+   MPI_Recv (&(stat->timer [i]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
+      MPI_COMM_WORLD, NULL);
 }
 
 /*****************************************************************************/
@@ -167,6 +166,7 @@ static void mpi_worker (const int rank, bool debug)
    bool finish;
    cm_timer_t clock;
    double t;
+   cm_stat_t stat;
    int i;
    
    /* Tonelli */
@@ -178,7 +178,6 @@ static void mpi_worker (const int rank, bool debug)
    mpz_t cert1 [4], cert2 [6];
    char *modpoldir;
    int len, tower;
-   cm_stat_t stat;
 
    mpz_init (p);
    mpz_init (q);
@@ -199,6 +198,7 @@ static void mpi_worker (const int rank, bool debug)
       /* Wait for a message from the server. */
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       cm_timer_start (clock);
+      cm_stat_init (stat);
       switch (status.MPI_TAG) {
       case MPI_TAG_JOB_TONELLI:
          /* Receive the input. */
@@ -233,15 +233,15 @@ static void mpi_worker (const int rank, bool debug)
             &status);
 
          cm_ecpp_one_step2 (cert2, cert1, modpoldir, (bool) tower, true,
-            true, stat);
+            false, stat);
          free (modpoldir);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
          for (i = 0; i < 6; i++)
             mpi_send_mpz (cert2 [i], 0);
-         cm_timer_stop (clock);
-         t = cm_timer_get (clock);
-         MPI_Send (&t, 1, MPI_DOUBLE, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
+         for (i = 1; i <= 3; i++)
+            MPI_Send (&(stat->timer [i]->elapsed), 1, MPI_DOUBLE, 0,
+               MPI_TAG_DATA, MPI_COMM_WORLD);
          break;
       case MPI_TAG_FINISH:
          if (debug)

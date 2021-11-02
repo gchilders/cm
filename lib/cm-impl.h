@@ -61,8 +61,11 @@ typedef struct {
 typedef struct {
    int counter [5];
    cm_timer_t timer [5];
-} __cm_stat_struct;
+}
+__cm_stat_struct;
+
 typedef __cm_stat_struct cm_stat_t [1];
+typedef __cm_stat_struct *cm_stat_ptr;
 
 
 #if defined (__cplusplus)
@@ -218,7 +221,7 @@ void cm_mpi_submit_tonelli (int rank, int job, const long int a,
 double cm_mpi_get_tonelli (mpz_ptr root, int rank);
 void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
    const char* modpoldir, bool tower);
-double cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank);
+void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat);
 
 #if defined (__cplusplus)
 }

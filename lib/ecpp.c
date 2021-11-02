@@ -1183,13 +1183,13 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    mpz_sub (t, t, n);
    mpz_divexact (co, n, l);
 
-   cm_timer_continue (stat->timer [0]);
+   cm_timer_continue (stat->timer [1]);
    ecpp_param_init (param, d);
 
    /* Compute one of the class field tower or the class polynomial. */
    cm_class_init (c, param, false);
    cm_class_compute (c, param, !tower, tower, false);
-   cm_timer_stop (stat->timer [0]);
+   cm_timer_stop (stat->timer [1]);
 
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co,
       modpoldir, false, false, stat);
@@ -1197,14 +1197,14 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    cm_timer_stop (clock);
 
    if (verbose) {
-      printf ("-- Time for discriminant %8"PRIicl" with invariant %c "
-         "and parameters %s for %4li bits: %5.1f\n",
-         d, param->invariant, param->str, mpz_sizeinbase (p, 2),
+      printf ("-- Time for %4li bits (discriminant %"PRIicl
+         ", invariant %c, parameters %s): %.1f\n",
+         mpz_sizeinbase (p, 2), d, param->invariant, param->str,
          cm_timer_get (clock));
       if (debug) {
-         printf ("   CM:    %5.1f\n", cm_timer_get (stat->timer [0]));
-         printf ("   roots: %5.1f\n", cm_timer_get (stat->timer [1]));
-         printf ("   point: %5.1f\n", cm_timer_get (stat->timer [2]));
+         printf ("   CM:    %5.1f\n", cm_timer_get (stat->timer [1]));
+         printf ("   roots: %5.1f\n", cm_timer_get (stat->timer [2]));
+         printf ("   point: %5.1f\n", cm_timer_get (stat->timer [3]));
       }
    }
 
@@ -1249,15 +1249,15 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 {
    cm_stat_t stat;
+   int i;
 #ifdef WITH_MPI
+   cm_stat_t stat_worker;
    MPI_Status status;
    int sent, received, rank, job;
-   double t;
-#else
-   int i;
 #endif
 
    cm_stat_init (stat);
+   cm_timer_start (stat->timer [0]);
 
 #ifndef WITH_MPI
    for (i = 0; i < depth; i++)
@@ -1266,8 +1266,6 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 #else
    sent = 0;
    received = 0;
-   t = 0;
-   cm_timer_continue (stat->timer [0]);
    while (received < depth) {
       if (sent < depth && (rank = cm_mpi_queue_pop ()) != -1) {
          cm_mpi_submit_ecpp_one_step2 (rank, sent, cert1 [sent], modpoldir,
@@ -1276,15 +1274,33 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       }
       else {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-            MPI_COMM_WORLD, &status);
+               MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
-         t += cm_mpi_get_ecpp_one_step2 (cert2 [job], rank);
+         cm_mpi_get_ecpp_one_step2 (cert2 [job], rank, stat_worker);
+         for (i = 1; i <= 3; i++)
+            stat->timer [i]->elapsed += stat_worker->timer [i]->elapsed;
          cm_mpi_queue_push (rank);
          received++;
+         if (verbose && debug)
+               printf ("-- Timings after job %3i: CM %5.1f, roots %5.1f, "
+                  "point %5.1f\n", job,
+                  cm_timer_get (stat->timer [1]),
+                  cm_timer_get (stat->timer [2]),
+                  cm_timer_get (stat->timer [3]));
       }
     }
+#endif
    cm_timer_stop (stat->timer [0]);
-   stat->timer [0]->elapsed = t;
+
+   if (verbose)
+#ifndef WITH_MPI
+      printf ("--- Time for second ECPP step: %.1f\n",
+         cm_timer_get (stat->timer [0]));
+#else
+      printf ("--- Time for second ECPP step: %.1f (%.1f)\n",
+         cm_timer_get (stat->timer [1]) + cm_timer_get (stat->timer [2])
+         + cm_timer_get (stat->timer [3]),
+         cm_timer_wc_get (stat->timer [0]));
 #endif
 
 }
@@ -1329,7 +1345,6 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       printf ("--- Time for first ECPP step, depth %i:  %.1f (%.1f)\n",
          depth, cm_timer_get (clock2), cm_timer_wc_get (clock2));
 
-   cm_timer_start (clock2);
    cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));
    for (i = 0; i < depth; i++) {
       cert2 [i] = (mpz_t *) malloc (6 * sizeof (mpz_t));
@@ -1355,15 +1370,11 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
       }
       printf ("];\n");
    }
-
-   cm_timer_stop (clock2);
    cm_timer_stop (clock);
-   if (verbose) {
-      printf ("--- Time for second ECPP step: %.1f\n",
-         cm_timer_get (clock2));
+
+   if (verbose)
       printf ("--- Total time for ECPP:       %.1f\n",
          cm_timer_get (clock));
-   }
 
    if (check) {
       cm_timer_start (clock);
