@@ -200,6 +200,9 @@ extern bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
 extern mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    bool debug);
+extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
+   const char* modpoldir, bool tower, bool verbose, bool debug,
+   cm_stat_t stat);
 extern mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p);
 extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 
@@ -213,6 +216,9 @@ int cm_mpi_queue_pop (void);
 void cm_mpi_submit_tonelli (int rank, int job, const long int a,
    mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
 double cm_mpi_get_tonelli (mpz_ptr root, int rank);
+void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
+   const char* modpoldir, bool tower);
+double cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank);
 
 #if defined (__cplusplus)
 }

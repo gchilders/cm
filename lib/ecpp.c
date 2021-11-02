@@ -55,9 +55,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    const unsigned int delta, mpz_srcptr primorialB,
    bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
-static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
-   const char* modpoldir, bool tower, bool verbose, bool debug,
-   cm_stat_t stat);
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug);
 
@@ -1153,7 +1150,7 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d)
 
 /*****************************************************************************/
 
-static void ecpp2_one_step (mpz_t *cert2, mpz_t *cert1,
+void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
    cm_stat_t stat)
    /* The function takes the same parameters as cm_ecpp2, except that cert1
@@ -1252,13 +1249,44 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 {
    cm_stat_t stat;
+#ifdef WITH_MPI
+   MPI_Status status;
+   int sent, received, rank, job;
+   double t;
+#else
    int i;
+#endif
 
    cm_stat_init (stat);
 
+#ifndef WITH_MPI
    for (i = 0; i < depth; i++)
-      ecpp2_one_step (cert2 [i], cert1 [i], modpoldir, tower,
+      cm_ecpp_one_step2 (cert2 [i], cert1 [i], modpoldir, tower,
          verbose, debug, stat);
+#else
+   sent = 0;
+   received = 0;
+   t = 0;
+   cm_timer_continue (stat->timer [0]);
+   while (received < depth) {
+      if (sent < depth && (rank = cm_mpi_queue_pop ()) != -1) {
+         cm_mpi_submit_ecpp_one_step2 (rank, sent, cert1 [sent], modpoldir,
+            tower);
+         sent++;
+      }
+      else {
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+            MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         t += cm_mpi_get_ecpp_one_step2 (cert2 [job], rank);
+         cm_mpi_queue_push (rank);
+         received++;
+      }
+    }
+   cm_timer_stop (stat->timer [0]);
+   stat->timer [0]->elapsed = t;
+#endif
+
 }
 
 /*****************************************************************************/

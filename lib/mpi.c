@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_FINISH      2
 #define MPI_TAG_DATA        3
 #define MPI_TAG_JOB_TONELLI 4
+#define MPI_TAG_JOB_ECPP2   5
 
 #define mpi_log(rk, ...) {printf ("MPI [%2i] ", rk); printf (__VA_ARGS__);}
 
@@ -116,6 +117,42 @@ double cm_mpi_get_tonelli (mpz_ptr root, int rank)
 }
 
 /*****************************************************************************/
+
+void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
+   const char* modpoldir, bool tower)
+   /* Submit the ECPP curve creation job of the given number to the worker
+      of the given rank; the other parameters are as the input in
+      cm_ecpp_one_step2 in ecpp.c */
+{
+   int tow, i;
+
+   MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_ECPP2, MPI_COMM_WORLD);
+   for (i = 0; i < 4; i++)
+      mpi_send_mpz (cert1 [i], rank);
+   MPI_Send (modpoldir, strlen (modpoldir), MPI_CHAR, rank, MPI_TAG_DATA,
+      MPI_COMM_WORLD);
+   tow = tower;
+   MPI_Send (&tow, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+}
+
+/*****************************************************************************/
+
+double cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank)
+   /* Get the result of an ECPP curve creation job from worker rank and
+      put it into cert2, as output by cm_ecpp_one_step2 in ecpp.c.
+      Return the timing information from the worker. */
+{
+   double t;
+   int i;
+
+   for (i = 0; i < 6; i++)
+      mpi_recv_mpz (cert2 [i], rank);
+   MPI_Recv (&t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+
+   return t;
+}
+
+/*****************************************************************************/
 /*                                                                           */
 /* Worker implementation.                                                    */
 /*                                                                           */
@@ -130,16 +167,27 @@ static void mpi_worker (const int rank, bool debug)
    bool finish;
    cm_timer_t clock;
    double t;
+   int i;
    
    /* Tonelli */
    long int a;
    unsigned int e;
    mpz_t p, q, z, root;
 
+   /* ECPP step 2 */
+   mpz_t cert1 [4], cert2 [6];
+   char *modpoldir;
+   int len, tower;
+   cm_stat_t stat;
+
    mpz_init (p);
    mpz_init (q);
    mpz_init (z);
    mpz_init (root);
+   for (i = 0; i < 4; i++)
+      mpz_init (cert1 [i]);
+   for (i = 0; i < 6; i++)
+      mpz_init (cert2 [i]);
 
    /* Send a notification to the server. */
    if (debug)
@@ -172,6 +220,29 @@ static void mpi_worker (const int rank, bool debug)
          t = cm_timer_get (clock);
          MPI_Send (&t, 1, MPI_DOUBLE, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
          break;
+      case MPI_TAG_JOB_ECPP2:
+         for (i = 0; i < 4; i++)
+            mpi_recv_mpz (cert1 [i], 0);
+         MPI_Probe (0, MPI_TAG_DATA, MPI_COMM_WORLD, &status);
+         MPI_Get_count (&status, MPI_CHAR, &len);
+         modpoldir = (char *) malloc ((len + 1) * sizeof (char));
+         MPI_Recv (modpoldir, len, MPI_CHAR, 0, MPI_TAG_DATA,
+            MPI_COMM_WORLD, &status);
+         modpoldir [len] = '\0';
+         MPI_Recv (&tower, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
+            &status);
+
+         cm_ecpp_one_step2 (cert2, cert1, modpoldir, (bool) tower, true,
+            true, stat);
+         free (modpoldir);
+
+         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
+         for (i = 0; i < 6; i++)
+            mpi_send_mpz (cert2 [i], 0);
+         cm_timer_stop (clock);
+         t = cm_timer_get (clock);
+         MPI_Send (&t, 1, MPI_DOUBLE, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
+         break;
       case MPI_TAG_FINISH:
          if (debug)
             mpi_log (rank, "finished\n");
@@ -187,6 +258,10 @@ static void mpi_worker (const int rank, bool debug)
    mpz_clear (q);
    mpz_clear (z);
    mpz_clear (root);
+   for (i = 0; i < 4; i++)
+      mpz_clear (cert1 [i]);
+   for (i = 0; i < 6; i++)
+      mpz_clear (cert2 [i]);
 }
 
 /*****************************************************************************/
