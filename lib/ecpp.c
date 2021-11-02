@@ -171,6 +171,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    MPI_Status status;
    int sent, received, rank, job;
    double t;
+   cm_stat_t stat_worker;
 #endif
 
    mpz_init (r);
@@ -230,14 +231,16 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
             MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
-         t += cm_mpi_get_tonelli (root [job], rank);
+         cm_mpi_get_tonelli (root [job], rank, stat_worker);
+         t += cm_timer_get (stat_worker->timer [0]);
          cm_mpi_queue_push (rank);
          received++;
       }
    }
    cm_timer_stop (stat->timer [0]);
    stat->timer [0]->elapsed = t;
-      /* Restore CPU time containing all the workers. */
+      /* Restore CPU time containing all the workers, while keeping
+         the wallclock time as measured by the server. */
 #endif
 
    mpz_clear (r);

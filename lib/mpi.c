@@ -104,16 +104,13 @@ void cm_mpi_submit_tonelli (int rank, int job, const long int a,
 
 /*****************************************************************************/
 
-double cm_mpi_get_tonelli (mpz_ptr root, int rank)
-   /* Get the result of a Tonelli job from worker rank and put it
-      into root. Return the timing information from the worker. */
+void cm_mpi_get_tonelli (mpz_ptr root, int rank, cm_stat_ptr stat)
+   /* Get the result of a Tonelli job from worker rank and put it into root.
+      Timing information from the worker is returned in stat. */
 {
-   double t;
-
    mpi_recv_mpz (root, rank);
-   MPI_Recv (&t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-
-   return t;
+   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
+      MPI_COMM_WORLD, NULL);
 }
 
 /*****************************************************************************/
@@ -164,8 +161,6 @@ static void mpi_worker (const int rank, bool debug)
    MPI_Status status;
    int job;
    bool finish;
-   cm_timer_t clock;
-   double t;
    cm_stat_t stat;
    int i;
    
@@ -197,10 +192,10 @@ static void mpi_worker (const int rank, bool debug)
    while (!finish) {
       /* Wait for a message from the server. */
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-      cm_timer_start (clock);
       cm_stat_init (stat);
       switch (status.MPI_TAG) {
       case MPI_TAG_JOB_TONELLI:
+         cm_timer_start (stat->timer [0]);
          /* Receive the input. */
          MPI_Recv (&a, 1, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
             &status);
@@ -216,9 +211,9 @@ static void mpi_worker (const int rank, bool debug)
          /* Notify and send the result. */
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
          mpi_send_mpz (root, 0);
-         cm_timer_stop (clock);
-         t = cm_timer_get (clock);
-         MPI_Send (&t, 1, MPI_DOUBLE, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
+         cm_timer_stop (stat->timer [0]);
+         MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
+            MPI_TAG_DATA, MPI_COMM_WORLD);
          break;
       case MPI_TAG_JOB_ECPP2:
          for (i = 0; i < 4; i++)
