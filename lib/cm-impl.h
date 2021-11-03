@@ -206,7 +206,6 @@ extern mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
    cm_stat_t stat);
-extern mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p);
 extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 
 

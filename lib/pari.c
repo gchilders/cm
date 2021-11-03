@@ -435,48 +435,6 @@ bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
 
 /*****************************************************************************/
 
-mpz_t** cm_pari_ecpp1 (int *depth, mpz_srcptr p)
-   /* Get the first step of the ECPP certificate from PARI/GP; this is the
-      downrun part with the parameters of the elliptic curves.
-      The return value is a newly allocated array of depth entries, each
-      of which is an array of length 4, containing in this order
-      - p_i, a prime to be certified;
-      - d_i, the discriminant;
-      - n_i, the cardinality of the elliptic curve;
-      - l_i, the prime order dividing this cardinality.
-      */
-{
-   pari_sp av;
-   mpz_t **res;
-   GEN c, v;
-   int i, j;
-
-   av = avma;
-
-   c = ecpp (mpz_get_Z (p));
-   if (typ (c) == t_VEC)
-      *depth = glength (c);
-   else
-      *depth = 0;
-   res = (mpz_t **) malloc (*depth * sizeof (mpz_t *));
-   for (i = 0; i < *depth; i++) {
-      res [i] = (mpz_t *) malloc (4 * sizeof (mpz_t));
-      for (j = 0; j < 4; j++)
-         mpz_init (res [i][j]);
-      v = gel (c, i+1);
-      Z_get_mpz (res [i][0], gel (v, 1));
-      mpz_set_si (res [i][1], gel (gel (v, 2), 1)[1]);
-      Z_get_mpz (res [i][2], gel (v, 3));
-      Z_get_mpz (res [i][3], gel (v, 4));
-   }
-
-   avma = av;
-
-   return res;
-}
-
-/*****************************************************************************/
-
 bool cm_pari_ecpp_check (mpz_t **cert, int depth)
    /* Given a complete ECPP certificate (after step 2) of length depth in
       cert, use PARI to check it and return its validity. */

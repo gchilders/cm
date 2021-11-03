@@ -1230,10 +1230,10 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
 
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    const char* modpoldir, bool tower, bool verbose, bool debug)
-   /* Given the result of the ECPP down-run in cert1, an array of length
-      depth as computed by cm_ecpp1 or cm_pari_ecpp1, execute the second
-      step of the ECPP algorithm and compute the certificate proper in
-      cert2, which needs to be pre-allocated as an array of length depth
+   /* Given the result of the ECPP down-run in cert1, an array of
+      length depth as computed by cm_ecpp1, execute the second step of
+      the ECPP algorithm and compute the certificate proper in cert2,
+      which needs to be pre-allocated as an array of length depth
       with each entry an array of length 6 to contain p, t, co, a, x and y:
       the prime p to be certified, the trace t of the elliptic curve, the
       co-factor such that p+1-t = co*l with l the next prime, the curve
@@ -1310,7 +1310,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 /*****************************************************************************/
 
-bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
+bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    bool print, bool check, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
@@ -1339,10 +1339,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool pari, bool tower,
 
    cm_timer_start (clock);
    cm_timer_start (clock2);
-   if (pari)
-      cert1 = cm_pari_ecpp1 (&depth, N);
-   else
-      cert1 = cm_ecpp1 (&depth, N, verbose, debug);
+   cert1 = cm_ecpp1 (&depth, N, verbose, debug);
    cm_timer_stop (clock2);
    if (verbose)
       printf ("--- Time for first ECPP step, depth %i:  %.1f (%.1f)\n",

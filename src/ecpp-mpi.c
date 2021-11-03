@@ -38,7 +38,6 @@ int main (int argc, char* argv [])
       evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug,
          &check);
       cm_ecpp (n, CM_MODPOLDIR,
-            false /* pari */,
             true /* tower */,
             output /* print */,
             check /* check */,

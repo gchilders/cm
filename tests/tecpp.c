@@ -31,7 +31,6 @@ static void test_ecpp (mpz_srcptr n)
    bool res;
 
    res =    cm_ecpp (n, CM_MODPOLDIR,
-      false /* pari */,
       true /* tower */,
       false /* print */,
       true /* check */,
