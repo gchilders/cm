@@ -29,16 +29,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_TONELLI 4
 #define MPI_TAG_JOB_ECPP2   5
 
-#define mpi_log(rk, ...) {printf ("MPI [%2i] ", rk); printf (__VA_ARGS__);}
-
 static int *worker_queue;
 static int worker_queue_size;
 
 static void mpi_send_mpz (mpz_srcptr z, const int rank);
 static void mpi_recv_mpz (mpz_ptr z, const int rank);
-static void mpi_worker (const int rank, bool debug);
-static void mpi_server_init (const int size, bool debug);
-static void mpi_server_clear (const int size, bool debug);
+static void mpi_worker (const int rank);
+static void mpi_server_init (const int size);
+static void mpi_server_clear (const int size);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -154,7 +152,7 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
 /*                                                                           */
 /*****************************************************************************/
 
-static void mpi_worker (const int rank, bool debug)
+static void mpi_worker (const int rank)
    /* The workers are started on rank 1 to size-1, and they run continually,
       accepting jobs until the server tells them to finish. */
 {
@@ -184,8 +182,6 @@ static void mpi_worker (const int rank, bool debug)
       mpz_init (cert2 [i]);
 
    /* Send a notification to the server. */
-   if (debug)
-      mpi_log (rank, "started\n");
    MPI_Send (&rank, 1, MPI_INT, 0, MPI_TAG_READY, MPI_COMM_WORLD);
 
    finish = false;
@@ -239,8 +235,6 @@ static void mpi_worker (const int rank, bool debug)
                MPI_TAG_DATA, MPI_COMM_WORLD);
          break;
       case MPI_TAG_FINISH:
-         if (debug)
-            mpi_log (rank, "finished\n");
          finish = true;
          break;
       default:
@@ -292,7 +286,7 @@ int cm_mpi_queue_pop ()
 
 /*****************************************************************************/
 
-static void mpi_server_init (const int size, bool debug)
+static void mpi_server_init (const int size)
    /* The server is started on rank 0, initialises the workers and returns.
       The sequential code of the application should then be run in rank 0
       and occasionally make use of the workers for parallel sections. */
@@ -300,41 +294,32 @@ static void mpi_server_init (const int size, bool debug)
    int worker;
 
    /* Wait for all workers to join. */
-   if (debug)
-      mpi_log (0, "started\n");
    worker_queue = (int *) malloc ((size - 1) * sizeof (int));
    for (worker_queue_size = 0; worker_queue_size < size - 1;
       worker_queue_size++) {
       MPI_Recv (&worker, 1, MPI_INT, MPI_ANY_SOURCE, MPI_TAG_READY,
          MPI_COMM_WORLD, NULL);
       worker_queue [worker_queue_size] = worker;
-      if (debug)
-         mpi_log (0, "%i added to queue\n", worker);
    }
 }
 
 /*****************************************************************************/
 
-static void mpi_server_clear (const int size, bool debug)
+static void mpi_server_clear (const int size)
 {
    int i;
    const int dummy = 0;
 
    /* Tell the workers to finish. */
-   for (i = 1; i < size; i++) {
+   for (i = 1; i < size; i++)
       MPI_Send (&dummy, 1, MPI_INT, i, MPI_TAG_FINISH, MPI_COMM_WORLD);
-      if (debug)
-         mpi_log (0, "%i removed from queue\n", i);
-   }
-   if (debug)
-      mpi_log (0, "finished\n");
 
    free (worker_queue);
 }
 
 /*****************************************************************************/
 
-void cm_mpi_init (bool debug)
+void cm_mpi_init ()
    /* Start the MPI environment and launch the server and the workers. */
 {
    int size, rank;
@@ -344,14 +329,14 @@ void cm_mpi_init (bool debug)
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
    if (rank == 0)
-      mpi_server_init (size, debug);
+      mpi_server_init (size);
    else
-      mpi_worker (rank, debug);
+      mpi_worker (rank);
 }
 
 /*****************************************************************************/
 
-void cm_mpi_clear (bool debug)
+void cm_mpi_clear ()
    /* Stop the server and the workers. */
 {
    int size, rank;
@@ -359,7 +344,7 @@ void cm_mpi_clear (bool debug)
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
    if (rank == 0) {
       MPI_Comm_size (MPI_COMM_WORLD, &size);
-      mpi_server_clear (size, debug);
+      mpi_server_clear (size);
    }
 
    MPI_Finalize ();
