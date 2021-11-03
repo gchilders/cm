@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_TONELLI 4
 #define MPI_TAG_JOB_ECPP2   5
 #define MPI_TAG_JOB_CARD    6
+#define MPI_TAG_JOB_PRIME   7
 
 static int *worker_queue;
 static int worker_queue_size;
@@ -182,6 +183,31 @@ int cm_mpi_get_curve_cardinalities (mpz_t *n, int rank, cm_stat_ptr stat)
 }
 
 /*****************************************************************************/
+
+void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n)
+   /* Submit the job of the given number for testing the primality of n
+      to the worker of the given rank. */
+{
+   MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_PRIME, MPI_COMM_WORLD);
+   mpi_send_mpz (n, rank);
+}
+
+/*****************************************************************************/
+
+bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat)
+   /* Get the result of a prime testing job from worker rank and return it.
+      Timing information from the worker is returned in stat. */
+{
+   int res;
+
+   MPI_Recv (&res, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
+      MPI_COMM_WORLD, NULL);
+
+   return ((bool) res);
+}
+
+/*****************************************************************************/
 /*                                                                           */
 /* Worker implementation.                                                    */
 /*                                                                           */
@@ -211,6 +237,9 @@ static void mpi_worker (const int rank)
    mpz_t N, n [6];
    int_cl_t d;
    int no;
+
+   /* Prime test. */
+   int isprime;
 
    mpz_init (p);
    mpz_init (q);
@@ -291,6 +320,18 @@ static void mpi_worker (const int rank)
          MPI_Send (&no, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
          for (i = 0; i < no; i++)
             mpi_send_mpz (n [i], 0);
+         cm_timer_stop (stat->timer [0]);
+         MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
+            MPI_TAG_DATA, MPI_COMM_WORLD);
+         break;
+      case MPI_TAG_JOB_PRIME:
+         cm_timer_start (stat->timer [0]);
+         mpi_recv_mpz (N, 0);
+
+         isprime = (int) cm_nt_is_prime (N);
+
+         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_PRIME, MPI_COMM_WORLD);
+         MPI_Send (&isprime, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
          cm_timer_stop (stat->timer [0]);
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);

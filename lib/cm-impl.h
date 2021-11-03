@@ -224,6 +224,8 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat);
 void cm_mpi_submit_curve_cardinalities (int rank, int job, mpz_srcptr N,
    mpz_srcptr root, int_cl_t d);
 int cm_mpi_get_curve_cardinalities (mpz_t *n, int rank, cm_stat_ptr stat);
+void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n);
+bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat);
 
 #if defined (__cplusplus)
 }

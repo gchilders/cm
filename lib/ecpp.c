@@ -869,6 +869,12 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    int *index;
    mpz_t **c;
    int i, j, max_i, max_j;
+#ifdef WITH_MPI
+   MPI_Status status;
+   int sent, received, size, rank, job;
+   double t;
+   cm_stat_t stat_worker;
+#endif
 
    res = 0;
    size_N = mpz_sizeinbase (N, 2);
@@ -905,7 +911,12 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
       non-smooth part. Stop and remember the first occurrence when it is
       found; this is the smallest possible prime in the list.
       Using batches is only meaningful in the case of parallelisation. */
+#ifndef WITH_MPI
    batch = 1;
+#else
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   batch = size - 1;
+#endif
    index = (int *) malloc (batch * sizeof (int));
    max_i = (no + batch - 1) / batch;
    for (i = 0; res == 0 && i < max_i; i++) {
@@ -914,18 +925,43 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          max_j = no;
       for (j = 0; j < batch; j++)
          index [j] = -1;
+#ifndef WITH_MPI
       cm_timer_continue (stat->timer [2]);
       for (j = i * batch; j < max_j; j++) {
          if (cm_nt_is_prime (c [j][0]))
             index [j - i * batch] = mpz_get_ui (c [j][1]);
       }
+      cm_timer_stop (stat->timer [2]);
+#else
+   sent = i * batch;
+   received = 0;
+   t = cm_timer_get (stat->timer [2]);
+   cm_timer_continue (stat->timer [2]);
+   while (received < max_j - i * batch) {
+      if (sent < max_j && (rank = cm_mpi_queue_pop ()) != -1) {
+         cm_mpi_submit_is_prime (rank, sent, c [sent][0]);
+         sent++;
+      }
+      else {
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+            MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         if (cm_mpi_get_is_prime (rank, stat_worker))
+            index [job - i * batch] = mpz_get_ui (c [job][1]);
+         t += cm_timer_get (stat_worker->timer [0]);
+         cm_mpi_queue_push (rank);
+         received++;
+      }
+   }
+   cm_timer_stop (stat->timer [2]);
+   stat->timer [2]->elapsed = t;
+#endif
       for (j = 0; res == 0 && j < batch; j++)
          if (index [j] != -1) {
             res = d [index [j]];
             mpz_set (n, card [index [j]]);
             mpz_set (l, l_list [index [j]]);
          }
-      cm_timer_stop (stat->timer [2]);
       stat->counter [2] += max_j - i * batch;
    }
    free (index);
@@ -1141,8 +1177,9 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
                cm_timer_wc_get (stat->timer [3]));
             printf ("%6i Trial div:  %.1f\n", stat->counter [1],
                cm_timer_get (stat->timer [1]));
-            printf ("%6i is_prime:   %.1f\n", stat->counter [2],
-                  cm_timer_get (stat->timer [2]));
+            printf ("%6i is_prime:   %.1f (%.1f)\n", stat->counter [2],
+                  cm_timer_get (stat->timer [2]),
+                  cm_timer_wc_get (stat->timer [2]));
          }
       }
       mpz_set_si (c [*depth][1], d);
