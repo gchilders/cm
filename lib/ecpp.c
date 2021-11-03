@@ -43,8 +43,8 @@ static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat);
 static int card_cmp (const void* c1, const void* c2);
-static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
+static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
+   mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const unsigned int delta, cm_stat_t stat);
 static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *root);
@@ -849,8 +849,8 @@ static int card_cmp (const void* c1, const void* c2)
 
 /*****************************************************************************/
 
-static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
+static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
+   mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const unsigned int delta, cm_stat_t stat)
    /* For the no_card discriminants in d, card is supposed to contain
       corresponding curve cardinalities and l_list their non-smooth parts.
@@ -865,8 +865,10 @@ static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 {
    int_cl_t res;
    size_t size_l, size_N;
-   int i, no, index;
+   int no, batch;
+   int *index;
    mpz_t **c;
+   int i, j, max_i, max_j;
 
    res = 0;
    size_N = mpz_sizeinbase (N, 2);
@@ -896,21 +898,37 @@ static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    }
    c = (mpz_t **) realloc (c, no * sizeof (mpz_t *));
 
-   /* Sort by increasing gain. */
+   /* Sort by increasing non-smooth part. */
    qsort (c, no, sizeof (mpz_t *), card_cmp);
 
-   /* Search for the first prime factor. */
-   for (i = 0; res == 0 && i < no; i++) {
-      stat->counter [2]++;
+   /* Go through the array in batches of size batch and look for a prime
+      non-smooth part. Stop and remember the first occurrence when it is
+      found; this is the smallest possible prime in the list.
+      Using batches is only meaningful in the case of parallelisation. */
+   batch = 1;
+   index = (int *) malloc (batch * sizeof (int));
+   max_i = (no + batch - 1) / batch;
+   for (i = 0; res == 0 && i < max_i; i++) {
+      max_j = (i + 1) * batch;
+      if (max_j > no)
+         max_j = no;
+      for (j = 0; j < batch; j++)
+         index [j] = -1;
       cm_timer_continue (stat->timer [2]);
-      if (cm_nt_is_prime (c [i][0])) {
-         index = mpz_get_ui (c [i][1]);
-         res = d [index];
-         mpz_set (n, card [index]);
-         mpz_set (l, l_list [index]);
+      for (j = i * batch; j < max_j; j++) {
+         if (cm_nt_is_prime (c [j][0]))
+            index [j - i * batch] = mpz_get_ui (c [j][1]);
       }
+      for (j = 0; res == 0 && j < batch; j++)
+         if (index [j] != -1) {
+            res = d [index [j]];
+            mpz_set (n, card [index [j]]);
+            mpz_set (l, l_list [index [j]]);
+         }
       cm_timer_stop (stat->timer [2]);
+      stat->counter [2] += max_j - i * batch;
    }
+   free (index);
 
    for (i = 0; i < no; i++) {
       mpz_clear (c [i][0]);
