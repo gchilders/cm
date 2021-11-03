@@ -55,8 +55,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    const unsigned int delta, mpz_srcptr primorialB,
    bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
+static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
+   bool debug, cm_stat_ptr stat);
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
-   const char* modpoldir, bool tower, bool verbose, bool debug);
+   const char* modpoldir, bool tower, bool verbose, bool debug,
+   cm_stat_ptr stat);
 
 /*****************************************************************************/
 
@@ -997,7 +1000,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
 /*****************************************************************************/
 
-mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
+static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
+   bool debug, cm_stat_ptr stat)
    /* Compute the first step of the ECPP certificate; this is the downrun
       part with the parameters of the elliptic curves.
       The return value is a newly allocated array of depth entries, each
@@ -1006,7 +1010,9 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
       - d_i, the discriminant;
       - n_i, the cardinality of the elliptic curve;
       - l_i, the prime order dividing this cardinality.
-      The downrun stops as soon as the prime is less than 2^64. */
+      The downrun stops as soon as the prime is less than 2^64.
+      The stat parameter makes it possible to pass timing information
+      to the calling function. */
 
 {
    const size_t L = mpz_sizeinbase (p, 2);
@@ -1022,32 +1028,35 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    uint_cl_t Dmax;
    int_cl_t d;
    cm_timer_t clock;
-   cm_stat_t stat;
+   double t, t_old;
    int i;
 
+   cm_stat_init (stat);
+   cm_timer_start (stat->timer [7]);
+
    /* Precompute class numbers. */
-   cm_timer_start (clock);
+   cm_timer_start (stat->timer [5]);
    Dmax = ((L * L) >> 4) << 2;
    h = (uint_cl_t *) malloc ((Dmax / 2) * sizeof (uint_cl_t));
    compute_h (h, Dmax);
-   cm_timer_stop (clock);
+   cm_timer_stop (stat->timer [5]);
    if (verbose)
       printf ("-- Time for class numbers up to Dmax=%"PRIucl": %5.1f\n",
-         Dmax, cm_timer_get (clock));
+         Dmax, cm_timer_get (stat->timer [5]));
 
    /* Precompute primorial for trial division. */
-   cm_timer_start (clock);
+   cm_timer_start (stat->timer [6]);
    mpz_init (primorialB);
    mpz_primorial_ui (primorialB, B);
-   cm_timer_stop (clock);
+   cm_timer_stop (stat->timer [6]);
    if (verbose)
       printf ("-- Time for primorial of B=%lu: %5.1f\n", B,
-         cm_timer_get (clock));
+         cm_timer_get (stat->timer [6]));
 
    mpz_init_set (N, p);
    *depth = 0;
    c = (mpz_t**) malloc (*depth);
-   cm_stat_init (stat);
+   t_old = 0;
    while (mpz_sizeinbase (N, 2) > 64) {
       c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
       c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
@@ -1062,8 +1071,11 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
          hmaxprime, h, delta, primorialB, debug, stat);
       cm_timer_stop (clock);
       if (verbose) {
-         printf ("   Time for discriminant %8"PRIicl": %5.1f\n",
-            d, cm_timer_get (clock));
+         for (i = 0, t = 0.0; i < 5; i++)
+            t += cm_timer_get (stat->timer [i]);
+         printf ("   Time for discriminant %8"PRIicl": %5.1f (%5.1f)\n",
+            d, t - t_old, cm_timer_wc_get (clock));
+         t_old = t;
          if (debug) {
             printf ("   largest prime of d: %"PRIucl"\n",
                cm_nt_largest_factor (-d));
@@ -1090,6 +1102,13 @@ mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose, bool debug)
    free (h);
    mpz_clear (primorialB);
    mpz_clear (N);
+
+   cm_timer_stop (stat->timer [7]);
+   for (i = 0, t = 0.0; i < 7; i++)
+      t+= cm_timer_get (stat->timer [i]);
+   if (verbose)
+      printf ("--- Time for first ECPP step, depth %i:  %.1f (%.1f)\n",
+         *depth, t, cm_timer_wc_get (stat->timer [7]));
 
    return c;
 }
@@ -1229,7 +1248,8 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
 /*****************************************************************************/
 
 static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
-   const char* modpoldir, bool tower, bool verbose, bool debug)
+   const char* modpoldir, bool tower, bool verbose, bool debug,
+   cm_stat_ptr stat)
    /* Given the result of the ECPP down-run in cert1, an array of
       length depth as computed by cm_ecpp1, execute the second step of
       the ECPP algorithm and compute the certificate proper in cert2,
@@ -1248,10 +1268,11 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       information.
       debug indicates whether additional developer information (mainly
       timings and counters for tuning) is output; this is done only in
-      the case that verbose is set as well. */
+      the case that verbose is set as well.
+      The stat parameter is used to pass timing information to the calling
+      function. */
 
 {
-   cm_stat_t stat;
    int i;
 #ifdef WITH_MPI
    cm_stat_t stat_worker;
@@ -1296,16 +1317,10 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    cm_timer_stop (stat->timer [0]);
 
    if (verbose)
-#ifndef WITH_MPI
-      printf ("--- Time for second ECPP step: %.1f\n",
-         cm_timer_get (stat->timer [0]));
-#else
       printf ("--- Time for second ECPP step: %.1f (%.1f)\n",
          cm_timer_get (stat->timer [1]) + cm_timer_get (stat->timer [2])
          + cm_timer_get (stat->timer [3]),
          cm_timer_wc_get (stat->timer [0]));
-#endif
-
 }
 
 /*****************************************************************************/
@@ -1335,15 +1350,11 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    int depth;
    mpz_t **cert1, **cert2;
    int i, j;
-   cm_timer_t clock, clock2;
+   cm_timer_t clock;
+   cm_stat_t stat1, stat2;
+   double t;
 
-   cm_timer_start (clock);
-   cm_timer_start (clock2);
-   cert1 = cm_ecpp1 (&depth, N, verbose, debug);
-   cm_timer_stop (clock2);
-   if (verbose)
-      printf ("--- Time for first ECPP step, depth %i:  %.1f (%.1f)\n",
-         depth, cm_timer_get (clock2), cm_timer_wc_get (clock2));
+   cert1 = cm_ecpp1 (&depth, N, verbose, debug, stat1);
 
    cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));
    for (i = 0; i < depth; i++) {
@@ -1351,7 +1362,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       for (j = 0; j < 6; j++)
          mpz_init (cert2 [i][j]);
    }
-   cm_ecpp2 (cert2, cert1, depth, modpoldir, tower, verbose, debug);
+   cm_ecpp2 (cert2, cert1, depth, modpoldir, tower, verbose, debug, stat2);
    if (print) {
       printf ("c = [");
       for (i = 0; i < depth; i++) {
@@ -1370,11 +1381,16 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       }
       printf ("];\n");
    }
-   cm_timer_stop (clock);
 
-   if (verbose)
-      printf ("--- Total time for ECPP:       %.1f\n",
-         cm_timer_get (clock));
+   if (verbose) {
+      for (i = 0, t = 0.0; i < 7; i++)
+         t += cm_timer_get (stat1->timer [i]);
+      for (i = 1; i <= 3; i++)
+         t += cm_timer_get (stat2->timer [i]);
+      printf ("--- Total time for ECPP:       %.1f (%.1f)\n", t,
+         cm_timer_wc_get (stat1->timer [7])
+         + cm_timer_wc_get (stat2->timer [0]));
+   }
 
    if (check) {
       cm_timer_start (clock);

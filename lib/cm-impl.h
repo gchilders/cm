@@ -60,7 +60,7 @@ typedef struct {
 
 typedef struct {
    int counter [5];
-   cm_timer_t timer [5];
+   cm_timer_t timer [8];
 }
 __cm_stat_struct;
 
@@ -201,8 +201,6 @@ extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
 /* functions for ECPP */
 extern bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
-extern mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
-   bool debug);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
    cm_stat_t stat);
