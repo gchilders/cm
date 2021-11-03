@@ -45,8 +45,6 @@ static int card_cmp (const void* c1, const void* c2);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const unsigned int delta, cm_stat_t stat);
-static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
-   long int *qstar, int no_qstar, mpz_t *root);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const unsigned int delta, mpz_srcptr primorialB,
@@ -590,7 +588,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 
 /*****************************************************************************/
 
-static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
+void cm_ecpp_sqrt_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *root)
    /* Given an array of no_d discriminants d which factor over the array
       of no_qstar "signed primes" qstar, and given the roots of qstar
@@ -1049,6 +1047,12 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          a B-smooth part times a prime is exp (gamma) * log B / log N.
          Here we do not know B, but it is quite precisely the logarithm
          of its primorial. */
+#ifdef WITH_MPI
+   MPI_Status status;
+   int sent, received, size, rank, job;
+   double t;
+   cm_stat_t stat_worker;
+#endif
 
    d = 0;
    no_qstar = 0;
@@ -1083,17 +1087,50 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
       for (i = 0; i < no_d; i++)
          mpz_init (Droot [i]);
+#ifndef WITH_MPI
       batch = no_d;
+#else
+      MPI_Comm_size (MPI_COMM_WORLD, &size);
+      batch = (no_d + size - 2) / (size - 1);
+#endif
       max_i = (no_d + batch - 1) / batch;
+#ifndef WITH_MPI
       cm_timer_continue (stat->timer [4]);
       for (i = 0; i < max_i; i++) {
          no_d_batch = no_d - i * batch;
          if (no_d_batch > batch)
             no_d_batch = batch;
-         root_of_d (Droot + i * batch, dlist + i * batch, no_d_batch, N,
-            qstar, no_qstar, root);
+         cm_ecpp_sqrt_d (Droot + i * batch, dlist + i * batch, no_d_batch,
+               N, qstar, no_qstar, root);
       }
       cm_timer_stop (stat->timer [4]);
+#else
+      sent = 0;
+      received = 0;
+      t = cm_timer_get (stat->timer [4]);
+      cm_timer_continue (stat->timer [4]);
+      while (received < max_i) {
+         if (sent < max_i && (rank = cm_mpi_queue_pop ()) != -1) {
+            no_d_batch = no_d - sent * batch;
+            if (no_d_batch > batch)
+               no_d_batch = batch;
+            cm_mpi_submit_sqrt_d (rank, sent, dlist + sent * batch,
+               no_d_batch, N, qstar, no_qstar, root);
+            sent++;
+         }
+         else {
+            MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+                  MPI_COMM_WORLD, &status);
+            rank = status.MPI_SOURCE;
+            cm_mpi_get_sqrt_d (Droot + job * batch, rank, stat_worker);
+            t += cm_timer_get (stat_worker->timer [4]);
+            cm_mpi_queue_push (rank);
+            received++;
+         }
+      }
+      cm_timer_stop (stat->timer [4]);
+      stat->timer [4]->elapsed = t;
+#endif
       stat->counter [4] += no_d;
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
@@ -1111,7 +1148,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          cm_timer_stop (stat->timer [1]);
 
          d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
-            no_card, delta, stat);
+               no_card, delta, stat);
 
          for (i = 0; i < no_card; i++)
             mpz_clear (l_list [i]);
@@ -1221,10 +1258,11 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
             printf ("%6i qstar:      %.1f (%.1f)\n", stat->counter [0],
                cm_timer_get (stat->timer [0]),
                cm_timer_wc_get (stat->timer [0]));
-            printf ("%6i roots:      %.1f\n", stat->counter [4],
-               cm_timer_get (stat->timer [4]));
+            printf ("%6i sqrt:       %.1f (%.1f)\n", stat->counter [4],
+               cm_timer_get (stat->timer [4]),
+               cm_timer_wc_get (stat->timer [4]));
             printf ("%6i Cornacchia: %.1f (%.1f)\n", stat->counter [3],
-                  cm_timer_get (stat->timer [3]),
+               cm_timer_get (stat->timer [3]),
                cm_timer_wc_get (stat->timer [3]));
             printf ("%6i Trial div:  %.1f\n", stat->counter [1],
                cm_timer_get (stat->timer [1]));
