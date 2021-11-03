@@ -1040,8 +1040,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *root, *Droot, *card, *l_list;
    int_cl_t d;
    int_cl_t *dlist, *d_card;
-   int no_d, no_card;
-   int i;
+   int no_d, no_card, batch, no_d_batch;
+   int i, max_i;
    const double prob = 1.7811
       * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
       / mpz_sizeinbase (N, 2);
@@ -1073,17 +1073,28 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             no_qstar_new, stat);
       stat->counter [0] += no_qstar_new;
 
-      /* Precompute a list of potential discriminants and their square
-         roots. */
-      cm_timer_continue (stat->timer [4]);
+      /* Precompute a list of potential discriminants. This takes
+         virtually no time, so we do not measure it.*/
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
             no_qstar_new, max_factors, Dmax, hmaxprime, h, prob, debug);
+
+      /* Precompute their square roots modulo N in batches, which is useful
+         for parallelisation. */
       Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
       for (i = 0; i < no_d; i++)
          mpz_init (Droot [i]);
-      root_of_d (Droot, dlist, no_d, N, qstar, no_qstar, root);
-      stat->counter [4] += no_d;
+      batch = no_d;
+      max_i = (no_d + batch - 1) / batch;
+      cm_timer_continue (stat->timer [4]);
+      for (i = 0; i < max_i; i++) {
+         no_d_batch = no_d - i * batch;
+         if (no_d_batch > batch)
+            no_d_batch = batch;
+         root_of_d (Droot + i * batch, dlist + i * batch, no_d_batch, N,
+            qstar, no_qstar, root);
+      }
       cm_timer_stop (stat->timer [4]);
+      stat->counter [4] += no_d;
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
       card = compute_cardinalities (&no_card, &d_card, N,
