@@ -40,10 +40,8 @@ static int disc_cmp (const void* d1, const void* d2);
 static void mpz_tree_mod (mpz_t *mod, mpz_srcptr n, mpz_t *m, int no_m);
 static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
    mpz_srcptr primorialB);
-static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
-   int_cl_t d);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d);
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat);
 static int card_cmp (const void* c1, const void* c2);
 static int contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
@@ -584,7 +582,7 @@ static void root_of_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
 
 /*****************************************************************************/
 
-static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
+int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
    int_cl_t d)
    /* Given N prime, a discriminant d composed of split primes modulo N,
       and a square root of d modulo N in root, the function computes the
@@ -652,7 +650,7 @@ static int curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
 /*****************************************************************************/
 
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d)
+   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat)
    /* Given a prime N, a list of no_d fastECPP discriminants in d and an
       array of their square roots modulo N in root, compute and return the
       array of possible CM cardinalities. The number of cardinalities is
@@ -663,6 +661,13 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_t **card;
    int *twists;
    int i, j, k;
+#ifdef WITH_MPI
+   MPI_Status status;
+   int sent, received, rank, job;
+   double t;
+   cm_stat_t stat_worker;
+#endif
+
 
    /* For each discriminant, compute the potential cardinalities in
       separate memory locations. */
@@ -674,8 +679,38 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
          mpz_init (card [i][j]);
    }
 
+#ifndef WITH_MPI
+   cm_timer_continue (stat->timer [3]);
    for (i = 0; i < no_d; i++)
-      twists [i] = curve_cardinalities (card [i], N, root [i], d [i]);
+      twists [i] = cm_ecpp_curve_cardinalities (card [i], N, root [i],
+         d [i]);
+   cm_timer_stop (stat->timer [3]);
+#else
+   sent = 0;
+   received = 0;
+   t = cm_timer_get (stat->timer [3]);
+   cm_timer_continue (stat->timer [3]);
+   while (received < no_d) {
+      if (sent < no_d && (rank = cm_mpi_queue_pop ()) != -1) {
+         cm_mpi_submit_curve_cardinalities (rank, sent, N, root [sent],
+            d [sent]);
+         sent++;
+      }
+      else {
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+            MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         twists [job] = cm_mpi_get_curve_cardinalities (card [job], rank,
+            stat_worker);
+         t += cm_timer_get (stat_worker->timer [3]);
+         cm_mpi_queue_push (rank);
+         received++;
+      }
+   }
+   cm_timer_stop (stat->timer [3]);
+   stat->timer [3]->elapsed = t;
+#endif
+   stat->counter [3] += no_d;
 
    /* Count the number of obtained cardinalities. */
    *no_card = 0;
@@ -957,11 +992,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       cm_timer_stop (stat->timer [4]);
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
-      cm_timer_continue (stat->timer [3]);
       card = compute_cardinalities (&no_card, &d_card, N,
-            no_d, Droot, dlist);
-      stat->counter [3] += no_d;
-      cm_timer_stop (stat->timer [3]);
+            no_d, Droot, dlist, stat);
 
       if (no_card > 0) {
          /* Remove smooth parts of cardinalities. */
@@ -1086,8 +1118,9 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
                cm_timer_wc_get (stat->timer [0]));
             printf ("%6i roots:      %.1f\n", stat->counter [4],
                cm_timer_get (stat->timer [4]));
-            printf ("%6i Cornacchia: %.1f\n", stat->counter [3],
-                  cm_timer_get (stat->timer [3]));
+            printf ("%6i Cornacchia: %.1f (%.1f)\n", stat->counter [3],
+                  cm_timer_get (stat->timer [3]),
+               cm_timer_wc_get (stat->timer [3]));
             printf ("%6i Trial div:  %.1f\n", stat->counter [1],
                cm_timer_get (stat->timer [1]));
             printf ("%6i is_prime:   %.1f\n", stat->counter [2],
