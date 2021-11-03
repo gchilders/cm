@@ -23,8 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax);
-static void compute_h (uint_cl_t *h, uint_cl_t Dmax);
+static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat);
 static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    long int *q, int no, cm_stat_t stat);
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
@@ -61,7 +60,7 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 /*****************************************************************************/
 
-static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax)
+void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax)
    /* Assuming that h is an array of length (Dmax-Dmin)/2 for Dmin and Dmax
       both divisible by 4, compute in h [(|D|-Dmin)/2-1] the class number
       for fundamental discriminants D such that Dmin < |D| <= Dmax.
@@ -75,8 +74,8 @@ static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax)
    uint_cl_t Dmin2, Dmax2, length, D2, A, B, A2, Amax, Alocmax, i;
 
    if (Dmin % 4 != 0 || Dmax % 4 != 0) {
-      printf ("***** Error: compute_h_chunk called with parameters not "
-              "divisible by 4.\n");
+      printf ("***** Error: cm_ecpp_compute_h_chunk called with "
+         "parameters not divisible by 4.\n");
       exit (1);
    }
 
@@ -130,7 +129,7 @@ static void compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax)
 
 /*****************************************************************************/
 
-static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
+static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat)
    /* The function behaves as compute_h_chunk (h, 0, Dmax), but computing
       the class numbers in ranges of 100000 (that is, 50000 discriminants
       at a time). Experimentally, this optimises the running time on my
@@ -138,7 +137,16 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
       size. */
 {
    const uint_cl_t size = 100000;
-   int chunks, i;
+   uint_cl_t last;
+   int chunks;
+#ifdef WITH_MPI
+   MPI_Status status;
+   int sent, received, rank, job;
+   double t;
+   cm_stat_t stat_worker;
+#else
+   int i;
+#endif
 
    if (Dmax % 4 != 0) {
       printf ("***** Error: compute_h called with parameter not "
@@ -147,9 +155,41 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax)
    }
 
    chunks = (Dmax + size - 1) / size;
-   for (i = 0; i < chunks - 1; i++)
-      compute_h_chunk (h + i * size / 2, i * size, (i+1) * size);
-   compute_h_chunk (h + i * size / 2, i * size, Dmax);
+#ifndef WITH_MPI
+   cm_timer_start (stat->timer [5]);
+   for (i = 0; i < chunks; i++) {
+      last = (i + 1) * size;
+      if (last > Dmax)
+         last = Dmax;
+      cm_ecpp_compute_h_chunk (h + i * size / 2, i * size, last);
+   }
+   cm_timer_stop (stat->timer [5]);
+#else
+   sent = 0;
+   received = 0;
+   t = cm_timer_get (stat->timer [5]);
+   cm_timer_continue (stat->timer [5]);
+   while (received < chunks) {
+      if (sent < chunks && (rank = cm_mpi_queue_pop ()) != -1) {
+         last = (sent + 1) * size;
+         if (last > Dmax)
+            last = Dmax;
+         cm_mpi_submit_h_chunk (rank, sent, sent * size, last);
+         sent++;
+      }
+      else {
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+            MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         cm_mpi_get_h_chunk (h + job * size / 2, rank, stat_worker);
+         t += cm_timer_get (stat_worker->timer [5]);
+         cm_mpi_queue_push (rank);
+         received++;
+      }
+   }
+   cm_timer_stop (stat->timer [5]);
+   stat->timer [5]->elapsed = t;
+#endif
 }
 
 /*****************************************************************************/
@@ -1121,14 +1161,14 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    cm_timer_start (stat->timer [7]);
 
    /* Precompute class numbers. */
-   cm_timer_start (stat->timer [5]);
    Dmax = ((L * L) >> 4) << 2;
    h = (uint_cl_t *) malloc ((Dmax / 2) * sizeof (uint_cl_t));
-   compute_h (h, Dmax);
-   cm_timer_stop (stat->timer [5]);
+   compute_h (h, Dmax, stat);
    if (verbose)
-      printf ("-- Time for class numbers up to Dmax=%"PRIucl": %5.1f\n",
-         Dmax, cm_timer_get (stat->timer [5]));
+      printf ("-- Time for class numbers up to Dmax=%"PRIucl
+         ": %.1f (%.1f)\n", Dmax,
+         cm_timer_get (stat->timer [5]),
+         cm_timer_wc_get (stat->timer [5]));
 
    /* Precompute primorial for trial division. */
    cm_timer_start (stat->timer [6]);

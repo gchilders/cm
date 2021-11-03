@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_ECPP2   5
 #define MPI_TAG_JOB_CARD    6
 #define MPI_TAG_JOB_PRIME   7
+#define MPI_TAG_JOB_H       8
 
 static int *worker_queue;
 static int worker_queue_size;
@@ -208,6 +209,37 @@ bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat)
 }
 
 /*****************************************************************************/
+
+void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
+   uint_cl_t Dmax)
+   /* Submit the job of the given number for computing a chunk of class
+      numbers to the worker of the given rank; the other parameters are as
+      the input of cm_ecpp_compute_h_chunk in ecpp.c. */
+{
+   MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_H, MPI_COMM_WORLD);
+   MPI_Send (&Dmin, 1, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+   MPI_Send (&Dmax, 1, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+}
+
+/*****************************************************************************/
+
+void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat)
+   /* Get the result of a class number job from worker rank and
+      put it into h, as output by cm_ecpp_compute_h_chunk in ecpp.c.
+      Timing information from the worker is returned in stat. */
+{
+   MPI_Status status;
+   int no;
+
+   MPI_Probe (rank, MPI_TAG_DATA, MPI_COMM_WORLD, &status);
+   MPI_Get_count (&status, MPI_UNSIGNED_LONG, &no);
+   MPI_Recv (h, no, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
+      NULL);
+   MPI_Recv (&(stat->timer [5]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
+      MPI_COMM_WORLD, NULL);
+}
+
+/*****************************************************************************/
 /*                                                                           */
 /* Worker implementation.                                                    */
 /*                                                                           */
@@ -240,6 +272,10 @@ static void mpi_worker (const int rank)
 
    /* Prime test. */
    int isprime;
+
+   /* Compute a chunk of h. */
+   uint_cl_t Dmin, Dmax;
+   uint_cl_t *h;
 
    mpz_init (p);
    mpz_init (q);
@@ -335,6 +371,25 @@ static void mpi_worker (const int rank)
          cm_timer_stop (stat->timer [0]);
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);
+         break;
+      case MPI_TAG_JOB_H:
+         cm_timer_start (stat->timer [0]);
+         MPI_Recv (&Dmin, 1, MPI_UNSIGNED_LONG, 0, MPI_TAG_DATA,
+            MPI_COMM_WORLD, &status);
+         MPI_Recv (&Dmax, 1, MPI_UNSIGNED_LONG, 0, MPI_TAG_DATA,
+            MPI_COMM_WORLD, &status);
+         no = (Dmax - Dmin) / 2;
+         h = (uint_cl_t *) malloc (no * sizeof (uint_cl_t));
+
+         cm_ecpp_compute_h_chunk (h, Dmin, Dmax);
+
+         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_H, MPI_COMM_WORLD);
+         MPI_Send (h, no, MPI_UNSIGNED_LONG, 0, MPI_TAG_DATA,
+            MPI_COMM_WORLD);
+         cm_timer_stop (stat->timer [0]);
+         MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
+            MPI_TAG_DATA, MPI_COMM_WORLD);
+         free (h);
          break;
       case MPI_TAG_FINISH:
          finish = true;

@@ -201,6 +201,8 @@ extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
 /* functions for ECPP */
 extern bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
+extern void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin,
+   uint_cl_t Dmax);
 extern int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N,
    mpz_srcptr root, int_cl_t d);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
@@ -226,6 +228,9 @@ void cm_mpi_submit_curve_cardinalities (int rank, int job, mpz_srcptr N,
 int cm_mpi_get_curve_cardinalities (mpz_t *n, int rank, cm_stat_ptr stat);
 void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n);
 bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat);
+void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
+   uint_cl_t Dmax);
+void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat);
 
 #if defined (__cplusplus)
 }
