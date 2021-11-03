@@ -314,7 +314,7 @@ extern bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    bool print, bool check, bool verbose, bool debug);
 
 /* functions for MPI */
-void cm_mpi_init (void);
+void cm_mpi_init (bool debug);
 void cm_mpi_clear (void);
 
 #if defined (__cplusplus)

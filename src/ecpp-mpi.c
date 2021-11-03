@@ -29,7 +29,7 @@ int main (int argc, char* argv [])
    int rank;
 
    cm_pari_init ();
-   cm_mpi_init ();
+   cm_mpi_init (true);
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
    if (rank == 0) {
       mpz_t n;

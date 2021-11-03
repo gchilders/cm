@@ -37,7 +37,7 @@ static int worker_queue_size;
 static void mpi_send_mpz (mpz_srcptr z, const int rank);
 static void mpi_recv_mpz (mpz_ptr z, const int rank);
 static void mpi_worker (const int rank);
-static void mpi_server_init (const int size);
+static void mpi_server_init (const int size, bool debug);
 static void mpi_server_clear (const int size);
 
 /*****************************************************************************/
@@ -391,7 +391,7 @@ int cm_mpi_queue_pop ()
 
 /*****************************************************************************/
 
-static void mpi_server_init (const int size)
+static void mpi_server_init (const int size, bool debug)
    /* The server is started on rank 0, initialises the workers and returns.
       The sequential code of the application should then be run in rank 0
       and occasionally make use of the workers for parallel sections. */
@@ -406,6 +406,8 @@ static void mpi_server_init (const int size)
          MPI_COMM_WORLD, NULL);
       worker_queue [worker_queue_size] = worker;
    }
+   if (debug)
+      printf ("MPI with %i workers initialised.\n", size - 1);
 }
 
 /*****************************************************************************/
@@ -424,7 +426,7 @@ static void mpi_server_clear (const int size)
 
 /*****************************************************************************/
 
-void cm_mpi_init ()
+void cm_mpi_init (bool debug)
    /* Start the MPI environment and launch the server and the workers. */
 {
    int size, rank;
@@ -434,7 +436,7 @@ void cm_mpi_init ()
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
    if (rank == 0)
-      mpi_server_init (size);
+      mpi_server_init (size, debug);
    else
       mpi_worker (rank);
 }
