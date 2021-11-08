@@ -1025,9 +1025,24 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       primorialB is passed through to trial division. */
 {
    const int max_factors = 4;
-   const int no_qstar_delta [] = { 20, 40, 50 };
-      /* Number of new qstar to add, roughly optimised through removing the
-         first 1000 bits of nextprime (10^(1000*i)). */
+   const int no_qstar_delta [] =
+#ifndef WITH_MPI
+      { 20, 40, 50 };
+         /* Number of new qstar to add, chosen by roughly optimising
+            the time for removing the first 1000 bits of
+            nextprime (10^(1000*(i+1))) with the sequential
+            implementation. */
+#else
+      { 90, 110, 120, 180, 180 };
+#endif
+      /* In position i, number of new qstar to add when treating numbers
+         with between i*1000 and (i+1)*1000 digits. The value is chosen as
+         the smallest multiple of 10 working for nextprime(10^(1000*(i+1)))
+         (with the implementation at the time of making this optimisation)
+         in the sense that for removing the first 1000 digits the number
+         of qstar is enough. The idea is to choose a rather large value to
+         work (almost) all the time to minimise the number of trial
+         divisions, which are difficult to parallelise efficiently. */
    int no_qstar_old, no_qstar_new, no_qstar;
    long int *qstar;
    long int q;
