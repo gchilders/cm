@@ -1037,7 +1037,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *root, *Droot, *card, *l_list;
    int_cl_t d;
    int_cl_t *dlist, *d_card;
-   int no_d, no_card, batch, no_d_batch;
+   int no_d, no_card, batch, no_d_batch, no_card_batch;
    int i, max_i;
    const double prob = 1.7811
       * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
@@ -1141,10 +1141,18 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          l_list = (mpz_t *) malloc (no_card * sizeof (mpz_t));
          for (i = 0; i < no_card; i++)
             mpz_init (l_list [i]);
+         batch = no_card;
+         max_i = (no_card + batch - 1) / batch;
          cm_timer_continue (stat->timer [1]);
-         stat->counter [1]++;
-         trial_div_batch (l_list, card, no_card, primorialB);
+         for (i = 0; i < max_i; i++) {
+            no_card_batch = no_card - i * batch;
+            if (no_card_batch > batch)
+               no_card_batch = batch;
+            trial_div_batch (l_list + i * batch, card + i * batch,
+               no_card_batch, primorialB);
+         }
          cm_timer_stop (stat->timer [1]);
+         stat->counter [1] += max_i;
 
          d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
                no_card, delta, stat);
