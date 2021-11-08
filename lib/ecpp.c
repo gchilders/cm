@@ -37,8 +37,6 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    const double prob, bool debug);
 static int disc_cmp (const void* d1, const void* d2);
 static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
-static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
-   mpz_srcptr primorialB);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat);
 static int card_cmp (const void* c1, const void* c2);
@@ -838,8 +836,7 @@ static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
 
 /*****************************************************************************/
 
-static void trial_div_batch (mpz_t *l, mpz_t *n, int no_n,
-   mpz_srcptr primorialB)
+void cm_ecpp_trial_div (mpz_t *l, mpz_t *n, int no_n, mpz_srcptr primorialB)
    /* primorialB is supposed to be the product of the primes up to the
       smoothness bound B.
       The function removes all occurrences of the primes up to B from the
@@ -1141,17 +1138,50 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          l_list = (mpz_t *) malloc (no_card * sizeof (mpz_t));
          for (i = 0; i < no_card; i++)
             mpz_init (l_list [i]);
+#ifndef WITH_MPI
          batch = no_card;
+#else
+         batch = (no_card + size - 2) / (size - 1);
+#endif
          max_i = (no_card + batch - 1) / batch;
+#ifndef WITH_MPI
          cm_timer_continue (stat->timer [1]);
          for (i = 0; i < max_i; i++) {
             no_card_batch = no_card - i * batch;
             if (no_card_batch > batch)
                no_card_batch = batch;
-            trial_div_batch (l_list + i * batch, card + i * batch,
+            cm_ecpp_trial_div (l_list + i * batch, card + i * batch,
                no_card_batch, primorialB);
          }
          cm_timer_stop (stat->timer [1]);
+#else
+         sent = 0;
+         received = 0;
+         t = cm_timer_get (stat->timer [1]);
+         cm_timer_continue (stat->timer [1]);
+         while (received < max_i) {
+            if (sent < max_i && (rank = cm_mpi_queue_pop ()) != -1) {
+               no_card_batch = no_card - sent * batch;
+               if (no_card_batch > batch)
+                  no_card_batch = batch;
+               cm_mpi_submit_trial_div (rank, sent, card + sent * batch,
+                  no_card_batch, primorialB);
+               sent++;
+            }
+            else {
+               MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+                     MPI_COMM_WORLD, &status);
+               rank = status.MPI_SOURCE;
+               cm_mpi_get_trial_div (l_list + job * batch, rank,
+                  stat_worker);
+               t += cm_timer_get (stat_worker->timer [1]);
+               cm_mpi_queue_push (rank);
+               received++;
+            }
+         }
+         cm_timer_stop (stat->timer [1]);
+         stat->timer [1]->elapsed = t;
+#endif
          stat->counter [1] += max_i;
 
          d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
@@ -1271,8 +1301,9 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
             printf ("%6i Cornacchia: %.1f (%.1f)\n", stat->counter [3],
                cm_timer_get (stat->timer [3]),
                cm_timer_wc_get (stat->timer [3]));
-            printf ("%6i Trial div:  %.1f\n", stat->counter [1],
-               cm_timer_get (stat->timer [1]));
+            printf ("%6i trial div:  %.1f (%.1f)\n", stat->counter [1],
+               cm_timer_get (stat->timer [1]),
+               cm_timer_wc_get (stat->timer [1]));
             printf ("%6i is_prime:   %.1f (%.1f)\n", stat->counter [2],
                   cm_timer_get (stat->timer [2]),
                   cm_timer_wc_get (stat->timer [2]));

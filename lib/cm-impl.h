@@ -207,6 +207,8 @@ extern void cm_ecpp_sqrt_d (mpz_t *Droot, int_cl_t *d, int no_d,
    mpz_srcptr N, long int *qstar, int no_qstar, mpz_t *root);
 extern int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N,
    mpz_srcptr root, int_cl_t d);
+extern void cm_ecpp_trial_div (mpz_t *l, mpz_t *n, int no_n,
+   mpz_srcptr primorialB);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
    cm_stat_t stat);
@@ -236,6 +238,9 @@ void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat);
 void cm_mpi_submit_sqrt_d (int rank, int job, int_cl_t *d, int no_d,
    mpz_srcptr N, long int *qstar, int no_qstar, mpz_t *root);
 void cm_mpi_get_sqrt_d (mpz_t *Droot, int rank, cm_stat_ptr stat);
+void cm_mpi_submit_trial_div (int rank, int job, mpz_t *n, int no_n,
+   mpz_srcptr primorialB);
+void cm_mpi_get_trial_div (mpz_t *l, int rank, cm_stat_ptr stat);
 
 #if defined (__cplusplus)
 }
