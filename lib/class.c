@@ -545,38 +545,49 @@ static fprec_t compute_precision (cm_param_srcptr param, cm_class_srcptr c,
       = 3.14159265358979323846 * sqrt ((double) (-param->d));
    const double cf = cm_class_height_factor (param);
    double x, binom = 1.0, prec = 0, M;
+   cm_classgroup_t cl;
    int_cl_t amax;
    int i, m;
    fprec_t precision;
 
-   /* formula of Lemma 8 of [Sutherland11] */
+   /* In the case of ramification, we need to consider the full classgroup
+      instead of the quotient stored in c. */
+   if (param->r [0] == 0)
+      cl = c->cl;
+   else
+      cm_classgroup_init (&cl, c->cl.d, NULL, false);
+
+   /* Formula of Lemma 8 of [Sutherland11]. */
    amax = 0;
-   for (i = 0; i < c->cl.h; i++) {
-      x = pisqrtd / c->cl.form [i].a;
+   for (i = 0; i < cl.h; i++) {
+      x = pisqrtd / cl.form [i].a;
       if (x < 42)
          M = log (exp (x) + C);
       else /* prevent overflow in exponential without changing the result */
          M = x;
       prec += M;
-      if (c->cl.form [i].a > amax)
-         amax = c->cl.form [i].a;
+      if (cl.form [i].a > amax)
+         amax = cl.form [i].a;
    }
    M = exp (pisqrtd / amax) + C;
-   m = (int) ((c->cl.h + 1) / (M + 1));
+   m = (int) ((cl.h + 1) / (M + 1));
    for (i = 1; i <= m; i++)
-      binom *= (double) (c->cl.h - 1 + i) / i / M;
+      binom *= (double) (cl.h - 1 + i) / i / M;
    prec = ceil ((prec + log (binom)) / (log (2.0) * cf));
 
    if (param->invariant == CM_INVARIANT_GAMMA3) {
       /* Increase the height estimate by the bit size of sqrt (|D|)^h in
          the constant coefficient.*/
-      prec += (int) (log ((double) (-param->d)) / log (2.0) / 2.0 * c->cl.h);
+      prec += (int) (log ((double) (-param->d)) / log (2.0) / 2.0 * cl.h);
       if (verbose)
          printf ("Corrected bound for gamma3:     %ld\n", (long int) prec);
    }
 
-   /* add a security margin */
+   /* Add a security margin. */
    precision = (fprec_t) (prec + 256);
+
+   if (param->r [0] != 0)
+      cm_classgroup_clear (&cl);
 
    if (verbose)
       printf ("Precision:                      %ld\n", (long int) precision);
