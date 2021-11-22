@@ -1159,40 +1159,34 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          batch = (no_card + size - 2) / (size - 1);
 #endif
          max_i = (no_card + batch - 1) / batch;
-#ifndef WITH_MPI
+#ifdef WITH_MPI
+         t = cm_timer_get (stat->timer [1]);
+#endif
          cm_timer_continue (stat->timer [1]);
          for (i = 0; i < max_i; i++) {
             no_card_batch = no_card - i * batch;
             if (no_card_batch > batch)
                no_card_batch = batch;
+#ifndef WITH_MPI
             cm_ecpp_trial_div (l_list + i * batch, card + i * batch,
                no_card_batch, primorialB);
+#else
+            rank = cm_mpi_queue_pop ();
+            cm_mpi_submit_trial_div (rank, i, card + i * batch,
+               no_card_batch, primorialB);
+#endif
          }
          cm_timer_stop (stat->timer [1]);
-#else
-         sent = 0;
-         received = 0;
-         t = cm_timer_get (stat->timer [1]);
+#ifdef WITH_MPI
          cm_timer_continue (stat->timer [1]);
-         while (received < max_i) {
-            if (sent < max_i && (rank = cm_mpi_queue_pop ()) != -1) {
-               no_card_batch = no_card - sent * batch;
-               if (no_card_batch > batch)
-                  no_card_batch = batch;
-               cm_mpi_submit_trial_div (rank, sent, card + sent * batch,
-                  no_card_batch, primorialB);
-               sent++;
-            }
-            else {
-               MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-                     MPI_COMM_WORLD, &status);
-               rank = status.MPI_SOURCE;
-               cm_mpi_get_trial_div (l_list + job * batch, rank,
-                  stat_worker);
-               t += cm_timer_get (stat_worker->timer [1]);
-               cm_mpi_queue_push (rank);
-               received++;
-            }
+         for (i = 0; i < max_i; i++) {
+            MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+                  MPI_COMM_WORLD, &status);
+            rank = status.MPI_SOURCE;
+            cm_mpi_get_trial_div (l_list + job * batch, rank,
+               stat_worker);
+            t += cm_timer_get (stat_worker->timer [1]);
+            cm_mpi_queue_push (rank);
          }
          cm_timer_stop (stat->timer [1]);
          stat->timer [1]->elapsed = t;
