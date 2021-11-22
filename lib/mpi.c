@@ -23,23 +23,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-#define MPI_TAG_READY          1
-#define MPI_TAG_FINISH         2
-#define MPI_TAG_DATA           3
-#define MPI_TAG_JOB_TONELLI    4
-#define MPI_TAG_JOB_ECPP2      5
-#define MPI_TAG_JOB_CARD       6
-#define MPI_TAG_JOB_PRIME      7
-#define MPI_TAG_JOB_H          8
-#define MPI_TAG_JOB_SQRT       9
-#define MPI_TAG_JOB_TRIAL_DIV 10
+#define MPI_TAG_FINISH        1
+#define MPI_TAG_DATA          2
+#define MPI_TAG_JOB_TONELLI   3
+#define MPI_TAG_JOB_ECPP2     4
+#define MPI_TAG_JOB_CARD      5
+#define MPI_TAG_JOB_PRIME     6
+#define MPI_TAG_JOB_H         7
+#define MPI_TAG_JOB_SQRT      8
+#define MPI_TAG_JOB_TRIAL_DIV 9
 
-static int *worker_queue;
-static int worker_queue_size;
+typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
+
+static int *worker_queue, *worker_queue_local;
+static int worker_queue_size, worker_queue_local_size;
 
 static void mpi_send_mpz (mpz_srcptr z, const int rank);
 static void mpi_recv_mpz (mpz_ptr z, const int rank);
-static void mpi_worker (const int rank);
+static void mpi_worker (void);
 static void mpi_server_init (const int size, bool debug);
 static void mpi_server_clear (const int size);
 
@@ -316,11 +317,13 @@ void cm_mpi_get_trial_div (mpz_t *l, int rank, cm_stat_ptr stat)
 /*                                                                           */
 /*****************************************************************************/
 
-static void mpi_worker (const int rank)
+static void mpi_worker ()
    /* The workers are started on rank 1 to size-1, and they run continually,
       accepting jobs until the server tells them to finish. */
 {
    MPI_Status status;
+   mpi_name_t name;
+   int name_length;
    int job;
    bool finish;
    cm_stat_t stat;
@@ -373,8 +376,10 @@ static void mpi_worker (const int rank)
    mpz_init (root);
    mpz_init (primorialB);
 
-   /* Send a notification to the server. */
-   MPI_Send (&rank, 1, MPI_INT, 0, MPI_TAG_READY, MPI_COMM_WORLD);
+   /* Gather data. */
+   MPI_Get_processor_name (name, &name_length);
+   MPI_Gather (name, MPI_MAX_PROCESSOR_NAME, MPI_BYTE,
+      NULL, 0, MPI_DATATYPE_NULL, 0, MPI_COMM_WORLD);
 
    finish = false;
    while (!finish) {
@@ -605,18 +610,36 @@ static void mpi_server_init (const int size, bool debug)
       The sequential code of the application should then be run in rank 0
       and occasionally make use of the workers for parallel sections. */
 {
-   int worker;
+   mpi_name_t *worker_name;
+   int name_length;
+   int i;
 
-   /* Wait for all workers to join. */
-   worker_queue = (int *) malloc ((size - 1) * sizeof (int));
-   for (worker_queue_size = 0; worker_queue_size < size - 1;
-      worker_queue_size++) {
-      MPI_Recv (&worker, 1, MPI_INT, MPI_ANY_SOURCE, MPI_TAG_READY,
-         MPI_COMM_WORLD, NULL);
-      worker_queue [worker_queue_size] = worker;
-   }
+   /* Set up worker queue. */
+   worker_queue_size = size - 1;
+   worker_queue = (int *) malloc (worker_queue_size * sizeof (int));
+   for (i = 0; i < worker_queue_size; i++)
+      worker_queue [i] = i+1;
+
+   /* Gather worker names and set up queue of workers on local node. */
+   worker_name = (mpi_name_t *) malloc (size * sizeof (mpi_name_t));
+   MPI_Get_processor_name (worker_name [0], &name_length);
+   MPI_Gather (MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+      worker_name, MPI_MAX_PROCESSOR_NAME, MPI_BYTE, 0, MPI_COMM_WORLD);
+   worker_queue_local = (int *) malloc (worker_queue_size * sizeof (int));
+   worker_queue_local_size = 0;
+   for (i = 1; i < size; i++)
+      if (!strncmp (worker_name [0], worker_name [i],
+         MPI_MAX_PROCESSOR_NAME)) {
+         worker_queue_local [worker_queue_local_size] = i;
+         worker_queue_local_size++;
+      }
+   worker_queue_local = (int *) realloc (worker_queue_local,
+      worker_queue_local_size * sizeof (int));
+   free (worker_name);
+
    if (debug)
-      printf ("MPI with %i workers initialised.\n", size - 1);
+      printf ("MPI with %i workers initialised, of which %i are local.\n",
+         worker_queue_size, worker_queue_local_size);
 }
 
 /*****************************************************************************/
@@ -631,6 +654,7 @@ static void mpi_server_clear (const int size)
       MPI_Send (&dummy, 1, MPI_INT, i, MPI_TAG_FINISH, MPI_COMM_WORLD);
 
    free (worker_queue);
+   free (worker_queue_local);
 }
 
 /*****************************************************************************/
@@ -647,7 +671,7 @@ void cm_mpi_init (bool debug)
    if (rank == 0)
       mpi_server_init (size, debug);
    else
-      mpi_worker (rank);
+      mpi_worker ();
 }
 
 /*****************************************************************************/
