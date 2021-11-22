@@ -1173,7 +1173,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #else
             rank = cm_mpi_queue_pop ();
             cm_mpi_submit_trial_div (rank, i, card + i * batch,
-               no_card_batch, primorialB);
+               no_card_batch);
 #endif
          }
          cm_timer_stop (stat->timer [1]);
@@ -1272,6 +1272,9 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    if (verbose)
       printf ("-- Time for primorial of B=%lu: %5.1f\n", B,
          cm_timer_get (stat->timer [6]));
+#ifdef WITH_MPI
+   cm_mpi_broadcast_primorial (primorialB);
+#endif
 
    mpz_init_set (N, p);
    *depth = 0;

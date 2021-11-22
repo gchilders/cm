@@ -23,15 +23,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-#define MPI_TAG_FINISH        1
-#define MPI_TAG_DATA          2
-#define MPI_TAG_JOB_TONELLI   3
-#define MPI_TAG_JOB_ECPP2     4
-#define MPI_TAG_JOB_CARD      5
-#define MPI_TAG_JOB_PRIME     6
-#define MPI_TAG_JOB_H         7
-#define MPI_TAG_JOB_SQRT      8
-#define MPI_TAG_JOB_TRIAL_DIV 9
+#define MPI_TAG_FINISH                   1
+#define MPI_TAG_DATA                     2
+#define MPI_TAG_JOB_TONELLI              3
+#define MPI_TAG_JOB_ECPP2                4
+#define MPI_TAG_JOB_CARD                 5
+#define MPI_TAG_JOB_PRIME                6
+#define MPI_TAG_JOB_H                    7
+#define MPI_TAG_JOB_SQRT                 8
+#define MPI_TAG_JOB_TRIAL_DIV            9
+#define MPI_TAG_JOB_BROADCAST_PRIMORIAL 10
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -280,11 +281,30 @@ void cm_mpi_get_sqrt_d (mpz_t *Droot, int rank, cm_stat_ptr stat)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_trial_div (int rank, int job, mpz_t *n, int no_n,
-   mpz_srcptr primorialB)
+void cm_mpi_broadcast_primorial (mpz_srcptr primorialB)
+   /* Send the primorial to all workers. This could be done more
+      efficiently with MPI_Bcast, but since it needs to be done only once,
+      this may not warrant writing the corresponding function to broadcast
+      an mpz. Also, the current implementation works even when the workers
+      have already entered the loop of waiting for jobs. */
+{
+   int size, rank;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++) {
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_PRIMORIAL,
+         MPI_COMM_WORLD);
+      mpi_send_mpz (primorialB, rank);
+   }
+}
+
+/*****************************************************************************/
+
+void cm_mpi_submit_trial_div (int rank, int job, mpz_t *n, int no_n)
    /* Submit the job of the given number for trial dividing to the worker
       of the given rank; the other parameters are as the input of
-      cm_ecpp_trial_div in ecpp.c. */
+      cm_ecpp_trial_div in ecpp.c, except that primorialB needs to have
+      been sent independently. */
 {
    int i;
 
@@ -292,7 +312,6 @@ void cm_mpi_submit_trial_div (int rank, int job, mpz_t *n, int no_n,
    MPI_Send (&no_n, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
    for (i = 0; i < no_n; i++)
       mpi_send_mpz (n [i], rank);
-   mpi_send_mpz (primorialB, rank);
 }
 
 /*****************************************************************************/
@@ -519,6 +538,9 @@ static void mpi_worker ()
             mpz_clear (Droot [i]);
          free (Droot);
          break;
+      case MPI_TAG_JOB_BROADCAST_PRIMORIAL:
+         mpi_recv_mpz (primorialB, 0);
+         break;
       case MPI_TAG_JOB_TRIAL_DIV:
          cm_timer_start (stat->timer [0]);
          MPI_Recv (&no_n, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
@@ -530,7 +552,6 @@ static void mpi_worker ()
             mpi_recv_mpz (card [i], 0);
             mpz_init (l [i]);
          }
-         mpi_recv_mpz (primorialB, 0);
 
          cm_ecpp_trial_div (l, card, no_n, primorialB);
 
