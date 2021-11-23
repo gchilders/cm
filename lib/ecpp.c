@@ -38,7 +38,10 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 static int disc_cmp (const void* d1, const void* d2);
 static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat);
+#ifndef WITH_MPI
+   mpz_srcptr N,
+#endif
+   int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat);
 static int card_cmp (const void* c1, const void* c2);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
@@ -201,8 +204,10 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
       qstar and root need to be initialised to the correct size,
       and the entries of root need to be initialised as well. */
 {
+#ifndef WITH_MPI
    unsigned int e;
    mpz_t r, z;
+#endif
    int i;
 #ifdef WITH_MPI
    MPI_Status status;
@@ -210,9 +215,6 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    double t;
    cm_stat_t stat_worker;
 #endif
-
-   mpz_init (r);
-   mpz_init (z);
 
    i = 0;
    while (i < no) {
@@ -245,11 +247,15 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
       }
    }
 
-   e = cm_nt_mpz_tonelli_generator (r, z, p);
 #ifndef WITH_MPI
    cm_timer_continue (stat->timer [0]);
+   mpz_init (r);
+   mpz_init (z);
+   e = cm_nt_mpz_tonelli_generator (r, z, p);
    for (i = 0; i < no; i++)
       cm_nt_mpz_tonelli_si_with_generator (root [i], qstar [i], p, e, r, z);
+   mpz_clear (r);
+   mpz_clear (z);
    cm_timer_stop (stat->timer [0]);
 #else
    sent = 0;
@@ -259,7 +265,7 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
    cm_timer_continue (stat->timer [0]);
    while (received < no) {
       if (sent < no && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_tonelli (rank, sent, qstar [sent], p, e, r, z);
+         cm_mpi_submit_tonelli (rank, sent, qstar [sent]);
          sent++;
       }
       else {
@@ -279,9 +285,6 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
       /* Restore CPU time containing all the workers, while keeping
          the wallclock time as measured by the server. */
 #endif
-
-   mpz_clear (r);
-   mpz_clear (z);
 }
 
 /*****************************************************************************/
@@ -686,7 +689,10 @@ int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
 /*****************************************************************************/
 
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   mpz_srcptr N, int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat)
+#ifndef WITH_MPI
+   mpz_srcptr N,
+#endif
+   int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat)
    /* Given a prime N, a list of no_d fastECPP discriminants in d and an
       array of their square roots modulo N in root, compute and return the
       array of possible CM cardinalities. The number of cardinalities is
@@ -703,7 +709,6 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    double t;
    cm_stat_t stat_worker;
 #endif
-
 
    /* For each discriminant, compute the potential cardinalities in
       separate memory locations. */
@@ -728,7 +733,7 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    cm_timer_continue (stat->timer [3]);
    while (received < no_d) {
       if (sent < no_d && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_curve_cardinalities (rank, sent, N, root [sent],
+         cm_mpi_submit_curve_cardinalities (rank, sent, root [sent],
             d [sent]);
          sent++;
       }
@@ -1076,6 +1081,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       i = sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0]) - 1;
    no_qstar_new = no_qstar_delta [i];
 
+#ifdef WITH_MPI
+   cm_mpi_broadcast_N (N);
+#endif
    while (d == 0) {
       /* Extend the prime and square root list. */
       no_qstar_old = no_qstar;
@@ -1089,7 +1097,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #ifdef WITH_MPI
       cm_timer_continue (stat->timer [4]);
          /* Count the broadcasting into the sqrt step. */
-      cm_mpi_broadcast_sqrt (N, no_qstar_new, qstar + no_qstar_old,
+      cm_mpi_broadcast_sqrt (no_qstar_new, qstar + no_qstar_old,
          root + no_qstar_old);
       cm_timer_stop (stat->timer [4]);
 #endif
@@ -1152,8 +1160,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       stat->counter [4] += no_d;
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
-      card = compute_cardinalities (&no_card, &d_card, N,
-            no_d, Droot, dlist, stat);
+      card = compute_cardinalities (&no_card, &d_card,
+#ifndef WITH_MPI
+         N,
+#endif
+         no_d, Droot, dlist, stat);
 
       if (no_card > 0) {
          /* Remove smooth parts of cardinalities. */

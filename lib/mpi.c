@@ -32,9 +32,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_H                    7
 #define MPI_TAG_JOB_SQRT                 8
 #define MPI_TAG_JOB_TRIAL_DIV            9
-#define MPI_TAG_JOB_BROADCAST_PRIMORIAL 10
-#define MPI_TAG_JOB_BROADCAST_SQRT      11
-#define MPI_TAG_JOB_CLEAR_N             12
+#define MPI_TAG_JOB_BROADCAST_N         10
+#define MPI_TAG_JOB_BROADCAST_PRIMORIAL 11
+#define MPI_TAG_JOB_BROADCAST_SQRT      12
+#define MPI_TAG_JOB_CLEAR_N             13
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -132,6 +133,20 @@ static void mpi_bcast_recv_mpz (mpz_ptr z)
 /*                                                                           */
 /*****************************************************************************/
 
+void cm_mpi_broadcast_N (mpz_srcptr N)
+   /* Send data depending on N to all workers. */
+{
+   int size, rank;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++)
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_N,
+         MPI_COMM_WORLD);
+   mpi_bcast_send_mpz (N);
+}
+
+/*****************************************************************************/
+
 void cm_mpi_broadcast_primorial (mpz_srcptr primorialB)
    /* Send the primorial to all workers. */
 {
@@ -146,12 +161,10 @@ void cm_mpi_broadcast_primorial (mpz_srcptr primorialB)
 
 /*****************************************************************************/
 
-void cm_mpi_broadcast_sqrt (mpz_srcptr N, int no_qstar, long int *qstar,
-   mpz_t *qroot)
+void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar, mpz_t *qroot)
    /* Broadcast variables to all workers that are needed for the square
-      root of discriminants and Cornacchia step. Strictly speaking N is
-      needed only for the first call, but it does not cost much to send it
-      again. qstar and qroot are arrays of no_qstar signed primes and their
+      root of discriminants and Cornacchia step.
+      qstar and qroot are arrays of no_qstar signed primes and their
       square roots modulo N that the workers do not know yet; they append
       them to their list. */
 {
@@ -162,7 +175,6 @@ void cm_mpi_broadcast_sqrt (mpz_srcptr N, int no_qstar, long int *qstar,
    for (rank = 1; rank < size; rank++)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_SQRT,
          MPI_COMM_WORLD);
-   mpi_bcast_send_mpz (N);
    MPI_Bcast (&no_qstar, 1, MPI_INT, 0, MPI_COMM_WORLD);
    MPI_Bcast (qstar, no_qstar, MPI_LONG, 0, MPI_COMM_WORLD);
    for (i = 0; i < no_qstar; i++)
@@ -185,18 +197,13 @@ void cm_mpi_clear_N ()
 
 /*****************************************************************************/
 
-void cm_mpi_submit_tonelli (int rank, int job, const long int a,
-   mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z)
+void cm_mpi_submit_tonelli (int rank, int job, const long int a)
    /* Submit the Tonelli job of the given number to the worker of the given
       rank. The job number will be passed back by the worker so that the
       result can be identified. */
 {
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
    MPI_Send (&a, 1, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-   mpi_send_mpz (p, rank);
-   MPI_Send (&e, 1, MPI_UNSIGNED, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-   mpi_send_mpz (q, rank);
-   mpi_send_mpz (z, rank);
 }
 
 /*****************************************************************************/
@@ -247,15 +254,14 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_curve_cardinalities (int rank, int job, mpz_srcptr N,
-   mpz_srcptr root, int_cl_t d)
+void cm_mpi_submit_curve_cardinalities (int rank, int job, mpz_srcptr root,
+   int_cl_t d)
    /* Submit the job of the given number for determining a list of 0 to 6
       potential curve cardinalities to the worker of the given rank; the
       other parameters are as the input in cm_ecpp_curve_cardinalities
       in ecpp.c. */
 {
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_CARD, MPI_COMM_WORLD);
-   mpi_send_mpz (N, rank);
    mpi_send_mpz (root, rank);
    MPI_Send (&d, 1, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
 }
@@ -413,18 +419,16 @@ static void mpi_worker ()
    cm_stat_t stat;
    int i;
    
-   /* Broadcast primorial. */
-   mpz_t primorialB;
-
-   /* Broadcast values for square roots. */
+   /* Broadcast values. */
+   mpz_t N, primorialB;
    int no_qstar, no_qstar_old, no_qstar_new;
    long int *qstar;
    mpz_t *qroot;
 
    /* Tonelli */
    long int a;
-   unsigned int e;
-   mpz_t p, q, z, root;
+   unsigned int e = 0;
+   mpz_t r, z, root;
 
    /* ECPP step 2 */
    mpz_t cert1 [4], cert2 [6];
@@ -432,11 +436,12 @@ static void mpi_worker ()
    int len, tower;
 
    /* Curve cardinalities. */
-   mpz_t N, n [6];
+   mpz_t n [6];
    int_cl_t d;
    int no;
 
    /* Prime test. */
+   mpz_t p;
    int isprime;
 
    /* Compute a chunk of h. */
@@ -452,13 +457,12 @@ static void mpi_worker ()
    int no_n;
    mpz_t *card, *l;
 
-   mpz_init (primorialB);
    mpz_init (N);
+   mpz_init (primorialB);
    no_qstar = 0;
    qstar = (long int *) malloc (0);
    qroot = (mpz_t *) malloc (0);
-   mpz_init (p);
-   mpz_init (q);
+   mpz_init (r);
    mpz_init (z);
    mpz_init (root);
    for (i = 0; i < 4; i++)
@@ -467,7 +471,7 @@ static void mpi_worker ()
       mpz_init (cert2 [i]);
       mpz_init (n [i]);
    }
-   mpz_init (root);
+   mpz_init (p);
 
    /* Gather data. */
    MPI_Get_processor_name (name, &name_length);
@@ -480,11 +484,14 @@ static void mpi_worker ()
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       cm_stat_init (stat);
       switch (status.MPI_TAG) {
+      case MPI_TAG_JOB_BROADCAST_N:
+         mpi_bcast_recv_mpz (N);
+         e = cm_nt_mpz_tonelli_generator (r, z, N);
+         break;
       case MPI_TAG_JOB_BROADCAST_PRIMORIAL:
          mpi_bcast_recv_mpz (primorialB);
          break;
       case MPI_TAG_JOB_BROADCAST_SQRT:
-         mpi_bcast_recv_mpz (N);
          MPI_Bcast (&no_qstar_new, 1, MPI_INT, 0, MPI_COMM_WORLD);
          no_qstar_old = no_qstar;
          no_qstar += no_qstar_new;
@@ -510,14 +517,9 @@ static void mpi_worker ()
          /* Receive the input. */
          MPI_Recv (&a, 1, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
             &status);
-         mpi_recv_mpz (p, 0);
-         MPI_Recv (&e, 1, MPI_UNSIGNED, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            &status);
-         mpi_recv_mpz (q, 0);
-         mpi_recv_mpz (z, 0);
 
          /* Compute the result. */
-         cm_nt_mpz_tonelli_si_with_generator (root, a, p, e, q, z);
+         cm_nt_mpz_tonelli_si_with_generator (root, a, N, e, r, z);
 
          /* Notify and send the result. */
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
@@ -551,7 +553,6 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_CARD:
          cm_timer_start (stat->timer [0]);
-         mpi_recv_mpz (N, 0);
          mpi_recv_mpz (root, 0);
          MPI_Recv (&d, 1, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
             &status);
@@ -568,9 +569,9 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_PRIME:
          cm_timer_start (stat->timer [0]);
-         mpi_recv_mpz (N, 0);
+         mpi_recv_mpz (p, 0);
 
-         isprime = (int) cm_nt_is_prime (N);
+         isprime = (int) cm_nt_is_prime (p);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_PRIME, MPI_COMM_WORLD);
          MPI_Send (&isprime, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
@@ -664,10 +665,10 @@ static void mpi_worker ()
    mpz_clear (primorialB);
    free (qstar);
    free (qroot);
-   mpz_clear (p);
-   mpz_clear (q);
+   mpz_clear (r);
    mpz_clear (z);
    mpz_clear (root);
+   mpz_clear (p);
    for (i = 0; i < 4; i++)
       mpz_clear (cert1 [i]);
    for (i = 0; i < 6; i++) {

@@ -221,19 +221,19 @@ extern void cm_stat_init (cm_stat_t stat);
 /* functions for MPI */
 extern void cm_mpi_queue_push (int rank);
 extern int cm_mpi_queue_pop (void);
+extern void cm_mpi_broadcast_N (mpz_srcptr N);
 extern void cm_mpi_broadcast_primorial (mpz_srcptr primorialB);
-extern void cm_mpi_broadcast_sqrt (mpz_srcptr N, int no_qstar,
-   long int *qstar, mpz_t *qroot);
+extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
+   mpz_t *qroot);
 extern void cm_mpi_clear_N (void);
-extern void cm_mpi_submit_tonelli (int rank, int job, const long int a,
-   mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
+extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
 extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, cm_stat_ptr stat);
 extern void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
    const char* modpoldir, bool tower);
 extern void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank,
    cm_stat_ptr stat);
 extern void cm_mpi_submit_curve_cardinalities (int rank, int job,
-   mpz_srcptr N, mpz_srcptr root, int_cl_t d);
+   mpz_srcptr root, int_cl_t d);
 extern int cm_mpi_get_curve_cardinalities (mpz_t *n, int rank,
    cm_stat_ptr stat);
 extern void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n);
