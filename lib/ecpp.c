@@ -1268,13 +1268,13 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    cm_timer_start (stat->timer [6]);
    mpz_init (primorialB);
    mpz_primorial_ui (primorialB, B);
+#ifdef WITH_MPI
+   cm_mpi_broadcast_primorial (primorialB);
+#endif
    cm_timer_stop (stat->timer [6]);
    if (verbose)
       printf ("-- Time for primorial of B=%lu: %5.1f\n", B,
          cm_timer_get (stat->timer [6]));
-#ifdef WITH_MPI
-   cm_mpi_broadcast_primorial (primorialB);
-#endif
 
    mpz_init_set (N, p);
    *depth = 0;

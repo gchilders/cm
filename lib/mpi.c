@@ -41,6 +41,8 @@ static int worker_queue_size, worker_queue_local_size;
 
 static void mpi_send_mpz (mpz_srcptr z, const int rank);
 static void mpi_recv_mpz (mpz_ptr z, const int rank);
+static void mpi_bcast_send_mpz (mpz_srcptr z);
+static void mpi_bcast_recv_mpz (mpz_ptr z);
 static void mpi_worker (void);
 static void mpi_server_init (const int size, bool debug);
 static void mpi_server_clear (const int size);
@@ -88,9 +90,58 @@ static void mpi_recv_mpz (mpz_ptr z, const int rank)
 }
 
 /*****************************************************************************/
+
+static void mpi_bcast_send_mpz (mpz_srcptr z)
+   /* Upon a call by rank 0, send z by broadcast to all others. */
+{
+   int size = z->_mp_size;
+
+   MPI_Bcast (&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   if (size > 0)
+      MPI_Bcast (z->_mp_d,  size, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+   else if (size < 0)
+      MPI_Bcast (z->_mp_d, -size, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+}
+
+/*****************************************************************************/
+
+static void mpi_bcast_recv_mpz (mpz_ptr z)
+   /* Upon a call by all others, receive z by broadcast from rank 0. */
+{
+   int size;
+
+   MPI_Bcast (&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   if (size > 0) {
+      _mpz_realloc (z, size);
+      MPI_Bcast (z->_mp_d,  size, MPI_UNSIGNED_LONG, 0,
+         MPI_COMM_WORLD);
+   }
+   else if (size < 0) {
+      _mpz_realloc (z, -size);
+      MPI_Bcast (z->_mp_d, -size, MPI_UNSIGNED_LONG, 0,
+         MPI_COMM_WORLD);
+   }
+   z->_mp_size = size;
+}
+
+/*****************************************************************************/
 /*                                                                           */
 /* Submitting jobs and retrieving their results.                             */
 /*                                                                           */
+/*****************************************************************************/
+
+void cm_mpi_broadcast_primorial (mpz_srcptr primorialB)
+   /* Send the primorial to all workers. */
+{
+   int size, rank;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++)
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_PRIMORIAL,
+         MPI_COMM_WORLD);
+   mpi_bcast_send_mpz (primorialB);
+}
+
 /*****************************************************************************/
 
 void cm_mpi_submit_tonelli (int rank, int job, const long int a,
@@ -277,25 +328,6 @@ void cm_mpi_get_sqrt_d (mpz_t *Droot, int rank, cm_stat_ptr stat)
       mpi_recv_mpz (Droot [i], rank);
    MPI_Recv (&(stat->timer [4]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
       MPI_COMM_WORLD, NULL);
-}
-
-/*****************************************************************************/
-
-void cm_mpi_broadcast_primorial (mpz_srcptr primorialB)
-   /* Send the primorial to all workers. This could be done more
-      efficiently with MPI_Bcast, but since it needs to be done only once,
-      this may not warrant writing the corresponding function to broadcast
-      an mpz. Also, the current implementation works even when the workers
-      have already entered the loop of waiting for jobs. */
-{
-   int size, rank;
-
-   MPI_Comm_size (MPI_COMM_WORLD, &size);
-   for (rank = 1; rank < size; rank++) {
-      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_PRIMORIAL,
-         MPI_COMM_WORLD);
-      mpi_send_mpz (primorialB, rank);
-   }
 }
 
 /*****************************************************************************/
@@ -539,7 +571,7 @@ static void mpi_worker ()
          free (Droot);
          break;
       case MPI_TAG_JOB_BROADCAST_PRIMORIAL:
-         mpi_recv_mpz (primorialB, 0);
+         mpi_bcast_recv_mpz (primorialB);
          break;
       case MPI_TAG_JOB_TRIAL_DIV:
          cm_timer_start (stat->timer [0]);
