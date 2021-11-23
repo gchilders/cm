@@ -1086,6 +1086,13 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          mpz_init (root [i]);
       compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
             no_qstar_new, stat);
+#ifdef WITH_MPI
+      cm_timer_continue (stat->timer [4]);
+         /* Count the broadcasting into the sqrt step. */
+      cm_mpi_broadcast_sqrt (N, no_qstar_new, qstar + no_qstar_old,
+         root + no_qstar_old);
+      cm_timer_stop (stat->timer [4]);
+#endif
       stat->counter [0] += no_qstar_new;
 
       /* Precompute a list of potential discriminants. This takes
@@ -1126,7 +1133,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             if (no_d_batch > batch)
                no_d_batch = batch;
             cm_mpi_submit_sqrt_d (rank, sent, dlist + sent * batch,
-               no_d_batch, N, qstar, no_qstar, root);
+               no_d_batch);
             sent++;
          }
          else {
@@ -1210,6 +1217,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       free (card);
    }
 
+#ifdef WITH_MPI
+      cm_mpi_clear_N ();
+#endif
    for (i = 0; i < no_qstar; i++)
       mpz_clear (root [i]);
    free (root);

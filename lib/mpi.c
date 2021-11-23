@@ -33,6 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_SQRT                 8
 #define MPI_TAG_JOB_TRIAL_DIV            9
 #define MPI_TAG_JOB_BROADCAST_PRIMORIAL 10
+#define MPI_TAG_JOB_BROADCAST_SQRT      11
+#define MPI_TAG_JOB_CLEAR_N             12
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -140,6 +142,45 @@ void cm_mpi_broadcast_primorial (mpz_srcptr primorialB)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_PRIMORIAL,
          MPI_COMM_WORLD);
    mpi_bcast_send_mpz (primorialB);
+}
+
+/*****************************************************************************/
+
+void cm_mpi_broadcast_sqrt (mpz_srcptr N, int no_qstar, long int *qstar,
+   mpz_t *qroot)
+   /* Broadcast variables to all workers that are needed for the square
+      root of discriminants and Cornacchia step. Strictly speaking N is
+      needed only for the first call, but it does not cost much to send it
+      again. qstar and qroot are arrays of no_qstar signed primes and their
+      square roots modulo N that the workers do not know yet; they append
+      them to their list. */
+{
+   int size, rank;
+   int i;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++)
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_SQRT,
+         MPI_COMM_WORLD);
+   mpi_bcast_send_mpz (N);
+   MPI_Bcast (&no_qstar, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   MPI_Bcast (qstar, no_qstar, MPI_LONG, 0, MPI_COMM_WORLD);
+   for (i = 0; i < no_qstar; i++)
+      mpi_bcast_send_mpz (qroot [i]);
+}
+
+/*****************************************************************************/
+
+void cm_mpi_clear_N ()
+   /* Tell the workers to forget the incremental data sent for the square
+      root step so that they can move on to the next N. */
+{
+   int size, rank;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++)
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_CLEAR_N,
+         MPI_COMM_WORLD);
 }
 
 /*****************************************************************************/
@@ -296,22 +337,14 @@ void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_sqrt_d (int rank, int job, int_cl_t *d, int no_d,
-   mpz_srcptr N, long int *qstar, int no_qstar, mpz_t *root)
+void cm_mpi_submit_sqrt_d (int rank, int job, int_cl_t *d, int no_d)
    /* Submit the job of the given number for computing square roots of a
       batch of discriminants to the worker of the given rank; the other
       parameters are as the input of cm_ecpp_sqrt_d in ecpp.c. */
 {
-   int i;
-
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_SQRT, MPI_COMM_WORLD);
    MPI_Send (&no_d, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
    MPI_Send (d, no_d, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-   mpi_send_mpz (N, rank);
-   MPI_Send (&no_qstar, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-   MPI_Send (qstar, no_qstar, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-   for (i = 0; i < no_qstar; i++)
-      mpi_send_mpz (root [i], rank);
 }
 
 /*****************************************************************************/
@@ -380,6 +413,14 @@ static void mpi_worker ()
    cm_stat_t stat;
    int i;
    
+   /* Broadcast primorial. */
+   mpz_t primorialB;
+
+   /* Broadcast values for square roots. */
+   int no_qstar, no_qstar_old, no_qstar_new;
+   long int *qstar;
+   mpz_t *qroot;
+
    /* Tonelli */
    long int a;
    unsigned int e;
@@ -403,16 +444,19 @@ static void mpi_worker ()
    uint_cl_t *h;
 
    /* Square roots of discriminants. */
-   int no_d, no_qstar;
+   int no_d;
    int_cl_t *disc;
-   long int *qstar;
-   mpz_t *Droot, *qroot;
+   mpz_t *Droot;
 
    /* Trial division. */
    int no_n;
    mpz_t *card, *l;
-   mpz_t primorialB;
 
+   mpz_init (primorialB);
+   mpz_init (N);
+   no_qstar = 0;
+   qstar = (long int *) malloc (0);
+   qroot = (mpz_t *) malloc (0);
    mpz_init (p);
    mpz_init (q);
    mpz_init (z);
@@ -423,9 +467,7 @@ static void mpi_worker ()
       mpz_init (cert2 [i]);
       mpz_init (n [i]);
    }
-   mpz_init (N);
    mpz_init (root);
-   mpz_init (primorialB);
 
    /* Gather data. */
    MPI_Get_processor_name (name, &name_length);
@@ -438,6 +480,31 @@ static void mpi_worker ()
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       cm_stat_init (stat);
       switch (status.MPI_TAG) {
+      case MPI_TAG_JOB_BROADCAST_PRIMORIAL:
+         mpi_bcast_recv_mpz (primorialB);
+         break;
+      case MPI_TAG_JOB_BROADCAST_SQRT:
+         mpi_bcast_recv_mpz (N);
+         MPI_Bcast (&no_qstar_new, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         no_qstar_old = no_qstar;
+         no_qstar += no_qstar_new;
+         qstar = (long int *)
+            realloc (qstar, no_qstar * sizeof (long int));
+         qroot = (mpz_t *) realloc (qroot, no_qstar * sizeof (mpz_t));
+         MPI_Bcast (qstar + no_qstar_old, no_qstar_new, MPI_LONG, 0,
+            MPI_COMM_WORLD);
+         for (i = no_qstar_old; i < no_qstar; i++) {
+            mpz_init (qroot [i]);
+            mpi_bcast_recv_mpz (qroot [i]);
+         }
+         break;
+      case MPI_TAG_JOB_CLEAR_N:
+         for (i = 0; i < no_qstar; i++)
+            mpz_clear (qroot [i]);
+         no_qstar = 0;
+         qstar = (long int *) realloc (qstar, 0);
+         qroot = (mpz_t *) realloc (qroot, 0);
+         break;
       case MPI_TAG_JOB_TONELLI:
          cm_timer_start (stat->timer [0]);
          /* Receive the input. */
@@ -537,27 +604,12 @@ static void mpi_worker ()
          disc = (int_cl_t *) malloc (no_d * sizeof (int_cl_t));
          MPI_Recv (disc, no_d, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
             &status);
-         mpi_recv_mpz (N, 0);
-         MPI_Recv (&no_qstar, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            &status);
-         qstar = (long int *) malloc (no_qstar * sizeof (long int));
-         MPI_Recv (qstar, no_qstar, MPI_LONG, 0, MPI_TAG_DATA,
-            MPI_COMM_WORLD, &status);
-         qroot = (mpz_t *) malloc (no_qstar * sizeof (mpz_t));
-         for (i = 0; i < no_qstar; i++) {
-            mpz_init (qroot [i]);
-            mpi_recv_mpz (qroot [i], 0);
-         }
          Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
          for (i = 0; i < no_d; i++)
             mpz_init (Droot [i]);
 
          cm_ecpp_sqrt_d (Droot, disc, no_d, N, qstar, no_qstar, qroot);
          free (disc);
-         free (qstar);
-         for (i = 0; i < no_qstar; i++)
-            mpz_clear (qroot [i]);
-         free (qroot);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_SQRT, MPI_COMM_WORLD);
          MPI_Send (&no_d, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
@@ -569,9 +621,6 @@ static void mpi_worker ()
          for (i = 0; i < no_d; i++)
             mpz_clear (Droot [i]);
          free (Droot);
-         break;
-      case MPI_TAG_JOB_BROADCAST_PRIMORIAL:
-         mpi_bcast_recv_mpz (primorialB);
          break;
       case MPI_TAG_JOB_TRIAL_DIV:
          cm_timer_start (stat->timer [0]);
@@ -611,18 +660,20 @@ static void mpi_worker ()
       }
    }
 
+   mpz_clear (N);
+   mpz_clear (primorialB);
+   free (qstar);
+   free (qroot);
    mpz_clear (p);
    mpz_clear (q);
    mpz_clear (z);
    mpz_clear (root);
-   mpz_clear (primorialB);
    for (i = 0; i < 4; i++)
       mpz_clear (cert1 [i]);
    for (i = 0; i < 6; i++) {
       mpz_clear (cert2 [i]);
       mpz_clear (n [i]);
    }
-   mpz_clear (N);
 }
 
 /*****************************************************************************/
