@@ -475,7 +475,7 @@ static void mpi_worker ()
             false, stat);
          free (modpoldir);
 
-         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
+         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_ECPP2, MPI_COMM_WORLD);
          for (i = 0; i < 6; i++)
             mpi_send_mpz (cert2 [i], 0);
          for (i = 1; i <= 3; i++)
