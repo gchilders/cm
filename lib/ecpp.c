@@ -581,7 +581,8 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    free (dlist);
 
    if (debug)
-      printf ("   expected number of primes: %.1f\n", exp_card * prob);
+      printf ("   expected number of curves: %.0f, of primes: %.1f\n",
+         exp_card, exp_card * prob);
 
    return d;
 }
