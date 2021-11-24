@@ -206,8 +206,7 @@ extern void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin,
 extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
    int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
-extern void cm_ecpp_trial_div (mpz_t *l, mpz_t *n, int no_n,
-   mpz_srcptr primorialB);
+extern void cm_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
    cm_stat_t stat);
@@ -240,8 +239,8 @@ extern bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat);
 extern void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
    uint_cl_t Dmax);
 extern void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat);
-extern void cm_mpi_submit_trial_div (int rank, int job, mpz_t *n, int no_n);
-extern void cm_mpi_get_trial_div (mpz_t *l, int rank, cm_stat_ptr stat);
+extern void cm_mpi_submit_tree_gcd (int rank, int job, mpz_t *m, int no_m);
+extern void cm_mpi_get_tree_gcd (mpz_t *gcd, int rank, cm_stat_ptr stat);
 
 #if defined (__cplusplus)
 }

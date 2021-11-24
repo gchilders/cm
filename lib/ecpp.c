@@ -38,10 +38,14 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 static int disc_cmp (const void* d1, const void* d2);
 static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
-static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N,
    int_cl_t d, long int *qstar, int no_qstar, mpz_t *qroot);
 static int card_cmp (const void* c1, const void* c2);
+static void trial_div (mpz_t *l, mpz_t *n, int no_n,
+#ifndef WITH_MPI
+   mpz_srcptr primorialB,
+#endif
+   cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const unsigned int delta, cm_stat_t stat);
@@ -745,7 +749,7 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
 
 /*****************************************************************************/
 
-static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
+void cm_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
    /* Given a (large) positive integer n and an array of (smaller) no_m
       positive integers in m, compute the gcd of n with all the m and
       return them in gcd, which needs to provide sufficient space and
@@ -804,7 +808,11 @@ static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
 
 /*****************************************************************************/
 
-void cm_ecpp_trial_div (mpz_t *l, mpz_t *n, int no_n, mpz_srcptr primorialB)
+void trial_div (mpz_t *l, mpz_t *n, int no_n,
+#ifndef WITH_MPI
+   mpz_srcptr primorialB,
+#endif
+   cm_stat_t stat)
    /* primorialB is supposed to be the product of the primes up to the
       smoothness bound B.
       The function removes all occurrences of the primes up to B from the
@@ -813,14 +821,50 @@ void cm_ecpp_trial_div (mpz_t *l, mpz_t *n, int no_n, mpz_srcptr primorialB)
 {
    mpz_t *gcd;
    int i;
+#ifdef WITH_MPI
+   MPI_Status status;
+   int size, rank, job;
+   double t;
+   cm_stat_t stat_worker;
+   int batch, max_i;
+#endif
 
+   cm_timer_continue (stat->timer [1]);
    gcd = (mpz_t *) malloc (no_n * sizeof (mpz_t));
    for (i = 0; i < no_n; i++)
       mpz_init (gcd [i]);
 
    /* Compute in gcd [i] the gcd of n [i] and primorialB. */
-   mpz_tree_gcd (gcd, primorialB, n, no_n);
+#ifndef WITH_MPI
+   cm_mpz_tree_gcd (gcd, primorialB, n, no_n);
+   cm_timer_stop (stat->timer [1]);
+   stat->counter [1]++;
+#else
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   batch = (no_n + size - 2) / (size - 1);
+   max_i = (no_n + batch - 1) / batch;
+   for (i = 0; i < max_i; i++) {
+      rank = cm_mpi_queue_pop ();
+      cm_mpi_submit_tree_gcd (rank, i, n + i * batch,
+         (i == max_i - 1 ? no_n - (max_i - 1) * batch : batch));
+   }
+   cm_timer_stop (stat->timer [1]);
+   t = cm_timer_get (stat->timer [1]);
+   cm_timer_continue (stat->timer [1]);
+   for (i = 0; i < max_i; i++) {
+      MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+         MPI_COMM_WORLD, &status);
+      rank = status.MPI_SOURCE;
+      cm_mpi_get_tree_gcd (gcd + job * batch, rank, stat_worker);
+      t += cm_timer_get (stat_worker->timer [0]);
+      cm_mpi_queue_push (rank);
+   }
+   cm_timer_stop (stat->timer [1]);
+   stat->timer [1]->elapsed = t;
+   stat->counter [1] += max_i;
+#endif
 
+   cm_timer_continue (stat->timer [1]);
    /* Remove the gcd from n [i] and recompute it until all primes
       are removed. */
    for (i = 0; i < no_n; i++) {
@@ -834,6 +878,7 @@ void cm_ecpp_trial_div (mpz_t *l, mpz_t *n, int no_n, mpz_srcptr primorialB)
    for (i = 0; i < no_n; i++)
       mpz_clear (gcd [i]);
    free (gcd);
+   cm_timer_stop (stat->timer [1]);
 }
 
 /*****************************************************************************/
@@ -1133,36 +1178,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          l_list = (mpz_t *) malloc (no_card * sizeof (mpz_t));
          for (i = 0; i < no_card; i++)
             mpz_init (l_list [i]);
+         trial_div (l_list, card, no_card,
 #ifndef WITH_MPI
-         cm_timer_continue (stat->timer [1]);
-         cm_ecpp_trial_div (l_list, card, no_card, primorialB);
-         cm_timer_stop (stat->timer [1]);
-         stat->counter [1]++;
-#else
-         batch = (no_card + size - 2) / (size - 1);
-         max_i = (no_card + batch - 1) / batch;
-         cm_timer_continue (stat->timer [1]);
-         for (i = 0; i < max_i; i++) {
-            rank = cm_mpi_queue_pop ();
-            cm_mpi_submit_trial_div (rank, i, card + i * batch,
-               (i == max_i - 1 ? no_card - (max_i - 1) * batch : batch));
-         }
-         cm_timer_stop (stat->timer [1]);
-         t = cm_timer_get (stat->timer [1]);
-         cm_timer_continue (stat->timer [1]);
-         for (i = 0; i < max_i; i++) {
-            MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-                  MPI_COMM_WORLD, &status);
-            rank = status.MPI_SOURCE;
-            cm_mpi_get_trial_div (l_list + job * batch, rank,
-               stat_worker);
-            t += cm_timer_get (stat_worker->timer [1]);
-            cm_mpi_queue_push (rank);
-         }
-         cm_timer_stop (stat->timer [1]);
-         stat->timer [1]->elapsed = t;
-         stat->counter [1] += max_i;
+            primorialB,
 #endif
+            stat);
 
          d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
                no_card, delta, stat);

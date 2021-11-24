@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_CARD                 5
 #define MPI_TAG_JOB_PRIME                6
 #define MPI_TAG_JOB_H                    7
-#define MPI_TAG_JOB_TRIAL_DIV            8
+#define MPI_TAG_JOB_TREE_GCD             8
 #define MPI_TAG_JOB_BROADCAST_N          9
 #define MPI_TAG_JOB_BROADCAST_PRIMORIAL 10
 #define MPI_TAG_JOB_BROADCAST_SQRT      11
@@ -350,33 +350,32 @@ void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_trial_div (int rank, int job, mpz_t *n, int no_n)
-   /* Submit the job of the given number for trial dividing to the worker
-      of the given rank; the other parameters are as the input of
-      cm_ecpp_trial_div in ecpp.c, except that primorialB needs to have
-      been sent independently. */
+void cm_mpi_submit_tree_gcd (int rank, int job, mpz_t *m, int no_m)
+   /* Submit the job of the given number to the worker of the given rank,
+      to call cm_mpz_tree_gcd with the known primorial and the remaining
+      arguments. */
 {
    int i;
 
-   MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_TRIAL_DIV, MPI_COMM_WORLD);
-   MPI_Send (&no_n, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-   for (i = 0; i < no_n; i++)
-      mpi_send_mpz (n [i], rank);
+   MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_TREE_GCD, MPI_COMM_WORLD);
+   MPI_Send (&no_m, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+   for (i = 0; i < no_m; i++)
+      mpi_send_mpz (m [i], rank);
 }
 
 /*****************************************************************************/
 
-void cm_mpi_get_trial_div (mpz_t *l, int rank, cm_stat_ptr stat)
-   /* Get the result of a trial division job from worker rank and put it
-      into l, as output by cm_ecpp_trial_div in ecpp.c.
+void cm_mpi_get_tree_gcd (mpz_t *gcd, int rank, cm_stat_ptr stat)
+   /* Get the result of a gcd job from worker rank and put it into gcd,
+      as output by cm_mpz_tree_gcd.
       Timing information from the worker is returned in stat. */
 {
-   int no_n, i;
+   int no_m, i;
 
-   MPI_Recv (&no_n, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-   for (i = 0; i < no_n; i++)
-      mpi_recv_mpz (l [i], rank);
-   MPI_Recv (&(stat->timer [1]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
+   MPI_Recv (&no_m, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   for (i = 0; i < no_m; i++)
+      mpi_recv_mpz (gcd [i], rank);
+   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
       MPI_COMM_WORLD, NULL);
 }
 
@@ -429,9 +428,9 @@ static void mpi_worker ()
    uint_cl_t *h;
    int no;
 
-   /* Trial division. */
-   int no_n;
-   mpz_t *l;
+   /* Tree gcd. */
+   int no_m;
+   mpz_t *m, *gcd;
 
    mpz_init (N);
    mpz_init (primorialB);
@@ -582,34 +581,33 @@ static void mpi_worker ()
             MPI_TAG_DATA, MPI_COMM_WORLD);
          free (h);
          break;
-      case MPI_TAG_JOB_TRIAL_DIV:
+      case MPI_TAG_JOB_TREE_GCD:
          cm_timer_start (stat->timer [0]);
-         MPI_Recv (&no_n, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
+         MPI_Recv (&no_m, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
             &status);
-         card = (mpz_t *) malloc (no_n * sizeof (mpz_t));
-         l = (mpz_t *) malloc (no_n * sizeof (mpz_t));
-         for (i = 0; i < no_n; i++) {
-            mpz_init (card [i]);
-            mpi_recv_mpz (card [i], 0);
-            mpz_init (l [i]);
+         m = (mpz_t *) malloc (no_m * sizeof (mpz_t));
+         gcd = (mpz_t *) malloc (no_m * sizeof (mpz_t));
+         for (i = 0; i < no_m; i++) {
+            mpz_init (m [i]);
+            mpi_recv_mpz (m [i], 0);
+            mpz_init (gcd [i]);
          }
 
-         cm_ecpp_trial_div (l, card, no_n, primorialB);
+         cm_mpz_tree_gcd (gcd, primorialB, m, no_m);
 
-         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TRIAL_DIV,
+         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TREE_GCD,
             MPI_COMM_WORLD);
-         MPI_Send (&no_n, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
-         for (i = 0; i < no_n; i++)
-            mpi_send_mpz (l [i], 0);
+         MPI_Send (&no_m, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
+         for (i = 0; i < no_m; i++) {
+            mpi_send_mpz (gcd [i], 0);
+            mpz_clear (m [i]);
+            mpz_clear (gcd [i]);
+         }
          cm_timer_stop (stat->timer [0]);
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);
-         for (i = 0; i < no_n; i++) {
-            mpz_clear (card [i]);
-            mpz_clear (l [i]);
-         }
-         free (card);
-         free (l);
+         free (m);
+         free (gcd);
          break;
       case MPI_TAG_FINISH:
          finish = true;
