@@ -199,6 +199,8 @@ extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
 
 
 /* functions for ECPP */
+extern void cm_pari_prime_product (mpz_ptr prim, unsigned long int a,
+   unsigned long int b);
 extern bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
 extern void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin,

@@ -411,6 +411,21 @@ int cm_pari_classgroup_2quotient (int_cl_t disc, const int *p,
 /*                                                                           */
 /*****************************************************************************/
 
+void cm_pari_prime_product (mpz_ptr prim, unsigned long int a,
+   unsigned long int b)
+   /* Return in prim the product of all primes p with a < p <= b. */
+{
+   pari_sp av;
+   GEN res;
+
+   av = avma;
+   res = zv_prod_Z (primes_interval_zv (a+1, b));
+   Z_get_mpz (prim, res);
+   avma = av;
+}
+
+/*****************************************************************************/
+
 bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d)
    /* The function has the same interface as cm_nt_mpz_cornacchia. As PARI
