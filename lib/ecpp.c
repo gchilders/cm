@@ -36,12 +36,16 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const double prob, bool debug);
 static int disc_cmp (const void* d1, const void* d2);
+static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *qroot);
 static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
+   int_cl_t *d, int no_d,
 #ifndef WITH_MPI
    mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *qroot,
 #endif
-   int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat);
+   cm_stat_ptr stat);
 static int card_cmp (const void* c1, const void* c2);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
@@ -589,54 +593,51 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 
 /*****************************************************************************/
 
-void cm_ecpp_sqrt_d (mpz_t *Droot, int_cl_t *d, int no_d, mpz_srcptr N,
-   long int *qstar, int no_qstar, mpz_t *root)
-   /* Given an array of no_d discriminants d which factor over the array
-      of no_qstar "signed primes" qstar, and given the roots of qstar
-      modulo N in root, compute and return in Droot the roots of the d.
-      Droots needs to contain enough space with all entries initialised.
+static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *qroot)
+   /* Given a discriminant d which factors over the array of no_qstar
+      signed primes qstar, and given the roots of qstar modulo N in qroot,
+      compute and return in Droot the root of the d.
       By trial dividing d over qstar, it is enough to multiply the
       corresponding roots together; however, the "even primes" need special
       care, in particular for the sign of 8. */
 {
-   int i, j;
-   int_cl_t disc;
+   int i;
 
-   for (i = 0; i < no_d; i++) {
-      disc = d [i];
-      mpz_set_ui (Droot [i], 1);
-      for (j = 0; j < no_qstar; j++)
-         if (qstar [j] % 2 != 0 && disc % qstar [j] == 0) {
-            mpz_mul (Droot [i], Droot [i], root [j]);
-            mpz_mod (Droot [i], Droot [i], N);
-            disc /= qstar [j];
-         }
-      if (disc != 1) {
-         for (j = 0; disc != qstar [j]; j++);
-         mpz_mul (Droot [i], Droot [i], root [j]);
-         mpz_mod (Droot [i], Droot [i], N);
+   mpz_set_ui (Droot, 1);
+   for (i = 0; i < no_qstar; i++)
+      if (qstar [i] % 2 != 0 && d % qstar [i] == 0) {
+         mpz_mul (Droot, Droot, qroot [i]);
+         mpz_mod (Droot, Droot, N);
+         d /= qstar [i];
       }
+   if (d != 1) {
+      for (i = 0; d != qstar [i]; i++);
+      mpz_mul (Droot, Droot, qroot [i]);
+      mpz_mod (Droot, Droot, N);
    }
 }
 
 /*****************************************************************************/
 
-int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
-   int_cl_t d)
-   /* Given N prime, a discriminant d composed of split primes modulo N,
-      and a square root of d modulo N in root, the function computes the
-      array of 0 (in the case that N is not a norm in Q(\sqrt d), which
-      happens with probability 1 - 1 / (h/g)), 2, 4 or 6 (depending on
-      the number of twists) possible cardinalities of elliptic curves
-      modulo N with CM by d. The cardinalities are stored in n, the entries
-      of which need to be initialised, and their number is returned. */
+int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, int_cl_t d,
+   long int *qstar, int no_qstar, mpz_t *qroot)
+   /* Given N prime, a list of no_qstar signed primes in qstar, their
+      roots modulo N in qroot and a discriminant d that factors over qstar,
+      the function computes the array of 0 (in the case that N is not a
+      norm in Q(\sqrt d), which happens with probability 1 - 1 / (h/g)),
+      2, 4 or 6 (depending on the number of twists) possible cardinalities
+      of elliptic curves modulo N with CM by d. The cardinalities are
+      stored in n, the entries of which need to be initialised, and their
+      number is returned. */
 {
    int res;
-   mpz_t t, v;
+   mpz_t root, t, v;
    mpz_ptr V;
    int twists;
    bool cornacchia;
 
+   mpz_init (root);
    mpz_init (t);
    if (d == -3 || d == -4) {
       mpz_init (v);
@@ -651,6 +652,7 @@ int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
       twists = 2;
    }
 
+   sqrt_d (root, d, N, qstar, no_qstar, qroot);
    cornacchia = cm_pari_cornacchia (t, V, N, root, d);
    if (cornacchia) {
       res = twists;
@@ -681,6 +683,7 @@ int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
 
    if (d == -3 || d == -4)
       mpz_clear (v);
+   mpz_clear (root);
    mpz_clear (t);
 
    return res;
@@ -689,12 +692,15 @@ int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, mpz_srcptr root,
 /*****************************************************************************/
 
 static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
+   int_cl_t *d, int no_d,
 #ifndef WITH_MPI
    mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *qroot,
 #endif
-   int no_d, mpz_t *root, int_cl_t *d, cm_stat_ptr stat)
-   /* Given a prime N, a list of no_d fastECPP discriminants in d and an
-      array of their square roots modulo N in root, compute and return the
+   cm_stat_ptr stat)
+   /* Given a prime N, a list of no_d fastECPP discriminants in d factoring
+      over the array qstar of no_qstar signed primes and the array qroot
+      of the square roots of qstar modulo N, compute and return the
       array of possible CM cardinalities. The number of cardinalities is
       returned via no_card. The newly allocated array card_d contains for
       each cardinality the associated discriminant. */
@@ -723,8 +729,8 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
 #ifndef WITH_MPI
    cm_timer_continue (stat->timer [3]);
    for (i = 0; i < no_d; i++)
-      twists [i] = cm_ecpp_curve_cardinalities (card [i], N, root [i],
-         d [i]);
+      twists [i] = cm_ecpp_curve_cardinalities (card [i], N, d [i],
+         qstar, no_qstar, qroot);
    cm_timer_stop (stat->timer [3]);
 #else
    sent = 0;
@@ -733,8 +739,7 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    cm_timer_continue (stat->timer [3]);
    while (received < no_d) {
       if (sent < no_d && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_curve_cardinalities (rank, sent, root [sent],
-            d [sent]);
+         cm_mpi_submit_curve_cardinalities (rank, sent, d [sent]);
          sent++;
       }
       else {
@@ -1051,10 +1056,10 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int no_qstar_old, no_qstar_new, no_qstar;
    long int *qstar;
    long int q;
-   mpz_t *root, *Droot, *card, *l_list;
+   mpz_t *root, *card, *l_list;
    int_cl_t d;
    int_cl_t *dlist, *d_card;
-   int no_d, no_card, batch, no_d_batch, no_card_batch;
+   int no_d, no_card, batch, no_card_batch;
    int i, max_i;
    const double prob = 1.7811
       * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
@@ -1065,7 +1070,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          of its primorial. */
 #ifdef WITH_MPI
    MPI_Status status;
-   int sent, received, size, rank, job;
+   int size, rank, job;
    double t;
    cm_stat_t stat_worker;
 #endif
@@ -1095,11 +1100,10 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
             no_qstar_new, stat);
 #ifdef WITH_MPI
-      cm_timer_continue (stat->timer [4]);
-         /* Count the broadcasting into the sqrt step. */
+      cm_timer_continue (stat->timer [0]);
       cm_mpi_broadcast_sqrt (no_qstar_new, qstar + no_qstar_old,
          root + no_qstar_old);
-      cm_timer_stop (stat->timer [4]);
+      cm_timer_stop (stat->timer [0]);
 #endif
       stat->counter [0] += no_qstar_new;
 
@@ -1108,63 +1112,12 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
             no_qstar_new, max_factors, Dmax, hmaxprime, h, prob, debug);
 
-      /* Precompute their square roots modulo N in batches, which is useful
-         for parallelisation. */
-      Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
-      for (i = 0; i < no_d; i++)
-         mpz_init (Droot [i]);
-#ifndef WITH_MPI
-      batch = no_d;
-#else
-      MPI_Comm_size (MPI_COMM_WORLD, &size);
-      batch = (no_d + size - 2) / (size - 1);
-#endif
-      max_i = (no_d + batch - 1) / batch;
-#ifndef WITH_MPI
-      cm_timer_continue (stat->timer [4]);
-      for (i = 0; i < max_i; i++) {
-         no_d_batch = no_d - i * batch;
-         if (no_d_batch > batch)
-            no_d_batch = batch;
-         cm_ecpp_sqrt_d (Droot + i * batch, dlist + i * batch, no_d_batch,
-               N, qstar, no_qstar, root);
-      }
-      cm_timer_stop (stat->timer [4]);
-#else
-      sent = 0;
-      received = 0;
-      t = cm_timer_get (stat->timer [4]);
-      cm_timer_continue (stat->timer [4]);
-      while (received < max_i) {
-         if (sent < max_i && (rank = cm_mpi_queue_pop ()) != -1) {
-            no_d_batch = no_d - sent * batch;
-            if (no_d_batch > batch)
-               no_d_batch = batch;
-            cm_mpi_submit_sqrt_d (rank, sent, dlist + sent * batch,
-               no_d_batch);
-            sent++;
-         }
-         else {
-            MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-                  MPI_COMM_WORLD, &status);
-            rank = status.MPI_SOURCE;
-            cm_mpi_get_sqrt_d (Droot + job * batch, rank, stat_worker);
-            t += cm_timer_get (stat_worker->timer [4]);
-            cm_mpi_queue_push (rank);
-            received++;
-         }
-      }
-      cm_timer_stop (stat->timer [4]);
-      stat->timer [4]->elapsed = t;
-#endif
-      stat->counter [4] += no_d;
-
       /* Compute the cardinalities of the corresponding elliptic curves. */
-      card = compute_cardinalities (&no_card, &d_card,
+      card = compute_cardinalities (&no_card, &d_card, dlist, no_d,
 #ifndef WITH_MPI
-         N,
+         N, qstar, no_qstar, root,
 #endif
-         no_d, Droot, dlist, stat);
+         stat);
 
       if (no_card > 0) {
          /* Remove smooth parts of cardinalities. */
@@ -1174,6 +1127,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #ifndef WITH_MPI
          batch = no_card;
 #else
+         MPI_Comm_size (MPI_COMM_WORLD, &size);
          batch = (no_card + size - 2) / (size - 1);
 #endif
          max_i = (no_card + batch - 1) / batch;
@@ -1220,9 +1174,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       }
 
       free (dlist);
-      for (i = 0; i < no_d; i++)
-         mpz_clear (Droot [i]);
-      free (Droot);
       for (i = 0; i < no_card; i++)
          mpz_clear (card [i]);
       free (card);
@@ -1328,9 +1279,6 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
             printf ("%6i qstar:      %.1f (%.1f)\n", stat->counter [0],
                cm_timer_get (stat->timer [0]),
                cm_timer_wc_get (stat->timer [0]));
-            printf ("%6i sqrt:       %.1f (%.1f)\n", stat->counter [4],
-               cm_timer_get (stat->timer [4]),
-               cm_timer_wc_get (stat->timer [4]));
             printf ("%6i Cornacchia: %.1f (%.1f)\n", stat->counter [3],
                cm_timer_get (stat->timer [3]),
                cm_timer_wc_get (stat->timer [3]));

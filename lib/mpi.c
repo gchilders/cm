@@ -30,12 +30,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_CARD                 5
 #define MPI_TAG_JOB_PRIME                6
 #define MPI_TAG_JOB_H                    7
-#define MPI_TAG_JOB_SQRT                 8
-#define MPI_TAG_JOB_TRIAL_DIV            9
-#define MPI_TAG_JOB_BROADCAST_N         10
-#define MPI_TAG_JOB_BROADCAST_PRIMORIAL 11
-#define MPI_TAG_JOB_BROADCAST_SQRT      12
-#define MPI_TAG_JOB_CLEAR_N             13
+#define MPI_TAG_JOB_TRIAL_DIV            8
+#define MPI_TAG_JOB_BROADCAST_N          9
+#define MPI_TAG_JOB_BROADCAST_PRIMORIAL 10
+#define MPI_TAG_JOB_BROADCAST_SQRT      11
+#define MPI_TAG_JOB_CLEAR_N             12
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -254,15 +253,13 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_curve_cardinalities (int rank, int job, mpz_srcptr root,
-   int_cl_t d)
+void cm_mpi_submit_curve_cardinalities (int rank, int job, int_cl_t d)
    /* Submit the job of the given number for determining a list of 0 to 6
       potential curve cardinalities to the worker of the given rank; the
       other parameters are as the input in cm_ecpp_curve_cardinalities
       in ecpp.c. */
 {
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_CARD, MPI_COMM_WORLD);
-   mpi_send_mpz (root, rank);
    MPI_Send (&d, 1, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
 }
 
@@ -338,34 +335,6 @@ void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat)
    MPI_Recv (h, no, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
       NULL);
    MPI_Recv (&(stat->timer [5]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
-}
-
-/*****************************************************************************/
-
-void cm_mpi_submit_sqrt_d (int rank, int job, int_cl_t *d, int no_d)
-   /* Submit the job of the given number for computing square roots of a
-      batch of discriminants to the worker of the given rank; the other
-      parameters are as the input of cm_ecpp_sqrt_d in ecpp.c. */
-{
-   MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_SQRT, MPI_COMM_WORLD);
-   MPI_Send (&no_d, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-   MPI_Send (d, no_d, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
-}
-
-/*****************************************************************************/
-
-void cm_mpi_get_sqrt_d (mpz_t *Droot, int rank, cm_stat_ptr stat)
-   /* Get the result of a discriminant square root job from worker rank and
-      put it into Droot, as output by cm_ecpp_sqrt_d in ecpp.c.
-      Timing information from the worker is returned in stat. */
-{
-   int no_d, i;
-
-   MPI_Recv (&no_d, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-   for (i = 0; i < no_d; i++)
-      mpi_recv_mpz (Droot [i], rank);
-   MPI_Recv (&(stat->timer [4]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
       MPI_COMM_WORLD, NULL);
 }
 
@@ -447,11 +416,6 @@ static void mpi_worker ()
    /* Compute a chunk of h. */
    uint_cl_t Dmin, Dmax;
    uint_cl_t *h;
-
-   /* Square roots of discriminants. */
-   int no_d;
-   int_cl_t *disc;
-   mpz_t *Droot;
 
    /* Trial division. */
    int no_n;
@@ -553,11 +517,10 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_CARD:
          cm_timer_start (stat->timer [0]);
-         mpi_recv_mpz (root, 0);
          MPI_Recv (&d, 1, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
             &status);
 
-         no = cm_ecpp_curve_cardinalities (n, N, root, d);
+         no = cm_ecpp_curve_cardinalities (n, N, d, qstar, no_qstar, qroot);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_CARD, MPI_COMM_WORLD);
          MPI_Send (&no, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
@@ -597,31 +560,6 @@ static void mpi_worker ()
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);
          free (h);
-         break;
-      case MPI_TAG_JOB_SQRT:
-         cm_timer_start (stat->timer [0]);
-         MPI_Recv (&no_d, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            &status);
-         disc = (int_cl_t *) malloc (no_d * sizeof (int_cl_t));
-         MPI_Recv (disc, no_d, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            &status);
-         Droot = (mpz_t *) malloc (no_d * sizeof (mpz_t));
-         for (i = 0; i < no_d; i++)
-            mpz_init (Droot [i]);
-
-         cm_ecpp_sqrt_d (Droot, disc, no_d, N, qstar, no_qstar, qroot);
-         free (disc);
-
-         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_SQRT, MPI_COMM_WORLD);
-         MPI_Send (&no_d, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
-         for (i = 0; i < no_d; i++)
-            mpi_send_mpz (Droot [i], 0);
-         cm_timer_stop (stat->timer [0]);
-         MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
-            MPI_TAG_DATA, MPI_COMM_WORLD);
-         for (i = 0; i < no_d; i++)
-            mpz_clear (Droot [i]);
-         free (Droot);
          break;
       case MPI_TAG_JOB_TRIAL_DIV:
          cm_timer_start (stat->timer [0]);
