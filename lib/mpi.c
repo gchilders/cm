@@ -253,33 +253,43 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_curve_cardinalities (int rank, int job, int_cl_t d)
-   /* Submit the job of the given number for determining a list of 0 to 6
-      potential curve cardinalities to the worker of the given rank; the
-      other parameters are as the input in cm_ecpp_curve_cardinalities
-      in ecpp.c. */
+void cm_mpi_submit_curve_cardinalities (int rank, int job, int_cl_t *d,
+   int no_d)
+   /* Submit the job of the given number for determining a list of
+      potential curve cardinalities for the array of no_d discriminants
+      in d to the worker of the given rank. */
 {
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_CARD, MPI_COMM_WORLD);
-   MPI_Send (&d, 1, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+   MPI_Send (&no_d, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+   MPI_Send (d, no_d, MPI_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
 }
 
 /*****************************************************************************/
 
-int cm_mpi_get_curve_cardinalities (mpz_t *n, int rank, cm_stat_ptr stat)
-   /* Get the result of a curve cardinality job from worker rank and
-      put it into n, as output by cm_ecpp_curve_cardinalities in ecpp.c.
+mpz_t* cm_mpi_get_curve_cardinalities (int *no_card, int_cl_t **card_d,
+   int rank, cm_stat_ptr stat)
+   /* Get the result of a curve cardinality job from worker rank.
       Timing information from the worker is returned in stat.
-      The return value is the number of cardinalities. */
+      Parameters and the return value are as in
+      cm_ecpp_compute_cardinalities; in particular, card_d and the
+      return value are newly allocated arrays. */
 {
-   int i, no;
+   mpz_t *res;
+   int i;
 
-   MPI_Recv (&no, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-   for (i = 0; i < no; i++)
-      mpi_recv_mpz (n [i], rank);
+   MPI_Recv (no_card, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   *card_d = (int_cl_t *) malloc (*no_card * sizeof (int_cl_t));
+   res = (mpz_t *) malloc (*no_card * sizeof (mpz_t));
+   MPI_Recv (*card_d, *no_card, MPI_LONG, rank, MPI_TAG_DATA,
+      MPI_COMM_WORLD, NULL);
+   for (i = 0; i < *no_card; i++) {
+      mpz_init (res [i]);
+      mpi_recv_mpz (res [i], rank);
+   }
    MPI_Recv (&(stat->timer [3]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
       MPI_COMM_WORLD, NULL);
 
-   return no;
+   return res;
 }
 
 /*****************************************************************************/
@@ -405,9 +415,10 @@ static void mpi_worker ()
    int len, tower;
 
    /* Curve cardinalities. */
-   mpz_t n [6];
-   int_cl_t d;
-   int no;
+   int_cl_t *d;
+   int no_d, no_card;
+   int_cl_t *card_d;
+   mpz_t *card;
 
    /* Prime test. */
    mpz_t p;
@@ -416,10 +427,11 @@ static void mpi_worker ()
    /* Compute a chunk of h. */
    uint_cl_t Dmin, Dmax;
    uint_cl_t *h;
+   int no;
 
    /* Trial division. */
    int no_n;
-   mpz_t *card, *l;
+   mpz_t *l;
 
    mpz_init (N);
    mpz_init (primorialB);
@@ -431,10 +443,8 @@ static void mpi_worker ()
    mpz_init (root);
    for (i = 0; i < 4; i++)
       mpz_init (cert1 [i]);
-   for (i = 0; i < 6; i++) {
+   for (i = 0; i < 6; i++)
       mpz_init (cert2 [i]);
-      mpz_init (n [i]);
-   }
    mpz_init (p);
 
    /* Gather data. */
@@ -517,18 +527,29 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_CARD:
          cm_timer_start (stat->timer [0]);
-         MPI_Recv (&d, 1, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            &status);
+         MPI_Recv (&no_d, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
+            NULL);
+         d = (int_cl_t *) malloc (no_d * sizeof (int_cl_t));
+         MPI_Recv (d, no_d, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
+            NULL);
 
-         no = cm_ecpp_curve_cardinalities (n, N, d, qstar, no_qstar, qroot);
+         card = cm_ecpp_compute_cardinalities (&no_card, &card_d, d, no_d,
+            N, qstar, no_qstar, qroot);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_CARD, MPI_COMM_WORLD);
-         MPI_Send (&no, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
-         for (i = 0; i < no; i++)
-            mpi_send_mpz (n [i], 0);
+         MPI_Send (&no_card, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
+         MPI_Send (card_d, no_card, MPI_LONG, 0, MPI_TAG_DATA,
+            MPI_COMM_WORLD);
+         for (i = 0; i < no_card; i++) {
+            mpi_send_mpz (card [i], 0);
+            mpz_clear (card [i]);
+         }
          cm_timer_stop (stat->timer [0]);
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);
+         free (d);
+         free (card_d);
+         free (card);
          break;
       case MPI_TAG_JOB_PRIME:
          cm_timer_start (stat->timer [0]);
@@ -609,10 +630,8 @@ static void mpi_worker ()
    mpz_clear (p);
    for (i = 0; i < 4; i++)
       mpz_clear (cert1 [i]);
-   for (i = 0; i < 6; i++) {
+   for (i = 0; i < 6; i++)
       mpz_clear (cert2 [i]);
-      mpz_clear (n [i]);
-   }
 }
 
 /*****************************************************************************/

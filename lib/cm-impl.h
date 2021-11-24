@@ -203,8 +203,9 @@ extern bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
 extern void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin,
    uint_cl_t Dmax);
-extern int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N,
-   int_cl_t d, long int *qstar, int no_qstar, mpz_t *qroot);
+extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
+   int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *qroot);
 extern void cm_ecpp_trial_div (mpz_t *l, mpz_t *n, int no_n,
    mpz_srcptr primorialB);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
@@ -231,9 +232,9 @@ extern void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
 extern void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank,
    cm_stat_ptr stat);
 extern void cm_mpi_submit_curve_cardinalities (int rank, int job,
-   int_cl_t d);
-extern int cm_mpi_get_curve_cardinalities (mpz_t *n, int rank,
-   cm_stat_ptr stat);
+   int_cl_t *d, int no_d);
+extern mpz_t* cm_mpi_get_curve_cardinalities (int *no_card,
+   int_cl_t **card_d, int rank, cm_stat_ptr stat);
 extern void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n);
 extern bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat);
 extern void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,

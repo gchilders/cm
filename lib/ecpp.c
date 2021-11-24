@@ -39,13 +39,8 @@ static int disc_cmp (const void* d1, const void* d2);
 static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
 static void mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
-static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   int_cl_t *d, int no_d,
-#ifndef WITH_MPI
-   mpz_srcptr N,
-   long int *qstar, int no_qstar, mpz_t *qroot,
-#endif
-   cm_stat_ptr stat);
+static int curve_cardinalities (mpz_t *n, mpz_srcptr N,
+   int_cl_t d, long int *qstar, int no_qstar, mpz_t *qroot);
 static int card_cmp (const void* c1, const void* c2);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
@@ -620,7 +615,7 @@ static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
 
 /*****************************************************************************/
 
-int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, int_cl_t d,
+static int curve_cardinalities (mpz_t *n, mpz_srcptr N, int_cl_t d,
    long int *qstar, int no_qstar, mpz_t *qroot)
    /* Given N prime, a list of no_qstar signed primes in qstar, their
       roots modulo N in qroot and a discriminant d that factors over qstar,
@@ -691,13 +686,9 @@ int cm_ecpp_curve_cardinalities (mpz_t *n, mpz_srcptr N, int_cl_t d,
 
 /*****************************************************************************/
 
-static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
-   int_cl_t *d, int no_d,
-#ifndef WITH_MPI
-   mpz_srcptr N,
-   long int *qstar, int no_qstar, mpz_t *qroot,
-#endif
-   cm_stat_ptr stat)
+extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
+   int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
+   long int *qstar, int no_qstar, mpz_t *qroot)
    /* Given a prime N, a list of no_d fastECPP discriminants in d factoring
       over the array qstar of no_qstar signed primes and the array qroot
       of the square roots of qstar modulo N, compute and return the
@@ -709,12 +700,6 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_t **card;
    int *twists;
    int i, j, k;
-#ifdef WITH_MPI
-   MPI_Status status;
-   int sent, received, rank, job;
-   double t;
-   cm_stat_t stat_worker;
-#endif
 
    /* For each discriminant, compute the potential cardinalities in
       separate memory locations. */
@@ -726,37 +711,9 @@ static mpz_t* compute_cardinalities (int *no_card, int_cl_t **card_d,
          mpz_init (card [i][j]);
    }
 
-#ifndef WITH_MPI
-   cm_timer_continue (stat->timer [3]);
    for (i = 0; i < no_d; i++)
-      twists [i] = cm_ecpp_curve_cardinalities (card [i], N, d [i],
+      twists [i] = curve_cardinalities (card [i], N, d [i],
          qstar, no_qstar, qroot);
-   cm_timer_stop (stat->timer [3]);
-#else
-   sent = 0;
-   received = 0;
-   t = cm_timer_get (stat->timer [3]);
-   cm_timer_continue (stat->timer [3]);
-   while (received < no_d) {
-      if (sent < no_d && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_curve_cardinalities (rank, sent, d [sent]);
-         sent++;
-      }
-      else {
-         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-            MPI_COMM_WORLD, &status);
-         rank = status.MPI_SOURCE;
-         twists [job] = cm_mpi_get_curve_cardinalities (card [job], rank,
-            stat_worker);
-         t += cm_timer_get (stat_worker->timer [3]);
-         cm_mpi_queue_push (rank);
-         received++;
-      }
-   }
-   cm_timer_stop (stat->timer [3]);
-   stat->timer [3]->elapsed = t;
-#endif
-   stat->counter [3] += no_d;
 
    /* Count the number of obtained cardinalities. */
    *no_card = 0;
@@ -1059,7 +1016,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *root, *card, *l_list;
    int_cl_t d;
    int_cl_t *dlist, *d_card;
-   int no_d, no_card, batch, no_card_batch;
+   int no_d, no_card, batch, no_card_b;
    int i, max_i;
    const double prob = 1.7811
       * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
@@ -1073,6 +1030,10 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int size, rank, job;
    double t;
    cm_stat_t stat_worker;
+   int_cl_t **d_card_batch;
+   mpz_t **card_batch;
+   int *no_card_batch;
+   int j;
 #endif
 
    d = 0;
@@ -1113,11 +1074,57 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             no_qstar_new, max_factors, Dmax, hmaxprime, h, prob, debug);
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
-      card = compute_cardinalities (&no_card, &d_card, dlist, no_d,
 #ifndef WITH_MPI
-         N, qstar, no_qstar, root,
+      cm_timer_continue (stat->timer [3]);
+      card = cm_ecpp_compute_cardinalities (&no_card, &d_card, dlist, no_d,
+         N, qstar, no_qstar, root);
+      cm_timer_stop (stat->timer [3]);
+      stat->counter [3] += no_d;
+#else
+      cm_timer_continue (stat->timer [3]);
+      MPI_Comm_size (MPI_COMM_WORLD, &size);
+      batch = (no_d + size - 2) / (size - 1);
+      max_i = (no_d + batch - 1) / batch;
+      no_card_batch = (int *) malloc (max_i * sizeof (int));
+      d_card_batch = (int_cl_t **) malloc (max_i * sizeof (int_cl_t *));
+      card_batch = (mpz_t **) malloc (max_i * sizeof (mpz_t *));
+      for (i = 0; i < max_i; i++) {
+         rank = cm_mpi_queue_pop ();
+         cm_mpi_submit_curve_cardinalities (rank, i, dlist + i * batch,
+            (i == max_i - 1 ? no_d - (max_i - 1) * batch : batch));
+      }
+      cm_timer_stop (stat->timer [3]);
+      t = cm_timer_get (stat->timer [1]);
+      cm_timer_continue (stat->timer [3]);
+      for (i = 0; i < max_i; i++) {
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+               MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         card_batch [i] = cm_mpi_get_curve_cardinalities (no_card_batch + i,
+            d_card_batch + i, rank, stat_worker);
+         t += cm_timer_get (stat_worker->timer [3]);
+         cm_mpi_queue_push (rank);
+      }
+      for (no_card = 0, i = 0; i < max_i; i++)
+         no_card += no_card_batch [i];
+      d_card = (int_cl_t *) malloc (no_card * sizeof (int_cl_t));
+      card = (mpz_t *) malloc (no_card * sizeof (mpz_t));
+      for (no_card = 0, i = 0; i < max_i; i++) {
+         for (j = 0; j < no_card_batch [i]; j++) {
+            d_card [no_card + j] = d_card_batch [i][j];
+            card [no_card + j][0] = card_batch [i][j][0];
+         }
+         no_card += no_card_batch [i];
+         free (d_card_batch [i]);
+         free (card_batch [i]);
+      }
+      free (no_card_batch);
+      free (d_card_batch);
+      free (card_batch);
+      cm_timer_stop (stat->timer [3]);
+      stat->timer [3]->elapsed = t;
+      stat->counter [3] += no_d;
 #endif
-         stat);
 
       if (no_card > 0) {
          /* Remove smooth parts of cardinalities. */
@@ -1127,7 +1134,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #ifndef WITH_MPI
          batch = no_card;
 #else
-         MPI_Comm_size (MPI_COMM_WORLD, &size);
          batch = (no_card + size - 2) / (size - 1);
 #endif
          max_i = (no_card + batch - 1) / batch;
@@ -1136,16 +1142,16 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #endif
          cm_timer_continue (stat->timer [1]);
          for (i = 0; i < max_i; i++) {
-            no_card_batch = no_card - i * batch;
-            if (no_card_batch > batch)
-               no_card_batch = batch;
+            no_card_b = no_card - i * batch;
+            if (no_card_b > batch)
+               no_card_b = batch;
 #ifndef WITH_MPI
             cm_ecpp_trial_div (l_list + i * batch, card + i * batch,
-               no_card_batch, primorialB);
+               no_card_b, primorialB);
 #else
             rank = cm_mpi_queue_pop ();
             cm_mpi_submit_trial_div (rank, i, card + i * batch,
-               no_card_batch);
+               no_card_b);
 #endif
          }
          cm_timer_stop (stat->timer [1]);
