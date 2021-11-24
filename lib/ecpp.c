@@ -1017,8 +1017,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    mpz_t *root, *card, *l_list;
    int_cl_t d;
    int_cl_t *dlist, *d_card;
-   int no_d, no_card, batch, no_card_b;
-   int i, max_i;
+   int no_d, no_card;
+   int i;
    const double prob = 1.7811
       * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
       / mpz_sizeinbase (N, 2);
@@ -1031,6 +1031,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int size, rank, job;
    double t;
    cm_stat_t stat_worker;
+   int batch, max_i;
    int_cl_t **d_card_batch;
    mpz_t **card_batch;
    int *no_card_batch;
@@ -1095,7 +1096,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             (i == max_i - 1 ? no_d - (max_i - 1) * batch : batch));
       }
       cm_timer_stop (stat->timer [3]);
-      t = cm_timer_get (stat->timer [1]);
+      t = cm_timer_get (stat->timer [3]);
       cm_timer_continue (stat->timer [3]);
       for (i = 0; i < max_i; i++) {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
@@ -1133,30 +1134,21 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          for (i = 0; i < no_card; i++)
             mpz_init (l_list [i]);
 #ifndef WITH_MPI
-         batch = no_card;
+         cm_timer_continue (stat->timer [1]);
+         cm_ecpp_trial_div (l_list, card, no_card, primorialB);
+         cm_timer_stop (stat->timer [1]);
+         stat->counter [1]++;
 #else
          batch = (no_card + size - 2) / (size - 1);
-#endif
          max_i = (no_card + batch - 1) / batch;
-#ifdef WITH_MPI
-         t = cm_timer_get (stat->timer [1]);
-#endif
          cm_timer_continue (stat->timer [1]);
          for (i = 0; i < max_i; i++) {
-            no_card_b = no_card - i * batch;
-            if (no_card_b > batch)
-               no_card_b = batch;
-#ifndef WITH_MPI
-            cm_ecpp_trial_div (l_list + i * batch, card + i * batch,
-               no_card_b, primorialB);
-#else
             rank = cm_mpi_queue_pop ();
             cm_mpi_submit_trial_div (rank, i, card + i * batch,
-               no_card_b);
-#endif
+               (i == max_i - 1 ? no_card - (max_i - 1) * batch : batch));
          }
          cm_timer_stop (stat->timer [1]);
-#ifdef WITH_MPI
+         t = cm_timer_get (stat->timer [1]);
          cm_timer_continue (stat->timer [1]);
          for (i = 0; i < max_i; i++) {
             MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
@@ -1169,8 +1161,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          }
          cm_timer_stop (stat->timer [1]);
          stat->timer [1]->elapsed = t;
-#endif
          stat->counter [1] += max_i;
+#endif
 
          d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
                no_card, delta, stat);
