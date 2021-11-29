@@ -34,8 +34,10 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
 static int disc_cmp (const void* d1, const void* d2);
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const double prob, bool debug);
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
+static double expected_no_curves (long int *qstar, int no_qstar_old,
+   int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
+   uint_cl_t hmaxprime, uint_cl_t *h);
 static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #ifndef WITH_MPI
    mpz_srcptr p,
@@ -56,8 +58,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    const unsigned int delta, cm_stat_t stat);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const unsigned int delta, mpz_srcptr primorialB,
-   bool debug, cm_stat_t stat);
+   const unsigned int delta, mpz_srcptr primorialB, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    bool debug, cm_stat_ptr stat);
@@ -509,22 +510,14 @@ static int disc_cmp (const void* d1, const void* d2)
 
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const double prob, bool debug)
+   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). But instead of an unsorted
       double array, it returns a simple array of discriminants sorted
-      according to the usefulness in ECPP.
-      The argument prob serves for debugging purposes; it gives the
-      probability, computed from the size of the number to be proved prime
-      and the trial division bound, that a curve cardinality will lead to
-      success in this step. */
+      according to the usefulness in ECPP. */
 {
    int_cl_t **dlist;
    int_cl_t *d;
-   double exp_card;
-      /* the expected number of curve cardinalities; the sum over
-         #twists * (g/h) */
    int i;
 
    dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar_new,
@@ -532,13 +525,41 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    if (*no_d > 0)
       qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
 
-   exp_card = 0;
    d = (int_cl_t *) malloc (*no_d * sizeof (int_cl_t));
    for (i = 0; i < *no_d; i++) {
       d [i] = dlist [i][0];
-      if (d [i] == -3)
+      free (dlist [i]);
+   }
+   free (dlist);
+
+   return d;
+}
+
+/*****************************************************************************/
+
+static double expected_no_curves (long int *qstar, int no_qstar_old,
+   int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
+   uint_cl_t hmaxprime, uint_cl_t *h)
+   /* The function takes the same parameters as compute_discriminants (and
+      most of them are just passed through). It returns the expected
+      number of curve cardinalities obtained from the list of discriminants
+      computed by compute_discriminants. */
+{
+   int_cl_t **dlist;
+   int no_d;
+   double exp_card;
+      /* the expected number of curve cardinalities; the sum over
+         #twists * (g/h) */
+   int i;
+
+   dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar_new,
+      max_factors, Dmax, hmaxprime, h);
+
+   exp_card = 0;
+   for (i = 0; i < no_d; i++) {
+      if (dlist [i][0] == -3)
          exp_card += 6.0;
-      else if (d [i] == -4)
+      else if (dlist [i][0] == -4)
          exp_card += 4.0;
       else
          exp_card += 2.0 / dlist [i][2];
@@ -546,11 +567,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    }
    free (dlist);
 
-   if (debug)
-      printf ("   expected number of curves: %.0f, of primes: %.1f\n",
-         exp_card, exp_card * prob);
-
-   return d;
+   return exp_card;
 }
 
 /*****************************************************************************/
@@ -1052,8 +1069,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const unsigned int delta, mpz_srcptr primorialB,
-   bool debug, cm_stat_t stat)
+   const unsigned int delta, mpz_srcptr primorialB, cm_stat_t stat)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
@@ -1063,39 +1079,22 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       primorialB is passed through to trial division. */
 {
    const int max_factors = 4;
-   const int no_qstar_delta [] =
-#ifndef WITH_MPI
-      { 20, 40, 50 };
-         /* Number of new qstar to add, chosen by roughly optimising
-            the time for removing the first 1000 bits of
-            nextprime (10^(1000*(i+1))) with the sequential
-            implementation. */
-#else
-      { 90, 110, 120, 180, 180 };
-#endif
-      /* In position i, number of new qstar to add when treating numbers
-         with between i*1000 and (i+1)*1000 digits. The value is chosen as
-         the smallest multiple of 10 working for nextprime(10^(1000*(i+1)))
-         (with the implementation at the time of making this optimisation)
-         in the sense that for removing the first 1000 digits the number
-         of qstar is enough. The idea is to choose a rather large value to
-         work (almost) all the time to minimise the number of trial
-         divisions, which are difficult to parallelise efficiently. */
-   int no_qstar_old, no_qstar_new, no_qstar;
+   int no_qstar_old, no_qstar_new, no_qstar, no_qstar_delta;
    long int *qstar;
    long int q;
    mpz_t *root, *card, *l_list;
    int_cl_t d;
    int_cl_t *dlist, *d_card;
    int no_d, no_card;
-   int i;
-   const double prob = 1.7811
+   const double prob_prime = 1.7811
       * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
       / mpz_sizeinbase (N, 2);
       /* According to [FrKlMoWi04], the probability that a number N is
          a B-smooth part times a prime is exp (gamma) * log B / log N.
          Here we do not know B, but it is quite precisely the logarithm
          of its primorial. */
+   double exp_prime, min_prime;
+   int i;
 #ifdef WITH_MPI
    MPI_Status status;
    int size, rank, job;
@@ -1114,24 +1113,39 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    qstar = (long int *) malloc (0);
    root = (mpz_t *) malloc (0);
 
-   i = mpz_sizeinbase (N, 2) / 3322;
-   if (i >= (int) (sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0])))
-      i = sizeof (no_qstar_delta) / sizeof (no_qstar_delta [0]) - 1;
-   no_qstar_new = no_qstar_delta [i];
-
 #ifdef WITH_MPI
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
    cm_mpi_broadcast_N (N);
+   no_qstar_delta = size - 1;
+#else
+   no_qstar_delta = 1;
 #endif
+   min_prime = 5.0;
+      /* With an expected number of five suitable cardinalities, there
+         should be a good chance of finding at least one; more lead
+         to some choice for gaining more bits in one step. */
    while (d == 0) {
-      /* Extend the prime list and compute a list of discriminants
-         containing the new primes. */
+      /* Extend the prime list in small pieces until the expectation of
+         finding a curve cardinality that is a smooth part times a prime
+         becomes sufficiently large. */
       cm_timer_continue (stat->timer [4]);
       no_qstar_old = no_qstar;
-      no_qstar = no_qstar_old + no_qstar_new;
-      qstar = (long int *) realloc (qstar, no_qstar * sizeof (long int));
-      compute_qstar (qstar + no_qstar_old, N, &q, no_qstar_new);
+      exp_prime = 0.0;
+      while (exp_prime < min_prime) {
+         no_qstar += no_qstar_delta;
+         qstar = (long int *) realloc (qstar, no_qstar * sizeof (long int));
+         compute_qstar (qstar + (no_qstar - no_qstar_delta), N, &q,
+            no_qstar_delta);
+         exp_prime += prob_prime *
+            expected_no_curves (qstar, no_qstar - no_qstar_delta,
+               no_qstar_delta, max_factors, Dmax, hmaxprime, h);
+      }
+
+      /* Now compute the list of discriminants containing one of the
+         new primes. */
+      no_qstar_new = no_qstar - no_qstar_old;
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
-            no_qstar_new, max_factors, Dmax, hmaxprime, h, prob, debug);
+         no_qstar_new, max_factors, Dmax, hmaxprime, h);
       cm_timer_stop (stat->timer [4]);
 
       /* Compute (and broadcast in the case of MPI) the square roots of
@@ -1162,7 +1176,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       stat->counter [3] += no_d;
 #else
       cm_timer_continue (stat->timer [3]);
-      MPI_Comm_size (MPI_COMM_WORLD, &size);
       batch = (no_d + size - 2) / (size - 1);
       max_i = (no_d + batch - 1) / batch;
       no_card_batch = (int *) malloc (max_i * sizeof (int));
@@ -1229,6 +1242,12 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       for (i = 0; i < no_card; i++)
          mpz_clear (card [i]);
       free (card);
+
+      /* If no discriminants are found in the first round, chances are that
+         the class numbers have become quite high, and that the expected
+         number of curve cardinalities per discriminant quite low; so we
+         should lower our expectations. */
+      min_prime = 1.0;
    }
 
 #ifdef WITH_MPI
@@ -1315,7 +1334,7 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
          printf ("-- Size [%i]: %4li bits\n", *depth,
             mpz_sizeinbase (N, 2));
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
-         hmaxprime, h, delta, primorialB, debug, stat);
+         hmaxprime, h, delta, primorialB, stat);
       cm_timer_stop (clock);
       if (verbose) {
          for (i = 0, t = 0.0; i < 5; i++)
