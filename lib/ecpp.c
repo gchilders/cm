@@ -574,7 +574,8 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 
    dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar_new,
       max_factors, Dmax, hmaxprime, h);
-   qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
+   if (*no_d > 0)
+      qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
 
    exp_card = 0;
    d = (int_cl_t *) malloc (*no_d * sizeof (int_cl_t));
