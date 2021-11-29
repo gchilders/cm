@@ -321,32 +321,37 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
       /* number of found discriminants so far */
    int no_factors;
    mpz_t tmp, bin;
+   bool small;
    int k;
 
    /* The algorithm assumes that at least the primes in qstar are of
       suitable size; otherwise, forget the largest ones. */
-   while (   (qstar [no_qstar-1] > 0
-              && (uint_cl_t) (qstar [no_qstar-1]) > Dmax)
-          || (qstar [no_qstar-1] < 0
-              && (uint_cl_t) (-qstar [no_qstar-1]) > Dmax))
+   while (no_qstar > 0
+          && (  (qstar [no_qstar-1] > 0
+                 && (uint_cl_t) (qstar [no_qstar-1]) > Dmax)
+             || (qstar [no_qstar-1] < 0
+                 && (uint_cl_t) (-qstar [no_qstar-1]) > Dmax)))
       no_qstar--;
 
    /* Compute the maximal number of factors that can fit under Dmax. */
-   k = 0;
+   no_factors = 0;
    mpz_init_set_ui (tmp, 1);
-   while (mpz_cmp_ui (tmp, Dmax) <= 0) {
-      if (qstar [k] > 0)
-         mpz_mul_ui (tmp, tmp, (unsigned long int) (qstar [k]));
+   small = true;
+   while (no_factors < no_qstar && small) {
+      if (qstar [no_factors] > 0)
+         mpz_mul_ui (tmp, tmp, (unsigned long int) (qstar [no_factors]));
       else
-         mpz_mul_ui (tmp, tmp, (unsigned long int) (-qstar [k]));
-      k++;
+         mpz_mul_ui (tmp, tmp, (unsigned long int) (-qstar [no_factors]));
+      if (mpz_cmp_ui (tmp, Dmax) <= 0)
+         no_factors++;
+      else
+         small = false;
    }
-   no_factors = k-1;
 
    /* Compute an upper bound on the possible number of discriminants. */
    mpz_init (bin);
    mpz_set_ui (tmp, 0);
-   for (k = 1; k <= no_factors; k++) {
+   for (k = 0; k <= no_factors; k++) {
       mpz_bin_uiui (bin, no_qstar, k);
       mpz_add (tmp, tmp, bin);
    }
@@ -356,7 +361,6 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
       no = mpz_get_ui (tmp);
    mpz_clear (bin);
    mpz_clear (tmp);
-   no ++;
 
    d = (int_cl_t **) malloc (no * sizeof (int_cl_t *));
 
@@ -364,7 +368,7 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    D = 1;
    Dno = 0;
    Dqmax = -1;
-   if (sign == 1) {
+   if (sign == 1 && Dmax > 0) {
       d [no] = (int_cl_t *) malloc (2 * sizeof (int_cl_t));
       d [no][0] = 1;
       d [no][1] = 0;
@@ -386,10 +390,12 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
                current prime is already the largest one, we need to go one
                level up. Also if the current discriminant is already too
                large, there is no point in trying even larger primes, and we
-               need to go one level up. */
+               need to go one level up. Notice that if -8 and 8 are elements
+               of qstar, the list is not strictly increasing: So when
+               Dmax==8, we have to continue even when |D|==Dmax. */
             if (Dqmax == no_qstar - 1
-                  || (D > 0 && (uint_cl_t)   D  >= Dmax)
-                  || (D < 0 && (uint_cl_t) (-D) >= Dmax)) {
+                  || (D > 0 && (uint_cl_t)   D  > Dmax)
+                  || (D < 0 && (uint_cl_t) (-D) > Dmax)) {
                D /= qstar [Dqmax];
                Dno--;
                Dqmax = Dq [Dno - 1];
