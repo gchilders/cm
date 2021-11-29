@@ -24,18 +24,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat);
-static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   long int *q, int no, cm_stat_t stat);
+static void compute_qstar (long int *qstar, mpz_srcptr p, long int *q,
+   int no);
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
+static int disc_cmp (const void* d1, const void* d2);
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
    const double prob, bool debug);
-static int disc_cmp (const void* d1, const void* d2);
+static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
+#ifndef WITH_MPI
+   mpz_srcptr p,
+#endif
+   cm_stat_t stat);
 static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
 static int curve_cardinalities (mpz_t *n, mpz_srcptr N,
@@ -196,28 +201,17 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat)
 
 /*****************************************************************************/
 
-static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
-   long int *q, int no, cm_stat_t stat)
+static void compute_qstar (long int *qstar, mpz_srcptr p, long int *q,
+   int no)
    /* Compute and return via qstar an array of no "signed primes" suitable
-      for dividing the discriminant to prove the primality of p, and via
-      root their square roots modulo p. The entries in qstar are ordered
-      by increasing absolute value. On first call, *q should be 0; it is
-      then replaced by the largest found signed prime, and should be given
-      for later calls to continue with the next signed primes.
-      qstar and root need to be initialised to the correct size,
-      and the entries of root need to be initialised as well. */
+      for dividing the discriminant to prove the primality of p. The
+      entries in qstar are ordered by increasing absolute value (and with
+      -8 coming before 8 to break the tie). On first call, *q should be 0;
+      it is then replaced by the last found signed prime, and should be
+      given for later calls to continue with the next signed primes.
+      qstar needs to be initialised to the correct size. */
 {
-#ifndef WITH_MPI
-   unsigned int e;
-   mpz_t r, z;
-#endif
    int i;
-#ifdef WITH_MPI
-   MPI_Status status;
-   int sent, received, rank, job;
-   double t;
-   cm_stat_t stat_worker;
-#endif
 
    i = 0;
    while (i < no) {
@@ -249,45 +243,6 @@ static void compute_qstar (long int *qstar, mpz_t *root, mpz_srcptr p,
          i++;
       }
    }
-
-#ifndef WITH_MPI
-   cm_timer_continue (stat->timer [0]);
-   mpz_init (r);
-   mpz_init (z);
-   e = cm_nt_mpz_tonelli_generator (r, z, p);
-   for (i = 0; i < no; i++)
-      cm_nt_mpz_tonelli_si_with_generator (root [i], qstar [i], p, e, r, z);
-   mpz_clear (r);
-   mpz_clear (z);
-   cm_timer_stop (stat->timer [0]);
-#else
-   sent = 0;
-   received = 0;
-   t = cm_timer_get (stat->timer [0]);
-      /* Memorise CPU time to avoid confusion with server CPU time. */
-   cm_timer_continue (stat->timer [0]);
-   while (received < no) {
-      if (sent < no && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_tonelli (rank, sent, qstar [sent]);
-         sent++;
-      }
-      else {
-         /* There is either nothing to send, or all workers are busy.
-            Wait for a result. */
-         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-            MPI_COMM_WORLD, &status);
-         rank = status.MPI_SOURCE;
-         cm_mpi_get_tonelli (root [job], rank, stat_worker);
-         t += cm_timer_get (stat_worker->timer [0]);
-         cm_mpi_queue_push (rank);
-         received++;
-      }
-   }
-   cm_timer_stop (stat->timer [0]);
-   stat->timer [0]->elapsed = t;
-      /* Restore CPU time containing all the workers, while keeping
-         the wallclock time as measured by the server. */
-#endif
 }
 
 /*****************************************************************************/
@@ -596,6 +551,69 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
          exp_card, exp_card * prob);
 
    return d;
+}
+
+/*****************************************************************************/
+
+static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
+#ifndef WITH_MPI
+   mpz_srcptr p,
+#endif
+   cm_stat_t stat)
+   /* Compute in qroot the square roots of the no_qstar elements of qstar
+      (assumed to be squares) modulo p. qroot needs to be initialised to
+      the correct size, and its entries need to be initialised as well. */
+{
+#ifndef WITH_MPI
+   unsigned int e;
+   mpz_t r, z;
+   int i;
+#else
+   MPI_Status status;
+   int sent, received, rank, job;
+   double t;
+   cm_stat_t stat_worker;
+#endif
+
+#ifndef WITH_MPI
+   cm_timer_continue (stat->timer [0]);
+   mpz_init (r);
+   mpz_init (z);
+   e = cm_nt_mpz_tonelli_generator (r, z, p);
+   for (i = 0; i < no_qstar; i++)
+      cm_nt_mpz_tonelli_si_with_generator (qroot [i], qstar [i],
+         p, e, r, z);
+   mpz_clear (r);
+   mpz_clear (z);
+   cm_timer_stop (stat->timer [0]);
+#else
+   sent = 0;
+   received = 0;
+   t = cm_timer_get (stat->timer [0]);
+      /* Memorise CPU time to avoid confusion with server CPU time. */
+   cm_timer_continue (stat->timer [0]);
+   while (received < no_qstar) {
+      if (sent < no_qstar && (rank = cm_mpi_queue_pop ()) != -1) {
+         cm_mpi_submit_tonelli (rank, sent, qstar [sent]);
+         sent++;
+      }
+      else {
+         /* There is either nothing to send, or all workers are busy.
+            Wait for a result. */
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+            MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         cm_mpi_get_tonelli (qroot [job], rank, stat_worker);
+         t += cm_timer_get (stat_worker->timer [0]);
+         cm_mpi_queue_push (rank);
+         received++;
+      }
+   }
+   cm_timer_stop (stat->timer [0]);
+   stat->timer [0]->elapsed = t;
+      /* Restore CPU time containing all the workers, while keeping
+         the wallclock time as measured by the server. */
+#endif
 }
 
 /*****************************************************************************/
@@ -1105,15 +1123,28 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    cm_mpi_broadcast_N (N);
 #endif
    while (d == 0) {
-      /* Extend the prime and square root list. */
+      /* Extend the prime list and compute a list of discriminants
+         containing the new primes. */
+      cm_timer_continue (stat->timer [4]);
       no_qstar_old = no_qstar;
       no_qstar = no_qstar_old + no_qstar_new;
       qstar = (long int *) realloc (qstar, no_qstar * sizeof (long int));
+      compute_qstar (qstar + no_qstar_old, N, &q, no_qstar_new);
+      dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
+            no_qstar_new, max_factors, Dmax, hmaxprime, h, prob, debug);
+      cm_timer_stop (stat->timer [4]);
+
+      /* Compute (and broadcast in the case of MPI) the square roots of
+         the new primes. */
       root = (mpz_t *) realloc (root, no_qstar * sizeof (mpz_t));
       for (i = no_qstar_old; i < no_qstar; i++)
          mpz_init (root [i]);
-      compute_qstar (qstar + no_qstar_old, root + no_qstar_old, N, &q,
-            no_qstar_new, stat);
+      compute_qroot (root + no_qstar_old, qstar + no_qstar_old,
+         no_qstar_new,
+#ifndef WITH_MPI
+         N,
+#endif
+         stat);
 #ifdef WITH_MPI
       cm_timer_continue (stat->timer [0]);
       cm_mpi_broadcast_sqrt (no_qstar_new, qstar + no_qstar_old,
@@ -1121,11 +1152,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       cm_timer_stop (stat->timer [0]);
 #endif
       stat->counter [0] += no_qstar_new;
-
-      /* Precompute a list of potential discriminants. This takes
-         virtually no time, so we do not measure it.*/
-      dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
-            no_qstar_new, max_factors, Dmax, hmaxprime, h, prob, debug);
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
 #ifndef WITH_MPI
@@ -1302,16 +1328,19 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
                cm_nt_largest_factor (-d));
             printf ("   largest prime of h: %"PRIucl"\n",
                cm_nt_largest_factor (h [(-d) / 2 - 1]));
-            printf ("%6i qstar:      %.1f (%.1f)\n", stat->counter [0],
+            printf ("       discriminants: %.1f (%.1f)\n",
+               cm_timer_get (stat->timer [4]),
+               cm_timer_wc_get (stat->timer [4]));
+            printf ("%9i qroot:      %.1f (%.1f)\n", stat->counter [0],
                cm_timer_get (stat->timer [0]),
                cm_timer_wc_get (stat->timer [0]));
-            printf ("%6i Cornacchia: %.1f (%.1f)\n", stat->counter [3],
+            printf ("%9i Cornacchia: %.1f (%.1f)\n", stat->counter [3],
                cm_timer_get (stat->timer [3]),
                cm_timer_wc_get (stat->timer [3]));
-            printf ("%6i trial div:  %.1f (%.1f)\n", stat->counter [1],
+            printf ("%9i trial div:  %.1f (%.1f)\n", stat->counter [1],
                cm_timer_get (stat->timer [1]),
                cm_timer_wc_get (stat->timer [1]));
-            printf ("%6i is_prime:   %.1f (%.1f)\n", stat->counter [2],
+            printf ("%9i is_prime:   %.1f (%.1f)\n", stat->counter [2],
                   cm_timer_get (stat->timer [2]),
                   cm_timer_wc_get (stat->timer [2]));
          }
