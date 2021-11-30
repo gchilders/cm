@@ -880,7 +880,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
 #ifndef WITH_MPI
    cm_mpz_tree_gcd (gcd, primorialB, n, no_n);
    cm_timer_stop (stat->timer [1]);
-   stat->counter [1]++;
+   stat->counter [1] += no_n;
 #else
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    batch = (no_n + size - 2) / (size - 1);
@@ -903,7 +903,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    }
    cm_timer_stop (stat->timer [1]);
    stat->timer [1]->elapsed = t;
-   stat->counter [1] += max_i;
+   stat->counter [1] += no_n;
 #endif
 
    cm_timer_continue (stat->timer [1]);
