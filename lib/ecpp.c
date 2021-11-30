@@ -792,20 +792,28 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
 /*****************************************************************************/
 
 void cm_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
-   /* Given a (large) positive integer n and an array of (smaller) no_m
-      positive integers in m, compute the gcd of n with all the m and
-      return them in gcd, which needs to provide sufficient space and
-      initialised entries. For the implementation to be efficient, it is
-      required that the product of all the m be less than n; otherwise the
-      calling function should split the array m into suitable chunks. */
+   /* Given a (large) positive integer n and an array of (smaller) no_m >= 1
+      positive integers in m, all of which are assumed to be of roughly the
+      same size, compute the gcd of n with all the m and return them in gcd,
+      which needs to provide sufficient space and initialised entries. */
 {
    mpz_t **tree;
    int *width;
    int levels;
+   long int size_n, size_m;
    int i, j;
 
-   /* Compute bottom-up a subproduct tree with m on the leaves. */
+   /* Compute the height of the subproduct tree of the m in levels. The
+      height of the full tree is given by the logarithm of no_m. On the
+      other hand, the height should be such that at the top level, the
+      entries are still smaller than n; so we may prefer to compute a
+      forest instead of a single tree. */
    for (i = no_m, levels = 1; i > 1; i = (i+1) / 2, levels++);
+   size_n = mpz_sizeinbase (n, 2);
+   size_m = mpz_sizeinbase (m [0], 2);
+   for (; levels >= 2 && size_m << (levels - 1) > size_n; levels--);
+
+   /* Compute bottom-up a subproduct forest with m on the leaves. */
    tree = (mpz_t **) malloc (levels * sizeof (mpz_t *));
    width = (int *) malloc (levels * sizeof (int));
    width [0] = no_m;
@@ -825,8 +833,11 @@ void cm_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
       }
    }
 
+   /* Replace the tree tops by n modulo the entry. */
+   for (j = 0; j < width [levels-1]; j++)
+      mpz_mod (tree [levels-1][j], n, tree [levels-1][j]);
+
    /* Replace top-down the tree entries by n modulo the entry. */
-   mpz_mod (tree [levels-1][0], n, tree [levels-1][0]);
    for (i = levels - 2; i >= 0; i--) {
       for (j = 0; j < (width [i] / 2) * 2; j++)
          mpz_mod (tree [i][j], tree [i+1][j/2], tree [i][j]);
