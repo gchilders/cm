@@ -1281,11 +1281,11 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
       /* According to [FrKlMoWi04] the average factor removed by trial
          division up to B, assuming that what remains is prime, is B;
          we impose half of this number of bits as the minimal gain. */
+   const uint_cl_t Dmax = ((L * L) >> 4) << 2;
    const uint_cl_t hmaxprime = 30;
    mpz_t N;
    mpz_t** c;
    uint_cl_t *h;
-   uint_cl_t Dmax;
    int_cl_t d;
    cm_timer_t clock;
    double t, t_old;
@@ -1302,7 +1302,6 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    cm_timer_start (stat->timer [7]);
 
    /* Precompute class numbers. */
-   Dmax = ((L * L) >> 4) << 2;
    h = (uint_cl_t *) malloc ((Dmax / 2) * sizeof (uint_cl_t));
    compute_h (h, Dmax, stat);
    if (verbose)
