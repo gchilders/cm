@@ -988,7 +988,8 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    c = (mpz_t **) realloc (c, no * sizeof (mpz_t *));
 
    /* Sort by increasing non-smooth part. */
-   qsort (c, no, sizeof (mpz_t *), card_cmp);
+   if (no > 0)
+      qsort (c, no, sizeof (mpz_t *), card_cmp);
 
    /* Go through the array in batches of size batch and look for a prime
       non-smooth part. Stop and remember the first occurrence when it is
