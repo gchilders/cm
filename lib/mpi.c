@@ -40,6 +40,10 @@ typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
 static int *worker_queue, *worker_queue_local;
 static int worker_queue_size, worker_queue_local_size;
+static const int no_prim_opt = 12;
+   /* Experimentally for nextprime (10^4000), splitting B into 12 chunks
+      has proved to be the optimal choice among powers of 2 and 3 times
+      powers of 2, but there is no theoretical argument for this. */
 
 static void mpi_send_mpz (mpz_srcptr z, const int rank);
 static void mpi_recv_mpz (mpz_ptr z, const int rank);
@@ -381,38 +385,56 @@ void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m)
 
 void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
    /* Get from all workers the results of gcd jobs as output by
-      cm_mpz_tree_gcd and put them into gcd. */
+      cm_mpz_tree_gcd and collect them into gcd. */
 {
    int size, rank, job;
    MPI_Status status;
    int no_gcd, rem, offset, no;
+   int no_prim, no_M, rank_div;
+   mpz_t tmp;
    double t_local;
    int i, j;
 
    MPI_Comm_size (MPI_COMM_WORLD, &size);
-   no_gcd = no_m / (size - 1);
-   rem = no_m - no_gcd * (size - 1);
+   /* The range of numbers to retrieve is computed as in mpi_worker. */
+   no_prim = (size <= no_prim_opt ? size - 1 : no_prim_opt);
+   no_M = (size - 1) / no_prim;
+   no_gcd = no_m / no_M;
+   rem = no_m - no_gcd * no_M;
 
    *t = 0;
+   mpz_init (tmp);
+   /* Different workers may compute gcds with different divisors of the
+      primorial; we need to multiply them all. */
+   for (j = 0; j < no_m; j++)
+      mpz_set_ui (gcd [j], 1);
    for (i = 1; i < size; i++) {
       MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
          MPI_COMM_WORLD, &status);
       rank = status.MPI_SOURCE;
-      if (rank <= rem) {
-         no = no_gcd + 1;
-         offset = (no_gcd + 1) * (rank - 1);
-      }
+      if (rank > no_prim * no_M)
+         no = 0;
       else {
-         no = no_gcd;
-         offset = no_gcd * (rank - 1) + rem;
+         rank_div = (rank - 1) / no_prim;
+         if (rank_div < rem) {
+            no = no_gcd + 1;
+            offset = (no_gcd + 1) * rank_div;
+         }
+         else {
+            no = no_gcd;
+            offset = no_gcd * rank_div + rem;
+         }
       }
 
-      for (j = 0; j < no; j++)
-         mpi_recv_mpz (gcd [offset + j], rank);
+      for (j = 0; j < no; j++) {
+         mpi_recv_mpz (tmp, rank);
+         mpz_mul (gcd [offset + j], gcd [offset + j], tmp);
+      }
       MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
          NULL);
       *t += t_local;
    }
+   mpz_clear (tmp);
 }
 
 /*****************************************************************************/
@@ -441,7 +463,7 @@ static void mpi_worker ()
 
    /* Primorial. */
    unsigned long int B;
-   mpz_t primorialB;
+   mpz_t prim;
 
    /* Tonelli */
    long int a;
@@ -470,13 +492,14 @@ static void mpi_worker ()
 
    /* Tree gcd. */
    int no_m, no_gcd, offset, rem;
+   int no_prim, no_M, rank_div;
    mpz_t *m, *gcd;
 
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
    mpz_init (N);
-   mpz_init (primorialB);
+   mpz_init (prim);
    no_qstar = 0;
    qstar = (long int *) malloc (0);
    qroot = (mpz_t *) malloc (0);
@@ -529,7 +552,12 @@ static void mpi_worker ()
          cm_timer_start (stat->timer [0]);
          MPI_Bcast (&B, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
 
-         mpz_primorial_ui (primorialB, B);
+         /* Each worker chooses a chunk out of B according to
+            rank % no_prim. */
+         no_prim = (size <= no_prim_opt ? size - 1 : no_prim_opt);
+         i = rank % no_prim;
+         cm_pari_prime_product (prim, i * B / no_prim,
+            (i+1) * B / no_prim);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_PRIMORIAL,
             MPI_COMM_WORLD);
@@ -641,24 +669,37 @@ static void mpi_worker ()
             mpz_init (m [i]);
             mpi_bcast_recv_mpz (m [i]);
          }
-         /* Compute the range handled by this worker; split the range
-            evenly, and if the division leaves a remainder, give the first
-            remainder processes one more to handle. */
-         no_gcd = no_m / (size - 1);
-         rem = no_m - no_gcd * (size - 1);
-         if (rank <= rem) {
-            no_gcd++;
-            offset = no_gcd * (rank - 1);
+         /* Compute the range handled by this worker. The primorial has
+            been split into no_prim chunks according to rank % no_prim;
+            the m are split into no_M = (size - 1) / no_prim chunks
+            according to (rank - 1) / no_prim, with ranks larger than
+            no_prim * no_M doing no work for simplicity.
+            The m are split evenly, and if the division leaves a
+            remainder, the first processes handle one more. */
+         no_prim = (size <= no_prim_opt ? size - 1 : no_prim_opt);
+         no_M = (size - 1) / no_prim;
+         if (rank > no_prim * no_M) {
+            no_gcd = 0;
+            offset = 0;
          }
-         else
-            offset = no_gcd * (rank - 1) + rem;
+         else {
+            no_gcd = no_m / no_M;
+            rem = no_m - no_gcd * no_M;
+            rank_div = (rank - 1) / no_prim;
+            if (rank_div < rem) {
+               no_gcd++;
+               offset = no_gcd * rank_div;
+            }
+            else
+               offset = no_gcd * rank_div + rem;
+         }
 
          gcd = (mpz_t *) malloc (no_gcd * sizeof (mpz_t));
          for (i = 0; i < no_gcd; i++)
             mpz_init (gcd [i]);
 
          if (no_gcd > 0)
-            cm_mpz_tree_gcd (gcd, primorialB, m + offset, no_gcd);
+            cm_mpz_tree_gcd (gcd, prim, m + offset, no_gcd);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TREE_GCD,
             MPI_COMM_WORLD);
@@ -685,7 +726,7 @@ static void mpi_worker ()
    }
 
    mpz_clear (N);
-   mpz_clear (primorialB);
+   mpz_clear (prim);
    free (qstar);
    free (qroot);
    mpz_clear (r);
