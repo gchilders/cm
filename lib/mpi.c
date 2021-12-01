@@ -23,18 +23,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-#define MPI_TAG_FINISH                   1
-#define MPI_TAG_DATA                     2
-#define MPI_TAG_JOB_TONELLI              3
-#define MPI_TAG_JOB_ECPP2                4
-#define MPI_TAG_JOB_CARD                 5
-#define MPI_TAG_JOB_PRIME                6
-#define MPI_TAG_JOB_H                    7
-#define MPI_TAG_JOB_TREE_GCD             8
-#define MPI_TAG_JOB_BROADCAST_N          9
-#define MPI_TAG_JOB_BROADCAST_PRIMORIAL 10
-#define MPI_TAG_JOB_BROADCAST_SQRT      11
-#define MPI_TAG_JOB_CLEAR_N             12
+#define MPI_TAG_FINISH              1
+#define MPI_TAG_DATA                2
+#define MPI_TAG_JOB_PRIMORIAL       3
+#define MPI_TAG_JOB_TONELLI         4
+#define MPI_TAG_JOB_ECPP2           5
+#define MPI_TAG_JOB_CARD            6
+#define MPI_TAG_JOB_PRIME           7
+#define MPI_TAG_JOB_H               8
+#define MPI_TAG_JOB_TREE_GCD        9
+#define MPI_TAG_JOB_BROADCAST_N    10
+#define MPI_TAG_JOB_BROADCAST_SQRT 11
+#define MPI_TAG_JOB_CLEAR_N        12
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -146,20 +146,6 @@ void cm_mpi_broadcast_N (mpz_srcptr N)
 
 /*****************************************************************************/
 
-void cm_mpi_broadcast_primorial (mpz_srcptr primorialB)
-   /* Send the primorial to all workers. */
-{
-   int size, rank;
-
-   MPI_Comm_size (MPI_COMM_WORLD, &size);
-   for (rank = 1; rank < size; rank++)
-      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_PRIMORIAL,
-         MPI_COMM_WORLD);
-   mpi_bcast_send_mpz (primorialB);
-}
-
-/*****************************************************************************/
-
 void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar, mpz_t *qroot)
    /* Broadcast variables to all workers that are needed for the square
       root of discriminants and Cornacchia step.
@@ -192,6 +178,30 @@ void cm_mpi_clear_N ()
    for (rank = 1; rank < size; rank++)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_CLEAR_N,
          MPI_COMM_WORLD);
+}
+
+/*****************************************************************************/
+
+void cm_mpi_submit_primorial (unsigned long int B)
+   /* Submit the job of computing primorials to all workers. */
+{
+   int size, rank;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++)
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_PRIMORIAL,
+         MPI_COMM_WORLD);
+   MPI_Bcast (&B, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+}
+
+/*****************************************************************************/
+
+void cm_mpi_get_primorial (int rank, cm_stat_ptr stat)
+   /* Get timing information of a primorial job from worker rank and put it
+      into stat. */
+{
+   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
+      MPI_COMM_WORLD, NULL);
 }
 
 /*****************************************************************************/
@@ -398,10 +408,14 @@ static void mpi_worker ()
    int i;
    
    /* Broadcast values. */
-   mpz_t N, primorialB;
+   mpz_t N;
    int no_qstar, no_qstar_old, no_qstar_new;
    long int *qstar;
    mpz_t *qroot;
+
+   /* Primorial. */
+   unsigned long int B;
+   mpz_t primorialB;
 
    /* Tonelli */
    long int a;
@@ -461,9 +475,6 @@ static void mpi_worker ()
          mpi_bcast_recv_mpz (N);
          e = cm_nt_mpz_tonelli_generator (r, z, N);
          break;
-      case MPI_TAG_JOB_BROADCAST_PRIMORIAL:
-         mpi_bcast_recv_mpz (primorialB);
-         break;
       case MPI_TAG_JOB_BROADCAST_SQRT:
          MPI_Bcast (&no_qstar_new, 1, MPI_INT, 0, MPI_COMM_WORLD);
          no_qstar_old = no_qstar;
@@ -484,6 +495,18 @@ static void mpi_worker ()
          no_qstar = 0;
          qstar = (long int *) realloc (qstar, 0);
          qroot = (mpz_t *) realloc (qroot, 0);
+         break;
+      case MPI_TAG_JOB_PRIMORIAL:
+         cm_timer_start (stat->timer [0]);
+         MPI_Bcast (&B, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+
+         mpz_primorial_ui (primorialB, B);
+
+         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_PRIMORIAL,
+            MPI_COMM_WORLD);
+         cm_timer_stop (stat->timer [0]);
+         MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
+            MPI_TAG_DATA, MPI_COMM_WORLD);
          break;
       case MPI_TAG_JOB_TONELLI:
          cm_timer_start (stat->timer [0]);

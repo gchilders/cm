@@ -222,10 +222,11 @@ extern void cm_stat_init (cm_stat_t stat);
 extern void cm_mpi_queue_push (int rank);
 extern int cm_mpi_queue_pop (void);
 extern void cm_mpi_broadcast_N (mpz_srcptr N);
-extern void cm_mpi_broadcast_primorial (mpz_srcptr primorialB);
 extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
    mpz_t *qroot);
 extern void cm_mpi_clear_N (void);
+extern void cm_mpi_submit_primorial (unsigned long int B);
+extern void cm_mpi_get_primorial (int rank, cm_stat_ptr stat);
 extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
 extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, cm_stat_ptr stat);
 extern void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,

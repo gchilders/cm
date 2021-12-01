@@ -58,7 +58,11 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    const unsigned int delta, cm_stat_t stat);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const unsigned int delta, mpz_srcptr primorialB, cm_stat_t stat);
+   const unsigned int delta,
+#ifndef WITH_MPI
+   mpz_srcptr primorialB,
+#endif
+   unsigned long int B, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    bool debug, cm_stat_ptr stat);
@@ -1080,14 +1084,20 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
-   const unsigned int delta, mpz_srcptr primorialB, cm_stat_t stat)
+   const unsigned int delta,
+#ifndef WITH_MPI
+   mpz_srcptr primorialB,
+#endif
+   unsigned long int B, cm_stat_t stat)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
       Dmax, hmaxprime and h are passed through to compute_discriminants.
       delta >= 1 is passed through as the minimum number of bits to be
       gained in this step.
-      primorialB is passed through to trial division. */
+      primorialB is passed through to trial division.
+      The smoothness bound B is needed to compute the success probability
+      of finding a prime. */
 {
    const int max_factors = 4;
    int no_qstar_old, no_qstar_new, no_qstar, no_qstar_delta;
@@ -1098,12 +1108,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    int_cl_t *dlist, *d_card;
    int no_d, no_card;
    const double prob_prime = 1.7811
-      * log2 (mpz_sizeinbase (primorialB, 2) * M_LN2)
-      / mpz_sizeinbase (N, 2);
+      * log2 (B) / mpz_sizeinbase (N, 2);
       /* According to [FrKlMoWi04], the probability that a number N is
-         a B-smooth part times a prime is exp (gamma) * log B / log N.
-         Here we do not know B, but it is quite precisely the logarithm
-         of its primorial. */
+         a B-smooth part times a prime is exp (gamma) * log B / log N. */
    double exp_prime, min_prime;
    int i;
 #ifdef WITH_MPI
@@ -1296,7 +1303,7 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
          division up to B, assuming that what remains is prime, is B;
          we impose half of this number of bits as the minimal gain. */
    const uint_cl_t hmaxprime = 30;
-   mpz_t N, primorialB;
+   mpz_t N;
    mpz_t** c;
    uint_cl_t *h;
    uint_cl_t Dmax;
@@ -1304,6 +1311,13 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    cm_timer_t clock;
    double t, t_old;
    int i;
+#ifndef WITH_MPI
+   mpz_t primorialB;
+#else
+   int size, rank, job;
+   MPI_Status status;
+   cm_stat_t stat_worker;
+#endif
 
    cm_stat_init (stat);
    cm_timer_start (stat->timer [7]);
@@ -1319,16 +1333,29 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
          cm_timer_wc_get (stat->timer [5]));
 
    /* Precompute primorial for trial division. */
-   cm_timer_start (stat->timer [6]);
+#ifndef WITH_MPI
    mpz_init (primorialB);
+   cm_timer_start (stat->timer [6]);
    mpz_primorial_ui (primorialB, B);
-#ifdef WITH_MPI
-   cm_mpi_broadcast_primorial (primorialB);
-#endif
    cm_timer_stop (stat->timer [6]);
+#else
+   t = 0;
+   cm_timer_start (stat->timer [6]);
+   cm_mpi_submit_primorial (B);
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (i = 1; i < size; i++) {
+      MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+         MPI_COMM_WORLD, &status);
+      rank = status.MPI_SOURCE;
+      cm_mpi_get_primorial (rank, stat_worker);
+      t += cm_timer_get (stat_worker->timer [0]);
+   }
+   cm_timer_stop (stat->timer [6]);
+   stat->timer [6]->elapsed = t;
+#endif
    if (verbose)
-      printf ("-- Time for primorial of B=%lu: %5.1f\n", B,
-         cm_timer_get (stat->timer [6]));
+      printf ("-- Time for primorial of B=%lu: %.1f (%.1f)\n", B,
+         cm_timer_get (stat->timer [6]), cm_timer_wc_get (stat->timer [6]));
 
    mpz_init_set (N, p);
    *depth = 0;
@@ -1345,7 +1372,11 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
          printf ("-- Size [%i]: %4li bits\n", *depth,
             mpz_sizeinbase (N, 2));
       d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
-         hmaxprime, h, delta, primorialB, stat);
+         hmaxprime, h, delta,
+#ifndef WITH_MPI
+         primorialB,
+#endif
+         B, stat);
       cm_timer_stop (clock);
       if (verbose) {
          for (i = 0, t = 0.0; i < 5; i++)
@@ -1381,8 +1412,10 @@ static mpz_t** cm_ecpp1 (int *depth, mpz_srcptr p, bool verbose,
    }
 
    free (h);
-   mpz_clear (primorialB);
    mpz_clear (N);
+#ifndef WITH_MPI
+   mpz_clear (primorialB);
+#endif
 
    cm_timer_stop (stat->timer [7]);
    for (i = 0, t = 0.0; i < 7; i++)
