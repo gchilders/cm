@@ -879,11 +879,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    mpz_t *gcd;
    int i;
 #ifdef WITH_MPI
-   MPI_Status status;
-   int size, rank, job;
    double t;
-   cm_stat_t stat_worker;
-   int batch, max_i;
 #endif
 
    cm_timer_continue (stat->timer [1]);
@@ -894,31 +890,14 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    /* Compute in gcd [i] the gcd of n [i] and primorialB. */
 #ifndef WITH_MPI
    cm_mpz_tree_gcd (gcd, primorialB, n, no_n);
-   cm_timer_stop (stat->timer [1]);
-   stat->counter [1] += no_n;
 #else
-   MPI_Comm_size (MPI_COMM_WORLD, &size);
-   batch = (no_n + size - 2) / (size - 1);
-   max_i = (no_n + batch - 1) / batch;
-   for (i = 0; i < max_i; i++) {
-      rank = cm_mpi_queue_pop ();
-      cm_mpi_submit_tree_gcd (rank, i, n + i * batch,
-         (i == max_i - 1 ? no_n - (max_i - 1) * batch : batch));
-   }
+   cm_mpi_submit_tree_gcd (n, no_n);
+   cm_mpi_get_tree_gcd (gcd, no_n, &t);
+#endif
    cm_timer_stop (stat->timer [1]);
-   t = cm_timer_get (stat->timer [1]);
-   cm_timer_continue (stat->timer [1]);
-   for (i = 0; i < max_i; i++) {
-      MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-         MPI_COMM_WORLD, &status);
-      rank = status.MPI_SOURCE;
-      cm_mpi_get_tree_gcd (gcd + job * batch, rank, stat_worker);
-      t += cm_timer_get (stat_worker->timer [0]);
-      cm_mpi_queue_push (rank);
-   }
-   cm_timer_stop (stat->timer [1]);
-   stat->timer [1]->elapsed = t;
    stat->counter [1] += no_n;
+#ifdef WITH_MPI
+   stat->timer [1]->elapsed += t;
 #endif
 
    cm_timer_continue (stat->timer [1]);

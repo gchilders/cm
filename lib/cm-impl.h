@@ -242,8 +242,8 @@ extern bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat);
 extern void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
    uint_cl_t Dmax);
 extern void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat);
-extern void cm_mpi_submit_tree_gcd (int rank, int job, mpz_t *m, int no_m);
-extern void cm_mpi_get_tree_gcd (mpz_t *gcd, int rank, cm_stat_ptr stat);
+extern void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m);
+extern void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t);
 
 #if defined (__cplusplus)
 }

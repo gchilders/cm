@@ -360,33 +360,59 @@ void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_tree_gcd (int rank, int job, mpz_t *m, int no_m)
-   /* Submit the job of the given number to the worker of the given rank,
-      to call cm_mpz_tree_gcd with the known primorial and the remaining
-      arguments. */
+void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m)
+   /* Submit to all workers the jobs of executing cm_mpz_tree_gcd with the
+      known primorial and the remaining arguments. */
 {
+   int size, rank;
    int i;
 
-   MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_TREE_GCD, MPI_COMM_WORLD);
-   MPI_Send (&no_m, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++) {
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_TREE_GCD,
+         MPI_COMM_WORLD);
+   }
+   MPI_Bcast (&no_m, 1, MPI_INT, 0, MPI_COMM_WORLD);
    for (i = 0; i < no_m; i++)
-      mpi_send_mpz (m [i], rank);
+      mpi_bcast_send_mpz (m [i]);
 }
 
 /*****************************************************************************/
 
-void cm_mpi_get_tree_gcd (mpz_t *gcd, int rank, cm_stat_ptr stat)
-   /* Get the result of a gcd job from worker rank and put it into gcd,
-      as output by cm_mpz_tree_gcd.
-      Timing information from the worker is returned in stat. */
+void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
+   /* Get from all workers the results of gcd jobs as output by
+      cm_mpz_tree_gcd and put them into gcd. */
 {
-   int no_m, i;
+   int size, rank, job;
+   MPI_Status status;
+   int no_gcd, rem, offset, no;
+   double t_local;
+   int i, j;
 
-   MPI_Recv (&no_m, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-   for (i = 0; i < no_m; i++)
-      mpi_recv_mpz (gcd [i], rank);
-   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   no_gcd = no_m / (size - 1);
+   rem = no_m - no_gcd * (size - 1);
+
+   *t = 0;
+   for (i = 1; i < size; i++) {
+      MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+         MPI_COMM_WORLD, &status);
+      rank = status.MPI_SOURCE;
+      if (rank <= rem) {
+         no = no_gcd + 1;
+         offset = (no_gcd + 1) * (rank - 1);
+      }
+      else {
+         no = no_gcd;
+         offset = no_gcd * (rank - 1) + rem;
+      }
+
+      for (j = 0; j < no; j++)
+         mpi_recv_mpz (gcd [offset + j], rank);
+      MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
+         NULL);
+      *t += t_local;
+   }
 }
 
 /*****************************************************************************/
@@ -402,7 +428,7 @@ static void mpi_worker ()
    MPI_Status status;
    mpi_name_t name;
    int name_length;
-   int job;
+   int size, rank, job;
    bool finish;
    cm_stat_t stat;
    int i;
@@ -443,8 +469,11 @@ static void mpi_worker ()
    int no;
 
    /* Tree gcd. */
-   int no_m;
+   int no_m, no_gcd, offset, rem;
    mpz_t *m, *gcd;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
    mpz_init (N);
    mpz_init (primorialB);
@@ -606,26 +635,40 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_TREE_GCD:
          cm_timer_start (stat->timer [0]);
-         MPI_Recv (&no_m, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            &status);
+         MPI_Bcast (&no_m, 1, MPI_INT, 0, MPI_COMM_WORLD);
          m = (mpz_t *) malloc (no_m * sizeof (mpz_t));
-         gcd = (mpz_t *) malloc (no_m * sizeof (mpz_t));
          for (i = 0; i < no_m; i++) {
             mpz_init (m [i]);
-            mpi_recv_mpz (m [i], 0);
-            mpz_init (gcd [i]);
+            mpi_bcast_recv_mpz (m [i]);
          }
+         /* Compute the range handled by this worker; split the range
+            evenly, and if the division leaves a remainder, give the first
+            remainder processes one more to handle. */
+         no_gcd = no_m / (size - 1);
+         rem = no_m - no_gcd * (size - 1);
+         if (rank <= rem) {
+            no_gcd++;
+            offset = no_gcd * (rank - 1);
+         }
+         else
+            offset = no_gcd * (rank - 1) + rem;
 
-         cm_mpz_tree_gcd (gcd, primorialB, m, no_m);
+         gcd = (mpz_t *) malloc (no_gcd * sizeof (mpz_t));
+         for (i = 0; i < no_gcd; i++)
+            mpz_init (gcd [i]);
+
+         if (no_gcd > 0)
+            cm_mpz_tree_gcd (gcd, primorialB, m + offset, no_gcd);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TREE_GCD,
             MPI_COMM_WORLD);
-         MPI_Send (&no_m, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
-         for (i = 0; i < no_m; i++) {
+         for (i = 0; i < no_gcd; i++) {
             mpi_send_mpz (gcd [i], 0);
-            mpz_clear (m [i]);
             mpz_clear (gcd [i]);
          }
+         for (i = 0; i < no_m; i++)
+            mpz_clear (m [i]);
+
          cm_timer_stop (stat->timer [0]);
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);
