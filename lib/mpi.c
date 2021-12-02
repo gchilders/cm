@@ -699,7 +699,7 @@ static void mpi_worker ()
             mpz_init (gcd [i]);
 
          if (no_gcd > 0)
-            cm_mpz_tree_gcd (gcd, prim, m + offset, no_gcd);
+            cm_nt_mpz_tree_gcd (gcd, prim, m + offset, no_gcd);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TREE_GCD,
             MPI_COMM_WORLD);

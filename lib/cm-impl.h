@@ -94,6 +94,8 @@ extern void cm_nt_mpz_tonelli_si (mpz_ptr root, const long int a,
    mpz_srcptr p);
 extern bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
+extern void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m,
+   int no_m);
 extern bool cm_nt_cget_zz (mpz_ptr out1, mpz_ptr out2, ctype in, ctype omega);
 
 /* functions for computing q expansions of modular functions and addition
@@ -209,7 +211,6 @@ extern void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin,
 extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
    int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
-extern void cm_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
    cm_stat_t stat);

@@ -464,6 +464,76 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
 }
 
 /*****************************************************************************/
+
+void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
+   /* Given a (large) positive integer n and an array of (smaller) no_m >= 1
+      positive integers in m, all of which are assumed to be of roughly the
+      same size, compute the gcd of n with all the m and return them in gcd,
+      which needs to provide sufficient space and initialised entries. */
+{
+   mpz_t **tree;
+   int *width;
+   int levels;
+   long int size_n, size_m;
+   int i, j;
+
+   /* Compute the height of the subproduct tree of the m in levels. The
+      height of the full tree is given by the logarithm of no_m. On the
+      other hand, the height should be such that at the top level, the
+      entries are still smaller than n; so we may prefer to compute a
+      forest instead of a single tree. */
+   for (i = no_m, levels = 1; i > 1; i = (i+1) / 2, levels++);
+   size_n = mpz_sizeinbase (n, 2);
+   size_m = mpz_sizeinbase (m [0], 2);
+   for (; levels >= 2 && size_m << (levels - 1) > size_n; levels--);
+
+   /* Compute bottom-up a subproduct forest with m on the leaves. */
+   tree = (mpz_t **) malloc (levels * sizeof (mpz_t *));
+   width = (int *) malloc (levels * sizeof (int));
+   width [0] = no_m;
+   tree [0] = (mpz_t *) malloc (no_m * sizeof (mpz_t));
+   for (j = 0; j < no_m; j++)
+      mpz_init_set (tree [0][j], m [j]);
+   for (i = 1; i < levels; i++) {
+      width [i] = (width [i-1] + 1) / 2;
+      tree [i] = (mpz_t *) malloc (width [i] * sizeof (mpz_t));
+      for (j = 0; j < width [i-1] / 2; j++) {
+         mpz_init (tree [i][j]);
+         mpz_mul (tree [i][j], tree [i-1][2*j], tree [i-1][2*j+1]);
+      }
+      if (width [i-1] % 2 != 0) {
+         mpz_init (tree [i][j]);
+         mpz_set (tree [i][j], tree [i-1][2*j]);
+      }
+   }
+
+   /* Replace the tree tops by n modulo the entry. */
+   for (j = 0; j < width [levels-1]; j++)
+      mpz_mod (tree [levels-1][j], n, tree [levels-1][j]);
+
+   /* Replace top-down the tree entries by n modulo the entry. */
+   for (i = levels - 2; i >= 0; i--) {
+      for (j = 0; j < (width [i] / 2) * 2; j++)
+         mpz_mod (tree [i][j], tree [i+1][j/2], tree [i][j]);
+      if (width [i] % 2 != 0)
+         mpz_set (tree [i][j], tree [i+1][j/2]);
+   }
+
+   /* Compute the gcd of n mod m [j] and m [j]. */
+   for (j = 0; j < no_m; j++)
+      mpz_gcd (gcd [j], tree [0][j], m [j]);
+
+   /* Clear the tree. */
+   for (i = 0; i < levels; i++) {
+      for (j = 0; j < width [i]; j++)
+         mpz_clear (tree [i][j]);
+      free (tree [i]);
+   }
+   free (tree);
+   free (width);
+}
+
+/*****************************************************************************/
 /*****************************************************************************/
 
 bool cm_nt_fget_z (mpz_t out, ftype in)
