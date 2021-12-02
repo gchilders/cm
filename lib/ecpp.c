@@ -1549,15 +1549,15 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 /*****************************************************************************/
 
 bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
-   bool print, bool check, bool verbose, bool debug)
+   bool print, char *filename, bool check, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
       of the class polynomial.
-      pari indicates whether the first, downrun step of PARI is used
-      instead of the built-in function.
       tower indicates whether a class field tower decomposition is used
       instead of only the class polynomial.
+      If filename is different from NULL, the final (stage 2) ECPP
+      certificate is output to the file.
       print indicates whether the result is printed.
       check indicates whether the certificate should be checked.
       If yes, the return value of the function is the result of the check;
@@ -1576,6 +1576,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    cm_timer_t clock;
    cm_stat_t stat1, stat2;
    double t;
+   FILE *f;
 
    cert1 = cm_ecpp1 (&depth, N, verbose, debug, stat1);
 
@@ -1586,8 +1587,16 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
          mpz_init (cert2 [i][j]);
    }
    cm_ecpp2 (cert2, cert1, depth, modpoldir, tower, verbose, debug, stat2);
+
    if (print)
       cm_file_write_ecpp_cert2 (stdout, cert2, depth);
+
+   if (filename != NULL) {
+      if (!cm_file_open_write (&f, filename))
+         exit (1);
+      cm_file_write_ecpp_cert2 (f, cert2, depth);
+      cm_file_close (f);
+   }
 
    if (verbose) {
       for (i = 0, t = 0.0; i < 7; i++)

@@ -30,6 +30,7 @@ static void print_i_options (void);
 static void print_n_options (void);
 static void print_v_options (void);
 static void print_o_options (void);
+static void print_f_options (void);
 static void print_g_options (void);
 static void print_c_options (void);
 static void print_help (void);
@@ -74,7 +75,15 @@ static void print_v_options (void)
 
 static void print_o_options (void)
 {
-   printf ("-o enables output of the certificate.\n");
+   printf ("-o enables output of the certificate on screen.\n");
+}
+
+/*****************************************************************************/
+
+static void print_f_options (void)
+{
+   printf ("-f followed by a file name outputs the certificate to the "
+           "file.\n");
 }
 
 /*****************************************************************************/
@@ -108,10 +117,11 @@ static void print_help (void)
 static void print_help_ecpp (void)
 {
    printf ("The following options are recognised: "
-      "'-n', '-o', '-v', '-g', '-c', '-h'.\n"
+      "'-n', '-o', '-f', '-v', '-g', '-c', '-h'.\n"
       "-h prints this help.\n");
    print_n_options ();
    print_o_options ();
+   print_f_options ();
    print_v_options ();
    print_g_options ();
    print_c_options ();
@@ -227,7 +237,7 @@ void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
 /*****************************************************************************/
 
 void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
-   bool *output, bool *verbose, bool *debug, bool *check)
+   bool *output, char **filename, bool *verbose, bool *debug, bool *check)
    /* Since ECPP requires different parameter types, the easiest solution
       appears to be a separate function, albeit with a lot of copy and
       paste. */
@@ -238,8 +248,9 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    *output = false;
    *verbose = false;
    *debug = false;
+   *filename = NULL;
 
-   while ((opt = getopt (argc, argv, "hn:ogvc")) != -1) {
+   while ((opt = getopt (argc, argv, "hn:of:gvc")) != -1) {
       switch (opt) {
          case 'v':
             *verbose = true;
@@ -253,6 +264,14 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
             break;
          case 'c':
             *check = true;
+            break;
+         case 'f':
+            if (optarg == NULL || optarg [0] == '-') {
+               print_f_options ();
+               exit (1);
+            }
+            else
+               *filename = optarg;
             break;
          case 'n':
             if (!cm_pari_eval_int (n, optarg) || mpz_cmp_si (n, 0ul) <= 0) {

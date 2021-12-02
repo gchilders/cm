@@ -34,12 +34,14 @@ int main (int argc, char* argv [])
    if (rank == 0) {
       mpz_t n;
       bool output, verbose, debug, check;
+      char *filename;
       mpz_init (n);
-      evaluate_parameters_ecpp (argc, argv, n, &output, &verbose, &debug,
-         &check);
+      evaluate_parameters_ecpp (argc, argv, n, &output, &filename,
+         &verbose, &debug, &check);
       cm_ecpp (n, CM_MODPOLDIR,
             true /* tower */,
             output /* print */,
+            filename /* filename */,
             check /* check */,
             verbose /* verbose */,
             debug /* debug */);

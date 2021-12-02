@@ -33,6 +33,7 @@ static void test_ecpp (mpz_srcptr n)
    res =    cm_ecpp (n, CM_MODPOLDIR,
       true /* tower */,
       false /* print */,
+      NULL /* filename */,
       true /* check */,
       false /* verbose */,
       false /* debug */);
