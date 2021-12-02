@@ -223,3 +223,29 @@ void cm_class_print_pari (FILE* file, cm_class_srcptr c,
 }
 
 /*****************************************************************************/
+
+void cm_file_write_ecpp_cert2 (FILE *f, mpz_t **c, int l)
+   /* Write the second stage ECPP certificate of lengh l in c to the
+      already opened file f, in the format used by PARI. */
+{
+   int i, j;
+
+   fprintf (f, "[");
+   for (i = 0; i < l; i++) {
+      fprintf (f, "[");
+      for (j = 0; j < 4; j++) {
+         mpz_out_str (f, 10, c [i][j]);
+         fprintf (f, ", ");
+      }
+      fprintf (f, "[");
+      mpz_out_str (f, 10, c [i][4]);
+      fprintf (f, ", ");
+      mpz_out_str (f, 10, c [i][5]);
+      fprintf (f, "]]");
+      if (i != l - 1)
+         fprintf (f, ", ");
+   }
+   fprintf (f, "]\n");
+}
+
+/*****************************************************************************/

@@ -1586,24 +1586,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
          mpz_init (cert2 [i][j]);
    }
    cm_ecpp2 (cert2, cert1, depth, modpoldir, tower, verbose, debug, stat2);
-   if (print) {
-      printf ("c = [");
-      for (i = 0; i < depth; i++) {
-         printf ("[");
-         for (j = 0; j < 4; j++) {
-            mpz_out_str (stdout, 10, cert2 [i][j]);
-            printf (", ");
-         }
-         printf ("[");
-         mpz_out_str (stdout, 10, cert2 [i][4]);
-         printf (", ");
-         mpz_out_str (stdout, 10, cert2 [i][5]);
-         printf ("]]");
-         if (i != depth - 1)
-            printf (", ");
-      }
-      printf ("];\n");
-   }
+   if (print)
+      cm_file_write_ecpp_cert2 (stdout, cert2, depth);
 
    if (verbose) {
       for (i = 0, t = 0.0; i < 7; i++)

@@ -220,6 +220,10 @@ extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 /* internal functions related to timers and counters */
 extern void cm_stat_init (cm_stat_t stat);
 
+
+/* functions operating on files */
+extern void cm_file_write_ecpp_cert2 (FILE *f, mpz_t **c, int l);
+
 /* functions for MPI */
 extern void cm_mpi_queue_push (int rank);
 extern int cm_mpi_queue_pop (void);
