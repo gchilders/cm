@@ -140,9 +140,9 @@ static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p)
 
 void cm_pari_init ()
 {
-   pari_init_opts (2000000, 0, INIT_JMPm | INIT_DFTm);
+   pari_init_opts (1ul<<28, 0, INIT_JMPm | INIT_DFTm);
       /* Do not capture SIGSEGV. */
-   paristack_setsize (2000000, 1000000000);
+   paristack_setsize (1ul<<28, 1ul<<31);
 }
 
 /*****************************************************************************/
