@@ -317,7 +317,7 @@ mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p, FILE *f,
 
 /*****************************************************************************/
 
-void cm_file_write_ecpp_cert2 (FILE *f, mpz_t **c, int l)
+void cm_file_pari_write_ecpp_cert2 (FILE *f, mpz_t **c, int l)
    /* Write the second stage ECPP certificate of lengh l in c to the
       already opened file f, in the format used by PARI. */
 {

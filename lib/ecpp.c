@@ -1622,12 +1622,12 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    cm_ecpp2 (cert2, cert1, depth, modpoldir, tower, verbose, debug, stat2);
 
    if (print)
-      cm_file_write_ecpp_cert2 (stdout, cert2, depth);
+      cm_file_pari_write_ecpp_cert2 (stdout, cert2, depth);
 
    if (filename != NULL) {
       if (!cm_file_open_write (&f, filename))
          exit (1);
-      cm_file_write_ecpp_cert2 (f, cert2, depth);
+      cm_file_pari_write_ecpp_cert2 (f, cert2, depth);
       cm_file_close (f);
    }
 

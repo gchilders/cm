@@ -226,7 +226,7 @@ extern bool cm_file_open_read_write (FILE **f, char *filename);
 extern bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line);
 extern mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p,
    FILE *f, bool debug);
-extern void cm_file_write_ecpp_cert2 (FILE *f, mpz_t **c, int l);
+extern void cm_file_pari_write_ecpp_cert2 (FILE *f, mpz_t **c, int l);
 
 /* functions for MPI */
 extern void cm_mpi_queue_push (int rank);
