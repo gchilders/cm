@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 static bool read_ecpp_cert1_line (FILE *f, mpz_t *line);
+static bool read_ecpp_cert2_line (FILE *f, mpz_t *line);
 
 /*****************************************************************************/
 
@@ -255,6 +256,22 @@ static bool read_ecpp_cert1_line (FILE *f, mpz_t *line)
 
 /*****************************************************************************/
 
+static bool read_ecpp_cert2_line (FILE *f, mpz_t *line)
+   /* Try to read an additional line of a second step ECPP certificate
+      from f and return it in line, which needs to contain six initialised
+      entries; the return value indicates the success of the operation. */
+{
+   int i;
+   bool ok;
+
+   for (i = 0, ok = true; i < 6 && ok; i++)
+      ok = (mpz_inp_str (line [i], f, 10) != 0);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
 bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line)
    /* Write line, supposed to contain one entry for the first part of ECPP,
       to f; the return value indicates the success of the operation. */
@@ -263,6 +280,24 @@ bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line)
    bool ok;
 
    for (i = 0, ok = true; i < 4 && ok; i++) {
+      ok = (mpz_out_str (f, 10, line [i]) != 0);
+      ok &= (fprintf (f, "\n") != 0);
+   }
+   ok &= (fprintf (f, "\n") != 0);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
+bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line)
+   /* Write line, supposed to contain one entry for the second part of ECPP,
+      to f; the return value indicates the success of the operation. */
+{
+   int i;
+   bool ok;
+
+   for (i = 0, ok = true; i < 6 && ok; i++) {
       ok = (mpz_out_str (f, 10, line [i]) != 0);
       ok &= (fprintf (f, "\n") != 0);
    }
@@ -313,6 +348,45 @@ mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p, FILE *f,
    }
 
    return c;
+}
+
+/*****************************************************************************/
+
+int cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p, FILE *f, bool debug)
+   /* Try to read a (partial) result of the second ECPP step for p from the
+      file f; it is returned in c, which needs to be allocated and
+      initialised. The return value is the number of read entries.
+      The file position indicator is advanced behind the read part, so that
+      new entries will be written at the end. */
+{
+   mpz_t line [6];
+   int depth, i;
+
+   for (i = 0; i < 6; i++)
+      mpz_init (line [i]);
+   depth = 0;
+   while (read_ecpp_cert2_line (f, line)) {
+      for (i = 0; i < 6; i++)
+         mpz_set (c [depth][i], line [i]);
+      depth++;
+   }
+   for (i = 0; i < 6; i++)
+      mpz_clear (line [i]);
+   if (depth > 0 && mpz_cmp (p, c [0][0]) != 0) {
+      printf ("***** Error: File in cm_file_read_ecpp_cert2 does not "
+            "correspond\nto the number to be proved prime.\n");
+      exit (1);
+   }
+   if (debug) {
+      printf ("Read %i stage 2 entr", depth);
+      if (depth == 1)
+         printf ("y");
+      else
+         printf ("ies");
+      printf (" from file.\n");
+   }
+
+   return depth;
 }
 
 /*****************************************************************************/

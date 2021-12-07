@@ -66,9 +66,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    bool verbose, bool debug, cm_stat_ptr stat);
-static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
-   const char* modpoldir, bool tower, bool verbose, bool debug,
-   cm_stat_ptr stat);
+static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
+   char *filename, const char* modpoldir, bool tower, bool verbose,
+   bool debug, cm_stat_ptr stat);
 
 /*****************************************************************************/
 
@@ -1423,7 +1423,7 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d)
 void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    const char* modpoldir, bool tower, bool verbose, bool debug,
    cm_stat_t stat)
-   /* The function takes the same parameters as cm_ecpp2, except that cert1
+   /* The function takes the same parameters as ecpp2, except that cert1
       contains only one entry of the first ECPP step, and that only one
       step of the certificate is output in cert2, which needs be to a
       pre-allocated and initialised array with 6 entries. This function
@@ -1495,9 +1495,9 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
 
 /*****************************************************************************/
 
-static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
-   const char* modpoldir, bool tower, bool verbose, bool debug,
-   cm_stat_ptr stat)
+static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
+   char *filename, const char* modpoldir, bool tower, bool verbose,
+   bool debug, cm_stat_ptr stat)
    /* Given the result of the ECPP down-run in cert1, an array of
       length depth as computed by ecpp1, execute the second step of
       the ECPP algorithm and compute the certificate proper in cert2,
@@ -1507,6 +1507,8 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       co-factor such that p+1-t = co*l with l the next prime, the curve
       parameter a, and the coordinates (x,y) of a point of prime order l
       on the curve; the curve parameter b is implicit.
+      If different from NULL, filename gives a file from which to read the
+      beginning of the certificate, and to which to write the computed end.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
       of the class polynomial.
@@ -1521,23 +1523,39 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       function. */
 
 {
+   int read;
    int i;
+   FILE *f;
 #ifdef WITH_MPI
    cm_stat_t stat_worker;
    MPI_Status status;
-   int sent, received, rank, job;
+   int sent, received, written, rank, job;
 #endif
 
    cm_stat_init (stat);
    cm_timer_start (stat->timer [0]);
 
+   if (filename != NULL)
+      if (cm_file_open_read_write (&f, filename))
+         read = cm_file_read_ecpp_cert2 (cert2, cert1 [0][0], f, debug);
+      else {
+         cm_file_open_write (&f, filename);
+         read = 0;
+      }
+   else
+      read = 0;
+
 #ifndef WITH_MPI
-   for (i = 0; i < depth; i++)
+   for (i = read; i < depth; i++) {
       cm_ecpp_one_step2 (cert2 [i], cert1 [i], modpoldir, tower,
          verbose, debug, stat);
+      if (filename != NULL)
+         cm_write_ecpp_cert2_line (f, cert2 [i]);
+   }
 #else
-   sent = 0;
-   received = 0;
+   sent = read;
+   received = read;
+   written = read;
    while (received < depth) {
       if (sent < depth && (rank = cm_mpi_queue_pop ()) != -1) {
          cm_mpi_submit_ecpp_one_step2 (rank, sent, cert1 [sent], modpoldir,
@@ -1554,11 +1572,16 @@ static void cm_ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
          cm_mpi_queue_push (rank);
          received++;
          if (verbose && debug)
-               printf ("-- Timings after job %3i: CM %5.1f, roots %5.1f, "
-                  "point %5.1f\n", job,
-                  cm_timer_get (stat->timer [1]),
-                  cm_timer_get (stat->timer [2]),
-                  cm_timer_get (stat->timer [3]));
+            printf ("-- Timings after job %3i: CM %5.1f, roots %5.1f, "
+               "point %5.1f\n", job,
+               cm_timer_get (stat->timer [1]),
+               cm_timer_get (stat->timer [2]),
+               cm_timer_get (stat->timer [3]));
+         if (filename != NULL)
+            while (written < depth && mpz_sgn (cert2 [written][0]) != 0) {
+               cm_write_ecpp_cert2_line (f, cert2 [written]);
+               written++;
+            }
       }
     }
 #endif
@@ -1598,7 +1621,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    bool res = true;
    int depth;
    mpz_t **cert1, **cert2;
-   char *filename1;
+   char *filename1, *filename2;
    int i, j;
    cm_timer_t clock;
    cm_stat_t stat1, stat2;
@@ -1606,11 +1629,16 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    FILE *f;
 
    if (filename != NULL) {
-      filename1 = (char *) malloc ((strlen (filename) + 7) * sizeof (char));
+      i = strlen (filename) + 7;
+      filename1 = (char *) malloc (i * sizeof (char));
       sprintf (filename1, "%s.cert1", filename);
+      filename2 = (char *) malloc (i * sizeof (char));
+      sprintf (filename2, "%s.cert2", filename);
    }
-   else
+   else {
       filename1 = NULL;
+      filename2 = NULL;
+   }
    cert1 = ecpp1 (&depth, N, filename1, verbose, debug, stat1);
 
    cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));
@@ -1619,7 +1647,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       for (j = 0; j < 6; j++)
          mpz_init (cert2 [i][j]);
    }
-   cm_ecpp2 (cert2, cert1, depth, modpoldir, tower, verbose, debug, stat2);
+   ecpp2 (cert2, cert1, depth, filename2, modpoldir, tower, verbose,
+      debug, stat2);
 
    if (print)
       cm_file_pari_write_ecpp_cert2 (stdout, cert2, depth);
@@ -1660,8 +1689,10 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    }
    free (cert1);
    free (cert2);
-   if (filename != NULL)
+   if (filename != NULL) {
       free (filename1);
+      free (filename2);
+   }
 
    return res;
 }
