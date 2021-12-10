@@ -200,12 +200,11 @@ void cm_mpi_submit_primorial (unsigned long int B)
 
 /*****************************************************************************/
 
-void cm_mpi_get_primorial (int rank, cm_stat_ptr stat)
-   /* Get timing information of a primorial job from worker rank and put it
-      into stat. */
+void cm_mpi_get_primorial (int rank, double *t)
+   /* Get timing information of a primorial job from worker rank and return
+      it in t. */
 {
-   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 }
 
 /*****************************************************************************/
@@ -221,13 +220,12 @@ void cm_mpi_submit_tonelli (int rank, int job, const long int a)
 
 /*****************************************************************************/
 
-void cm_mpi_get_tonelli (mpz_ptr root, int rank, cm_stat_ptr stat)
+void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t)
    /* Get the result of a Tonelli job from worker rank and put it into root.
-      Timing information from the worker is returned in stat. */
+      Timing information from the worker is returned in t. */
 {
    mpi_recv_mpz (root, rank);
-   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 }
 
 /*****************************************************************************/
@@ -281,9 +279,9 @@ void cm_mpi_submit_curve_cardinalities (int rank, int job, int_cl_t *d,
 /*****************************************************************************/
 
 mpz_t* cm_mpi_get_curve_cardinalities (int *no_card, int_cl_t **card_d,
-   int rank, cm_stat_ptr stat)
+   int rank, double *t)
    /* Get the result of a curve cardinality job from worker rank.
-      Timing information from the worker is returned in stat.
+      Timing information from the worker is returned in t.
       Parameters and the return value are as in
       cm_ecpp_compute_cardinalities; in particular, card_d and the
       return value are newly allocated arrays. */
@@ -300,8 +298,7 @@ mpz_t* cm_mpi_get_curve_cardinalities (int *no_card, int_cl_t **card_d,
       mpz_init (res [i]);
       mpi_recv_mpz (res [i], rank);
    }
-   MPI_Recv (&(stat->timer [3]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 
    return res;
 }
@@ -318,15 +315,14 @@ void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n)
 
 /*****************************************************************************/
 
-bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat)
+bool cm_mpi_get_is_prime (int rank, double *t)
    /* Get the result of a prime testing job from worker rank and return it.
-      Timing information from the worker is returned in stat. */
+      Timing information from the worker is returned in t. */
 {
    int res;
 
    MPI_Recv (&res, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-   MPI_Recv (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 
    return ((bool) res);
 }
@@ -346,10 +342,10 @@ void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
 
 /*****************************************************************************/
 
-void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat)
+void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, double *t)
    /* Get the result of a class number job from worker rank and
       put it into h, as output by cm_ecpp_compute_h_chunk in ecpp.c.
-      Timing information from the worker is returned in stat. */
+      Timing information from the worker is returned in t. */
 {
    MPI_Status status;
    int no;
@@ -358,8 +354,7 @@ void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat)
    MPI_Get_count (&status, MPI_UNSIGNED_LONG, &no);
    MPI_Recv (h, no, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
       NULL);
-   MPI_Recv (&(stat->timer [5]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 }
 
 /*****************************************************************************/

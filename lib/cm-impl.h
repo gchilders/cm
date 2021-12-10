@@ -60,7 +60,7 @@ typedef struct {
 
 
 typedef struct {
-   int counter [5];
+   int counter [4];
    cm_timer_t timer [8];
 }
 __cm_stat_struct;
@@ -239,9 +239,9 @@ extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
    mpz_t *qroot);
 extern void cm_mpi_clear_N (void);
 extern void cm_mpi_submit_primorial (unsigned long int B);
-extern void cm_mpi_get_primorial (int rank, cm_stat_ptr stat);
+extern void cm_mpi_get_primorial (int rank, double *t);
 extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
-extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, cm_stat_ptr stat);
+extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t);
 extern void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
    const char* modpoldir, bool tower);
 extern void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank,
@@ -249,12 +249,12 @@ extern void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank,
 extern void cm_mpi_submit_curve_cardinalities (int rank, int job,
    int_cl_t *d, int no_d);
 extern mpz_t* cm_mpi_get_curve_cardinalities (int *no_card,
-   int_cl_t **card_d, int rank, cm_stat_ptr stat);
+   int_cl_t **card_d, int rank, double *t);
 extern void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n);
-extern bool cm_mpi_get_is_prime (int rank, cm_stat_ptr stat);
+extern bool cm_mpi_get_is_prime (int rank, double *t);
 extern void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
    uint_cl_t Dmax);
-extern void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, cm_stat_ptr stat);
+extern void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, double *t);
 extern void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m);
 extern void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t);
 

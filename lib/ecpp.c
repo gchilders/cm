@@ -154,8 +154,7 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat)
 #ifdef WITH_MPI
    MPI_Status status;
    int sent, received, rank, job;
-   double t;
-   cm_stat_t stat_worker;
+   double t, t_worker;
 #else
    int i;
 #endif
@@ -193,8 +192,8 @@ static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat)
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
             MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
-         cm_mpi_get_h_chunk (h + job * size / 2, rank, stat_worker);
-         t += cm_timer_get (stat_worker->timer [5]);
+         cm_mpi_get_h_chunk (h + job * size / 2, rank, &t_worker);
+         t += t_worker;
          cm_mpi_queue_push (rank);
          received++;
       }
@@ -592,8 +591,7 @@ static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #else
    MPI_Status status;
    int sent, received, rank, job;
-   double t;
-   cm_stat_t stat_worker;
+   double t, t_worker;
 #endif
 
 #ifndef WITH_MPI
@@ -624,8 +622,8 @@ static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
             MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
-         cm_mpi_get_tonelli (qroot [job], rank, stat_worker);
-         t += cm_timer_get (stat_worker->timer [0]);
+         cm_mpi_get_tonelli (qroot [job], rank, &t_worker);
+         t += t_worker;
          cm_mpi_queue_push (rank);
          received++;
       }
@@ -812,7 +810,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    double t;
 #endif
 
-   cm_timer_continue (stat->timer [1]);
+   cm_timer_continue (stat->timer [2]);
    gcd = (mpz_t *) malloc (no_n * sizeof (mpz_t));
    for (i = 0; i < no_n; i++)
       mpz_init (gcd [i]);
@@ -824,13 +822,13 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    cm_mpi_submit_tree_gcd (n, no_n);
    cm_mpi_get_tree_gcd (gcd, no_n, &t);
 #endif
-   cm_timer_stop (stat->timer [1]);
-   stat->counter [1] += no_n;
+   cm_timer_stop (stat->timer [2]);
+   stat->counter [2] += no_n;
 #ifdef WITH_MPI
-   stat->timer [1]->elapsed += t;
+   stat->timer [2]->elapsed += t;
 #endif
 
-   cm_timer_continue (stat->timer [1]);
+   cm_timer_continue (stat->timer [2]);
    /* Remove the gcd from n [i] and recompute it until all primes
       are removed. */
    for (i = 0; i < no_n; i++) {
@@ -844,7 +842,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    for (i = 0; i < no_n; i++)
       mpz_clear (gcd [i]);
    free (gcd);
-   cm_timer_stop (stat->timer [1]);
+   cm_timer_stop (stat->timer [2]);
 }
 
 /*****************************************************************************/
@@ -885,8 +883,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 #ifdef WITH_MPI
    MPI_Status status;
    int sent, received, size, rank, job;
-   double t;
-   cm_stat_t stat_worker;
+   double t, t_worker;
 #endif
 
    res = 0;
@@ -940,17 +937,17 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
       for (j = 0; j < batch; j++)
          index [j] = -1;
 #ifndef WITH_MPI
-      cm_timer_continue (stat->timer [2]);
+      cm_timer_continue (stat->timer [3]);
       for (j = i * batch; j < max_j; j++) {
          if (cm_nt_is_prime (c [j][0]))
             index [j - i * batch] = mpz_get_ui (c [j][1]);
       }
-      cm_timer_stop (stat->timer [2]);
+      cm_timer_stop (stat->timer [3]);
 #else
    sent = i * batch;
    received = 0;
-   t = cm_timer_get (stat->timer [2]);
-   cm_timer_continue (stat->timer [2]);
+   t = cm_timer_get (stat->timer [3]);
+   cm_timer_continue (stat->timer [3]);
    while (received < max_j - i * batch) {
       if (sent < max_j && (rank = cm_mpi_queue_pop ()) != -1) {
          cm_mpi_submit_is_prime (rank, sent, c [sent][0]);
@@ -960,15 +957,15 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
             MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
-         if (cm_mpi_get_is_prime (rank, stat_worker))
+         if (cm_mpi_get_is_prime (rank, &t_worker))
             index [job - i * batch] = mpz_get_ui (c [job][1]);
-         t += cm_timer_get (stat_worker->timer [0]);
+         t += t_worker;
          cm_mpi_queue_push (rank);
          received++;
       }
    }
-   cm_timer_stop (stat->timer [2]);
-   stat->timer [2]->elapsed = t;
+   cm_timer_stop (stat->timer [3]);
+   stat->timer [3]->elapsed = t;
 #endif
       for (j = 0; res == 0 && j < batch; j++)
          if (index [j] != -1) {
@@ -976,7 +973,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
             mpz_set (n, card [index [j]]);
             mpz_set (l, l_list [index [j]]);
          }
-      stat->counter [2] += max_j - i * batch;
+      stat->counter [3] += max_j - i * batch;
    }
    free (index);
 
@@ -1026,8 +1023,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #ifdef WITH_MPI
    MPI_Status status;
    int size, rank, job;
-   double t;
-   cm_stat_t stat_worker;
+   double t, t_worker;
    int batch, max_i;
    int_cl_t **d_card_batch;
    mpz_t **card_batch;
@@ -1097,13 +1093,13 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
 #ifndef WITH_MPI
-      cm_timer_continue (stat->timer [3]);
+      cm_timer_continue (stat->timer [1]);
       card = cm_ecpp_compute_cardinalities (&no_card, &d_card, dlist, no_d,
          N, qstar, no_qstar, root);
-      cm_timer_stop (stat->timer [3]);
-      stat->counter [3] += no_d;
+      cm_timer_stop (stat->timer [1]);
+      stat->counter [1] += no_d;
 #else
-      cm_timer_continue (stat->timer [3]);
+      cm_timer_continue (stat->timer [1]);
       batch = (no_d + size - 2) / (size - 1);
       max_i = (no_d + batch - 1) / batch;
       no_card_batch = (int *) malloc (max_i * sizeof (int));
@@ -1114,16 +1110,16 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          cm_mpi_submit_curve_cardinalities (rank, i, dlist + i * batch,
             (i == max_i - 1 ? no_d - (max_i - 1) * batch : batch));
       }
-      cm_timer_stop (stat->timer [3]);
-      t = cm_timer_get (stat->timer [3]);
-      cm_timer_continue (stat->timer [3]);
+      cm_timer_stop (stat->timer [1]);
+      t = cm_timer_get (stat->timer [1]);
+      cm_timer_continue (stat->timer [1]);
       for (i = 0; i < max_i; i++) {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
          card_batch [i] = cm_mpi_get_curve_cardinalities (no_card_batch + i,
-            d_card_batch + i, rank, stat_worker);
-         t += cm_timer_get (stat_worker->timer [3]);
+            d_card_batch + i, rank, &t_worker);
+         t += t_worker;
          cm_mpi_queue_push (rank);
       }
       for (no_card = 0, i = 0; i < max_i; i++)
@@ -1142,9 +1138,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       free (no_card_batch);
       free (d_card_batch);
       free (card_batch);
-      cm_timer_stop (stat->timer [3]);
-      stat->timer [3]->elapsed = t;
-      stat->counter [3] += no_d;
+      cm_timer_stop (stat->timer [1]);
+      stat->timer [1]->elapsed = t;
+      stat->counter [1] += no_d;
 #endif
 
       if (no_card > 0) {
@@ -1229,7 +1225,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #else
    int size, rank, job;
    MPI_Status status;
-   cm_stat_t stat_worker;
+   double t_worker;
 #endif
 
    cm_stat_init (stat);
@@ -1278,8 +1274,8 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
-         cm_mpi_get_primorial (rank, stat_worker);
-         t += cm_timer_get (stat_worker->timer [0]);
+         cm_mpi_get_primorial (rank, &t_worker);
+         t += t_worker;
       }
       cm_timer_stop (stat->timer [6]);
       stat->timer [6]->elapsed = t;
@@ -1323,15 +1319,15 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
                printf ("%9i qroot:      %.1f (%.1f)\n", stat->counter [0],
                      cm_timer_get (stat->timer [0]),
                      cm_timer_wc_get (stat->timer [0]));
-               printf ("%9i Cornacchia: %.1f (%.1f)\n", stat->counter [3],
-                     cm_timer_get (stat->timer [3]),
-                     cm_timer_wc_get (stat->timer [3]));
-               printf ("%9i trial div:  %.1f (%.1f)\n", stat->counter [1],
+               printf ("%9i Cornacchia: %.1f (%.1f)\n", stat->counter [1],
                      cm_timer_get (stat->timer [1]),
                      cm_timer_wc_get (stat->timer [1]));
-               printf ("%9i is_prime:   %.1f (%.1f)\n", stat->counter [2],
+               printf ("%9i trial div:  %.1f (%.1f)\n", stat->counter [2],
                      cm_timer_get (stat->timer [2]),
                      cm_timer_wc_get (stat->timer [2]));
+               printf ("%9i is_prime:   %.1f (%.1f)\n", stat->counter [3],
+                     cm_timer_get (stat->timer [3]),
+                     cm_timer_wc_get (stat->timer [3]));
             }
          }
          mpz_set_si (c [*depth][1], d);
@@ -1661,7 +1657,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    }
 
    if (verbose) {
-      for (i = 0, t = 0.0; i < 7; i++)
+      for (i = 0, t = 0.0; i <= 6; i++)
          t += cm_timer_get (stat1->timer [i]);
       for (i = 1; i <= 3; i++)
          t += cm_timer_get (stat2->timer [i]);
