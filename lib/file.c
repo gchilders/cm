@@ -23,8 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static bool read_ecpp_cert1_line (FILE *f, mpz_t *line);
-static bool read_ecpp_cert2_line (FILE *f, mpz_t *line);
+static bool read_ecpp_cert1_line (FILE *f, mpz_t *line, cm_stat_t stat);
+static bool read_ecpp_cert2_line (FILE *f, mpz_t *line, cm_stat_t stat);
+static bool write_stat (FILE *f, cm_stat_t stat);
+static bool read_stat (FILE *f, cm_stat_t stat);
 
 /*****************************************************************************/
 
@@ -240,10 +242,58 @@ void cm_class_print_pari (FILE* file, cm_class_srcptr c,
 
 /*****************************************************************************/
 
-static bool read_ecpp_cert1_line (FILE *f, mpz_t *line)
+bool write_stat (FILE *f, cm_stat_t stat)
+   /* Write the content of stat to the file f. */
+{
+   int size, i;
+   bool ok = true;
+
+   size = sizeof (stat->counter) / sizeof (stat->counter [0]);
+   for (i = 0; i < size; i++)
+      ok &= (fprintf (f, "%i ", stat->counter [i]) != 0);
+   size = sizeof (stat->timer) / sizeof (stat->timer [0]);
+   for (i = 0; i < size - 1; i++)
+      ok &= (fprintf (f, "%f %f ",
+         stat->timer [i]->elapsed,
+         stat->timer [i]->wc_elapsed) != 0);
+   ok &= (fprintf (f, "%f %f\n\n",
+      stat->timer [size - 1] ->elapsed,
+      stat->timer [size - 1] ->wc_elapsed) != 0);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
+bool read_stat (FILE *f, cm_stat_t stat)
+   /* Read statistical information from f into stat. */
+{
+   int size, i;
+   bool ok = true;
+
+   size = sizeof (stat->counter) / sizeof (stat->counter [0]);
+   for (i = 0; i < size; i++)
+      ok &= (fscanf (f, "%i", stat->counter + i) != 0);
+   size = sizeof (stat->timer) / sizeof (stat->timer [0]);
+   for (i = 0; i < size - 1; i++)
+      ok &= (fscanf (f, "%lf%lf",
+         &(stat->timer [i]->elapsed),
+         &(stat->timer [i]->wc_elapsed)) != 0);
+   ok &= (fscanf (f, "%lf%lf",
+      &(stat->timer [size - 1] ->elapsed),
+      &(stat->timer [size - 1] ->wc_elapsed)) != 0);
+
+   return ok;
+}
+
+/*****************************************************************************/
+
+static bool read_ecpp_cert1_line (FILE *f, mpz_t *line, cm_stat_t stat)
    /* Try to read an additional line of a first step ECPP certificate
       from f and return it in line, which needs to contain four initialised
-      entries; the return value indicates the success of the operation. */
+      entries; the return value indicates the success of the operation.
+      Statistical information is also read from the file and returned
+      in stat. */
 {
    int i;
    bool ok;
@@ -251,15 +301,18 @@ static bool read_ecpp_cert1_line (FILE *f, mpz_t *line)
    for (i = 0, ok = true; i < 4 && ok; i++)
       ok = (mpz_inp_str (line [i], f, 10) != 0);
 
+   ok &= read_stat (f, stat);
+
    return ok;
 }
 
 /*****************************************************************************/
 
-static bool read_ecpp_cert2_line (FILE *f, mpz_t *line)
+static bool read_ecpp_cert2_line (FILE *f, mpz_t *line, cm_stat_t stat)
    /* Try to read an additional line of a second step ECPP certificate
       from f and return it in line, which needs to contain six initialised
-      entries; the return value indicates the success of the operation. */
+      entries; the return value indicates the success of the operation.
+      Statistics information is also read and returned in stat. */
 {
    int i;
    bool ok;
@@ -267,14 +320,18 @@ static bool read_ecpp_cert2_line (FILE *f, mpz_t *line)
    for (i = 0, ok = true; i < 6 && ok; i++)
       ok = (mpz_inp_str (line [i], f, 10) != 0);
 
+   ok &= read_stat (f, stat);
+
    return ok;
 }
 
 /*****************************************************************************/
 
-bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line)
+bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line, cm_stat_t stat)
    /* Write line, supposed to contain one entry for the first part of ECPP,
-      to f; the return value indicates the success of the operation. */
+      to f; the return value indicates the success of the operation.
+      The stat entry is also written so that comprehensive statistics
+      of the full run can be collected. */
 {
    int i;
    bool ok;
@@ -283,16 +340,19 @@ bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line)
       ok = (mpz_out_str (f, 10, line [i]) != 0);
       ok &= (fprintf (f, "\n") != 0);
    }
-   ok &= (fprintf (f, "\n") != 0);
+   ok &= write_stat (f, stat);
+
+   fflush (f);
 
    return ok;
 }
 
 /*****************************************************************************/
 
-bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line)
+bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line, cm_stat_t stat)
    /* Write line, supposed to contain one entry for the second part of ECPP,
-      to f; the return value indicates the success of the operation. */
+      to f; the return value indicates the success of the operation.
+      Statistics from stat is also written to the file. */
 {
    int i;
    bool ok;
@@ -301,7 +361,10 @@ bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line)
       ok = (mpz_out_str (f, 10, line [i]) != 0);
       ok &= (fprintf (f, "\n") != 0);
    }
-   ok &= (fprintf (f, "\n") != 0);
+
+   ok &= write_stat (f, stat);
+
+   fflush (f);
 
    return ok;
 }
@@ -309,9 +372,10 @@ bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line)
 /*****************************************************************************/
 
 mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p, FILE *f,
-   bool debug)
+   bool debug, cm_stat_t stat)
    /* Try to read a (partial) result of the first ECPP step for p from the
-      file f; it is returned via a newly allocated array of size depth.
+      file f; it is returned via a newly allocated array of size depth,
+      and statistics are read from the file and returned in stat.
       The file position indicator is advanced behind the read part, so that
       new entries will be written at the end. */
 {
@@ -322,7 +386,7 @@ mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p, FILE *f,
    for (i = 0; i < 4; i++)
       mpz_init (line [i]);
    *depth = 0;
-   while (read_ecpp_cert1_line (f, line)) {
+   while (read_ecpp_cert1_line (f, line, stat)) {
       c = (mpz_t **) realloc (c, (*depth + 1) * sizeof (mpz_t *));
       c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
       for (i = 0; i < 4; i++) {
@@ -352,10 +416,12 @@ mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p, FILE *f,
 
 /*****************************************************************************/
 
-int cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p, FILE *f, bool debug)
+int cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p, FILE *f, bool debug,
+   cm_stat_t stat)
    /* Try to read a (partial) result of the second ECPP step for p from the
       file f; it is returned in c, which needs to be allocated and
       initialised. The return value is the number of read entries.
+      Statistical information is also read and returned in stat.
       The file position indicator is advanced behind the read part, so that
       new entries will be written at the end. */
 {
@@ -365,7 +431,7 @@ int cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p, FILE *f, bool debug)
    for (i = 0; i < 6; i++)
       mpz_init (line [i]);
    depth = 0;
-   while (read_ecpp_cert2_line (f, line)) {
+   while (read_ecpp_cert2_line (f, line, stat)) {
       for (i = 0; i < 6; i++)
          mpz_set (c [depth][i], line [i]);
       depth++;

@@ -1229,7 +1229,6 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #endif
 
    cm_stat_init (stat);
-   cm_timer_start (stat->timer [7]);
 
    /* If filename is given, try to read a partial step 1 certificate from
       the file. */
@@ -1237,7 +1236,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    *depth = 0;
    if (filename != NULL)
       if (cm_file_open_read_write (&f, filename))
-         c = cm_file_read_ecpp_cert1 (depth, p, f, debug);
+         c = cm_file_read_ecpp_cert1 (depth, p, f, debug, stat);
       else {
          cm_file_open_write (&f, filename);
          c = NULL;
@@ -1248,6 +1247,8 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       mpz_set (N, c [*depth - 1][3]);
    else
       mpz_set (N, p);
+
+   cm_timer_continue (stat->timer [7]);
 
    if (mpz_sizeinbase (N, 2) > 64) {
       /* Precompute class numbers. */
@@ -1331,8 +1332,11 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             }
          }
          mpz_set_si (c [*depth][1], d);
-         if (filename != NULL)
-            cm_write_ecpp_cert1_line (f, c [*depth]);
+         if (filename != NULL) {
+            cm_timer_stop (stat->timer [7]);
+            cm_write_ecpp_cert1_line (f, c [*depth], stat);
+            cm_timer_continue (stat->timer [7]);
+         }
          mpz_set (N, c [*depth][3]);
          (*depth)++;
       }
@@ -1529,11 +1533,11 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 #endif
 
    cm_stat_init (stat);
-   cm_timer_start (stat->timer [0]);
 
    if (filename != NULL)
       if (cm_file_open_read_write (&f, filename))
-         read = cm_file_read_ecpp_cert2 (cert2, cert1 [0][0], f, debug);
+         read = cm_file_read_ecpp_cert2 (cert2, cert1 [0][0], f, debug,
+            stat);
       else {
          cm_file_open_write (&f, filename);
          read = 0;
@@ -1541,12 +1545,16 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    else
       read = 0;
 
+   cm_timer_continue (stat->timer [0]);
 #ifndef WITH_MPI
    for (i = read; i < depth; i++) {
       cm_ecpp_one_step2 (cert2 [i], cert1 [i], modpoldir, tower,
          verbose, debug, stat);
-      if (filename != NULL)
-         cm_write_ecpp_cert2_line (f, cert2 [i]);
+      if (filename != NULL) {
+         cm_timer_stop (stat->timer [0]);
+         cm_write_ecpp_cert2_line (f, cert2 [i], stat);
+         cm_timer_continue (stat->timer [0]);
+      }
    }
 #else
    sent = read;
@@ -1573,11 +1581,14 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
                cm_timer_get (stat->timer [1]),
                cm_timer_get (stat->timer [2]),
                cm_timer_get (stat->timer [3]));
-         if (filename != NULL)
+         if (filename != NULL) {
+            cm_timer_stop (stat->timer [0]);
             while (written < depth && mpz_sgn (cert2 [written][0]) != 0) {
-               cm_write_ecpp_cert2_line (f, cert2 [written]);
+               cm_write_ecpp_cert2_line (f, cert2 [written], stat);
                written++;
             }
+            cm_timer_continue (stat->timer [0]);
+         }
       }
     }
 #endif
