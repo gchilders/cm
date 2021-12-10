@@ -876,13 +876,17 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 {
    int_cl_t res;
    size_t size_l, size_N;
-   int no, batch;
-   int *index;
+   int no;
    mpz_t **c;
-   int i, j, max_i, max_j;
-#ifdef WITH_MPI
+   int i;
+#ifndef WITH_MPI
+   int index;
+#else
+   int *index;
+   int batch, max_i;
+   int j;
    MPI_Status status;
-   int sent, received, size, rank, job;
+   int size, rank, job;
    double t, t_worker;
 #endif
 
@@ -918,64 +922,59 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    if (no > 0)
       qsort (c, no, sizeof (mpz_t *), card_cmp);
 
-   /* Go through the array in batches of size batch and look for a prime
-      non-smooth part. Stop and remember the first occurrence when it is
-      found; this is the smallest possible prime in the list.
-      Using batches is only meaningful in the case of parallelisation. */
 #ifndef WITH_MPI
-   batch = 1;
-#else
-   MPI_Comm_size (MPI_COMM_WORLD, &size);
-   batch = size - 1;
-#endif
-   index = (int *) malloc (batch * sizeof (int));
-   max_i = (no + batch - 1) / batch;
-   for (i = 0; res == 0 && i < max_i; i++) {
-      max_j = (i + 1) * batch;
-      if (max_j > no)
-         max_j = no;
-      for (j = 0; j < batch; j++)
-         index [j] = -1;
-#ifndef WITH_MPI
-      cm_timer_continue (stat->timer [3]);
-      for (j = i * batch; j < max_j; j++) {
-         if (cm_nt_is_prime (c [j][0]))
-            index [j - i * batch] = mpz_get_ui (c [j][1]);
-      }
-      cm_timer_stop (stat->timer [3]);
-#else
-   sent = i * batch;
-   received = 0;
-   t = cm_timer_get (stat->timer [3]);
+   /* Find the first prime non-smooth part, which is also the
+      smallest one. */
    cm_timer_continue (stat->timer [3]);
-   while (received < max_j - i * batch) {
-      if (sent < max_j && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_is_prime (rank, sent, c [sent][0]);
-         sent++;
+   for (i = 0; res == 0 && i < no; i++) {
+      if (cm_nt_is_prime (c [i][0])) {
+         index = mpz_get_ui (c [i][1]);
+         res = d [index];
+         mpz_set (n, card [index]);
+         mpz_set (l, l_list [index]);
       }
-      else {
-         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-            MPI_COMM_WORLD, &status);
-         rank = status.MPI_SOURCE;
-         if (cm_mpi_get_is_prime (rank, &t_worker))
-            index [job - i * batch] = mpz_get_ui (c [job][1]);
-         t += t_worker;
-         cm_mpi_queue_push (rank);
-         received++;
-      }
+      stat->counter [3]++;
    }
    cm_timer_stop (stat->timer [3]);
-   stat->timer [3]->elapsed = t;
-#endif
+#else
+   /* Let each worker do one primality test at a time; stop as soon as one
+      of the workers finds a prime, then keep the first one in case several
+      workers identify a prime in one batch. */
+   cm_timer_continue (stat->timer [3]);
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   batch = size - 1;
+   index = (int *) malloc (batch * sizeof (int));
+   for (j = 0; j < batch; j++)
+      index [j] = -1;
+   max_i = (no + batch - 1) / batch;
+   for (i = 0; res == 0 && i < max_i; i++) {
+      if (i == max_i - 1)
+         batch = no - i * batch;
+      for (j = 0; j < batch; j++)
+         cm_mpi_submit_is_prime (j + 1, j, c [j + i * batch][0]);
+      cm_timer_stop (stat->timer [3]);
+      t = cm_timer_get (stat->timer [3]);
+      cm_timer_continue (stat->timer [3]);
+      for (j = 0; j < batch; j++) {
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+               MPI_COMM_WORLD, &status);
+         rank = status.MPI_SOURCE;
+         if (cm_mpi_get_is_prime (rank, &t_worker))
+            index [job] = mpz_get_ui (c [job + i * batch][1]);
+         t += t_worker;
+      }
+      cm_timer_stop (stat->timer [3]);
+      stat->timer [3]->elapsed = t;
       for (j = 0; res == 0 && j < batch; j++)
          if (index [j] != -1) {
             res = d [index [j]];
             mpz_set (n, card [index [j]]);
             mpz_set (l, l_list [index [j]]);
          }
-      stat->counter [3] += max_j - i * batch;
+      stat->counter [3] += batch;
    }
    free (index);
+#endif
 
    for (i = 0; i < no; i++) {
       mpz_clear (c [i][0]);
