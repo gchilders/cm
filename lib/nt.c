@@ -127,7 +127,7 @@ int cm_nt_kronecker (int_cl_t a, int_cl_t b)
 int cm_nt_is_prime (mpz_t a)
 
 {
-   return (mpz_probab_prime_p (a, 10) > 0);
+   return (mpz_probab_prime_p (a, 0) > 0);
 }
 
 /*****************************************************************************/
