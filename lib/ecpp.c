@@ -940,6 +940,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    /* Let each worker do one primality test at a time; stop as soon as one
       of the workers finds a prime, then keep the first one in case several
       workers identify a prime in one batch. */
+   t = cm_timer_get (stat->timer [3]);
    cm_timer_continue (stat->timer [3]);
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    batch = size - 1;
@@ -952,9 +953,6 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          batch = no - i * batch;
       for (j = 0; j < batch; j++)
          cm_mpi_submit_is_prime (j + 1, j, c [j + i * batch][0]);
-      cm_timer_stop (stat->timer [3]);
-      t = cm_timer_get (stat->timer [3]);
-      cm_timer_continue (stat->timer [3]);
       for (j = 0; j < batch; j++) {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
@@ -963,8 +961,6 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
             index [job] = mpz_get_ui (c [job + i * batch][1]);
          t += t_worker;
       }
-      cm_timer_stop (stat->timer [3]);
-      stat->timer [3]->elapsed = t;
       for (j = 0; res == 0 && j < batch; j++)
          if (index [j] != -1) {
             res = d [index [j]];
@@ -973,6 +969,8 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          }
       stat->counter [3] += batch;
    }
+   cm_timer_stop (stat->timer [3]);
+   stat->timer [3]->elapsed = t;
    free (index);
 #endif
 
