@@ -1210,7 +1210,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          division up to B, assuming that what remains is prime, is B;
          we impose half of this number of bits as the minimal gain. */
    const uint_cl_t Dmax = ((L * L) >> 4) << 2;
-   const uint_cl_t hmaxprime = 30;
+   const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
    mpz_t** c;
    uint_cl_t *h;

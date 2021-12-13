@@ -42,6 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_FIELD_COMPLEX 2
 
 #define CM_MIN(a,b) ((a) < (b) ? (a) : (b))
+#define CM_MAX(a,b) ((a) > (b) ? (a) : (b))
 
 typedef struct {
    cm_modular_t m;
