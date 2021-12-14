@@ -61,7 +61,7 @@ typedef struct {
 
 
 typedef struct {
-   int counter [4];
+   unsigned long int counter [4];
    cm_timer_t timer [8];
 }
 __cm_stat_struct;

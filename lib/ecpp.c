@@ -1314,16 +1314,16 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
                printf ("       discriminants: %.1f (%.1f)\n",
                      cm_timer_get (stat->timer [4]),
                      cm_timer_wc_get (stat->timer [4]));
-               printf ("%9i qroot:      %.1f (%.1f)\n", stat->counter [0],
+               printf ("%9lu qroot:      %.1f (%.1f)\n", stat->counter [0],
                      cm_timer_get (stat->timer [0]),
                      cm_timer_wc_get (stat->timer [0]));
-               printf ("%9i Cornacchia: %.1f (%.1f)\n", stat->counter [1],
+               printf ("%9lu Cornacchia: %.1f (%.1f)\n", stat->counter [1],
                      cm_timer_get (stat->timer [1]),
                      cm_timer_wc_get (stat->timer [1]));
-               printf ("%9i trial div:  %.1f (%.1f)\n", stat->counter [2],
+               printf ("%9lu trial div:  %.1f (%.1f)\n", stat->counter [2],
                      cm_timer_get (stat->timer [2]),
                      cm_timer_wc_get (stat->timer [2]));
-               printf ("%9i is_prime:   %.1f (%.1f)\n", stat->counter [3],
+               printf ("%9lu is_prime:   %.1f (%.1f)\n", stat->counter [3],
                      cm_timer_get (stat->timer [3]),
                      cm_timer_wc_get (stat->timer [3]));
             }

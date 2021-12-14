@@ -250,7 +250,7 @@ bool write_stat (FILE *f, cm_stat_t stat)
 
    size = sizeof (stat->counter) / sizeof (stat->counter [0]);
    for (i = 0; i < size; i++)
-      ok &= (fprintf (f, "%i ", stat->counter [i]) != 0);
+      ok &= (fprintf (f, "%lu ", stat->counter [i]) != 0);
    size = sizeof (stat->timer) / sizeof (stat->timer [0]);
    for (i = 0; i < size - 1; i++)
       ok &= (fprintf (f, "%f %f ",
@@ -273,7 +273,7 @@ bool read_stat (FILE *f, cm_stat_t stat)
 
    size = sizeof (stat->counter) / sizeof (stat->counter [0]);
    for (i = 0; i < size; i++)
-      ok &= (fscanf (f, "%i", stat->counter + i) != 0);
+      ok &= (fscanf (f, "%lu", stat->counter + i) != 0);
    size = sizeof (stat->timer) / sizeof (stat->timer [0]);
    for (i = 0; i < size - 1; i++)
       ok &= (fscanf (f, "%lf%lf",
