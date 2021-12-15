@@ -1282,6 +1282,8 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          printf ("-- Time for primorial of B=%lu: %.1f (%.1f)\n", B,
                cm_timer_get (stat->timer [6]), cm_timer_wc_get (stat->timer [6]));
 
+      printf ("-- hmaxprime: %"PRIucl"\n", hmaxprime);
+
       t_old = 0;
       while (mpz_sizeinbase (N, 2) > 64) {
          c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
