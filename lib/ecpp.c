@@ -1003,7 +1003,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       The smoothness bound B is needed to compute the success probability
       of finding a prime. */
 {
-   const int max_factors = 4;
+   const int max_factors = 7;
    int no_qstar_old, no_qstar_new, no_qstar, no_qstar_delta;
    long int *qstar;
    long int q;
