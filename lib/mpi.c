@@ -40,15 +40,12 @@ typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
 static int *worker_queue, *worker_queue_local;
 static int worker_queue_size, worker_queue_local_size;
-static const int no_prim_opt = 12;
-   /* Experimentally for nextprime (10^4000), splitting B into 12 chunks
-      has proved to be the optimal choice among powers of 2 and 3 times
-      powers of 2, but there is no theoretical argument for this. */
 
 static void mpi_send_mpz (mpz_srcptr z, const int rank);
 static void mpi_recv_mpz (mpz_ptr z, const int rank);
 static void mpi_bcast_send_mpz (mpz_srcptr z);
 static void mpi_bcast_recv_mpz (mpz_ptr z);
+static int compute_no_prim (int size, unsigned long int B);
 static void mpi_worker (void);
 static void mpi_server_init (const int size, bool debug);
 static void mpi_server_clear (const int size);
@@ -378,7 +375,48 @@ void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m)
 
 /*****************************************************************************/
 
-void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
+static int compute_no_prim (int size, unsigned long int B)
+   /* Compute no_prim, the number of chunks into which the primorial of B
+      is split, depending on the size of the MPI communicator.
+      We need 1 <= no_prim <= size - 1.
+      Experiments with nextprime (10^4000) have yielded an optimal value
+      of 12 for no_prim, among the powers of 2, and 3 times the powers of 2.
+      Finally the memory consumption has to be taken into account; the code
+      in ecpp.c caps B at (size - 1) * 2^29, in which case no_prim should
+      be set to size - 1; more generally B / no_prim should not exceed 2^29.
+      Then the chunk of primorial computed by each process is roughly
+      exp (2^29), requiring about 100MB of storage. Each level of the
+      subproduct tree requires the same amount of memory; for 10000 digit
+      numbers on the leaves, there are about 15 levels, so the total memory
+      should be well constrained below 2GB per process. */
+{
+   const int no_prim_opt = 12;
+   int no_prim, no_m;
+
+   if (size <= no_prim_opt)
+      return size - 1;
+   else if (B >= ((unsigned long int) size - 1) << 29)
+      return size - 1;
+
+   if (B >= ((unsigned long int) no_prim_opt) << 29)
+      no_prim = B >> 29;
+   else
+      no_prim = no_prim_opt;
+
+   no_m = (size - 1) / no_prim;
+   /* The numbers to be factored are divided into no_m chunks, and only
+      the first no_prim * no_m workers are used. For the same value
+      of no_m, it may be possible to increase no_prim and leave fewer
+      workers idle. */
+   no_prim = (size - 1) / no_m;
+
+   return no_prim;
+}
+
+/*****************************************************************************/
+
+void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, unsigned long int B,
+   double *t)
    /* Get from all workers the results of gcd jobs as output by
       cm_mpz_tree_gcd and collect them into gcd. */
 {
@@ -391,8 +429,7 @@ void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
    int i, j;
 
    MPI_Comm_size (MPI_COMM_WORLD, &size);
-   /* The range of numbers to retrieve is computed as in mpi_worker. */
-   no_prim = (size <= no_prim_opt ? size - 1 : no_prim_opt);
+   no_prim = compute_no_prim (size, B);
    no_M = (size - 1) / no_prim;
    no_gcd = no_m / no_M;
    rem = no_m - no_gcd * no_M;
@@ -487,7 +524,10 @@ static void mpi_worker ()
 
    /* Tree gcd. */
    int no_m, no_gcd, offset, rem;
-   int no_prim, no_M, rank_div;
+   int no_prim = 0;
+      /* Set to placate a compiler warning about an uninitialised value.
+         It is computed in the MPI_TAG_JOB_PRIMORIAL job. */
+   int no_M, rank_div;
    mpz_t *m, *gcd;
 
    MPI_Comm_size (MPI_COMM_WORLD, &size);
@@ -546,10 +586,10 @@ static void mpi_worker ()
       case MPI_TAG_JOB_PRIMORIAL:
          cm_timer_start (stat->timer [0]);
          MPI_Bcast (&B, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+         no_prim = compute_no_prim (size, B);
 
          /* Each worker chooses a chunk out of B according to
             rank % no_prim. */
-         no_prim = (size <= no_prim_opt ? size - 1 : no_prim_opt);
          i = rank % no_prim;
          cm_pari_prime_product (prim, i * B / no_prim,
             (i+1) * B / no_prim);
@@ -671,7 +711,6 @@ static void mpi_worker ()
             no_prim * no_M doing no work for simplicity.
             The m are split evenly, and if the division leaves a
             remainder, the first processes handle one more. */
-         no_prim = (size <= no_prim_opt ? size - 1 : no_prim_opt);
          no_M = (size - 1) / no_prim;
          if (rank > no_prim * no_M) {
             no_gcd = 0;

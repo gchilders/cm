@@ -51,6 +51,8 @@ static int card_cmp (const void* c1, const void* c2);
 static void trial_div (mpz_t *l, mpz_t *n, int no_n,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
+#else
+   unsigned long int B,
 #endif
    cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
@@ -796,6 +798,8 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
 void trial_div (mpz_t *l, mpz_t *n, int no_n,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
+#else
+   unsigned long int B,
 #endif
    cm_stat_t stat)
    /* primorialB is supposed to be the product of the primes up to the
@@ -820,7 +824,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    cm_nt_mpz_tree_gcd (gcd, primorialB, n, no_n);
 #else
    cm_mpi_submit_tree_gcd (n, no_n);
-   cm_mpi_get_tree_gcd (gcd, no_n, &t);
+   cm_mpi_get_tree_gcd (gcd, no_n, B, &t);
 #endif
    cm_timer_stop (stat->timer [2]);
    stat->counter [2] += no_n;
@@ -1148,6 +1152,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          trial_div (l_list, card, no_card,
 #ifndef WITH_MPI
             primorialB,
+#else
+            B,
 #endif
             stat);
 
@@ -1202,11 +1208,17 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 
 {
    const size_t L = mpz_sizeinbase (p, 2);
+#ifndef WITH_MPI
    const unsigned long int B = CM_MIN (1ul<<33, (L>>4)*(L>>4)*(L>>5));
    const unsigned int delta = (unsigned int) (log2 (B) / 2) + 1;
       /* According to [FrKlMoWi04] the average factor removed by trial
          division up to B, assuming that what remains is prime, is B;
          we impose half of this number of bits as the minimal gain. */
+#else
+   unsigned long int B;
+      /* Computed below depending on size. */
+   unsigned int delta;
+#endif
    const uint_cl_t Dmax = ((L * L) >> 4) << 2;
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
@@ -1223,6 +1235,14 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    int size, rank, job;
    MPI_Status status;
    double t_worker;
+#endif
+
+#ifdef WITH_MPI
+   /* Cap B at (size - 1) * 2^29, so that each worker handles a product
+      of value at most about exp (2^29), or 100MB. */
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   B = CM_MIN (((unsigned long int) size - 1) << 29, (L>>4)*(L>>4)*(L>>5));
+   delta = (unsigned int) (log2 (B) / 2) + 1;
 #endif
 
    cm_stat_init (stat);
@@ -1267,7 +1287,6 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       t = 0;
       cm_timer_start (stat->timer [6]);
       cm_mpi_submit_primorial (B);
-      MPI_Comm_size (MPI_COMM_WORLD, &size);
       for (i = 1; i < size; i++) {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
