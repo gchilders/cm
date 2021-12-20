@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
+
 /*****************************************************************************/
 
 long int cm_nt_gcd (long int a, long int b)
@@ -465,29 +467,20 @@ bool cm_nt_mpz_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
-   /* Given a (large) positive integer n and an array of (smaller) no_m >= 1
-      positive integers in m, all of which are assumed to be of roughly the
-      same size, compute the gcd of n with all the m and return them in gcd,
-      which needs to provide sufficient space and initialised entries. */
+static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
+   /* This is the workhorse behind the cm_nt_mpz_tree_gcd function; it
+      assumes that the total size of the no_m entries of m is less than
+      that of n and directly computes a tree. */
 {
    mpz_t **tree;
    int *width;
    int levels;
-   long int size_n, size_m;
    int i, j;
 
-   /* Compute the height of the subproduct tree of the m in levels. The
-      height of the full tree is given by the logarithm of no_m. On the
-      other hand, the height should be such that at the top level, the
-      entries are still smaller than n; so we may prefer to compute a
-      forest instead of a single tree. */
+   /* Compute the height of the subproduct tree of the m in levels. */
    for (i = no_m, levels = 1; i > 1; i = (i+1) / 2, levels++);
-   size_n = mpz_sizeinbase (n, 2);
-   size_m = mpz_sizeinbase (m [0], 2);
-   for (; levels >= 2 && size_m << (levels - 1) > size_n; levels--);
 
-   /* Compute bottom-up a subproduct forest with m on the leaves. */
+   /* Compute bottom-up a subproduct tree with m on the leaves. */
    tree = (mpz_t **) malloc (levels * sizeof (mpz_t *));
    width = (int *) malloc (levels * sizeof (int));
    width [0] = no_m;
@@ -531,6 +524,34 @@ void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
    }
    free (tree);
    free (width);
+}
+
+/*****************************************************************************/
+
+void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
+   /* Given a (large) positive integer n and an array of (smaller) no_m >= 1
+      positive integers in m, compute the gcd of n with all the m and return
+      them in gcd, which needs to provide sufficient space and initialised
+      entries. */
+{
+   const unsigned long int size_n = mpz_sizeinbase (n, 2);
+   unsigned long int size_m;
+   int offset, no_batch;
+
+   for (offset = 0; offset < no_m; offset += no_batch) {
+      /* Treat the entries m [offset], ..., m [offset + no_batch - 1],
+         where no_batch is chosen such that their product is at most
+         size_n / 2; this keeps the subproduct tree of the m, which
+         can require a considerable amount of memory, of a size such
+         that reduction of n modulo the product at the root still
+         requires some work. */
+      for (size_m = mpz_sizeinbase (m [offset], 2), no_batch = 1;
+           offset + no_batch < no_m
+              && size_m + mpz_sizeinbase (m [offset + no_batch], 2)
+                 < size_n / 2;
+           size_m += mpz_sizeinbase (m [offset + no_batch], 2), no_batch++);
+      tree_gcd (gcd + offset, n, m + offset, no_batch);
+   }
 }
 
 /*****************************************************************************/
