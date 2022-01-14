@@ -2,7 +2,7 @@
 
 param.c - code for handling CM parameters
 
-Copyright (C) 2009, 2010, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -298,15 +298,32 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
    dmod64 = cm_classgroup_mod (d, (uint_cl_t) 64);
    dmod128 = cm_classgroup_mod (d, (uint_cl_t) 128);
 
-   /* According to [EnMo04], we have s=24/(n-1), and the height factor is
-      l+1 for n=l prime and l for n=l^2. Moreover, w_l^s can be used
-      whenever kronecker(d,l) != -1, and w^{l^2}^s can be used whenever
-      kronecker(d,l) == 1 and for some non-fundamental discriminants with
-      kronecker(d,l) == 0; so full powers of squares other than 4 are not
-      of interest, and in particular 25 can be dropped.
+   /* According to [EnMo04], we have s=24/(n-1), and the height factor
+      for w_l^s is l+1 for n=l prime and l*(l+1)=n*sqrt(n) for n=l^2.
       Test all possible powers in the order of their height factors. */
-   if (k3 != -1 &&
-       (dmod12 == 1 || dmod36 == 33)) {
+   if (dmod8 == 1 || dmod64 == 48 || dmod128 == 0) {
+      /* w_4, factor 48 */
+      param->p [0] = 4;
+      param->e = 1;
+   }
+   else if (   dmod108 == 0 || dmod108 == 45
+            || dmod108 == 72 || dmod108 == 81
+            || dmod12 == 1 || dmod12 == 4) {
+      /* w_9, factor 36 */
+      param->p [0] = 9;
+      param->e = 1;
+   }
+   else if (k5 == 1 || d % 25 == 0) {
+      /* w_25, factor 30 */
+      param->p [0] = 25;
+      param->e = 1;
+   }
+   else if (dmod32 == 20 || dmod128 == 64) {
+      /* w_4^2, factor 24 */
+      param->p [0] = 4;
+      param->e = 2;
+   }
+   else if (k3 != -1 && (dmod12 == 1 || dmod36 == 33)) {
       /* w_3^2, factor 24 */
       param->p [0] = 3;
       param->e = 2;
@@ -321,11 +338,6 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
       param->p [0] = 7;
       param->e = 2;
    }
-   else if (dmod8 == 1 || dmod64 == 48 || dmod128 == 0) {
-      /* w_4, factor 16 */
-      param->p [0] = 4;
-      param->e = 1;
-   }
    else if (k13 != -1) {
       /* w_13^2, factor 14 */
       param->p [0] = 13;
@@ -337,16 +349,20 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
       param->p [0] = 3;
       param->e = 4;
    }
-   else if (   dmod108 == 0 || dmod108 == 45
-            || dmod108 == 72 || dmod108 == 81) {
-      /* w_9, factor 9 */
-      param->p [0] = 9;
-      param->e = 1;
-   }
    else if (k7 != -1) {
       /* d even, w_7^4, factor 8 */
       param->p [0] = 7;
       param->e = 4;
+   }
+   else if (dmod64 == 16 || dmod64 == 32) {
+      /* w_4^4, factor 12 */
+      param->p [0] = 4;
+      param->e = 4;
+   }
+   else if (k3 == 1 || d % 9 == 0) {
+      /* w_9^3, factor 12 */
+      param->p [0] = 9;
+      param->e = 3;
    }
    else if (k3 != -1 &&
        (dmod36 == 9 || dmod36 == 21)) {
@@ -354,10 +370,10 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
       param->p [0] = 3;
       param->e = 6;
    }
-   else if (dmod32 == 20 || dmod128 == 64) {
-      /* w_4^2, factor 8 */
+   else if (dmod8 == 1 || dmod32 == 4) {
+      /* w_4^8, factor 6 */
       param->p [0] = 4;
-      param->e = 2;
+      param->e = 8;
    }
    else if (k5 != -1) {
       /* 3|d, w_5^6, factor 6 */
@@ -368,16 +384,6 @@ static bool simpleeta_compute_parameter (cm_param_ptr param, int_cl_t d)
       /* w_3^12, factor 4 */
       param->p [0] = 3;
       param->e = 12;
-   }
-   else if (dmod64 == 16 || dmod64 == 32) {
-      /* w_4^4, factor 4 */
-      param->p [0] = 4;
-      param->e = 4;
-   }
-   else if (dmod8 == 1 || dmod32 == 4) {
-      /* w4^8, factor 2 */
-      param->p [0] = 4;
-      param->e = 8;
    }
    else
       return false;
