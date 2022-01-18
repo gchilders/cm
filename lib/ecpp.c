@@ -1169,6 +1169,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       for (i = 0; i < no_card; i++)
          mpz_clear (card [i]);
       free (card);
+      free (d_card);
 
       /* If no discriminants are found in the first round, chances are that
          the class numbers have become quite high, and that the expected

@@ -2,7 +2,7 @@
 
 params.c - command line parameter evaluation
 
-Copyright (C) 2009, 2010, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -248,6 +248,7 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    *output = false;
    *verbose = false;
    *debug = false;
+   *check = false;
    *filename = NULL;
 
    while ((opt = getopt (argc, argv, "hn:of:gvc")) != -1) {

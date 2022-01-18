@@ -94,6 +94,7 @@ void cm_class_clear (cm_class_ptr c)
    mpzx_clear (c->classpol);
    mpzx_tower_clear (c->tower);
    if (c->field == CM_FIELD_COMPLEX) {
+      mpzx_clear (c->classpol_c);
       mpzx_tower_clear (c->tower_c);
    }
 
