@@ -2,7 +2,7 @@
 
 nt.c - number theoretic helper functions
 
-Copyright (C) 2009, 2010, 2015, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -139,8 +139,13 @@ unsigned long int cm_nt_next_prime (const unsigned long int n)
 
 {
    static bool init = true;
+#ifdef WITH_MPI
    static unsigned long int P [664579];
       /* primes up to 10^7 */
+#else
+   static unsigned long int P [9592];
+      /* primes up to 10^5 */
+#endif
    const unsigned int size = sizeof (P) / sizeof (unsigned long int);
 
    if (init) {
