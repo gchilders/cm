@@ -23,21 +23,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat);
+static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat);
 static void compute_qstar (long int *qstar, mpz_srcptr p, long int *q,
    int no);
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
+   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h);
 static int disc_cmp (const void* d1, const void* d2);
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h);
+   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h);
 static double expected_no_curves (long int *qstar, int no_qstar_old,
    int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, uint_cl_t *h);
+   uint_cl_t hmaxprime, unsigned int *h);
 static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #ifndef WITH_MPI
    mpz_srcptr p,
@@ -59,7 +59,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const unsigned int delta, cm_stat_t stat);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
+   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
    const unsigned int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
@@ -74,7 +74,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 /*****************************************************************************/
 
-void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax)
+void cm_ecpp_compute_h_chunk (unsigned int *h, uint_cl_t Dmin, uint_cl_t Dmax)
    /* Assuming that h is an array of length (Dmax-Dmin)/2 for Dmin and Dmax
       both divisible by 4, compute in h [(|D|-Dmin)/2-1] the class number
       for fundamental discriminants D such that Dmin < |D| <= Dmax.
@@ -143,7 +143,7 @@ void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin, uint_cl_t Dmax)
 
 /*****************************************************************************/
 
-static void compute_h (uint_cl_t *h, uint_cl_t Dmax, cm_stat_t stat)
+static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat)
    /* The function behaves as compute_h_chunk (h, 0, Dmax), but computing
       the class numbers in ranges of 100000 (that is, 50000 discriminants
       at a time). Experimentally, this optimises the running time on my
@@ -394,7 +394,7 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
+   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h)
    /* Given an array of no_qstar_old + no_qstar_new "signed primes" qstar
       (ordered by increasing absolute value), return an array of negative
       fundamental discriminants with factors from the list and of absolute
@@ -515,7 +515,7 @@ static int disc_cmp (const void* d1, const void* d2)
 
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h)
+   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). But instead of an unsorted
       double array, it returns a simple array of discriminants sorted
@@ -544,7 +544,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 
 static double expected_no_curves (long int *qstar, int no_qstar_old,
    int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, uint_cl_t *h)
+   uint_cl_t hmaxprime, unsigned int *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). It returns the expected
       number of curve cardinalities obtained from the list of discriminants
@@ -991,7 +991,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 /*****************************************************************************/
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, uint_cl_t *h,
+   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
    const unsigned int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
@@ -1224,7 +1224,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
    mpz_t** c;
-   uint_cl_t *h;
+   unsigned int *h;
    int_cl_t d;
    FILE *f;
    cm_timer_t clock;
@@ -1270,7 +1270,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 
    if (mpz_sizeinbase (N, 2) > 64) {
       /* Precompute class numbers. */
-      h = (uint_cl_t *) malloc ((Dmax / 2) * sizeof (uint_cl_t));
+      h = (unsigned int *) malloc ((Dmax / 2) * sizeof (unsigned int));
       compute_h (h, Dmax, stat);
       if (verbose)
          printf ("-- Time for class numbers up to Dmax=%"PRIucl

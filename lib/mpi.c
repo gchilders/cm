@@ -2,7 +2,7 @@
 
 mpicm.c - functions enabling MPI for CM
 
-Copyright (C) 2021 Andreas Enge
+Copyright (C) 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -339,7 +339,7 @@ void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
 
 /*****************************************************************************/
 
-void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, double *t)
+void cm_mpi_get_h_chunk (unsigned int *h, int rank, double *t)
    /* Get the result of a class number job from worker rank and
       put it into h, as output by cm_ecpp_compute_h_chunk in ecpp.c.
       Timing information from the worker is returned in t. */
@@ -348,8 +348,8 @@ void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, double *t)
    int no;
 
    MPI_Probe (rank, MPI_TAG_DATA, MPI_COMM_WORLD, &status);
-   MPI_Get_count (&status, MPI_UNSIGNED_LONG, &no);
-   MPI_Recv (h, no, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
+   MPI_Get_count (&status, MPI_UNSIGNED, &no);
+   MPI_Recv (h, no, MPI_UNSIGNED, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
       NULL);
    MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 }
@@ -519,7 +519,7 @@ static void mpi_worker ()
 
    /* Compute a chunk of h. */
    uint_cl_t Dmin, Dmax;
-   uint_cl_t *h;
+   unsigned int *h;
    int no;
 
    /* Tree gcd. */
@@ -684,13 +684,12 @@ static void mpi_worker ()
          MPI_Recv (&Dmax, 1, MPI_UNSIGNED_LONG, 0, MPI_TAG_DATA,
             MPI_COMM_WORLD, &status);
          no = (Dmax - Dmin) / 2;
-         h = (uint_cl_t *) malloc (no * sizeof (uint_cl_t));
+         h = (unsigned int *) malloc (no * sizeof (unsigned int));
 
          cm_ecpp_compute_h_chunk (h, Dmin, Dmax);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_H, MPI_COMM_WORLD);
-         MPI_Send (h, no, MPI_UNSIGNED_LONG, 0, MPI_TAG_DATA,
-            MPI_COMM_WORLD);
+         MPI_Send (h, no, MPI_UNSIGNED, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
          cm_timer_stop (stat->timer [0]);
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);

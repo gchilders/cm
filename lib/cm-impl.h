@@ -2,7 +2,7 @@
 
 cm-impl.h - header file for internal use of the cm library
 
-Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -207,7 +207,7 @@ extern void cm_pari_prime_product (mpz_ptr prim, unsigned long int a,
    unsigned long int b);
 extern bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d);
-extern void cm_ecpp_compute_h_chunk (uint_cl_t *h, uint_cl_t Dmin,
+extern void cm_ecpp_compute_h_chunk (unsigned int *h, uint_cl_t Dmin,
    uint_cl_t Dmax);
 extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
    int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
@@ -255,7 +255,7 @@ extern void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n);
 extern bool cm_mpi_get_is_prime (int rank, double *t);
 extern void cm_mpi_submit_h_chunk (int rank, int job, uint_cl_t Dmin,
    uint_cl_t Dmax);
-extern void cm_mpi_get_h_chunk (uint_cl_t *h, int rank, double *t);
+extern void cm_mpi_get_h_chunk (unsigned int *h, int rank, double *t);
 extern void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m);
 extern void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, unsigned long int B,
    double *t);
