@@ -235,6 +235,12 @@ and
 @item
 @samp{--with-pari=<pari_install_dir>}.
 @end itemize
+
+If you wish to compile the parallel, MPI version @code{ecpp-mpi} of the
+@code{ecpp} binary for elliptic curve primality proofs, you need to pass
+the option @samp{--enable-mpi} (and, of course, have an MPI library
+installed against which the binary will be compiled and linked).
+
 For an exhaustive list of configuration parameters, execute
 @samp{./configure --help}.
 
@@ -841,6 +847,30 @@ with expected result 1.
 
 Alternatively, the argument @code{-c} checks the validity of the computed
 certificate; to see the result, the option @code{-v} needs to be enabled.
+
+The argument @code{-f} @var{filename} stores the computed certificate in
+a file of the given name. Additionally, it enables checkpointing:
+During the first phase of ECPP (the downrun step determining cardinalities
+of elliptic curves leading to a primality proof), the file
+@var{filename}@code{.cert1} is written, during the second ECPP phase of
+computing the elliptic curves by complex multiplication, the file
+@var{filename}@code{.cert2} is written.
+Upon restart, the program picks up these files and continues where it has
+been interrupted. After a successful run, these checkpointing files may
+be deleted.
+
+Checkpointing is particularly useful with the MPI based parallel version of
+the binary, called @code{ecpp-mpi}; this is created and installed alongside
+the sequential @code{ecpp} binary when the @code{--enable-mpi} configure
+option is given.
+
+Thus in a suitably set up MPI environment,
+@verbatim
+$ mpirun ecpp-mpi -g -n '10^1000+453' -c -f cert-1000
+@end verbatim
+computes and checks an ECPP certificate for the first prime with
+1001 digits and stores it into the file @code{cert-1000}, while
+outputting debug information on screen.
 
 
 @node References
