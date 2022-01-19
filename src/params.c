@@ -29,7 +29,7 @@ static void print_d_options (void);
 static void print_i_options (void);
 static void print_n_options (void);
 static void print_v_options (void);
-static void print_o_options (void);
+static void print_p_options (void);
 static void print_f_options (void);
 static void print_g_options (void);
 static void print_c_options (void);
@@ -73,9 +73,9 @@ static void print_v_options (void)
 
 /*****************************************************************************/
 
-static void print_o_options (void)
+static void print_p_options (void)
 {
-   printf ("-o enables output of the certificate on screen.\n");
+   printf ("-p enables printing of the certificate on screen.\n");
 }
 
 /*****************************************************************************/
@@ -117,10 +117,10 @@ static void print_help (void)
 static void print_help_ecpp (void)
 {
    printf ("The following options are recognised: "
-      "'-n', '-o', '-f', '-v', '-g', '-c', '-h'.\n"
+      "'-n', '-p', '-f', '-v', '-g', '-c', '-h'.\n"
       "-h prints this help.\n");
    print_n_options ();
-   print_o_options ();
+   print_p_options ();
    print_f_options ();
    print_v_options ();
    print_g_options ();
@@ -237,7 +237,7 @@ void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
 /*****************************************************************************/
 
 void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
-   bool *output, char **filename, bool *verbose, bool *debug, bool *check)
+   bool *print, char **filename, bool *verbose, bool *debug, bool *check)
    /* Since ECPP requires different parameter types, the easiest solution
       appears to be a separate function, albeit with a lot of copy and
       paste. */
@@ -245,19 +245,19 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    int opt;
 
    mpz_set_ui (n, 0ul);
-   *output = false;
+   *print = false;
    *verbose = false;
    *debug = false;
    *check = false;
    *filename = NULL;
 
-   while ((opt = getopt (argc, argv, "hn:of:gvc")) != -1) {
+   while ((opt = getopt (argc, argv, "hn:pf:gvc")) != -1) {
       switch (opt) {
          case 'v':
             *verbose = true;
             break;
-         case 'o':
-            *output = true;
+         case 'p':
+            *print = true;
             break;
          case 'g':
             *verbose = true;

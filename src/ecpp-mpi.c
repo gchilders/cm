@@ -2,7 +2,7 @@
 
 ecpp-cm.c - executable for elliptic curve primality proofs with MPI
 
-Copyright (C) 2021 Andreas Enge
+Copyright (C) 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -33,14 +33,14 @@ int main (int argc, char* argv [])
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
    if (rank == 0) {
       mpz_t n;
-      bool output, verbose, debug, check;
+      bool print, verbose, debug, check;
       char *filename;
       mpz_init (n);
-      evaluate_parameters_ecpp (argc, argv, n, &output, &filename,
+      evaluate_parameters_ecpp (argc, argv, n, &print, &filename,
          &verbose, &debug, &check);
       cm_ecpp (n, CM_MODPOLDIR,
             true /* tower */,
-            output /* print */,
+            print /* print */,
             filename /* filename */,
             check /* check */,
             verbose /* verbose */,
