@@ -5,5 +5,6 @@ that can be called from within a C program and of executable command
 line applications.
 
 For more details, please see the texinfo documentation provided with
-the software or available at the website http://cm.multiprecision.org/.
+the software or available at the website
+   http://www.multiprecision.org/cm/
 

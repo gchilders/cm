@@ -1,7 +1,7 @@
 /*
 configure.ac
 
-Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 AC_PREREQ([2.69])
-AC_INIT([cm],[0.4.0dev],[andreas.enge@inria.fr])
+AC_INIT([cm],[0.4.0],[andreas.enge@inria.fr])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/cm.h])
 AC_CONFIG_HEADERS([config.h])

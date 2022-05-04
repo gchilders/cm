@@ -1,8 +1,9 @@
-Changes in version XXX:
+Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for
     pari to 2.11.
   - add decomposition of the class field into a tower of prime degree
     extensions
+  - add a fastECPP implementation, including a version for MPI
 
 Changes in version 0.3.1 ("Wurstebrei"):
   - increase minimal version number for mpfrcx to 0.5 and for pari to 2.9.
