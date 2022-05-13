@@ -2,7 +2,7 @@
 
 ecpp.c - code for computing ECPP certificates
 
-Copyright (C) 2021 Andreas Enge
+Copyright (C) 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -1045,8 +1045,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #else
    no_qstar_delta = 1;
 #endif
-   min_prime = 5.0;
-      /* With an expected number of five suitable cardinalities, there
+   min_prime = 3.0;
+      /* With this expected number of suitable cardinalities, there
          should be a good chance of finding at least one; more lead
          to some choice for gaining more bits in one step. */
    while (d == 0) {
@@ -1175,7 +1175,12 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          the class numbers have become quite high, and that the expected
          number of curve cardinalities per discriminant quite low; so we
          should lower our expectations. */
-      min_prime = 1.0;
+      if (min_prime == 3.0)
+         min_prime = 1.0;
+      else if (min_prime == 1.0)
+         min_prime = 0.5;
+      else
+         min_prime = 0.25;
    }
 
 #ifdef WITH_MPI
