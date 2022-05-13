@@ -1223,7 +1223,12 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #else
    unsigned long int B;
       /* Computed below depending on size. */
-   unsigned int delta;
+   const unsigned int delta = 2;
+      /* Since in the parallel version we consider many potential curve
+         orders at once and order them by gain, having a small value of
+         delta does not make much difference most of the time. For "bad
+         primes", it enables us to side-step the issue instead of adding
+         more and more qstar, which becomes increasingly difficult. */
 #endif
    const uint_cl_t Dmax = ((L * L) >> 4) << 2;
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
@@ -1248,7 +1253,6 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       of value at most about exp (2^29), or 100MB. */
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    B = CM_MIN (((unsigned long int) size - 1) << 29, (L>>4)*(L>>4)*(L>>5));
-   delta = (unsigned int) (log2 (B) / 2) + 1;
 #endif
 
    cm_stat_init (stat);
