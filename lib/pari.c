@@ -3,7 +3,7 @@
 pari.c - functions using pari; for factoring polynomials and for computing
 generators of class groups
 
-Copyright (C) 2010, 2015, 2018, 2021 Andreas Enge
+Copyright (C) 2010, 2015, 2018, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -140,9 +140,9 @@ static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p)
 
 void cm_pari_init ()
 {
-   pari_init_opts (1ul<<28, 0, INIT_JMPm | INIT_DFTm);
+   pari_init_opts (1ul<<23, 0, INIT_JMPm | INIT_DFTm);
       /* Do not capture SIGSEGV. */
-   paristack_setsize (1ul<<28, 1ul<<31);
+   paristack_setsize (1ul<<23, 1ul<<31);
 }
 
 /*****************************************************************************/
@@ -413,15 +413,51 @@ int cm_pari_classgroup_2quotient (int_cl_t disc, const int *p,
 
 void cm_pari_prime_product (mpz_ptr prim, unsigned long int a,
    unsigned long int b)
-   /* Return in prim the product of all primes p with a < p <= b. */
+   /* Return in prim the product of all primes p with a < p <= b.
+      This function requires some memory to compute the prime list by
+      a call to PARI. When calling the function, the PARI stack must be
+      empty, so that it can be reset safely. */
 {
    pari_sp av;
-   GEN res;
+   GEN p;
+   mpz_t *prod;
+   int len, len2, i;
 
    av = avma;
-   res = zv_prod_Z (primes_interval_zv (a+1, b));
-   Z_get_mpz (prim, res);
+   p = primes_interval_zv (a+1, b);
+   len = glength (p);
+   if (len == 0) {
+      /* This probably never occurs... */
+      len = 1;
+      prod = (mpz_t *) malloc (1 * sizeof (mpz_t));
+      mpz_init_set_ui (prod [0], 1);
+   }
+   else {
+      prod = (mpz_t *) malloc (len * sizeof (mpz_t));
+      for (i = 0; i < len; i++)
+         mpz_init_set_si (prod [i], p [i+1]);
+   }
    avma = av;
+   /* The computations usually enlarge the PARI stack, but later steps
+      do not need as much PARI memory, so it can be released. */
+   parivstack_reset ();
+
+   while (len > 1) {
+      len2 = len / 2;
+      for (i = 0; i < len2; i++)
+         mpz_mul (prod [i], prod [2*i], prod [2*i+1]);
+      if (len % 2 != 0) {
+         mpz_set (prod [len2], prod [2*len2]);
+         len2++;
+      }
+      for (i = len2; i < len; i++)
+         mpz_clear (prod [i]);
+      len = len2;
+   }
+
+   mpz_set (prim, prod [0]);
+   mpz_clear (prod [0]);
+   free (prod);
 }
 
 /*****************************************************************************/
