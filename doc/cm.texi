@@ -175,7 +175,7 @@ before compiling CM: GNU MP (@pxref{Gretal20}, version @value{MINGMP} or higher)
 GNU MPFR (@pxref{HaLePeZi20}, version @value{MINMPFR} or higher),
 GNU MPC (@pxref{EnGaThZi20}, version @value{MINMPC} or higher),
 MPFRCX (@pxref{Enge21}, version @value{MINMPFRCX} or higher) and
-PARI/GP (@pxref{Pari21}, version @value{MINPARI} or higher,
+PARI/GP (@pxref{Pari}, version @value{MINPARI} or higher,
 compiled with GMP as the arithmetic kernel).
 Compilation of CM needs a standards compliant C compiler (preferably
 GCC).
@@ -849,7 +849,11 @@ Alternatively, the argument @code{-c} checks the validity of the computed
 certificate; to see the result, the option @code{-v} needs to be enabled.
 
 The argument @code{-f} @var{filename} stores the computed certificate in
-a file of the given name. Additionally, it enables checkpointing:
+a file of the given name in PARI/GP format, and additionally in the file
+@var{filename}@code{.primo} in Primo (@pxref{Primo}) format
+(for checking it with Primo, one needs to rename the file to
+@var{filename}@code{.out}).
+Additionally, it enables checkpointing:
 During the first phase of ECPP (the downrun step determining cardinalities
 of elliptic curves leading to a primality proof), the file
 @var{filename}@code{.cert1} is written, during the second ECPP phase of
@@ -975,12 +979,20 @@ elliptic curve primality proving algorithm.
 pp. 493--505
 
 @item
-@anchor{Pari21}
-[Pari21]
+@anchor{Pari}
+[Pari]
 The PARI group.
 @code{PARI/GP}.
-Version 2.13.2, 2021,
-@url{http://pari.math.u-bordeaux.fr/}
+Version 2.13.4, 2022,
+@url{https://pari.math.u-bordeaux.fr/}
+
+@item
+@anchor{Primo}
+[Primo]
+Marcel Martin.
+@code{Primo}.
+Version 4.3.3, 2020,
+@url{http://www.ellipsa.eu/public/primo/primo.html}
 
 @end itemize
 

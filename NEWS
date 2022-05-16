@@ -1,6 +1,13 @@
 Changes in version 0.4.1 ("Fitzebohnen"):
-  - enable output of ECPP certificates in Primo format
-  - parameter changes for ECPP
+  - By choosing ECPP parameters differently, difficult prime numbers should
+    be handled more gracefully. At least a reported difficult step now works
+    reasonably fast. On the downside, certificates become a bit longer (by
+    about 5% in the example), but I think this is set off by the smoother
+    behaviour of the steps.
+  - The preliminary ECPP step of computing primorials takes a bit less
+    memory in the MPI version.
+  - When ECPP certificates are output to a file, a second file in Primo
+    format is created automatically.
 
 Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for
