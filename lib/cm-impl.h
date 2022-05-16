@@ -234,6 +234,7 @@ extern mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p,
 extern int cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p,
    FILE *f, bool debug, cm_stat_t stat);
 extern void cm_file_write_ecpp_cert_pari (FILE *f, mpz_t **c, int l);
+extern void cm_file_write_ecpp_cert_primo (FILE *f, mpz_t **c, int l);
 
 /* functions for MPI */
 extern void cm_mpi_queue_push (int rank);

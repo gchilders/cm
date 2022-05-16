@@ -1656,7 +1656,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
    bool res = true;
    int depth;
    mpz_t **cert1, **cert2;
-   char *filename1, *filename2;
+   char *filename1, *filename2, *filenameprimo;
    int i, j;
    cm_timer_t clock;
    cm_stat_t stat1, stat2;
@@ -1669,6 +1669,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       sprintf (filename1, "%s.cert1", filename);
       filename2 = (char *) malloc (i * sizeof (char));
       sprintf (filename2, "%s.cert2", filename);
+      filenameprimo = (char *) malloc (i * sizeof (char));
+      sprintf (filenameprimo, "%s.primo", filename);
    }
    else {
       filename1 = NULL;
@@ -1692,6 +1694,10 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       if (!cm_file_open_write (&f, filename))
          exit (1);
       cm_file_write_ecpp_cert_pari (f, cert2, depth);
+      cm_file_close (f);
+      if (!cm_file_open_write (&f, filenameprimo))
+         exit (1);
+      cm_file_write_ecpp_cert_primo (f, cert2, depth);
       cm_file_close (f);
    }
 

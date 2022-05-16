@@ -1,3 +1,7 @@
+Changes in version 0.4.1 ("Fitzebohnen"):
+  - enable output of ECPP certificates in Primo format
+  - parameter changes for ECPP
+
 Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for
     pari to 2.11.
