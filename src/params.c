@@ -132,6 +132,7 @@ static void print_help_ecpp (void)
 static void print_libraries (void)
 {
    GEN v;
+   printf ("CM: include %s, lib %s\n", CM_VERSION_STRING, cm_get_version ());
    printf ("GMP: include %d.%d.%d, lib %s\n",
          __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR, __GNU_MP_VERSION_PATCHLEVEL,
          gmp_version);

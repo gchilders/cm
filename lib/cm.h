@@ -1,7 +1,7 @@
 /*
 cm.h - header file for the cm library
 
-Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -31,6 +31,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-arith.h"
 #include "mpfrcx.h"
 
+#define CM_VERSION_MAJOR      0
+#define CM_VERSION_MINOR      4
+#define CM_VERSION_PATCHLEVEL 1
+#define CM_VERSION_STRING     "0.4.1dev"
 
 #define CM_MODPOL_J           'j'
 #define CM_MODPOL_DOUBLEETA   'd'

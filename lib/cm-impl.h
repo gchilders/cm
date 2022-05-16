@@ -74,6 +74,9 @@ typedef __cm_stat_struct *cm_stat_ptr;
 extern "C" {
 #endif
 
+/* version */
+extern const char *cm_get_version (void);
+
 /* number theoretic functions */
 extern long int cm_nt_gcd (long int a, long int b);
 extern int cm_nt_kronecker (int_cl_t a, int_cl_t b);

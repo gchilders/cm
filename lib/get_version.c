@@ -1,8 +1,7 @@
 /*
+get_version.c - print the CM version
 
-params.h - header file for params.c
-
-Copyright (C) 2009, 2010, 2015, 2021 Andreas Enge
+Copyright (C) 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -21,25 +20,9 @@ with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#ifndef __PARAMS_H
-#define __PARAMS_H
-
-#include <pari/pari.h>
-#include <string.h>
-#include <getopt.h>
 #include "cm-impl.h"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-extern void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
-   char *invariant, bool *verbose);
-extern void evaluate_parameters_ecpp (int argc, char* argv [],
-   mpz_ptr n, bool *output, char** filename, bool *verbose, bool *debug,
-   bool *check);
-
-#if defined (__cplusplus)
+const char *cm_get_version (void) {
+  return "0.4.1dev";
 }
-#endif
-#endif /* ifndef __PARAMS_H */
+
