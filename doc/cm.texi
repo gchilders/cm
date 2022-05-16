@@ -632,7 +632,7 @@ implements the asymptotically fast version fastECPP of
 Certificates are computed and printed in a format compatible with
 PARI/GP.
 
-@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{pari}, bool @var{print}, bool @var{check}, bool @var{verbose}, bool @var{debug})
+@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{print}, bool @var{trust}, bool @var{check}, bool @var{verbose}, bool @var{debug})
 Given a prime number @var{N}, the function computes an ECPP certificate
 and prints it to screen if @var{print} is set to @code{true}.
 If @var{check} is set to @code{true}, then the certificate is checked;
@@ -641,11 +641,8 @@ The directory @var{modpoldir}, usually @code{/usr/local/share/cm}, in which
 modular polynomials are stored, is required to be passed to
 @code{cm_curve_and_point}.
 
-If set to @code{true}, the argument @var{pari} indicates that the first
-step of the algorithm, instead of being executed with code of the CM
-library, is to be taken from a separate implementation copied from
-PARI/GP version 2.11. This is obsolete and only useful for comparison
-purposes; @code{false} should be used instead.
+If @var{trust} is set to @code{true}, then the input number is trusted to
+be pseudoprime; otherwise a quick primality test is run.
 
 If @var{verbose} is set to @code{true}, some information is printed on
 screen during execution.
@@ -867,6 +864,13 @@ $ mpirun ecpp-mpi -g -n '10^1000+453' -c -f cert-1000
 computes and checks an ECPP certificate for the first prime with
 1001 digits and stores it into the file @code{cert-1000}, while
 outputting debug information on screen.
+
+By default, the code carries out a quick (as opposed to thorough)
+primality test, which is meant to catch typos and obvious errors.
+If the number is trusted to be pseudoprime since this has been tested
+independently, the command line switch @code{-t} can be added to drop
+this test.
+
 
 
 @node References

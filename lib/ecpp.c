@@ -1626,8 +1626,8 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
 
 /*****************************************************************************/
 
-bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
-   bool print, char *filename, bool check, bool verbose, bool debug)
+bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
+   char *filename, bool trust, bool check, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
@@ -1635,6 +1635,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
       If filename is different from NULL, the final ECPP certificate is
       output to the file, and the stage 1 and stage 2 certificates are
       read from (partially) and written to temporary files.
+      If trust is set to true, then N is trusted to be a probable prime;
+      otherwise a quick primality test is run.
       print indicates whether the result is printed to stdout.
       check indicates whether the certificate should be checked.
       If yes, the return value of the function is the result of the check;
@@ -1655,6 +1657,20 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
    cm_stat_t stat1, stat2;
    double t;
    FILE *f;
+
+   if (!trust) {
+      cm_timer_start (clock);
+      if (!mpz_probab_prime_p (N, 1)) {
+         printf ("***** Error: cm_ecpp called with composite number.\n");
+         exit (1);
+      }
+      else {
+         cm_timer_stop (clock);
+         if (verbose)
+            printf ("--- Time for primality test:       %.1f (%.1f)\n",
+            cm_timer_get (clock), cm_timer_wc_get (clock));
+      }
+   }
 
    if (filename != NULL) {
       i = strlen (filename) + 7;

@@ -26,20 +26,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 int main (int argc, char* argv [])
 {
    mpz_t n;
-   bool print, verbose, debug, check;
+   bool print, verbose, debug, trust, check;
    char *filename;
 
    mpz_init (n);
    cm_pari_init ();
    evaluate_parameters_ecpp (argc, argv, n, &print, &filename, &verbose,
-      &debug, &check);
+      &debug, &trust, &check);
 
-   cm_ecpp (n, CM_MODPOLDIR,
-      print /* print */,
-      filename /* filename */,
-      check /* check */,
-      verbose /* verbose */,
-      debug /* debug */);
+   cm_ecpp (n, CM_MODPOLDIR, print, filename, trust, check, verbose, debug);
 
    cm_pari_clear ();
    mpz_clear (n);

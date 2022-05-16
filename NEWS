@@ -8,6 +8,8 @@ Changes in version 0.4.1 ("Fitzebohnen"):
     memory in the MPI version.
   - When ECPP certificates are output to a file, a second file in Primo
     format is created automatically.
+  - ECPP certificate creation uses class field towers unconditionally.
+  - An optional primality test is carried out before starting ECPP.
 
 Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for

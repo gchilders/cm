@@ -33,6 +33,7 @@ static void print_p_options (void);
 static void print_f_options (void);
 static void print_g_options (void);
 static void print_c_options (void);
+static void print_t_options (void);
 static void print_help (void);
 static void print_help_ecpp (void);
 static void print_libraries (void);
@@ -95,6 +96,14 @@ static void print_g_options (void)
 
 /*****************************************************************************/
 
+static void print_t_options (void)
+{
+   printf ("-t trusts the number to be prime and disables the initial "
+           "primality test.\n");
+}
+
+/*****************************************************************************/
+
 static void print_c_options (void)
 {
    printf ("-c enables checking of the certificate.\n");
@@ -117,13 +126,14 @@ static void print_help (void)
 static void print_help_ecpp (void)
 {
    printf ("The following options are recognised: "
-      "'-n', '-p', '-f', '-v', '-g', '-c', '-h'.\n"
+      "'-n', '-p', '-f', '-v', '-g', '-t', '-c', '-h'.\n"
       "-h prints this help.\n");
    print_n_options ();
    print_p_options ();
    print_f_options ();
    print_v_options ();
    print_g_options ();
+   print_t_options ();
    print_c_options ();
 }
 
@@ -238,7 +248,8 @@ void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
 /*****************************************************************************/
 
 void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
-   bool *print, char **filename, bool *verbose, bool *debug, bool *check)
+   bool *print, char **filename, bool *verbose, bool *debug,
+   bool *trust, bool *check)
    /* Since ECPP requires different parameter types, the easiest solution
       appears to be a separate function, albeit with a lot of copy and
       paste. */
@@ -250,9 +261,10 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    *verbose = false;
    *debug = false;
    *check = false;
+   *trust = false;
    *filename = NULL;
 
-   while ((opt = getopt (argc, argv, "hn:pf:gvc")) != -1) {
+   while ((opt = getopt (argc, argv, "hn:pf:gvtc")) != -1) {
       switch (opt) {
          case 'v':
             *verbose = true;
@@ -263,6 +275,9 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
          case 'g':
             *verbose = true;
             *debug = true;
+            break;
+         case 't':
+            *trust = true;
             break;
          case 'c':
             *check = true;

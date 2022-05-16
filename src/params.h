@@ -2,7 +2,7 @@
 
 params.h - header file for params.c
 
-Copyright (C) 2009, 2010, 2015, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -37,7 +37,7 @@ extern void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
    char *invariant, bool *verbose);
 extern void evaluate_parameters_ecpp (int argc, char* argv [],
    mpz_ptr n, bool *output, char** filename, bool *verbose, bool *debug,
-   bool *check);
+   bool *trust, bool *check);
 
 #if defined (__cplusplus)
 }
