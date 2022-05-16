@@ -2,7 +2,7 @@
 
 tecpp.c - test of ECPP
 
-Copyright (C) 2021 Andreas Enge
+Copyright (C) 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -31,7 +31,6 @@ static void test_ecpp (mpz_srcptr n)
    bool res;
 
    res =    cm_ecpp (n, CM_MODPOLDIR,
-      true /* tower */,
       false /* print */,
       NULL /* filename */,
       true /* check */,

@@ -69,7 +69,7 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    bool verbose, bool debug, cm_stat_ptr stat);
 static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
-   char *filename, const char* modpoldir, bool tower, bool verbose,
+   char *filename, const char* modpoldir, bool verbose,
    bool debug, cm_stat_ptr stat);
 
 /*****************************************************************************/
@@ -1449,8 +1449,7 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d)
 /*****************************************************************************/
 
 void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
-   const char* modpoldir, bool tower, bool verbose, bool debug,
-   cm_stat_t stat)
+   const char* modpoldir, bool verbose, bool debug, cm_stat_t stat)
    /* The function takes the same parameters as ecpp2, except that cert1
       contains only one entry of the first ECPP step, and that only one
       step of the certificate is output in cert2, which needs be to a
@@ -1484,9 +1483,9 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
    cm_timer_continue (stat->timer [1]);
    ecpp_param_init (param, d);
 
-   /* Compute one of the class field tower or the class polynomial. */
+   /* Compute the class field tower. */
    cm_class_init (c, param, false);
-   cm_class_compute (c, param, !tower, tower, false);
+   cm_class_compute (c, param, false, true, false);
    cm_timer_stop (stat->timer [1]);
 
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co,
@@ -1523,9 +1522,8 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
 
 /*****************************************************************************/
 
-static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
-   char *filename, const char* modpoldir, bool tower, bool verbose,
-   bool debug, cm_stat_ptr stat)
+static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
+   const char* modpoldir, bool verbose, bool debug, cm_stat_ptr stat)
    /* Given the result of the ECPP down-run in cert1, an array of
       length depth as computed by ecpp1, execute the second step of
       the ECPP algorithm and compute the certificate proper in cert2,
@@ -1540,8 +1538,6 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
       of the class polynomial.
-      tower indicates whether a class field tower decomposition is used
-      instead of only the class polynomial.
       verbose indicates whether intermediate computations output progress
       information.
       debug indicates whether additional developer information (mainly
@@ -1576,7 +1572,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    cm_timer_continue (stat->timer [0]);
 #ifndef WITH_MPI
    for (i = read; i < depth; i++) {
-      cm_ecpp_one_step2 (cert2 [i], cert1 [i], modpoldir, tower,
+      cm_ecpp_one_step2 (cert2 [i], cert1 [i], modpoldir,
          verbose, debug, stat);
       if (filename != NULL) {
          cm_timer_stop (stat->timer [0]);
@@ -1590,8 +1586,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    written = read;
    while (received < depth) {
       if (sent < depth && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_ecpp_one_step2 (rank, sent, cert1 [sent], modpoldir,
-            tower);
+         cm_mpi_submit_ecpp_one_step2 (rank, sent, cert1 [sent], modpoldir);
          sent++;
       }
       else {
@@ -1631,14 +1626,12 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
 
 /*****************************************************************************/
 
-bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
+bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
    bool print, char *filename, bool check, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
       of the class polynomial.
-      tower indicates whether a class field tower decomposition is used
-      instead of only the class polynomial.
       If filename is different from NULL, the final ECPP certificate is
       output to the file, and the stage 1 and stage 2 certificates are
       read from (partially) and written to temporary files.
@@ -1684,8 +1677,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       for (j = 0; j < 6; j++)
          mpz_init (cert2 [i][j]);
    }
-   ecpp2 (cert2, cert1, depth, filename2, modpoldir, tower, verbose,
-      debug, stat2);
+   ecpp2 (cert2, cert1, depth, filename2, modpoldir, verbose, debug, stat2);
 
    if (print)
       cm_file_write_ecpp_cert_pari (stdout, cert2, depth);

@@ -217,8 +217,7 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
    int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
-   const char* modpoldir, bool tower, bool verbose, bool debug,
-   cm_stat_t stat);
+   const char* modpoldir, bool verbose, bool debug, cm_stat_t stat);
 extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 
 
@@ -249,7 +248,7 @@ extern void cm_mpi_get_primorial (int rank, double *t);
 extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
 extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t);
 extern void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
-   const char* modpoldir, bool tower);
+   const char* modpoldir);
 extern void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank,
    cm_stat_ptr stat);
 extern void cm_mpi_submit_curve_cardinalities (int rank, int job,

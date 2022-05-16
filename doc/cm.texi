@@ -632,7 +632,7 @@ implements the asymptotically fast version fastECPP of
 Certificates are computed and printed in a format compatible with
 PARI/GP.
 
-@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{pari}, bool @var{tower}, bool @var{print}, bool @var{check}, bool @var{verbose}, bool @var{debug})
+@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{pari}, bool @var{print}, bool @var{check}, bool @var{verbose}, bool @var{debug})
 Given a prime number @var{N}, the function computes an ECPP certificate
 and prints it to screen if @var{print} is set to @code{true}.
 If @var{check} is set to @code{true}, then the certificate is checked;
@@ -646,14 +646,6 @@ step of the algorithm, instead of being executed with code of the CM
 library, is to be taken from a separate implementation copied from
 PARI/GP version 2.11. This is obsolete and only useful for comparison
 purposes; @code{false} should be used instead.
-
-The argument @var{tower}, if set to the recommended value @code{true},
-indicates that class fields should not be given as absolute extensions,
-but as a tower of relative extensions. This takes negligibly more time
-for the CM computations, but can save a lot of time during the
-construction of the elliptic curves in the certificate, since the
-computation of a root of one high degree polynomial over a finite field
-is replaced by a series of roots of smaller degree polynomials.
 
 If @var{verbose} is set to @code{true}, some information is printed on
 screen during execution.
