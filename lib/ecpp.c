@@ -1639,10 +1639,10 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       of the class polynomial.
       tower indicates whether a class field tower decomposition is used
       instead of only the class polynomial.
-      If filename is different from NULL, the final (stage 2) ECPP
-      certificate is output to the file, and the stage 1 certificate
-      is read from (partially) and written to a temporary file.
-      print indicates whether the result is printed.
+      If filename is different from NULL, the final ECPP certificate is
+      output to the file, and the stage 1 and stage 2 certificates are
+      read from (partially) and written to temporary files.
+      print indicates whether the result is printed to stdout.
       check indicates whether the certificate should be checked.
       If yes, the return value of the function is the result of the check;
       otherwise the return value is true.
@@ -1686,12 +1686,12 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool tower,
       debug, stat2);
 
    if (print)
-      cm_file_pari_write_ecpp_cert2 (stdout, cert2, depth);
+      cm_file_write_ecpp_cert_pari (stdout, cert2, depth);
 
    if (filename != NULL) {
       if (!cm_file_open_write (&f, filename))
          exit (1);
-      cm_file_pari_write_ecpp_cert2 (f, cert2, depth);
+      cm_file_write_ecpp_cert_pari (f, cert2, depth);
       cm_file_close (f);
    }
 

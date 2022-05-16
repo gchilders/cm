@@ -2,7 +2,7 @@
 
 file.c - code for handling (gzipped) files
 
-Copyright (C) 2009, 2012, 2021 Andreas Enge
+Copyright (C) 2009, 2012, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -457,9 +457,9 @@ int cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p, FILE *f, bool debug,
 
 /*****************************************************************************/
 
-void cm_file_pari_write_ecpp_cert2 (FILE *f, mpz_t **c, int l)
-   /* Write the second stage ECPP certificate of lengh l in c to the
-      already opened file f, in the format used by PARI. */
+void cm_file_write_ecpp_cert_pari (FILE *f, mpz_t **c, int l)
+   /* Write the ECPP certificate of lengh l in c to the already opened
+      file f, in the format used by PARI. */
 {
    int i, j;
 
