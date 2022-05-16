@@ -482,7 +482,7 @@ static void mpi_worker ()
    MPI_Status status;
    mpi_name_t name;
    int name_length;
-   int size, rank, job;
+   int size, rank, job, flag;
    bool finish;
    cm_stat_t stat;
    int i;
@@ -554,7 +554,13 @@ static void mpi_worker ()
 
    finish = false;
    while (!finish) {
-      /* Wait for a message from the server. */
+      /* Wait for a message from the server, but avoid being busy by
+         adding microsleep. */
+      do {
+         usleep (10000);
+         MPI_Iprobe (0, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
+         MPI_STATUS_IGNORE);
+      } while (!flag);
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       cm_stat_init (stat);
       switch (status.MPI_TAG) {

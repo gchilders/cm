@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <math.h>
 #include <ctype.h>
 #ifdef WITH_MPI
+#include <unistd.h> /* for usleep */
 #include <mpi.h>
 #endif
 #include <pari/pari.h>
