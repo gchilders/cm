@@ -64,7 +64,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
 #endif
-   unsigned long int B, cm_stat_t stat);
+   unsigned long int B, bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    bool verbose, bool debug, cm_stat_ptr stat);
@@ -996,7 +996,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
 #endif
-   unsigned long int B, cm_stat_t stat)
+   unsigned long int B, bool debug, cm_stat_t stat)
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
@@ -1020,7 +1020,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       /* According to [FrKlMoWi04], the probability that a number N is
          a B-smooth part times a prime is exp (gamma) * log B / log N. */
    double exp_prime, min_prime;
-   int i;
+   int round, i;
 #ifdef WITH_MPI
    MPI_Status status;
    int size, rank, job;
@@ -1049,7 +1049,12 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       /* With this expected number of suitable cardinalities, there
          should be a good chance of finding at least one; more lead
          to some choice for gaining more bits in one step. */
+   round = 0;
    while (d == 0) {
+      round++;
+      if (debug)
+         printf ("  Round %i\n  no_qstar_delta: %i\n",
+            round, no_qstar_delta);
       /* Extend the prime list in small pieces until the expectation of
          finding a curve cardinality that is a smooth part times a prime
          becomes sufficiently large. */
@@ -1064,6 +1069,9 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          exp_prime += prob_prime *
             expected_no_curves (qstar, no_qstar - no_qstar_delta,
                no_qstar_delta, max_factors, Dmax, hmaxprime, h);
+         if (debug)
+            printf ("    no_qstar: %i, exp_prime: %.1f\n",
+               no_qstar, exp_prime);
       }
 
       /* Now compute the list of discriminants containing one of the
@@ -1072,6 +1080,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
          no_qstar_new, max_factors, Dmax, hmaxprime, h);
       cm_timer_stop (stat->timer [4]);
+      if (debug)
+         printf ("    no_d: %i\n", no_d);
 
       /* Compute (and broadcast in the case of MPI) the square roots of
          the new primes. */
@@ -1329,7 +1339,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #ifndef WITH_MPI
                primorialB,
 #endif
-               B, stat);
+               B, debug, stat);
          cm_timer_stop (clock);
          if (verbose) {
             for (i = 0, t = 0.0; i < 5; i++)
