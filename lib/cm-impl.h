@@ -216,7 +216,7 @@ extern void cm_ecpp_compute_h_chunk (unsigned int *h, uint_cl_t Dmin,
 extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
    int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
-extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1,
+extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
    const char* modpoldir, bool verbose, bool debug, cm_stat_t stat);
 extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 

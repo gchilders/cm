@@ -630,7 +630,8 @@ static void mpi_worker ()
             MPI_COMM_WORLD, &status);
          modpoldir [len] = '\0';
 
-         cm_ecpp_one_step2 (cert2, cert1, modpoldir, true, false, stat);
+         cm_ecpp_one_step2 (cert2, cert1, job, modpoldir, true, false,
+            stat);
          free (modpoldir);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_ECPP2, MPI_COMM_WORLD);
