@@ -1225,7 +1225,8 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 {
    const size_t L = mpz_sizeinbase (p, 2);
 #ifndef WITH_MPI
-   const unsigned long int B = CM_MIN (1ul<<33, (L>>4)*(L>>4)*(L>>5));
+   const unsigned long int B = (L >= 26008 ? 1ul<<31 :
+                                             (L>>4)*(L>>4)*(L>>5));
    const unsigned int delta = (unsigned int) (log2 (B) / 2) + 1;
       /* According to [FrKlMoWi04] the average factor removed by trial
          division up to B, assuming that what remains is prime, is B;
