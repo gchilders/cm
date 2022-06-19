@@ -560,6 +560,155 @@ void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
 }
 
 /*****************************************************************************/
+
+void mpz_binary_prod(mpz_ptr ans,mpz_t* vec,unsigned long int size){
+// set ans=product(i=0,size-1,vec[i])
+    if(size==0){
+        mpz_set_ui(ans,1);// empty product
+        return;
+    }
+    
+    if(size==1){
+        mpz_set(ans,vec[0]);
+        return;
+    }
+    
+    unsigned long int mid=size>>1;
+    mpz_t tmp;
+    mpz_init(tmp);
+    
+    mpz_binary_prod(tmp,vec,mid);
+    mpz_binary_prod(ans,vec+mid,size-mid);
+    mpz_mul(ans,ans,tmp);
+    mpz_clear(tmp);
+}
+
+/*****************************************************************************/
+
+void mpz_binary_prod64(mpz_ptr ans,unsigned long int* vec,unsigned long int size){
+// set ans=product(i=0,size-1,vec[i])
+    if(size==0){
+        mpz_set_ui(ans,1);// empty product
+        return;
+    }
+    
+    if(size==1){
+        mpz_set_ui(ans,vec[0]);
+        return;
+    }
+    
+    unsigned long int mid=size>>1;
+    mpz_t tmp;
+    mpz_init(tmp);
+    
+    mpz_binary_prod64(tmp,vec,mid);
+    mpz_binary_prod64(ans,vec+mid,size-mid);
+    mpz_mul(ans,ans,tmp);
+    mpz_clear(tmp);
+}
+
+/*****************************************************************************/
+
+void cm_prime_product_basecase (mpz_ptr prim, unsigned long int a,  unsigned long int b, unsigned int* plist,unsigned int plist_size){
+// set prim=prod(primes in [a,b) interval), not including b. 
+// plist contains all primes up to sqrt(b), possibly more.
+    if(a>=b || b<=2){
+        mpz_set_ui(prim,1);
+        return;
+    }
+    
+    unsigned int j,*T;
+    unsigned long int i,interval=sqrt(b)+1;
+    unsigned long int num_primes=0;
+    unsigned long int *vec;
+    bool mult2=(a<=2&&2<b);
+    
+    if(a%2==0)a++;
+    if(a<3)   a=3;
+    interval=((interval+32)>>5)<<5;
+    unsigned long int Tsize=interval>>5;
+    T=(unsigned int*)malloc(Tsize*sizeof(unsigned int));
+    
+    unsigned long int maxsize=14.0+(double)1.25506*b/log(b)-(double)a/log(a);// x/log(x)<pi(x)<1.25506*x/log(x) for x>=17
+    vec=(unsigned long int*)malloc(maxsize*sizeof(unsigned long int));
+    
+    for(;a<=b;a+=2*interval){ 
+         for(i=0;i<Tsize;i++)T[i]=0;
+         for(i=1;i<plist_size;i++){
+             unsigned int p=plist[i];
+             if(p*p>b)break;
+             unsigned int res=a%p;
+             if(res&1) res=(p-res)>>1;
+             else      res=(2*p-res)>>1;
+             if(res==p)res=0;
+             if(a+2*res==p)res+=p;
+             
+             for(j=res;j<interval;j+=p)T[j>>5]|=(1u<<(j&31));
+         }
+         for(i=0;i<Tsize;i++){
+             unsigned int tmp=T[i];
+             for(j=0;j<32;j++,tmp>>=1)
+                 if((tmp&1)==0){
+                    unsigned long int q=a+64*i+2*j;
+                    if(q<b)vec[num_primes++]=q;                     
+                 }
+         }
+    }
+    free(T);
+    
+    mpz_binary_prod64(prim,vec,num_primes);
+    if(mult2)mpz_mul_ui(prim,prim,2);
+    
+    free(vec);
+}
+
+/*****************************************************************************/
+
+void cm_prime_product_memoryefficient (mpz_ptr prim, unsigned long int a,  unsigned long int b){
+//  set prim=prod(primes in [a,b) interval), not including b. 
+    
+    if(a>=b || b<=2){
+        mpz_set_ui(prim,1);
+        return;
+    }
+    
+    bool *T;
+    unsigned int* plist;
+    unsigned int i,j,plist_size=0;
+    unsigned int sq=(unsigned int)sqrt(b)+2;
+    
+    T=(bool*)malloc((sq+1)*sizeof(bool));
+    for(i=0;i<=sq;i++)T[i]=(i>1);
+    for(i=2;i*i<=sq;i++)
+        if(T[i]){
+           for(j=i*i;j<=sq;j+=i)T[j]=false;
+        }
+    
+    for(i=2;i<=sq;i++)if(T[i])plist_size++;
+    plist=(unsigned int*)malloc(plist_size*sizeof(unsigned int));
+    plist_size=0;
+    for(i=2;i<=sq;i++)if(T[i])plist[plist_size++]=i;
+    free(T);
+
+#define maxdepth 4 // larger value decreases the memory but will increase the running time,
+                   // we do the product in 2^maxdepth chunks.
+    
+    unsigned long int step=((b-a)>>maxdepth)+1;
+        
+    mpz_t tmp;
+    mpz_init(tmp);
+    mpz_set_ui(prim,1);
+    for(i=0;i<(1<<maxdepth);i++){
+        unsigned long int a2=(a+step<=b?a+step:b);
+        cm_prime_product_basecase(tmp,a,a2,plist,plist_size);
+        mpz_mul(prim,prim,tmp);
+        a+=step;
+    }
+    mpz_clear(tmp);      
+    free(plist);
+}
+
+/*****************************************************************************/
 /*****************************************************************************/
 
 bool cm_nt_fget_z (mpz_t out, ftype in)

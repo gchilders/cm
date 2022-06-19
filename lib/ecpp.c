@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #include "cm-impl.h"
+#include "assert.h"
 
 static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat);
 static void compute_qstar (long int *qstar, mpz_srcptr p, long int *q,
@@ -808,45 +809,53 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
       no_n entries in n and stores the results in l, which needs to have
       the correct size and all entries of which need to be initialised. */
 {
-   mpz_t *gcd;
    int i;
 #ifdef WITH_MPI
    double t;
 #endif
 
-   cm_timer_continue (stat->timer [2]);
-   gcd = (mpz_t *) malloc (no_n * sizeof (mpz_t));
-   for (i = 0; i < no_n; i++)
-      mpz_init (gcd [i]);
+   cm_timer_continue (stat->timer[2]);
 
-   /* Compute in gcd [i] the gcd of n [i] and primorialB. */
-#ifndef WITH_MPI
-   cm_nt_mpz_tree_gcd (gcd, primorialB, n, no_n);
-#else
-   cm_mpi_submit_tree_gcd (n, no_n);
-   cm_mpi_get_tree_gcd (gcd, no_n, B, &t);
-#endif
-   cm_timer_stop (stat->timer [2]);
-   stat->counter [2] += no_n;
+   for(i=0;i<no_n;i++)
+       mpz_set(l[i],n[i]);
+   
+   mpz_t g, prod;
+   mpz_init(g);
+   mpz_init(prod);
+   
+   mpz_binary_prod(prod,n,no_n);
+
 #ifdef WITH_MPI
-   stat->timer [2]->elapsed += t;
+   
+   cm_mpi_submit_prod(prod);   
+   cm_mpi_get_single_gcd(g,&t);
+   stat->timer[2]->elapsed+=t;
+   
+   cm_mpi_submit_gcd(g,l,no_n);
+   cm_mpi_get_gcds(l,no_n,&t);
+   stat->timer[2]->elapsed+=t;
+   
 #endif
 
-   cm_timer_continue (stat->timer [2]);
-   /* Remove the gcd from n [i] and recompute it until all primes
-      are removed. */
-   for (i = 0; i < no_n; i++) {
-      mpz_set (l [i], n [i]);
-      while (mpz_cmp_ui (gcd [i], 1ul) != 0) {
-         mpz_divexact (l [i], l [i], gcd [i]);
-         mpz_gcd (gcd [i], l [i], gcd [i]);
+#ifndef WITH_MPI
+   
+   mpz_gcd(prod,prod,primorialB);
+   
+   for(i=0;i<no_n;i++){
+       mpz_set(g,prod);
+       while(true){
+           mpz_gcd(g,g,l[i]);
+           if(mpz_cmp_ui(g,1)==0)break;
+           mpz_divexact(l[i],l[i],g);
       }
    }
+#endif
 
-   for (i = 0; i < no_n; i++)
-      mpz_clear (gcd [i]);
-   free (gcd);
+   stat->counter [2] += no_n;
    cm_timer_stop (stat->timer [2]);
+   
+   mpz_clear(g);
+   mpz_clear(prod);
 }
 
 /*****************************************************************************/
@@ -1223,6 +1232,11 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       to the calling function. */
 
 {
+   char buff[100];
+   time_t now = time (0);
+   strftime (buff, 100, "Start the first stage at %Y-%m-%d %H:%M:%S", localtime (&now));
+   printf ("%s\n", buff);
+
    const size_t L = mpz_sizeinbase (p, 2);
 #ifndef WITH_MPI
    const unsigned long int B = (L >= 26008 ? 1ul<<31 :
@@ -1302,7 +1316,8 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #ifndef WITH_MPI
       mpz_init (primorialB);
       cm_timer_start (stat->timer [6]);
-      mpz_primorial_ui (primorialB, B);
+      cm_prime_product_memoryefficient (primorialB, 2, B+1 );
+      //mpz_primorial_ui (primorialB, B);
       cm_timer_stop (stat->timer [6]);
 #else
       t = 0;
@@ -1393,6 +1408,10 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    if (verbose)
       printf ("Time for first ECPP step, depth %i: %.0f (%.0f)\n",
          *depth, t, cm_timer_wc_get (stat->timer [7]));
+
+    now = time (0);
+    strftime (buff, 100, "%Y-%m-%d %H:%M:%S", localtime (&now));
+    printf ("First stage ended at %s\n", buff);
 
    if (filename != NULL)
       cm_file_close (f);
@@ -1660,6 +1679,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
       the case that verbose is set as well. */
 
 {
+   assert(sizeof(unsigned long int)>=8); 
+    
    bool res = true;
    int depth;
    mpz_t **cert1, **cert2;

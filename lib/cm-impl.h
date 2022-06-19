@@ -103,6 +103,12 @@ extern void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m,
    int no_m);
 extern bool cm_nt_cget_zz (mpz_ptr out1, mpz_ptr out2, ctype in, ctype omega);
 
+extern void mpz_binary_prod(mpz_ptr ans,mpz_t* vec,unsigned long int size);
+extern void mpz_binary_prod64(mpz_ptr ans,unsigned long int* vec,unsigned long int size);
+extern void cm_prime_product_basecase (mpz_ptr prim, unsigned long int a,  unsigned long int b, unsigned int* plist,unsigned int plist_size);
+extern void cm_prime_product_memoryefficient (mpz_ptr prim, unsigned long int a,  unsigned long int b);
+
+
 /* functions for computing q expansions of modular functions and addition
    chains */
 extern void cm_qdev_init (cm_qdev_t *f, fprec_t prec);
@@ -263,6 +269,14 @@ extern void cm_mpi_get_h_chunk (unsigned int *h, int rank, double *t);
 extern void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m);
 extern void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, unsigned long int B,
    double *t);
+
+extern void cm_mpi_get_single_gcd (mpz_ptr gcd, double *t);
+extern void perfect_division(int n,int d,int rank,int* pos,int* len);
+extern void cm_mpi_submit_prod(mpz_t prod);
+extern void cm_mpi_submit_gcd(mpz_t g,mpz_t* v,int no_n);
+extern void cm_mpi_get_gcds(mpz_t *n,int no_n,double *t);
+extern void cm_nt_mpz_gcds(mpz_t* n,int no_n,mpz_t g);
+
 
 #if defined (__cplusplus)
 }
