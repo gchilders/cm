@@ -425,7 +425,19 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int_cl_t qnew, D, Dno;
    uint_cl_t hprime;
       /* largest prime factor of the class number, or 0 if not computed */
-   int i, j;
+   int i, j, k;
+   long int exclude[50];
+   int no_exclude = 0;
+   FILE *exclude_file;
+
+   exclude_file = fopen("exclude.txt", "r");
+   if (exclude_file != NULL) {
+      while (fscanf(exclude_file, "%ld", &exclude[no_exclude]) == 1) {
+         no_exclude++;
+         if (no_exclude == 50) break;
+      }
+      fclose(exclude_file);
+   }
 
    d_part = (int_cl_t ***) malloc (no_qstar_new * sizeof (int_cl_t **));
    no_part = (int *) malloc (no_qstar_new * sizeof (int));
@@ -453,6 +465,8 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       qnew = qstar [no_qstar_old + i];
       for (j = 0; j < no_part [i]; j++) {
          D = qnew * d_part [i][j][0];
+         for (k = 0; k < no_exclude; k++)
+            if (D == (int_cl_t)exclude[k]) D = 16; 
          if (D % 16 != 0) {
             Dno = 1 + d_part [i][j][1];
             if (Dno <= max_factors) {
