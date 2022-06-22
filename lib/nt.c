@@ -126,10 +126,38 @@ int cm_nt_kronecker (int_cl_t a, int_cl_t b)
 
 /*****************************************************************************/
 
-int cm_nt_is_prime (mpz_t a)
+int cm_nt_is_prime (mpz_t n)
 
 {
-   return (mpz_probab_prime_p (a, 0) > 0);
+   unsigned long j, r;
+   int prime = 0;
+   mpz_t d, a, x, n_sub_1;
+
+   if (mpz_sizeinbase(n, 2) < 4096) return (mpz_probab_prime_p(n, 0) > 0);
+   if (mpz_even_p(n)) return 0;
+
+   mpz_inits(d, a, x, n_sub_1, NULL);
+
+   mpz_sub_ui(n_sub_1, n, 1);
+   r = mpz_scan1(n_sub_1, 0);
+   mpz_fdiv_q_2exp(d, n_sub_1, r);
+
+   mpz_set_ui(a, 3);
+   mpz_powm(x, a, d, n);
+
+   if ((mpz_cmp_ui(x, 1) == 0) || (mpz_cmp(x, n_sub_1) == 0)) prime = 1;
+   else {
+      for (j = 1; j < r; j++) {
+         mpz_powm_ui(x, x, 2, n);
+         if (mpz_cmp(x, n_sub_1) == 0) {
+            prime = 1;
+            break;
+         }
+      }
+   }
+    
+   mpz_clears(d, a, x, n_sub_1, NULL);
+   return prime;
 }
 
 /*****************************************************************************/
