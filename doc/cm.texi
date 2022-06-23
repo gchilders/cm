@@ -632,7 +632,7 @@ implements the asymptotically fast version fastECPP of
 Certificates are computed and printed in a format compatible with
 PARI/GP.
 
-@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{print}, bool @var{trust}, bool @var{check}, bool @var{verbose}, bool @var{debug})
+@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{print}, bool @var{trust}, bool @var{check}, bool @var{verbose}, bool @var{debug}, bool @var{onlys1})
 Given a prime number @var{N}, the function computes an ECPP certificate
 and prints it to screen if @var{print} is set to @code{true}.
 If @var{check} is set to @code{true}, then the certificate is checked;
@@ -654,6 +654,8 @@ information, in particular on timing of different steps of the ECPP
 algorithm, which is useful only for debugging purposes, is printed on
 screen. This option should become obsolete once the ECPP code becomes less
 experimental.
+
+If @var{onlys1} is set to @code{true}, execution will stop at the end of stage 1.
 @end deftypefun
 
 

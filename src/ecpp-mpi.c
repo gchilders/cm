@@ -33,13 +33,13 @@ int main (int argc, char* argv [])
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
    if (rank == 0) {
       mpz_t n;
-      bool print, verbose, debug, trust, check;
+      bool print, verbose, debug, trust, check, onlys1;
       char *filename;
       mpz_init (n);
       evaluate_parameters_ecpp (argc, argv, n, &print, &filename,
-         &verbose, &debug, &trust, &check);
+         &verbose, &debug, &trust, &check, &onlys1);
       cm_ecpp (n, CM_MODPOLDIR, print, filename, trust, check, verbose,
-         debug);
+         debug, onlys1);
       mpz_clear (n);
    }
    cm_mpi_clear ();

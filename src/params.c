@@ -249,7 +249,7 @@ void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
 
 void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    bool *print, char **filename, bool *verbose, bool *debug,
-   bool *trust, bool *check)
+   bool *trust, bool *check, bool *onlys1)
    /* Since ECPP requires different parameter types, the easiest solution
       appears to be a separate function, albeit with a lot of copy and
       paste. */
@@ -262,9 +262,10 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    *debug = false;
    *check = false;
    *trust = false;
+   *onlys1 = false;
    *filename = NULL;
 
-   while ((opt = getopt (argc, argv, "hn:pf:gvtc")) != -1) {
+   while ((opt = getopt (argc, argv, "hn:pf:gvtc1")) != -1) {
       switch (opt) {
          case 'v':
             *verbose = true;
@@ -281,6 +282,9 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
             break;
          case 'c':
             *check = true;
+            break;
+         case '1':
+            *onlys1 = true;
             break;
          case 'f':
             if (optarg == NULL || optarg [0] == '-') {

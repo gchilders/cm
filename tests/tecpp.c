@@ -36,7 +36,8 @@ static void test_ecpp (mpz_srcptr n)
       true /* trust */,
       true /* check */,
       false /* verbose */,
-      false /* debug */);
+      false /* debug */,
+      false /* onlys1 */);
 
    if (!res) {
       printf ("ECPP certificate verification failed for\n");
