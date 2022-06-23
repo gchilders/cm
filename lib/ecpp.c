@@ -1653,7 +1653,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
 /*****************************************************************************/
 
 bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
-   char *filename, bool trust, bool check, bool verbose, bool debug)
+   char *filename, bool trust, bool check, bool verbose, bool debug, bool onlys1)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
@@ -1671,7 +1671,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
       information.
       debug indicates whether additional developer information (mainly
       timings and counters for tuning) is output; this is done only in
-      the case that verbose is set as well. */
+      the case that verbose is set as well. 
+      onlys1 indicates to stop at the end of stage 1*/
 
 {
    bool res = true;
@@ -1713,57 +1714,64 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
    }
    cert1 = ecpp1 (&depth, N, filename1, verbose, debug, stat1);
 
-   cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));
-   for (i = 0; i < depth; i++) {
-      cert2 [i] = (mpz_t *) malloc (6 * sizeof (mpz_t));
-      for (j = 0; j < 6; j++)
-         mpz_init (cert2 [i][j]);
-   }
-   ecpp2 (cert2, cert1, depth, filename2, modpoldir, verbose, debug, stat2);
+   if (!onlys1) {
+      cert2 = (mpz_t **)malloc(depth * sizeof(mpz_t *));
+      for (i = 0; i < depth; i++)
+      {
+         cert2[i] = (mpz_t *)malloc(6 * sizeof(mpz_t));
+         for (j = 0; j < 6; j++)
+            mpz_init(cert2[i][j]);
+      }
+      ecpp2(cert2, cert1, depth, filename2, modpoldir, verbose, debug, stat2);
 
-   if (print)
-      cm_file_write_ecpp_cert_pari (stdout, cert2, depth);
+      if (print)
+         cm_file_write_ecpp_cert_pari(stdout, cert2, depth);
 
-   if (filename != NULL) {
-      if (!cm_file_open_write (&f, filename))
-         exit (1);
-      cm_file_write_ecpp_cert_pari (f, cert2, depth);
-      cm_file_close (f);
-      if (!cm_file_open_write (&f, filenameprimo))
-         exit (1);
-      cm_file_write_ecpp_cert_primo (f, cert2, depth);
-      cm_file_close (f);
-   }
+      if (filename != NULL)
+      {
+         if (!cm_file_open_write(&f, filename))
+            exit(1);
+         cm_file_write_ecpp_cert_pari(f, cert2, depth);
+         cm_file_close(f);
+         if (!cm_file_open_write(&f, filenameprimo))
+            exit(1);
+         cm_file_write_ecpp_cert_primo(f, cert2, depth);
+         cm_file_close(f);
+      }
 
-   if (verbose) {
-      for (i = 0, t = 0.0; i <= 6; i++)
-         t += cm_timer_get (stat1->timer [i]);
-      for (i = 1; i <= 3; i++)
-         t += cm_timer_get (stat2->timer [i]);
-      printf ("Total time for ECPP: %.0f (%.0f)\n", t,
-         cm_timer_wc_get (stat1->timer [7])
-         + cm_timer_wc_get (stat2->timer [0]));
-   }
-
-   if (check) {
-      cm_timer_start (clock);
-      res = cm_pari_ecpp_check (cert2, depth);
-      cm_timer_stop (clock);
       if (verbose)
-         printf ("Time for ECPP check (%s): %.1f\n",
-            (res ? "true" : "false"), cm_timer_get (clock));
+      {
+         for (i = 0, t = 0.0; i <= 6; i++)
+            t += cm_timer_get(stat1->timer[i]);
+         for (i = 1; i <= 3; i++)
+            t += cm_timer_get(stat2->timer[i]);
+         printf("Total time for ECPP: %.0f (%.0f)\n", t,
+                cm_timer_wc_get(stat1->timer[7]) + cm_timer_wc_get(stat2->timer[0]));
+      }
+
+      if (check)
+      {
+         cm_timer_start(clock);
+         res = cm_pari_ecpp_check(cert2, depth);
+         cm_timer_stop(clock);
+         if (verbose)
+            printf("Time for ECPP check (%s): %.1f\n",
+                   (res ? "true" : "false"), cm_timer_get(clock));
+      }
    }
 
    for (i = 0; i < depth; i++) {
       for (j = 0; j < 4; j++)
          mpz_clear (cert1 [i][j]);
-      for (j = 0; j < 6; j++)
-         mpz_clear (cert2 [i][j]);
       free (cert1 [i]);
-      free (cert2 [i]);
+      if (!onlys1) {
+         for (j = 0; j < 6; j++)
+            mpz_clear (cert2 [i][j]);
+         free (cert2 [i]);
+      }
    }
    free (cert1);
-   free (cert2);
+   if (!onlys1) free (cert2);
    if (filename != NULL) {
       free (filename1);
       free (filename2);
