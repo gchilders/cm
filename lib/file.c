@@ -423,8 +423,7 @@ void cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p, FILE *f, bool debug,
    cm_stat_t stat)
    /* Try to read a (partial) result of the second ECPP step for p from the
       file f; it is returned in c, which needs to be allocated and
-      initialised. The return value is the number of read entries.
-      Statistical information is also read and returned in stat.
+      initialised. Statistical information is also read and returned in stat.
       The file position indicator is advanced behind the read part, so that
       new entries will be written at the end. */
 {
