@@ -210,6 +210,7 @@ void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p, bool verbose)
       printf ("-- Time for root: %.1f\n", cm_timer_get (clock));
 
    avma = av;
+   parivstack_reset();
 }
 
 /*****************************************************************************/
@@ -237,6 +238,7 @@ mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p)
    }
 
    avma = av;
+   parivstack_reset();
 
    return res;
 }
@@ -275,6 +277,7 @@ int cm_pari_classgroup (int_cl_t disc, int_cl_t *ord, cm_form_t *gen)
    }
 
    avma = av;
+   parivstack_reset();
 
    return length;
 }
@@ -401,6 +404,7 @@ int cm_pari_classgroup_2quotient (int_cl_t disc, const int *p,
    }
 
    avma = av;
+   parivstack_reset();
 
    return lengthq;
 }
@@ -480,6 +484,7 @@ bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
          Z_get_mpz (v, py);
    }
    avma = av;
+   parivstack_reset();
 
    return (res == 1);
 }
