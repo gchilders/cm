@@ -1578,44 +1578,46 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
       function. */
 
 {
-   int read;
+   int done;
    int i;
    FILE *f;
 #ifdef WITH_MPI
    cm_stat_t stat_worker;
    MPI_Status status;
-   int sent, received, written, rank, job;
+   int sent, received, rank, job;
 #endif
 
    cm_stat_init (stat);
 
    if (filename != NULL)
       if (cm_file_open_read_write (&f, filename))
-         read = cm_file_read_ecpp_cert2 (cert2, cert1 [0][0], f, debug,
+         cm_file_read_ecpp_cert2 (cert2, cert1 [0][0], f, debug,
             stat);
       else {
          cm_file_open_write (&f, filename);
-         read = 0;
       }
-   else
-      read = 0;
 
    cm_timer_continue (stat->timer [0]);
 #ifndef WITH_MPI
-   for (i = read; i < depth; i++) {
-      cm_ecpp_one_step2 (cert2 [i], cert1 [i], i, modpoldir,
-         verbose, debug, stat);
-      if (filename != NULL) {
-         cm_timer_stop (stat->timer [0]);
-         cm_write_ecpp_cert2_line (f, cert2 [i], stat);
-         cm_timer_continue (stat->timer [0]);
+   for (i = 0; i < depth; i++) {
+      if (mpz_sgn (cert2 [i][0]) == 0) {
+         cm_ecpp_one_step2 (cert2 [i], cert1 [i], i, modpoldir,
+            verbose, debug, stat);
+         if (filename != NULL) {
+            cm_timer_stop (stat->timer [0]);
+            cm_write_ecpp_cert2_line (f, i, cert2 [i], stat);
+            cm_timer_continue (stat->timer [0]);
+         }
       }
    }
 #else
-   sent = read;
-   received = read;
-   written = read;
+   sent = 0;
+   received = 0;
+   for (i = 0; i < depth; i++) 
+      if (mpz_sgn (cert2 [i][0]) != 0) received++;
+   
    while (received < depth) {
+      while (sent < depth && mpz_sgn (cert2 [sent][0]) != 0) sent++;
       if (sent < depth && (rank = cm_mpi_queue_pop ()) != -1) {
          cm_mpi_submit_ecpp_one_step2 (rank, sent, cert1 [sent], modpoldir);
          sent++;
@@ -1637,10 +1639,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
                cm_timer_get (stat->timer [3]));
          if (filename != NULL) {
             cm_timer_stop (stat->timer [0]);
-            while (written < depth && mpz_sgn (cert2 [written][0]) != 0) {
-               cm_write_ecpp_cert2_line (f, cert2 [written], stat);
-               written++;
-            }
+            cm_write_ecpp_cert2_line (f, job, cert2 [job], stat);
             cm_timer_continue (stat->timer [0]);
          }
       }
