@@ -1618,12 +1618,6 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
          sent++;
       }
       else {
-         int flag;
-         do {
-            usleep (10000);
-            MPI_Iprobe (MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
-               MPI_STATUS_IGNORE);
-         } while (!flag);
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
          rank = status.MPI_SOURCE;
