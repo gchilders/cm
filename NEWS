@@ -11,6 +11,8 @@ Changes in version 0.4.1 ("Fitzebohnen"):
   - ECPP certificate creation uses class field towers unconditionally.
   - An optional primality test is carried out before starting ECPP.
   - Fix the ECPP code on 32 bit platforms.
+  - For larger numbers, the BPSW primality test of GMP is replaced by
+    a Miller-Rabin test to base 2.
 
 Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for

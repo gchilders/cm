@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
+static int miller_rabin (mpz_srcptr n);
 
 /*****************************************************************************/
 
@@ -126,10 +127,58 @@ int cm_nt_kronecker (int_cl_t a, int_cl_t b)
 
 /*****************************************************************************/
 
-int cm_nt_is_prime (mpz_t a)
+static int miller_rabin (mpz_srcptr n)
+   /* Return whether the odd positive integer n is a strong pseudoprime
+      to base 2. */
 
 {
-   return (mpz_probab_prime_p (a, 0) > 0);
+   int d, res;
+   mpz_t nm1, b, e;
+
+   mpz_init (nm1);
+   mpz_init (b);
+   mpz_init (e);
+
+   /* Write n-1 = 2^d * e. */
+   mpz_sub_ui (nm1, n, 1);
+   d = mpz_scan1 (nm1, 0);
+   mpz_tdiv_q_2exp (e, nm1, d);
+
+   mpz_set_ui (b, 2);
+   mpz_powm (b, b, e, n);
+   if (!mpz_cmp_ui (b, 1) || !mpz_cmp (b, nm1))
+      res = 1;
+   else {
+      res = 0;
+      while (!res && d > 1) {
+         mpz_powm_ui (b, b, 2, n);
+         d--;
+         if (!mpz_cmp (b, nm1))
+            res = 1;
+      }
+   }
+
+   mpz_clear (nm1);
+   mpz_clear (b);
+   mpz_clear (e);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+int cm_nt_is_prime (mpz_srcptr n)
+
+{
+   /* According to Table 1 of
+      https://doi.org/10.1090/S0025-5718-1989-0982368-4
+      the probability that a Miller-Rabin test fails for a random number
+      and a random base for numbers with 900 digits is less than 10^(-109).
+      We hope that this still holds for the fixed base 2. */
+   if (mpz_sizeinbase (n, 2) >= 3000)
+      return miller_rabin (n);
+   else
+      return (mpz_probab_prime_p (n, 0) > 0);
 }
 
 /*****************************************************************************/
