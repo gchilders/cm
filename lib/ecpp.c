@@ -57,7 +57,7 @@ static void trial_div (mpz_t *l, mpz_t *n, int no_n,
    cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
-   const unsigned int delta, cm_stat_t stat);
+   const unsigned int delta, bool debug, cm_stat_t stat);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
    const unsigned int delta,
@@ -866,7 +866,7 @@ static int card_cmp (const void* c1, const void* c2)
 
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
-   const unsigned int delta, cm_stat_t stat)
+   const unsigned int delta, bool debug, cm_stat_t stat)
    /* For the no_card discriminants in d, card is supposed to contain
       corresponding curve cardinalities and l_list their non-smooth parts.
       The function tests whether one of them is suitable to perform one
@@ -883,6 +883,8 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    int no;
    mpz_t **c;
    int i;
+   cm_timer_t timer;
+   int counter;
 #ifndef WITH_MPI
    int index;
 #else
@@ -897,6 +899,8 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    res = 0;
    size_N = mpz_sizeinbase (N, 2);
 
+   cm_timer_start (timer);
+   counter = 0;
    /* Filter out suitable cardinalities and copy them to a new array;
       each entry is a 2-dimensional array containing the potential prime
       factor and its original index, so that the cardinality and the
@@ -937,8 +941,9 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
          mpz_set (n, card [index]);
          mpz_set (l, l_list [index]);
       }
-      stat->counter [3]++;
+      counter++;
    }
+   stat->counter [3] += counter;
    cm_timer_stop (stat->timer [3]);
 #else
    /* Let each worker do one primality test at a time; stop as soon as one
@@ -971,12 +976,18 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
             mpz_set (n, card [index [j]]);
             mpz_set (l, l_list [index [j]]);
          }
-      stat->counter [3] += batch;
+      counter += batch;
    }
+   stat->counter [3] += counter;
    cm_timer_stop (stat->timer [3]);
    stat->timer [3]->elapsed = t;
    free (index);
 #endif
+
+   cm_timer_stop (timer);
+   if (debug)
+      printf ("    %-8i primality:  (%4.0f)\n",
+         counter, cm_timer_wc_get (timer));
 
    for (i = 0; i < no; i++) {
       mpz_clear (c [i][0]);
@@ -1021,6 +1032,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          a B-smooth part times a prime is exp (gamma) * log B / log N. */
    double exp_prime, min_prime;
    int round, i;
+   cm_timer_t timer;
 #ifdef WITH_MPI
    MPI_Status status;
    int size, rank, job;
@@ -1053,7 +1065,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    while (d == 0) {
       round++;
       if (debug)
-         printf ("  Round %i\n  no_qstar_delta: %i\n",
+         printf ("  Round %i\n    no_qstar_delta: %i\n",
             round, no_qstar_delta);
       /* Extend the prime list in small pieces until the expectation of
          finding a curve cardinality that is a smooth part times a prime
@@ -1070,7 +1082,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             expected_no_curves (qstar, no_qstar - no_qstar_delta,
                no_qstar_delta, max_factors, Dmax, hmaxprime, h);
          if (debug)
-            printf ("    no_qstar: %i, exp_prime: %.1f\n",
+            printf ("        no_qstar: %i, exp_prime: %.1f\n",
                no_qstar, exp_prime);
       }
 
@@ -1085,6 +1097,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
       /* Compute (and broadcast in the case of MPI) the square roots of
          the new primes. */
+      cm_timer_start (timer);
       root = (mpz_t *) realloc (root, no_qstar * sizeof (mpz_t));
       for (i = no_qstar_old; i < no_qstar; i++)
          mpz_init (root [i]);
@@ -1101,8 +1114,13 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       cm_timer_stop (stat->timer [0]);
 #endif
       stat->counter [0] += no_qstar_new;
+      cm_timer_stop (timer);
+      if (debug)
+         printf ("    %-8i qroot:      (%4.0f)\n",
+            no_qstar_new, cm_timer_wc_get (timer));
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
+      cm_timer_start (timer);
 #ifndef WITH_MPI
       cm_timer_continue (stat->timer [1]);
       card = cm_ecpp_compute_cardinalities (&no_card, &d_card, dlist, no_d,
@@ -1153,9 +1171,14 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       stat->timer [1]->elapsed = t;
       stat->counter [1] += no_d;
 #endif
+      cm_timer_stop (timer);
+      if (debug)
+         printf ("    %-8i Cornacchia: (%4.0f)\n",
+            no_d, cm_timer_wc_get (timer));
 
       if (no_card > 0) {
          /* Remove smooth parts of cardinalities. */
+         cm_timer_start (timer);
          l_list = (mpz_t *) malloc (no_card * sizeof (mpz_t));
          for (i = 0; i < no_card; i++)
             mpz_init (l_list [i]);
@@ -1166,9 +1189,13 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             B,
 #endif
             stat);
+         cm_timer_stop (timer);
+         if (debug)
+            printf ("    %-8i trial div:  (%4.0f)\n",
+               no_card, cm_timer_wc_get (timer));
 
          d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
-               no_card, delta, stat);
+               no_card, delta, debug, stat);
 
          for (i = 0; i < no_card; i++)
             mpz_clear (l_list [i]);
@@ -1200,6 +1227,10 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       mpz_clear (root [i]);
    free (root);
    free (qstar);
+
+   if (debug)
+      printf ("    size gain: %lu bits\n",
+         mpz_sizeinbase (n, 2) - mpz_sizeinbase (l, 2));
 
    return d;
 }
@@ -1348,27 +1379,25 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             printf ("  Time for discriminant %11"PRIicl": %.0f (%.0f)\n",
                   d, t - t_old, cm_timer_wc_get (clock));
             t_old = t;
-            if (verbose) {
-               printf ("  largest prime of d: %"PRIucl"\n",
-                     cm_nt_largest_factor (-d));
-               printf ("  largest prime of h: %"PRIucl"\n",
-                     cm_nt_largest_factor (h [(-d) / 2 - 1]));
-               printf ("  discriminants:          %11.0f (%7.0f)\n",
-                     cm_timer_get (stat->timer [4]),
-                     cm_timer_wc_get (stat->timer [4]));
-               printf ("%13lu qroot:      %11.0f (%7.0f)\n", stat->counter [0],
-                     cm_timer_get (stat->timer [0]),
-                     cm_timer_wc_get (stat->timer [0]));
-               printf ("%13lu Cornacchia: %11.0f (%7.0f)\n", stat->counter [1],
-                     cm_timer_get (stat->timer [1]),
-                     cm_timer_wc_get (stat->timer [1]));
-               printf ("%13lu trial div:  %11.0f (%7.0f)\n", stat->counter [2],
-                     cm_timer_get (stat->timer [2]),
-                     cm_timer_wc_get (stat->timer [2]));
-               printf ("%13lu is_prime:   %11.0f (%7.0f)\n", stat->counter [3],
-                     cm_timer_get (stat->timer [3]),
-                     cm_timer_wc_get (stat->timer [3]));
-            }
+            printf ("  largest prime of d: %"PRIucl"\n",
+                  cm_nt_largest_factor (-d));
+            printf ("  largest prime of h: %"PRIucl"\n",
+                  cm_nt_largest_factor (h [(-d) / 2 - 1]));
+            printf ("  discriminants:          %11.0f (%7.0f)\n",
+                  cm_timer_get (stat->timer [4]),
+                  cm_timer_wc_get (stat->timer [4]));
+            printf ("%13lu qroot:      %11.0f (%7.0f)\n", stat->counter [0],
+                  cm_timer_get (stat->timer [0]),
+                  cm_timer_wc_get (stat->timer [0]));
+            printf ("%13lu Cornacchia: %11.0f (%7.0f)\n", stat->counter [1],
+                  cm_timer_get (stat->timer [1]),
+                  cm_timer_wc_get (stat->timer [1]));
+            printf ("%13lu trial div:  %11.0f (%7.0f)\n", stat->counter [2],
+                  cm_timer_get (stat->timer [2]),
+                  cm_timer_wc_get (stat->timer [2]));
+            printf ("%13lu primality:  %11.0f (%7.0f)\n", stat->counter [3],
+                  cm_timer_get (stat->timer [3]),
+                  cm_timer_wc_get (stat->timer [3]));
          }
          mpz_set_si (c [*depth][1], d);
          if (filename != NULL) {
