@@ -985,9 +985,11 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 #endif
 
    cm_timer_stop (timer);
-   if (debug)
+   if (debug) {
       printf ("    %-8i primality:  (%4.0f)\n",
          counter, cm_timer_wc_get (timer));
+      fflush (stdout);
+   }
 
    for (i = 0; i < no; i++) {
       mpz_clear (c [i][0]);
@@ -1092,8 +1094,10 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
          no_qstar_new, max_factors, Dmax, hmaxprime, h);
       cm_timer_stop (stat->timer [4]);
-      if (debug)
+      if (debug) {
          printf ("    no_d: %i\n", no_d);
+         fflush (stdout);
+      }
 
       /* Compute (and broadcast in the case of MPI) the square roots of
          the new primes. */
@@ -1115,9 +1119,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #endif
       stat->counter [0] += no_qstar_new;
       cm_timer_stop (timer);
-      if (debug)
+      if (debug) {
          printf ("    %-8i qroot:      (%4.0f)\n",
             no_qstar_new, cm_timer_wc_get (timer));
+         fflush (stdout);
+      }
 
       /* Compute the cardinalities of the corresponding elliptic curves. */
       cm_timer_start (timer);
@@ -1172,9 +1178,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       stat->counter [1] += no_d;
 #endif
       cm_timer_stop (timer);
-      if (debug)
+      if (debug) {
          printf ("    %-8i Cornacchia: (%4.0f)\n",
             no_d, cm_timer_wc_get (timer));
+         fflush (stdout);
+      }
 
       if (no_card > 0) {
          /* Remove smooth parts of cardinalities. */
@@ -1190,9 +1198,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 #endif
             stat);
          cm_timer_stop (timer);
-         if (debug)
+         if (debug) {
             printf ("    %-8i trial div:  (%4.0f)\n",
                no_card, cm_timer_wc_get (timer));
+            fflush (stdout);
+         }
 
          d = contains_ecpp_discriminant (n, l, N, card, l_list, d_card,
                no_card, delta, debug, stat);
@@ -1228,9 +1238,11 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    free (root);
    free (qstar);
 
-   if (debug)
+   if (debug) {
       printf ("    size gain: %lu bits\n",
          mpz_sizeinbase (n, 2) - mpz_sizeinbase (l, 2));
+      fflush (stdout);
+   }
 
    return d;
 }
@@ -1323,11 +1335,13 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       /* Precompute class numbers. */
       h = (unsigned int *) malloc ((Dmax / 2) * sizeof (unsigned int));
       compute_h (h, Dmax, stat);
-      if (verbose)
+      if (verbose) {
          printf ("Time for class numbers up to Dmax=%"PRIucl
                ": %.0f (%.0f)\n", Dmax,
                cm_timer_get (stat->timer [5]),
                cm_timer_wc_get (stat->timer [5]));
+         fflush (stdout);
+      }
 
       /* Precompute primorial for trial division. */
 #ifndef WITH_MPI
@@ -1353,6 +1367,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          printf ("Time for primorial of B=%lu: %.0f (%.0f)\n", B,
                cm_timer_get (stat->timer [6]), cm_timer_wc_get (stat->timer [6]));
          printf ("hmaxprime: %"PRIucl"\n", hmaxprime);
+         fflush (stdout);
       }
 
       t_old = 0;
@@ -1363,9 +1378,11 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             mpz_init (c [*depth][i]);
          mpz_set (c [*depth][0], N);
          cm_timer_start (clock);
-         if (verbose)
+         if (verbose) {
             printf ("Size [%4i]: %6li bits\n", *depth,
                   mpz_sizeinbase (N, 2));
+            fflush (stdout);
+         }
          d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
                hmaxprime, h, delta,
 #ifndef WITH_MPI
@@ -1398,6 +1415,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             printf ("%13lu primality:  %11.0f (%7.0f)\n", stat->counter [3],
                   cm_timer_get (stat->timer [3]),
                   cm_timer_wc_get (stat->timer [3]));
+            fflush (stdout);
          }
          mpz_set_si (c [*depth][1], d);
          if (filename != NULL) {
@@ -1419,9 +1437,11 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    cm_timer_stop (stat->timer [7]);
    for (i = 0, t = 0.0; i < 7; i++)
       t+= cm_timer_get (stat->timer [i]);
-   if (verbose)
+   if (verbose) {
       printf ("Time for first ECPP step, depth %i: %.0f (%.0f)\n",
          *depth, t, cm_timer_wc_get (stat->timer [7]));
+      fflush (stdout);
+   }
 
    if (filename != NULL)
       cm_file_close (f);
@@ -1544,6 +1564,7 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
          printf ("  roots: %5.0f\n", cm_timer_get (stat->timer [2]));
          printf ("  point: %5.0f\n", cm_timer_get (stat->timer [3]));
       }
+      fflush (stdout);
    }
 
    mpz_set (cert2 [0], p);
@@ -1639,12 +1660,14 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
             stat->timer [i]->elapsed += stat_worker->timer [i]->elapsed;
          cm_mpi_queue_push (rank);
          received++;
-         if (debug)
+         if (debug) {
             printf ("Timings after job %3i: CM %7.0f, roots %10.0f, "
                "point %7.0f\n", job,
                cm_timer_get (stat->timer [1]),
                cm_timer_get (stat->timer [2]),
                cm_timer_get (stat->timer [3]));
+            fflush (stdout);
+         }
          if (filename != NULL) {
             cm_timer_stop (stat->timer [0]);
             while (written < depth && mpz_sgn (cert2 [written][0]) != 0) {
