@@ -555,7 +555,7 @@ static void mpi_worker ()
       /* Wait for a message from the server, but avoid being busy by
          adding microsleep. */
       do {
-         usleep (10000);
+         usleep (100);
          MPI_Iprobe (0, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
          MPI_STATUS_IGNORE);
       } while (!flag);

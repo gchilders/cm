@@ -158,6 +158,7 @@ static void print_libraries (void)
          PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
          PARI_VERSION_CODE & 255ul,
          itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
+   fflush (stdout);
 }
 
 /*****************************************************************************/
