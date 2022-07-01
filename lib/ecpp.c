@@ -1278,7 +1278,13 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          primes", it enables us to side-step the issue instead of adding
          more and more qstar, which becomes increasingly difficult. */
 #endif
-   const uint_cl_t Dmax = ((L * L) >> 4) << 2;
+   const uint_cl_t Dmax =
+      1ul << CM_MAX (20, (((unsigned long int) ceil (log2 (L*L))) - 2));
+      /* We need a value that is a multiple of 4. To limit the number of
+         possible values, we choose a power of 2 above the previously
+         implemented L^2/4; the minimum of 2^20 leads to a negligible
+         running time for the class numbers even on a single core. For a
+         hypothetical number of 100000 digits, the value would be 2^35. */
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
    mpz_t** c;
@@ -1331,6 +1337,11 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    if (mpz_sizeinbase (N, 2) > 64) {
       /* Precompute class numbers. */
       h = (unsigned int *) malloc ((Dmax / 2) * sizeof (unsigned int));
+      if (h == NULL) {
+         printf ("***** Error: Not enough memory to allocate array h "
+            "in ecpp1.\n");
+         exit (1);
+      }
       compute_h (h, Dmax, stat);
       if (verbose) {
          printf ("Time for class numbers up to Dmax=%"PRIucl
