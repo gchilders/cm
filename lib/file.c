@@ -33,43 +33,57 @@ static void mpz_out_hex (FILE *f, mpz_t z);
 
 bool cm_file_open_write (FILE **f, const char *filename)
 {
+   bool res;
+
    *f = fopen (filename, "w");
    if (*f == NULL) {
       printf ("Could not open file '%s' for writing.\n", filename);
-      return false;
+      res = false;
    }
    else {
       printf ("Writing to '%s'.\n", filename);
-      return true;
+      res = true;
    }
+   fflush (stdout);
+
+   return res;
 }
 
 /*****************************************************************************/
 
 bool cm_file_open_read (FILE **f, const char *filename)
 {
+   bool res;
+
    *f = fopen (filename, "r");
    if (*f == NULL) {
       printf ("Could not open file '%s' for reading.\n", filename);
-      return false;
+      res = false;
    }
    else {
       printf ("Reading from '%s'.\n", filename);
-      return true;
+      res = true;
    }
+   fflush (stdout);
+
+   return res;
 }
 
 /*****************************************************************************/
 
 bool cm_file_open_read_write (FILE **f, const char *filename)
 {
+   bool res;
    *f = fopen (filename, "r+");
    if (*f == NULL) {
       printf ("Could not open file '%s' for reading.\n", filename);
-      return false;
+      res = false;
    }
    else
-      return true;
+      res = true;
+   fflush (stdout);
+
+   return res;
 }
 
 /*****************************************************************************/
@@ -239,6 +253,66 @@ void cm_class_print_pari (FILE* file, cm_class_srcptr c,
       else
          mpzxx_tower_print_pari (file, c->tower, c->tower_c, f, x);
    }
+}
+
+/*****************************************************************************/
+
+bool cm_file_write_h (const char *tmpdir, const unsigned int *h, unsigned int n)
+   /* Write the 2^n class numbers stored in h to a file in tmpdir. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   unsigned long int no;
+   bool res;
+
+   len = strlen (tmpdir) + 7;
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/h.dat", tmpdir);
+
+   res = cm_file_open_write (&f, filename);
+
+   if (res) {
+      no = 1ul << n;
+      res = (fwrite (h, sizeof (int), no, f) == no);
+      cm_file_close (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_read_h (const char *tmpdir, unsigned int *h, unsigned int n)
+   /* Read the 2^n class numbers from a file in tmpdir into h.
+      If the file contains fewer class numbers, the reading fails and the
+      return value is automatically false. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   unsigned long int no;
+   bool res;
+
+   len = strlen (tmpdir) + 7;
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/h.dat", tmpdir);
+
+   res = cm_file_open_read (&f, filename);
+
+   if (res) {
+      no = 1ul << n;
+      res = (fread (h, sizeof (int), no, f) == no);
+      cm_file_close (f);
+   }
+
+   free (filename);
+
+   return res;
 }
 
 /*****************************************************************************/

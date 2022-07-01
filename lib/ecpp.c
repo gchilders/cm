@@ -23,7 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat);
+static void compute_h (unsigned int *h, uint_cl_t Dmax, const char* tmpdir,
+   cm_stat_t stat);
 static void compute_qstar (long int *qstar, mpz_srcptr p, long int *q,
    int no);
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
@@ -142,16 +143,19 @@ void cm_ecpp_compute_h_chunk (unsigned int *h, uint_cl_t Dmin, uint_cl_t Dmax)
 
 /*****************************************************************************/
 
-static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat)
+static void compute_h (unsigned int *h, uint_cl_t Dmax, const char *tmpdir,
+   cm_stat_t stat)
    /* The function behaves as compute_h_chunk (h, 0, Dmax), but computing
       the class numbers in ranges of 100000 (that is, 50000 discriminants
       at a time). Experimentally, this optimises the running time on my
       laptop for Dmax=10^7. The optimal value probably depends on the cache
-      size. */
+      size. If tmpdir is given, it tries to read and write the result from
+      and to a file in this directory. */
 {
    const uint_cl_t size = 100000;
    uint_cl_t last;
    int chunks;
+   bool read;
 #ifdef WITH_MPI
    MPI_Status status;
    int sent, received, rank, job;
@@ -160,48 +164,65 @@ static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat)
    int i;
 #endif
 
-   if (Dmax % 4 != 0) {
-      printf ("***** Error: compute_h called with parameter not "
-              "divisible by 4.\n");
-      exit (1);
-   }
-
-   chunks = (Dmax + size - 1) / size;
-#ifndef WITH_MPI
+   /* Try to read the class numbers from a file. */
    cm_timer_start (stat->timer [5]);
-   for (i = 0; i < chunks; i++) {
-      last = (i + 1) * size;
-      if (last > Dmax)
-         last = Dmax;
-      cm_ecpp_compute_h_chunk (h + i * size / 2, i * size, last);
-   }
+   if (tmpdir)
+      read = cm_file_read_h (tmpdir, h, (unsigned int) log2 (Dmax) - 1);
+   else
+      read = false;
    cm_timer_stop (stat->timer [5]);
-#else
-   cm_timer_start (stat->timer [5]);
-   sent = 0;
-   received = 0;
-   t = 0;
-   while (received < chunks) {
-      if (sent < chunks && (rank = cm_mpi_queue_pop ()) != -1) {
-         last = (sent + 1) * size;
+
+   if (!read) {
+
+      if (Dmax % 4 != 0) {
+         printf ("***** Error: compute_h called with parameter not "
+                 "divisible by 4.\n");
+         exit (1);
+      }
+
+      chunks = (Dmax + size - 1) / size;
+#ifndef WITH_MPI
+      cm_timer_continue (stat->timer [5]);
+      for (i = 0; i < chunks; i++) {
+         last = (i + 1) * size;
          if (last > Dmax)
             last = Dmax;
-         cm_mpi_submit_h_chunk (rank, sent, sent * size, last);
-         sent++;
+         cm_ecpp_compute_h_chunk (h + i * size / 2, i * size, last);
       }
-      else {
-         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-            MPI_COMM_WORLD, &status);
-         rank = status.MPI_SOURCE;
-         cm_mpi_get_h_chunk (h + job * size / 2, rank, &t_worker);
-         t += t_worker;
-         cm_mpi_queue_push (rank);
-         received++;
+      cm_timer_stop (stat->timer [5]);
+#else
+      cm_timer_continue (stat->timer [5]);
+      sent = 0;
+      received = 0;
+      t = stat->timer [5]->elapsed;
+      while (received < chunks) {
+         if (sent < chunks && (rank = cm_mpi_queue_pop ()) != -1) {
+            last = (sent + 1) * size;
+            if (last > Dmax)
+               last = Dmax;
+            cm_mpi_submit_h_chunk (rank, sent, sent * size, last);
+            sent++;
+         }
+         else {
+            MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+               MPI_COMM_WORLD, &status);
+            rank = status.MPI_SOURCE;
+            cm_mpi_get_h_chunk (h + job * size / 2, rank, &t_worker);
+            t += t_worker;
+            cm_mpi_queue_push (rank);
+            received++;
+         }
       }
-   }
-   cm_timer_stop (stat->timer [5]);
-   stat->timer [5]->elapsed = t;
+      cm_timer_stop (stat->timer [5]);
+      stat->timer [5]->elapsed = t;
 #endif
+   }
+
+   if (tmpdir && !read) {
+      cm_timer_continue (stat->timer [5]);
+      cm_file_write_h (tmpdir, h, (unsigned int) log2 (Dmax) - 1);
+      cm_timer_stop (stat->timer [5]);
+   }
 }
 
 /*****************************************************************************/
@@ -1344,7 +1365,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             "in ecpp1.\n");
          exit (1);
       }
-      compute_h (h, Dmax, stat);
+      compute_h (h, Dmax, tmpdir, stat);
       if (verbose) {
          printf ("Time for class numbers up to Dmax=%"PRIucl
                ": %.0f (%.0f)\n", Dmax,
