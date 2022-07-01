@@ -51,8 +51,6 @@ static int card_cmp (const void* c1, const void* c2);
 static void trial_div (mpz_t *l, mpz_t *n, int no_n,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
-#else
-   unsigned long int B,
 #endif
    cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
@@ -795,11 +793,9 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
 
 /*****************************************************************************/
 
-void trial_div (mpz_t *l, mpz_t *n, int no_n,
+static void trial_div (mpz_t *l, mpz_t *n, int no_n,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
-#else
-   unsigned long int B,
 #endif
    cm_stat_t stat)
    /* primorialB is supposed to be the product of the primes up to the
@@ -824,7 +820,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    cm_nt_mpz_tree_gcd (gcd, primorialB, n, no_n);
 #else
    cm_mpi_submit_tree_gcd (n, no_n);
-   cm_mpi_get_tree_gcd (gcd, no_n, B, &t);
+   cm_mpi_get_tree_gcd (gcd, no_n, &t);
 #endif
    cm_timer_stop (stat->timer [2]);
    stat->counter [2] += no_n;
@@ -1193,8 +1189,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          trial_div (l_list, card, no_card,
 #ifndef WITH_MPI
             primorialB,
-#else
-            B,
 #endif
             stat);
          cm_timer_stop (timer);
@@ -1276,7 +1270,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          we impose half of this number of bits as the minimal gain. */
 #else
    unsigned long int B;
-      /* Computed below depending on size. */
+      /* Computed below. */
    const unsigned int delta = 2;
       /* Since in the parallel version we consider many potential curve
          orders at once and order them by gain, having a small value of
@@ -1303,10 +1297,13 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #endif
 
 #ifdef WITH_MPI
-   /* Cap B at (size - 1) * 2^29, so that each worker handles a product
-      of value at most about exp (2^29), or 100MB. */
+   /* With B = (size - 1) * 2^29, each worker handles a product of value
+      at most about exp (2^29), or 100MB. This used to be an upper bound,
+      to which a theoretical optimal value of O (L^3) would be preferred;
+      for larger numbers the bound tended to be reached, and using it all
+      the time simplifies the code. */
    MPI_Comm_size (MPI_COMM_WORLD, &size);
-   B = CM_MIN (((unsigned long int) size - 1) << 29, (L>>4)*(L>>4)*(L>>5));
+   B = ((unsigned long int) size - 1) << 29;
 #endif
 
    cm_stat_init (stat);
