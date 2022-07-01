@@ -226,7 +226,7 @@ extern void cm_stat_init (cm_stat_t stat);
 
 
 /* functions operating on files */
-extern bool cm_file_open_read_write (FILE **f, char *filename);
+extern bool cm_file_open_read_write (FILE **f, const char *filename);
 extern bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line, cm_stat_t stat);
 extern bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line, cm_stat_t stat);
 extern mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p,

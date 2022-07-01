@@ -31,7 +31,7 @@ static void mpz_out_hex (FILE *f, mpz_t z);
 
 /*****************************************************************************/
 
-bool cm_file_open_write (FILE **f, char *filename)
+bool cm_file_open_write (FILE **f, const char *filename)
 {
    *f = fopen (filename, "w");
    if (*f == NULL) {
@@ -46,7 +46,7 @@ bool cm_file_open_write (FILE **f, char *filename)
 
 /*****************************************************************************/
 
-bool cm_file_open_read (FILE **f, char *filename)
+bool cm_file_open_read (FILE **f, const char *filename)
 {
    *f = fopen (filename, "r");
    if (*f == NULL) {
@@ -61,7 +61,7 @@ bool cm_file_open_read (FILE **f, char *filename)
 
 /*****************************************************************************/
 
-bool cm_file_open_read_write (FILE **f, char *filename)
+bool cm_file_open_read_write (FILE **f, const char *filename)
 {
    *f = fopen (filename, "r+");
    if (*f == NULL) {
@@ -81,7 +81,7 @@ void cm_file_close (FILE *f)
 
 /*****************************************************************************/
 
-void cm_file_gzopen_write (gzFile *f, char *filename)
+void cm_file_gzopen_write (gzFile *f, const char *filename)
 {
    *f = gzopen (filename, "w9");
    if (*f == NULL) {
@@ -92,7 +92,7 @@ void cm_file_gzopen_write (gzFile *f, char *filename)
 
 /*****************************************************************************/
 
-void cm_file_gzopen_read (gzFile *f, char *filename)
+void cm_file_gzopen_read (gzFile *f, const char *filename)
 {
    *f = gzopen (filename, "r");
    if (*f == NULL) {

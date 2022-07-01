@@ -65,6 +65,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    unsigned long int B, bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
+   const char *tmpdir,
    bool verbose, bool debug, cm_stat_ptr stat);
 static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    char *filename, const char* modpoldir, bool verbose,
@@ -1244,6 +1245,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 /*****************************************************************************/
 
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
+   const char* tmpdir,
    bool verbose, bool debug, cm_stat_ptr stat)
    /* Compute the first step of the ECPP certificate; this is the downrun
       part with the parameters of the elliptic curves.
@@ -1698,8 +1700,9 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
 
 /*****************************************************************************/
 
-bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
-   char *filename, bool trust, bool check, bool verbose, bool debug)
+bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
+   const char *filename, const char* tmpdir,
+   bool print, bool trust, bool check, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
@@ -1707,6 +1710,9 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
       If filename is different from NULL, the final ECPP certificate is
       output to the file, and the stage 1 and stage 2 certificates are
       read from (partially) and written to temporary files.
+      If tmpdir is different from NULL, it refers to a directory where
+      files can be stored representing precomputations that are independent
+      of the number under consideration (class numbers, primorials).
       If trust is set to true, then N is trusted to be a probable prime;
       otherwise a quick primality test is run.
       print indicates whether the result is printed to stdout.
@@ -1757,7 +1763,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
       filename1 = NULL;
       filename2 = NULL;
    }
-   cert1 = ecpp1 (&depth, N, filename1, verbose, debug, stat1);
+   cert1 = ecpp1 (&depth, N, filename1, tmpdir, verbose, debug, stat1);
 
    cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));
    for (i = 0; i < depth; i++) {
@@ -1796,7 +1802,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
       res = cm_pari_ecpp_check (cert2, depth);
       cm_timer_stop (clock);
       if (verbose)
-         printf ("Time for ECPP check (%s): %.1f\n",
+         printf ("Time for ECPP check (%s): %.0f\n",
             (res ? "true" : "false"), cm_timer_get (clock));
    }
 
