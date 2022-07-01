@@ -178,10 +178,10 @@ static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat)
    }
    cm_timer_stop (stat->timer [5]);
 #else
+   cm_timer_start (stat->timer [5]);
    sent = 0;
    received = 0;
-   t = cm_timer_get (stat->timer [5]);
-   cm_timer_continue (stat->timer [5]);
+   t = 0;
    while (received < chunks) {
       if (sent < chunks && (rank = cm_mpi_queue_pop ()) != -1) {
          last = (sent + 1) * size;
