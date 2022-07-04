@@ -66,8 +66,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    unsigned long int B, bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
-   const char *tmpdir,
-   bool verbose, bool debug, cm_stat_ptr stat);
+   char *tmpdir, bool verbose, bool debug, cm_stat_ptr stat);
 static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    char *filename, const char* modpoldir, bool verbose,
    bool debug, cm_stat_ptr stat);
@@ -1266,8 +1265,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 /*****************************************************************************/
 
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
-   const char* tmpdir,
-   bool verbose, bool debug, cm_stat_ptr stat)
+   char* tmpdir, bool verbose, bool debug, cm_stat_ptr stat)
    /* Compute the first step of the ECPP certificate; this is the downrun
       part with the parameters of the elliptic curves.
       The return value is a newly allocated array of depth entries, each
@@ -1383,7 +1381,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #else
       t = 0;
       cm_timer_start (stat->timer [6]);
-      cm_mpi_submit_primorial (B);
+      cm_mpi_submit_primorial (tmpdir, B);
       for (i = 1; i < size; i++) {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
@@ -1722,7 +1720,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
 /*****************************************************************************/
 
 bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
-   const char *filename, const char* tmpdir,
+   const char *filename, char* tmpdir,
    bool print, bool trust, bool check, bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;

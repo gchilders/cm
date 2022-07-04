@@ -317,7 +317,66 @@ bool cm_file_read_h (const char *tmpdir, unsigned int *h, unsigned int n)
 
 /*****************************************************************************/
 
-bool write_stat (FILE *f, cm_stat_t stat)
+bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
+   const int i)
+   /* Write the prime product prim to a file in tmpdir, assuming it is the
+      i-th one in a list. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   bool res;
+
+   len = strlen (tmpdir) + 30;
+      /* enough for a 64-bit number i with 20 digits */
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+
+   res = cm_file_open_write (&f, filename);
+
+   if (res) {
+      res = (mpz_out_raw (f, prim) > 0);
+      cm_file_close (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim, const int i)
+   /* Read the prime product prim from a file in tmpdir, assuming it is the
+      i-th one in a list. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   bool res;
+
+   len = strlen (tmpdir) + 30;
+      /* enough for a 64-bit number i with 20 digits */
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+
+   res = cm_file_open_read (&f, filename);
+
+   if (res) {
+      res = (mpz_inp_raw (prim, f) > 0);
+      cm_file_close (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+static bool write_stat (FILE *f, cm_stat_t stat)
    /* Write the content of stat to the file f. */
 {
    int size, i;
@@ -340,7 +399,7 @@ bool write_stat (FILE *f, cm_stat_t stat)
 
 /*****************************************************************************/
 
-bool read_stat (FILE *f, cm_stat_t stat)
+static bool read_stat (FILE *f, cm_stat_t stat)
    /* Read statistical information from f into stat. */
 {
    int size, i;

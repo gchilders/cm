@@ -231,6 +231,10 @@ extern bool cm_file_write_h (const char *tmpdir, const unsigned int *h,
    unsigned int n);
 extern bool cm_file_read_h (const char *tmpdir, unsigned int *h,
    unsigned int n);
+extern bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
+   const int i);
+extern bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim,
+   const int i);
 extern bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line, cm_stat_t stat);
 extern bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line, cm_stat_t stat);
 extern mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p,
@@ -247,7 +251,7 @@ extern void cm_mpi_broadcast_N (mpz_srcptr N);
 extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
    mpz_t *qroot);
 extern void cm_mpi_clear_N (void);
-extern void cm_mpi_submit_primorial (unsigned long int B);
+extern void cm_mpi_submit_primorial (char *tmpdir, unsigned long int B);
 extern void cm_mpi_get_primorial (int rank, double *t);
 extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
 extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t);

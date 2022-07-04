@@ -182,16 +182,21 @@ void cm_mpi_clear_N ()
 
 /*****************************************************************************/
 
-void cm_mpi_submit_primorial (unsigned long int B)
+void cm_mpi_submit_primorial (char *tmpdir, unsigned long int B)
    /* Submit the job of computing primorials to all workers. */
 {
    int size, rank;
+   int len;
 
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    for (rank = 1; rank < size; rank++)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_PRIMORIAL,
          MPI_COMM_WORLD);
    MPI_Bcast (&B, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+   len = (tmpdir ? strlen (tmpdir) + 1 : 0); /* +1 for trailing \0 */
+   MPI_Bcast (&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   if (tmpdir)
+      MPI_Bcast (tmpdir, len, MPI_CHAR, 0, MPI_COMM_WORLD);
 }
 
 /*****************************************************************************/
@@ -431,7 +436,10 @@ static void mpi_worker ()
 
    /* Primorial. */
    unsigned long int B;
+   int len;
+   char *tmpdir;
    mpz_t prim;
+   bool read;
 
    /* Tonelli */
    long int a;
@@ -441,7 +449,6 @@ static void mpi_worker ()
    /* ECPP step 2 */
    mpz_t cert1 [4], cert2 [6];
    char *modpoldir;
-   int len;
 
    /* Curve cardinalities. */
    int_cl_t *d;
@@ -524,14 +531,32 @@ static void mpi_worker ()
       case MPI_TAG_JOB_PRIMORIAL:
          cm_timer_start (stat->timer [0]);
          MPI_Bcast (&B, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+         MPI_Bcast (&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         if (len > 0) {
+            tmpdir = (char *) malloc (len * sizeof (char));
+            MPI_Bcast (tmpdir, len, MPI_CHAR, 0, MPI_COMM_WORLD);
+         }
+         else
+            tmpdir = 0;
 
          /* Each worker chooses a chunk out of B according to its rank.
-            Care must be taken in the formula to not overflow in 32 bits,
-            while going up to B for the last worker; usually B will be
-            divisible by size - 1, but the formula works more generally. */
-         cm_pari_prime_product (prim, (rank - 1) * (B / (size - 1)),
-            (rank == size - 1 ? B : rank * (B / (size - 1))));
+            So that file reading is possible, the chunks must not depend
+            on the size of the communicator; currently this is reached
+            by giving a range of 2^29 to each worker. So we can assume
+            that B equals size -1 times this value. Care must be taken
+            in the formula not to overflow in 32 bits.*/
+         if (tmpdir)
+            read = cm_file_read_primorial (tmpdir, prim, rank - 1);
+         else
+            read = false;
+         if (!read)
+            cm_pari_prime_product (prim, (rank - 1) * (B / (size - 1)),
+               rank * (B / (size - 1)));
+         if (tmpdir && !read)
+            cm_file_write_primorial (tmpdir, prim, rank - 1);
 
+         if (len > 0)
+            free (tmpdir);
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_PRIMORIAL,
             MPI_COMM_WORLD);
          cm_timer_stop (stat->timer [0]);
