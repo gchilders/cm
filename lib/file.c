@@ -271,12 +271,13 @@ bool cm_file_write_h (const char *tmpdir, const unsigned int *h, unsigned int n)
    filename = (char *) malloc (len * sizeof (char));
    snprintf (filename, len, "%s/h.dat", tmpdir);
 
-   res = cm_file_open_write (&f, filename);
+   f = fopen (filename, "w");
+   res = (f != NULL);
 
    if (res) {
       no = 1ul << n;
       res = (fwrite (h, sizeof (int), no, f) == no);
-      cm_file_close (f);
+      fclose (f);
    }
 
    free (filename);
@@ -302,12 +303,13 @@ bool cm_file_read_h (const char *tmpdir, unsigned int *h, unsigned int n)
    filename = (char *) malloc (len * sizeof (char));
    snprintf (filename, len, "%s/h.dat", tmpdir);
 
-   res = cm_file_open_read (&f, filename);
+   f = fopen (filename, "r");
+   res = (f != NULL);
 
    if (res) {
       no = 1ul << n;
       res = (fread (h, sizeof (int), no, f) == no);
-      cm_file_close (f);
+      fclose (f);
    }
 
    free (filename);
@@ -333,11 +335,12 @@ bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
    filename = (char *) malloc (len * sizeof (char));
    snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
 
-   res = cm_file_open_write (&f, filename);
+   f = fopen (filename, "w");
+   res = (f != NULL);
 
    if (res) {
       res = (mpz_out_raw (f, prim) > 0);
-      cm_file_close (f);
+      fclose (f);
    }
 
    free (filename);
@@ -362,11 +365,12 @@ bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim, const int i)
    filename = (char *) malloc (len * sizeof (char));
    snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
 
-   res = cm_file_open_read (&f, filename);
+   f = fopen (filename, "r");
+   res = (f != NULL);
 
    if (res) {
       res = (mpz_inp_raw (prim, f) > 0);
-      cm_file_close (f);
+      fclose (f);
    }
 
    free (filename);
