@@ -1409,6 +1409,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 
          t_old = 0;
          while (mpz_sizeinbase (N, 2) > 64) {
+			uint_cl_t Dcurrmax;
             c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
             c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
             for (i = 0; i < 4; i++)
@@ -1420,7 +1421,9 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
                      mpz_sizeinbase (N, 2));
                fflush (stdout);
             }
-            d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
+            Dcurrmax = mpz_sizeinbase (N, 2);
+            Dcurrmax = CM_MAX (1ul << 20, ((Dcurrmax * Dcurrmax) >> 4) << 2); 
+            d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dcurrmax,
                   hmaxprime, h, delta,
 #ifndef WITH_MPI
                   primorialB,
