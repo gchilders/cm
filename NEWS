@@ -13,6 +13,9 @@ Changes in version 0.4.1 ("Fitzebohnen"):
   - Fix the ECPP code on 32 bit platforms.
   - For larger numbers, the BPSW primality test of GMP is replaced by
     a Miller-Rabin test to base 2.
+  - If the environment variable CM_ECPP_TMPDIR is set, files that do not
+    change between different invocations of ecpp or ecpp-mpi are stored
+    in and read back from that directory.
 
 Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for

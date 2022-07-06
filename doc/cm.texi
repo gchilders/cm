@@ -632,11 +632,18 @@ implements the asymptotically fast version fastECPP of
 Certificates are computed and printed in a format compatible with
 PARI/GP.
 
-@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, bool @var{print}, bool @var{trust}, bool @var{check}, bool @var{verbose}, bool @var{debug}, bool @var{onlys1})
+@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, const char* @var{filename}, const char* @var{tmpdir}, bool @var{print}, bool @var{trust}, bool @var{check}, bool @var{verbose}, bool @var{debug}, bool @var{onlys1})
 Given a prime number @var{N}, the function computes an ECPP certificate
 and prints it to screen if @var{print} is set to @code{true}.
+If @var{filename} is different from @code{NULL}, the final ECPP
+certificate is output to the file in PARI/GP format, and to a file with
+additional suffix @code{.primo} in PRIMO format, and the stage 1 and
+stage 2 partial certificates are read from and written to temporary files
+with suffices @code{.cert1} and @code{.cert2}, respectively.
+
 If @var{check} is set to @code{true}, then the certificate is checked;
 the outcome is printed if @var{verbose} is also set to @code{true}.
+
 The directory @var{modpoldir}, usually @code{/usr/local/share/cm}, in which
 modular polynomials are stored, is required to be passed to
 @code{cm_curve_and_point}.
@@ -652,8 +659,17 @@ In particular, if both @var{print} and @var{verbose} are set to
 If additionally to @var{verbose}, @var{debug} is set to @code{true}, more
 information, in particular on timing of different steps of the ECPP
 algorithm, which is useful only for debugging purposes, is printed on
-screen. This option should become obsolete once the ECPP code becomes less
-experimental.
+screen.
+
+The parameter @var{tmpdir}, if not @code{NULL}, indicates a directory where
+files can be written and read that are normally recomputed for every
+execution, but that contain data which does not actually depend on the
+number to be certified. These could theoretically be distributed with
+the code; since they can fill tens of gigabytes, this is not practical,
+however, and they are computed and written on the first run.
+For the MPI code, this directory needs to be accessible from all MPI
+processes. If the variable is @code{NULL}, the data is recomputed every
+time.
 
 If @var{onlys1} is set to @code{true}, execution will stop at the end of stage 1.
 @end deftypefun
@@ -873,6 +889,12 @@ If the number is trusted to be pseudoprime since this has been tested
 independently, the command line switch @code{-t} can be added to drop
 this test.
 
+The environment variable @code{CM_ECPP_TMPDIR}, if set in the shell from
+which the binary is invoked, indicates a directory, available from all MPI
+processes for the parallel version, in which data that is common over
+several invocations can be stored. The data is then computed on the first
+run and read from disk during subsequent runs. If the environment variable
+is not set, the data is recomputed every time.
 
 
 @node References

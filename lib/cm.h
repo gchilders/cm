@@ -255,11 +255,11 @@ extern double cm_timer_get (cm_timer_t t);
 extern double cm_timer_wc_get (cm_timer_t t);
 
 /* generic functions for opening files */
-extern bool cm_file_open_write (FILE **f, char *filename);
-extern bool cm_file_open_read (FILE **f, char *filename);
+extern bool cm_file_open_write (FILE **f, const char *filename);
+extern bool cm_file_open_read (FILE **f, const char *filename);
 extern void cm_file_close (FILE *f);
-extern void cm_file_gzopen_write (gzFile *f, char *filename);
-extern void cm_file_gzopen_read (gzFile *f, char *filename);
+extern void cm_file_gzopen_write (gzFile *f, const char *filename);
+extern void cm_file_gzopen_read (gzFile *f, const char *filename);
 extern void cm_file_gzclose (gzFile f);
 
 /* functions for rounding floating point numbers to rational or quadratic
@@ -314,8 +314,9 @@ extern void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    const char* modpoldir, bool print, bool verbose);
 
 /* functions for ECPP */
-extern bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
-   char *filename, bool trust, bool check, bool verbose, bool debug, bool onlys1);
+extern bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
+   const char *filename, char* tmpdir,
+   bool print, bool trust, bool check, bool verbose, bool debug, bool onlys1);
 
 /* functions for MPI */
 void cm_mpi_init (bool debug);
