@@ -31,45 +31,59 @@ static void mpz_out_hex (FILE *f, mpz_t z);
 
 /*****************************************************************************/
 
-bool cm_file_open_write (FILE **f, char *filename)
+bool cm_file_open_write (FILE **f, const char *filename)
 {
+   bool res;
+
    *f = fopen (filename, "w");
    if (*f == NULL) {
       printf ("Could not open file '%s' for writing.\n", filename);
-      return false;
+      res = false;
    }
    else {
       printf ("Writing to '%s'.\n", filename);
-      return true;
+      res = true;
    }
+   fflush (stdout);
+
+   return res;
 }
 
 /*****************************************************************************/
 
-bool cm_file_open_read (FILE **f, char *filename)
+bool cm_file_open_read (FILE **f, const char *filename)
 {
+   bool res;
+
    *f = fopen (filename, "r");
    if (*f == NULL) {
       printf ("Could not open file '%s' for reading.\n", filename);
-      return false;
+      res = false;
    }
    else {
       printf ("Reading from '%s'.\n", filename);
-      return true;
+      res = true;
    }
+   fflush (stdout);
+
+   return res;
 }
 
 /*****************************************************************************/
 
-bool cm_file_open_read_write (FILE **f, char *filename)
+bool cm_file_open_read_write (FILE **f, const char *filename)
 {
+   bool res;
    *f = fopen (filename, "r+");
    if (*f == NULL) {
       printf ("Could not open file '%s' for reading.\n", filename);
-      return false;
+      res = false;
    }
    else
-      return true;
+      res = true;
+   fflush (stdout);
+
+   return res;
 }
 
 /*****************************************************************************/
@@ -81,7 +95,7 @@ void cm_file_close (FILE *f)
 
 /*****************************************************************************/
 
-void cm_file_gzopen_write (gzFile *f, char *filename)
+void cm_file_gzopen_write (gzFile *f, const char *filename)
 {
    *f = gzopen (filename, "w9");
    if (*f == NULL) {
@@ -92,7 +106,7 @@ void cm_file_gzopen_write (gzFile *f, char *filename)
 
 /*****************************************************************************/
 
-void cm_file_gzopen_read (gzFile *f, char *filename)
+void cm_file_gzopen_read (gzFile *f, const char *filename)
 {
    *f = gzopen (filename, "r");
    if (*f == NULL) {
@@ -243,7 +257,130 @@ void cm_class_print_pari (FILE* file, cm_class_srcptr c,
 
 /*****************************************************************************/
 
-bool write_stat (FILE *f, cm_stat_t stat)
+bool cm_file_write_h (const char *tmpdir, const unsigned int *h, unsigned int n)
+   /* Write the 2^n class numbers stored in h to a file in tmpdir. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   unsigned long int no;
+   bool res;
+
+   len = strlen (tmpdir) + 7;
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/h.dat", tmpdir);
+
+   f = fopen (filename, "w");
+   res = (f != NULL);
+
+   if (res) {
+      no = 1ul << n;
+      res = (fwrite (h, sizeof (int), no, f) == no);
+      fclose (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_read_h (const char *tmpdir, unsigned int *h, unsigned int n)
+   /* Read the 2^n class numbers from a file in tmpdir into h.
+      If the file contains fewer class numbers, the reading fails and the
+      return value is automatically false. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   unsigned long int no;
+   bool res;
+
+   len = strlen (tmpdir) + 7;
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/h.dat", tmpdir);
+
+   f = fopen (filename, "r");
+   res = (f != NULL);
+
+   if (res) {
+      no = 1ul << n;
+      res = (fread (h, sizeof (int), no, f) == no);
+      fclose (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
+   const int i)
+   /* Write the prime product prim to a file in tmpdir, assuming it is the
+      i-th one in a list. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   bool res;
+
+   len = strlen (tmpdir) + 30;
+      /* enough for a 64-bit number i with 20 digits */
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+
+   f = fopen (filename, "w");
+   res = (f != NULL);
+
+   if (res) {
+      res = (mpz_out_raw (f, prim) > 0);
+      fclose (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim, const int i)
+   /* Read the prime product prim from a file in tmpdir, assuming it is the
+      i-th one in a list. */
+
+{
+   char *filename;
+   FILE *f;
+   unsigned int len;
+   bool res;
+
+   len = strlen (tmpdir) + 30;
+      /* enough for a 64-bit number i with 20 digits */
+   filename = (char *) malloc (len * sizeof (char));
+   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+
+   f = fopen (filename, "r");
+   res = (f != NULL);
+
+   if (res) {
+      res = (mpz_inp_raw (prim, f) > 0);
+      fclose (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+static bool write_stat (FILE *f, cm_stat_t stat)
    /* Write the content of stat to the file f. */
 {
    int size, i;
@@ -266,7 +403,7 @@ bool write_stat (FILE *f, cm_stat_t stat)
 
 /*****************************************************************************/
 
-bool read_stat (FILE *f, cm_stat_t stat)
+static bool read_stat (FILE *f, cm_stat_t stat)
    /* Read statistical information from f into stat. */
 {
    int size, i;

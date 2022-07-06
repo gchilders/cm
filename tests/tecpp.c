@@ -31,8 +31,9 @@ static void test_ecpp (mpz_srcptr n)
    bool res;
 
    res =    cm_ecpp (n, CM_MODPOLDIR,
-      false /* print */,
       NULL /* filename */,
+      NULL /* tmpdir */,
+      false /* print */,
       true /* trust */,
       true /* check */,
       false /* verbose */,

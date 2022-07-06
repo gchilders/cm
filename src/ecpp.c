@@ -34,7 +34,8 @@ int main (int argc, char* argv [])
    evaluate_parameters_ecpp (argc, argv, n, &print, &filename, &verbose,
       &debug, &trust, &check, &onlys1);
 
-   cm_ecpp (n, CM_MODPOLDIR, print, filename, trust, check, verbose, debug, onlys1);
+   cm_ecpp (n, CM_MODPOLDIR, filename, getenv ("CM_ECPP_TMPDIR"),
+      print, trust, check, verbose, debug, onlys1);
 
    cm_pari_clear ();
    mpz_clear (n);

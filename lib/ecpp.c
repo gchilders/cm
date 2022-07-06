@@ -23,7 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
-static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat);
+static void compute_h (unsigned int *h, uint_cl_t Dmax, const char* tmpdir,
+   cm_stat_t stat);
 static void compute_qstar (long int *qstar, mpz_srcptr p, long int *q,
    int no);
 static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
@@ -51,8 +52,6 @@ static int card_cmp (const void* c1, const void* c2);
 static void trial_div (mpz_t *l, mpz_t *n, int no_n,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
-#else
-   unsigned long int B,
 #endif
    cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
@@ -67,7 +66,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    unsigned long int B, bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
-   bool verbose, bool debug, cm_stat_ptr stat);
+   char *tmpdir, bool verbose, bool debug, cm_stat_ptr stat);
 static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    char *filename, const char* modpoldir, bool verbose,
    bool debug, cm_stat_ptr stat);
@@ -143,16 +142,19 @@ void cm_ecpp_compute_h_chunk (unsigned int *h, uint_cl_t Dmin, uint_cl_t Dmax)
 
 /*****************************************************************************/
 
-static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat)
+static void compute_h (unsigned int *h, uint_cl_t Dmax, const char *tmpdir,
+   cm_stat_t stat)
    /* The function behaves as compute_h_chunk (h, 0, Dmax), but computing
       the class numbers in ranges of 100000 (that is, 50000 discriminants
       at a time). Experimentally, this optimises the running time on my
       laptop for Dmax=10^7. The optimal value probably depends on the cache
-      size. */
+      size. If tmpdir is given, it tries to read and write the result from
+      and to a file in this directory. */
 {
    const uint_cl_t size = 100000;
    uint_cl_t last;
    int chunks;
+   bool read;
 #ifdef WITH_MPI
    MPI_Status status;
    int sent, received, rank, job;
@@ -161,48 +163,65 @@ static void compute_h (unsigned int *h, uint_cl_t Dmax, cm_stat_t stat)
    int i;
 #endif
 
-   if (Dmax % 4 != 0) {
-      printf ("***** Error: compute_h called with parameter not "
-              "divisible by 4.\n");
-      exit (1);
-   }
-
-   chunks = (Dmax + size - 1) / size;
-#ifndef WITH_MPI
+   /* Try to read the class numbers from a file. */
    cm_timer_start (stat->timer [5]);
-   for (i = 0; i < chunks; i++) {
-      last = (i + 1) * size;
-      if (last > Dmax)
-         last = Dmax;
-      cm_ecpp_compute_h_chunk (h + i * size / 2, i * size, last);
-   }
+   if (tmpdir)
+      read = cm_file_read_h (tmpdir, h, (unsigned int) log2 (Dmax) - 1);
+   else
+      read = false;
    cm_timer_stop (stat->timer [5]);
-#else
-   sent = 0;
-   received = 0;
-   t = cm_timer_get (stat->timer [5]);
-   cm_timer_continue (stat->timer [5]);
-   while (received < chunks) {
-      if (sent < chunks && (rank = cm_mpi_queue_pop ()) != -1) {
-         last = (sent + 1) * size;
+
+   if (!read) {
+
+      if (Dmax % 4 != 0) {
+         printf ("***** Error: compute_h called with parameter not "
+                 "divisible by 4.\n");
+         exit (1);
+      }
+
+      chunks = (Dmax + size - 1) / size;
+#ifndef WITH_MPI
+      cm_timer_continue (stat->timer [5]);
+      for (i = 0; i < chunks; i++) {
+         last = (i + 1) * size;
          if (last > Dmax)
             last = Dmax;
-         cm_mpi_submit_h_chunk (rank, sent, sent * size, last);
-         sent++;
+         cm_ecpp_compute_h_chunk (h + i * size / 2, i * size, last);
       }
-      else {
-         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-            MPI_COMM_WORLD, &status);
-         rank = status.MPI_SOURCE;
-         cm_mpi_get_h_chunk (h + job * size / 2, rank, &t_worker);
-         t += t_worker;
-         cm_mpi_queue_push (rank);
-         received++;
+      cm_timer_stop (stat->timer [5]);
+#else
+      cm_timer_continue (stat->timer [5]);
+      sent = 0;
+      received = 0;
+      t = stat->timer [5]->elapsed;
+      while (received < chunks) {
+         if (sent < chunks && (rank = cm_mpi_queue_pop ()) != -1) {
+            last = (sent + 1) * size;
+            if (last > Dmax)
+               last = Dmax;
+            cm_mpi_submit_h_chunk (rank, sent, sent * size, last);
+            sent++;
+         }
+         else {
+            MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+               MPI_COMM_WORLD, &status);
+            rank = status.MPI_SOURCE;
+            cm_mpi_get_h_chunk (h + job * size / 2, rank, &t_worker);
+            t += t_worker;
+            cm_mpi_queue_push (rank);
+            received++;
+         }
       }
-   }
-   cm_timer_stop (stat->timer [5]);
-   stat->timer [5]->elapsed = t;
+      cm_timer_stop (stat->timer [5]);
+      stat->timer [5]->elapsed = t;
 #endif
+   }
+
+   if (tmpdir && !read) {
+      cm_timer_continue (stat->timer [5]);
+      cm_file_write_h (tmpdir, h, (unsigned int) log2 (Dmax) - 1);
+      cm_timer_stop (stat->timer [5]);
+   }
 }
 
 /*****************************************************************************/
@@ -809,11 +828,9 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
 
 /*****************************************************************************/
 
-void trial_div (mpz_t *l, mpz_t *n, int no_n,
+static void trial_div (mpz_t *l, mpz_t *n, int no_n,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
-#else
-   unsigned long int B,
 #endif
    cm_stat_t stat)
    /* primorialB is supposed to be the product of the primes up to the
@@ -838,7 +855,7 @@ void trial_div (mpz_t *l, mpz_t *n, int no_n,
    cm_nt_mpz_tree_gcd (gcd, primorialB, n, no_n);
 #else
    cm_mpi_submit_tree_gcd (n, no_n);
-   cm_mpi_get_tree_gcd (gcd, no_n, B, &t);
+   cm_mpi_get_tree_gcd (gcd, no_n, &t);
 #endif
    cm_timer_stop (stat->timer [2]);
    stat->counter [2] += no_n;
@@ -1207,8 +1224,6 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          trial_div (l_list, card, no_card,
 #ifndef WITH_MPI
             primorialB,
-#else
-            B,
 #endif
             stat);
          cm_timer_stop (timer);
@@ -1264,7 +1279,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 /*****************************************************************************/
 
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
-   bool verbose, bool debug, cm_stat_ptr stat)
+   char* tmpdir, bool verbose, bool debug, cm_stat_ptr stat)
    /* Compute the first step of the ECPP certificate; this is the downrun
       part with the parameters of the elliptic curves.
       The return value is a newly allocated array of depth entries, each
@@ -1290,7 +1305,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          we impose half of this number of bits as the minimal gain. */
 #else
    unsigned long int B;
-      /* Computed below depending on size. */
+      /* Computed below. */
    const unsigned int delta = 2;
       /* Since in the parallel version we consider many potential curve
          orders at once and order them by gain, having a small value of
@@ -1298,7 +1313,13 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          primes", it enables us to side-step the issue instead of adding
          more and more qstar, which becomes increasingly difficult. */
 #endif
-   const uint_cl_t Dmax = ((L * L) >> 4) << 2;
+   const uint_cl_t Dmax =
+      1ul << CM_MAX (20, (((unsigned long int) ceil (log2 (L*L))) - 2));
+      /* We need a value that is a multiple of 4. To limit the number of
+         possible values, we choose a power of 2 above the previously
+         implemented L^2/4; the minimum of 2^20 leads to a negligible
+         running time for the class numbers even on a single core. For a
+         hypothetical number of 100000 digits, the value would be 2^35. */
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
    mpz_t** c;
@@ -1317,10 +1338,13 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #endif
 
 #ifdef WITH_MPI
-   /* Cap B at (size - 1) * 2^29, so that each worker handles a product
-      of value at most about exp (2^29), or 100MB. */
+   /* With B = (size - 1) * 2^29, each worker handles a product of value
+      at most about exp (2^29), or 100MB. This used to be an upper bound,
+      to which a theoretical optimal value of O (L^3) would be preferred;
+      for larger numbers the bound tended to be reached, and using it all
+      the time simplifies the code. */
    MPI_Comm_size (MPI_COMM_WORLD, &size);
-   B = CM_MIN (((unsigned long int) size - 1) << 29, (L>>4)*(L>>4)*(L>>5));
+   B = ((unsigned long int) size - 1) << 29;
 #endif
 
    cm_stat_init (stat);
@@ -1348,7 +1372,12 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    if (mpz_sizeinbase (N, 2) > 64) {
       /* Precompute class numbers. */
       h = (unsigned int *) malloc ((Dmax / 2) * sizeof (unsigned int));
-      compute_h (h, Dmax, stat);
+      if (h == NULL) {
+         printf ("***** Error: Not enough memory to allocate array h "
+            "in ecpp1.\n");
+         exit (1);
+      }
+      compute_h (h, Dmax, tmpdir, stat);
       if (verbose) {
          printf ("Time for class numbers up to Dmax=%"PRIucl
                ": %.0f (%.0f)\n", Dmax,
@@ -1366,7 +1395,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #else
       t = 0;
       cm_timer_start (stat->timer [6]);
-      cm_mpi_submit_primorial (B);
+      cm_mpi_submit_primorial (tmpdir, B);
       for (i = 1; i < size; i++) {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
@@ -1703,8 +1732,9 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
 
 /*****************************************************************************/
 
-bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
-   char *filename, bool trust, bool check, bool verbose, bool debug, bool onlys1)
+bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
+   const char *filename, char* tmpdir,
+   bool print, bool trust, bool check, bool verbose, bool debug, bool onlys1)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
@@ -1712,6 +1742,9 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
       If filename is different from NULL, the final ECPP certificate is
       output to the file, and the stage 1 and stage 2 certificates are
       read from (partially) and written to temporary files.
+      If tmpdir is different from NULL, it refers to a directory where
+      files can be stored representing precomputations that are independent
+      of the number under consideration (class numbers, primorials).
       If trust is set to true, then N is trusted to be a probable prime;
       otherwise a quick primality test is run.
       print indicates whether the result is printed to stdout.
@@ -1763,7 +1796,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
       filename1 = NULL;
       filename2 = NULL;
    }
-   cert1 = ecpp1 (&depth, N, filename1, verbose, debug, stat1);
+   cert1 = ecpp1 (&depth, N, filename1, tmpdir, verbose, debug, stat1);
 
    if (!onlys1) {
       cert2 = (mpz_t **)malloc(depth * sizeof(mpz_t *));
@@ -1806,7 +1839,7 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir, bool print,
          res = cm_pari_ecpp_check(cert2, depth);
          cm_timer_stop(clock);
          if (verbose)
-            printf("Time for ECPP check (%s): %.1f\n",
+            printf("Time for ECPP check (%s): %.0f\n",
                    (res ? "true" : "false"), cm_timer_get(clock));
       }
    }

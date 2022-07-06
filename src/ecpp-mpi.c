@@ -38,8 +38,8 @@ int main (int argc, char* argv [])
       mpz_init (n);
       evaluate_parameters_ecpp (argc, argv, n, &print, &filename,
          &verbose, &debug, &trust, &check, &onlys1);
-      cm_ecpp (n, CM_MODPOLDIR, print, filename, trust, check, verbose,
-         debug, onlys1);
+      cm_ecpp (n, CM_MODPOLDIR, filename, getenv ("CM_ECPP_TMPDIR"),
+         print, trust, check, verbose, debug, onlys1);
       mpz_clear (n);
    }
    cm_mpi_clear ();
