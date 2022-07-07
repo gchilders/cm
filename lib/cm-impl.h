@@ -251,7 +251,7 @@ extern void cm_mpi_broadcast_N (mpz_srcptr N);
 extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
    mpz_t *qroot);
 extern void cm_mpi_clear_N (void);
-extern void cm_mpi_submit_primorial (char *tmpdir, unsigned long int B);
+extern void cm_mpi_submit_primorial (char *tmpdir);
 extern void cm_mpi_get_primorial (int rank, double *t);
 extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
 extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t);

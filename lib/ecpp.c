@@ -1381,7 +1381,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 #else
       t = 0;
       cm_timer_start (stat->timer [6]);
-      cm_mpi_submit_primorial (tmpdir, B);
+      cm_mpi_submit_primorial (tmpdir);
       for (i = 1; i < size; i++) {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
                MPI_COMM_WORLD, &status);
