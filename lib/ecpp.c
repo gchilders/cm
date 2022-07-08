@@ -1441,7 +1441,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
                   mpz_sizeinbase (N, 2));
             fflush (stdout);
          }
-         d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
+         d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, ((L * L) >> 4) << 2, // Dmax,
                hmaxprime, h, delta,
 #ifndef WITH_MPI
                primorialB,
