@@ -457,13 +457,13 @@ void cm_mpi_get_h_chunk (unsigned int *h, int rank, double *t)
 
 /*****************************************************************************/
 
-void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m)
+void cm_mpi_submit_tree_gcd (mpz_t *n, int no_n)
    /* Submit to all workers the jobs of executing cm_mpz_tree_gcd with the
       known primorial and the remaining arguments. */
 {
    int size, rank;
    MPI_Comm comm;
-   int i;
+   int m, offset, len, i, j;
 
    /* Alert all workers of the phase, since they are waiting
       for a message in MPI_COMM_WORLD. */
@@ -471,16 +471,25 @@ void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m)
    for (rank = 1; rank < size; rank++)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_TREE_GCD,
       MPI_COMM_WORLD);
-   /* Broadcast only to the first split communicator. */
-   comm = split_comm [0];
-   MPI_Bcast (&no_m, 1, MPI_INT, 0, comm);
-   for (i = 0; i < no_m; i++)
-      mpi_bcast_send_mpz (m [i], comm);
+
+   /* Split the numbers to be trial divided into m batches and
+      send them to the different communicators. */
+   m = mpi_compute_split_m ();
+   len = no_n / m;
+   for (i = 0; i < m; i++) {
+      comm = split_comm [i];
+      offset = i * len;
+      if (i == m - 1)
+         len = no_n - offset;
+      MPI_Bcast (&len, 1, MPI_INT, 0, comm);
+      for (j = 0; j < len; j++)
+         mpi_bcast_send_mpz (n [offset + j], comm);
+   }
 }
 
 /*****************************************************************************/
 
-void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
+void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_n, double *t)
    /* Get from all workers the results of gcd jobs as output by
       cm_mpz_tree_gcd and collect them into gcd. */
 {
@@ -489,27 +498,35 @@ void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
    MPI_Status status;
    mpz_t tmp;
    double t_local;
-   int i, j;
-
-   comm = split_comm [0];
-   MPI_Comm_size (comm, &size);
+   int m, offset, len, i, j, k;
 
    *t = 0;
    mpz_init (tmp);
-   /* Different workers compute gcds with different divisors of the
-      primorial; we need to multiply them all. */
-   for (j = 0; j < no_m; j++)
-      mpz_set_ui (gcd [j], 1);
-   for (i = 1; i < size; i++) {
-      MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-         comm, &status);
-      rank = status.MPI_SOURCE;
-      for (j = 0; j < no_m; j++) {
-         mpi_recv_mpz (tmp, rank, comm);
-         mpz_mul (gcd [j], gcd [j], tmp);
+
+   m = mpi_compute_split_m ();
+   for (i = 0; i < m; i++) {
+      /* Handle batch i of numbers. */
+      comm = split_comm [i];
+      MPI_Comm_size (comm, &size);
+      len = no_n / m;
+      offset = i * len;
+      if (i == m - 1)
+         len = no_n - offset;
+      /* Different workers compute gcds with different divisors of the
+         primorial; we need to multiply them together. */
+      for (k = 0; k < len; k++)
+         mpz_set_ui (gcd [offset + k], 1);
+      for (j = 1; j < size; j++) {
+         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+            comm, &status);
+         rank = status.MPI_SOURCE;
+         for (k = 0; k < len; k++) {
+            mpi_recv_mpz (tmp, rank, comm);
+            mpz_mul (gcd [offset + k], gcd [offset + k], tmp);
+         }
+         MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, comm, NULL);
+         *t += t_local;
       }
-      MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, comm, NULL);
-      *t += t_local;
    }
    mpz_clear (tmp);
 }
@@ -775,7 +792,7 @@ static void mpi_worker ()
          free (h);
          break;
       case MPI_TAG_JOB_TREE_GCD:
-         if (tree_comm != MPI_COMM_NULL && tree_comm == split_comm [0]) {
+         if (tree_comm != MPI_COMM_NULL) {
             cm_timer_start (stat->timer [0]);
             MPI_Bcast (&no_m, 1, MPI_INT, 0, tree_comm);
             m = (mpz_t *) malloc (no_m * sizeof (mpz_t));
