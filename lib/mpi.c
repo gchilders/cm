@@ -42,10 +42,11 @@ static int *worker_queue, *worker_queue_local;
 static int worker_queue_size, worker_queue_local_size;
 static MPI_Comm *split_comm;
 
-static void mpi_send_mpz (mpz_srcptr z, const int rank);
-static void mpi_recv_mpz (mpz_ptr z, const int rank);
-static void mpi_bcast_send_mpz (mpz_srcptr z);
-static void mpi_bcast_recv_mpz (mpz_ptr z);
+static void mpi_send_mpz (mpz_srcptr z, const int rank,
+   const MPI_Comm comm);
+static void mpi_recv_mpz (mpz_ptr z, const int rank, const MPI_Comm comm);
+static void mpi_bcast_send_mpz (mpz_srcptr z, const MPI_Comm comm);
+static void mpi_bcast_recv_mpz (mpz_ptr z, const MPI_Comm comm);
 static void mpi_worker (void);
 static void mpi_server_init (const int size, bool debug);
 static void mpi_server_clear (const int size);
@@ -60,73 +61,71 @@ static void mpi_communicator_free (void);
 /*                                                                           */
 /*****************************************************************************/
 
-static void mpi_send_mpz (mpz_srcptr z, const int rank)
-   /* Send z to rank. */
+static void mpi_send_mpz (mpz_srcptr z, const int rank, const MPI_Comm comm)
+   /* Send z to rank in comm. */
 {
    int size = z->_mp_size;
 
-   MPI_Send (&size, 1, MPI_INT, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD);
+   MPI_Send (&size, 1, MPI_INT, rank, MPI_TAG_DATA, comm);
    if (size > 0)
       MPI_Send (z->_mp_d,  size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         MPI_COMM_WORLD);
+         comm);
    else if (size < 0)
       MPI_Send (z->_mp_d, -size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         MPI_COMM_WORLD);
+         comm);
 }
 
 /*****************************************************************************/
 
-static void mpi_recv_mpz (mpz_ptr z, const int rank)
-   /* Get z from rank. */
+static void mpi_recv_mpz (mpz_ptr z, const int rank, const MPI_Comm comm)
+   /* Get z from rank in comm. */
 {
    int size;
 
-   MPI_Recv (&size, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (&size, 1, MPI_INT, rank, MPI_TAG_DATA, comm, NULL);
    if (size > 0) {
       _mpz_realloc (z, size);
       MPI_Recv (z->_mp_d,  size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         MPI_COMM_WORLD, NULL);
+         comm, NULL);
    }
    else if (size < 0) {
       _mpz_realloc (z, -size);
       MPI_Recv (z->_mp_d, -size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         MPI_COMM_WORLD, NULL);
+         comm, NULL);
    }
    z->_mp_size = size;
 }
 
 /*****************************************************************************/
 
-static void mpi_bcast_send_mpz (mpz_srcptr z)
-   /* Upon a call by rank 0, send z by broadcast to all others. */
+static void mpi_bcast_send_mpz (mpz_srcptr z, MPI_Comm comm)
+   /* Upon a call by rank 0, send z by broadcast to all others in comm. */
 {
    int size = z->_mp_size;
 
-   MPI_Bcast (&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   MPI_Bcast (&size, 1, MPI_INT, 0, comm);
    if (size > 0)
-      MPI_Bcast (z->_mp_d,  size, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+      MPI_Bcast (z->_mp_d,  size, MPI_UNSIGNED_LONG, 0, comm);
    else if (size < 0)
-      MPI_Bcast (z->_mp_d, -size, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+      MPI_Bcast (z->_mp_d, -size, MPI_UNSIGNED_LONG, 0, comm);
 }
 
 /*****************************************************************************/
 
-static void mpi_bcast_recv_mpz (mpz_ptr z)
-   /* Upon a call by all others, receive z by broadcast from rank 0. */
+static void mpi_bcast_recv_mpz (mpz_ptr z, MPI_Comm comm)
+   /* Upon a call by all others in comm, receive z by broadcast from
+      rank 0. */
 {
    int size;
 
-   MPI_Bcast (&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   MPI_Bcast (&size, 1, MPI_INT, 0, comm);
    if (size > 0) {
       _mpz_realloc (z, size);
-      MPI_Bcast (z->_mp_d,  size, MPI_UNSIGNED_LONG, 0,
-         MPI_COMM_WORLD);
+      MPI_Bcast (z->_mp_d,  size, MPI_UNSIGNED_LONG, 0, comm);
    }
    else if (size < 0) {
       _mpz_realloc (z, -size);
-      MPI_Bcast (z->_mp_d, -size, MPI_UNSIGNED_LONG, 0,
-         MPI_COMM_WORLD);
+      MPI_Bcast (z->_mp_d, -size, MPI_UNSIGNED_LONG, 0, comm);
    }
    z->_mp_size = size;
 }
@@ -242,7 +241,7 @@ void cm_mpi_broadcast_N (mpz_srcptr N)
    for (rank = 1; rank < size; rank++)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_N,
          MPI_COMM_WORLD);
-   mpi_bcast_send_mpz (N);
+   mpi_bcast_send_mpz (N, MPI_COMM_WORLD);
 }
 
 /*****************************************************************************/
@@ -264,7 +263,7 @@ void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar, mpz_t *qroot)
    MPI_Bcast (&no_qstar, 1, MPI_INT, 0, MPI_COMM_WORLD);
    MPI_Bcast (qstar, no_qstar, MPI_LONG, 0, MPI_COMM_WORLD);
    for (i = 0; i < no_qstar; i++)
-      mpi_bcast_send_mpz (qroot [i]);
+      mpi_bcast_send_mpz (qroot [i], MPI_COMM_WORLD);
 }
 
 /*****************************************************************************/
@@ -325,7 +324,7 @@ void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t)
    /* Get the result of a Tonelli job from worker rank and put it into root.
       Timing information from the worker is returned in t. */
 {
-   mpi_recv_mpz (root, rank);
+   mpi_recv_mpz (root, rank, MPI_COMM_WORLD);
    MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 }
 
@@ -341,7 +340,7 @@ void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
 
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_ECPP2, MPI_COMM_WORLD);
    for (i = 0; i < 4; i++)
-      mpi_send_mpz (cert1 [i], rank);
+      mpi_send_mpz (cert1 [i], rank, MPI_COMM_WORLD);
    MPI_Send (modpoldir, strlen (modpoldir), MPI_CHAR, rank, MPI_TAG_DATA,
       MPI_COMM_WORLD);
 }
@@ -356,7 +355,7 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
    int i;
 
    for (i = 0; i < 6; i++)
-      mpi_recv_mpz (cert2 [i], rank);
+      mpi_recv_mpz (cert2 [i], rank, MPI_COMM_WORLD);
    for (i = 1; i <= 3 ; i++)
    MPI_Recv (&(stat->timer [i]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
       MPI_COMM_WORLD, NULL);
@@ -395,7 +394,7 @@ mpz_t* cm_mpi_get_curve_cardinalities (int *no_card, int_cl_t **card_d,
       MPI_COMM_WORLD, NULL);
    for (i = 0; i < *no_card; i++) {
       mpz_init (res [i]);
-      mpi_recv_mpz (res [i], rank);
+      mpi_recv_mpz (res [i], rank, MPI_COMM_WORLD);
    }
    MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
 
@@ -409,7 +408,7 @@ void cm_mpi_submit_is_prime (int rank, int job, mpz_srcptr n)
       to the worker of the given rank. */
 {
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_PRIME, MPI_COMM_WORLD);
-   mpi_send_mpz (n, rank);
+   mpi_send_mpz (n, rank, MPI_COMM_WORLD);
 }
 
 /*****************************************************************************/
@@ -463,16 +462,20 @@ void cm_mpi_submit_tree_gcd (mpz_t *m, int no_m)
       known primorial and the remaining arguments. */
 {
    int size, rank;
+   MPI_Comm comm;
    int i;
 
+   /* Alert all workers of the phase, since they are waiting
+      for a message in MPI_COMM_WORLD. */
    MPI_Comm_size (MPI_COMM_WORLD, &size);
-   for (rank = 1; rank < size; rank++) {
+   for (rank = 1; rank < size; rank++)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_TREE_GCD,
-         MPI_COMM_WORLD);
-   }
-   MPI_Bcast (&no_m, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_COMM_WORLD);
+   /* Broadcast only to the first split communicator. */
+   comm = split_comm [0];
+   MPI_Bcast (&no_m, 1, MPI_INT, 0, comm);
    for (i = 0; i < no_m; i++)
-      mpi_bcast_send_mpz (m [i]);
+      mpi_bcast_send_mpz (m [i], comm);
 }
 
 /*****************************************************************************/
@@ -482,12 +485,14 @@ void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
       cm_mpz_tree_gcd and collect them into gcd. */
 {
    int size, rank, job;
+   MPI_Comm comm;
    MPI_Status status;
    mpz_t tmp;
    double t_local;
    int i, j;
 
-   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   comm = split_comm [0];
+   MPI_Comm_size (comm, &size);
 
    *t = 0;
    mpz_init (tmp);
@@ -497,14 +502,13 @@ void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_m, double *t)
       mpz_set_ui (gcd [j], 1);
    for (i = 1; i < size; i++) {
       MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-         MPI_COMM_WORLD, &status);
+         comm, &status);
       rank = status.MPI_SOURCE;
       for (j = 0; j < no_m; j++) {
-         mpi_recv_mpz (tmp, rank);
+         mpi_recv_mpz (tmp, rank, comm);
          mpz_mul (gcd [j], gcd [j], tmp);
       }
-      MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
-         NULL);
+      MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, comm, NULL);
       *t += t_local;
    }
    mpz_clear (tmp);
@@ -610,7 +614,7 @@ static void mpi_worker ()
       cm_stat_init (stat);
       switch (status.MPI_TAG) {
       case MPI_TAG_JOB_BROADCAST_N:
-         mpi_bcast_recv_mpz (N);
+         mpi_bcast_recv_mpz (N, MPI_COMM_WORLD);
          e = cm_nt_mpz_tonelli_generator (r, z, N);
          break;
       case MPI_TAG_JOB_BROADCAST_SQRT:
@@ -624,7 +628,7 @@ static void mpi_worker ()
             MPI_COMM_WORLD);
          for (i = no_qstar_old; i < no_qstar; i++) {
             mpz_init (qroot [i]);
-            mpi_bcast_recv_mpz (qroot [i]);
+            mpi_bcast_recv_mpz (qroot [i], MPI_COMM_WORLD);
          }
          break;
       case MPI_TAG_JOB_CLEAR_N:
@@ -644,20 +648,30 @@ static void mpi_worker ()
          else
             tmpdir = 0;
 
-         /* Each worker chooses an interval of 2^29 and thus handles a
-            product of value about exp (2^29), or 100MB.
-            Currently this implies that the effective value of
-            B is (size - 1) * 2^29. */
-         if (tmpdir)
-            read = cm_file_read_primorial (tmpdir, prim, rank - 1);
-         else
-            read = false;
-         if (!read)
-            cm_pari_prime_product (prim,
-               ((unsigned long int) rank - 1) << 29,
-               ((unsigned long int) rank)     << 29);
-         if (tmpdir && !read)
-            cm_file_write_primorial (tmpdir, prim, rank - 1);
+         /* The numbers to be trial divided are split into m batches,
+            each of which is handled by the workers behind one of the
+            split_comm. If split_size denotes the size of the communicator
+            exluding rank 0 (that is, split_size = floor ((size - 1) / m)),
+            then each worker inside chooses an interval of 2^29 and thus
+            handles a product of value about exp (2^29), or 100MB.
+            Currently this implies that the effective value of B is
+            split_size * 2^29 = floor ((size - 1) / m) * 2^29.
+            If size - 1 is not divisible by m, the last few workers
+            do not take part in the computation. */
+         if (tree_rank >= 1) {
+            if (tmpdir)
+               read = cm_file_read_primorial (tmpdir, prim, tree_rank - 1);
+            else
+               read = false;
+            if (!read)
+               cm_pari_prime_product (prim,
+                  ((unsigned long int) tree_rank - 1) << 29,
+                  ((unsigned long int) tree_rank)     << 29);
+            if (tmpdir && !read && rank == tree_rank)
+               /* Let only the workers in the first communicator write
+                  the primorial to disk. */
+               cm_file_write_primorial (tmpdir, prim, rank - 1);
+         }
 
          if (len > 0)
             free (tmpdir);
@@ -678,14 +692,14 @@ static void mpi_worker ()
 
          /* Notify and send the result. */
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TONELLI, MPI_COMM_WORLD);
-         mpi_send_mpz (root, 0);
+         mpi_send_mpz (root, 0, MPI_COMM_WORLD);
          cm_timer_stop (stat->timer [0]);
          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
             MPI_TAG_DATA, MPI_COMM_WORLD);
          break;
       case MPI_TAG_JOB_ECPP2:
          for (i = 0; i < 4; i++)
-            mpi_recv_mpz (cert1 [i], 0);
+            mpi_recv_mpz (cert1 [i], 0, MPI_COMM_WORLD);
          MPI_Probe (0, MPI_TAG_DATA, MPI_COMM_WORLD, &status);
          MPI_Get_count (&status, MPI_CHAR, &len);
          modpoldir = (char *) malloc ((len + 1) * sizeof (char));
@@ -699,7 +713,7 @@ static void mpi_worker ()
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_ECPP2, MPI_COMM_WORLD);
          for (i = 0; i < 6; i++)
-            mpi_send_mpz (cert2 [i], 0);
+            mpi_send_mpz (cert2 [i], 0, MPI_COMM_WORLD);
          for (i = 1; i <= 3; i++)
             MPI_Send (&(stat->timer [i]->elapsed), 1, MPI_DOUBLE, 0,
                MPI_TAG_DATA, MPI_COMM_WORLD);
@@ -720,7 +734,7 @@ static void mpi_worker ()
          MPI_Send (card_d, no_card, MPI_LONG, 0, MPI_TAG_DATA,
             MPI_COMM_WORLD);
          for (i = 0; i < no_card; i++) {
-            mpi_send_mpz (card [i], 0);
+            mpi_send_mpz (card [i], 0, MPI_COMM_WORLD);
             mpz_clear (card [i]);
          }
          cm_timer_stop (stat->timer [0]);
@@ -732,7 +746,7 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_PRIME:
          cm_timer_start (stat->timer [0]);
-         mpi_recv_mpz (p, 0);
+         mpi_recv_mpz (p, 0, MPI_COMM_WORLD);
 
          isprime = (int) cm_nt_is_prime (p);
 
@@ -761,31 +775,32 @@ static void mpi_worker ()
          free (h);
          break;
       case MPI_TAG_JOB_TREE_GCD:
-         cm_timer_start (stat->timer [0]);
-         MPI_Bcast (&no_m, 1, MPI_INT, 0, MPI_COMM_WORLD);
-         m = (mpz_t *) malloc (no_m * sizeof (mpz_t));
-         gcd = (mpz_t *) malloc (no_m * sizeof (mpz_t));
-         for (i = 0; i < no_m; i++) {
-            mpz_init (m [i]);
-            mpi_bcast_recv_mpz (m [i]);
-            mpz_init (gcd [i]);
+         if (tree_comm != MPI_COMM_NULL && tree_comm == split_comm [0]) {
+            cm_timer_start (stat->timer [0]);
+            MPI_Bcast (&no_m, 1, MPI_INT, 0, tree_comm);
+            m = (mpz_t *) malloc (no_m * sizeof (mpz_t));
+            gcd = (mpz_t *) malloc (no_m * sizeof (mpz_t));
+            for (i = 0; i < no_m; i++) {
+               mpz_init (m [i]);
+               mpi_bcast_recv_mpz (m [i], tree_comm);
+               mpz_init (gcd [i]);
+            }
+
+            cm_nt_mpz_tree_gcd (gcd, prim, m, no_m);
+
+            MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TREE_GCD, tree_comm);
+            for (i = 0; i < no_m; i++) {
+               mpi_send_mpz (gcd [i], 0, tree_comm);
+               mpz_clear (gcd [i]);
+               mpz_clear (m [i]);
+            }
+
+            cm_timer_stop (stat->timer [0]);
+            MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
+               MPI_TAG_DATA, tree_comm);
+            free (m);
+            free (gcd);
          }
-
-         cm_nt_mpz_tree_gcd (gcd, prim, m, no_m);
-
-         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_TREE_GCD,
-            MPI_COMM_WORLD);
-         for (i = 0; i < no_m; i++) {
-            mpi_send_mpz (gcd [i], 0);
-            mpz_clear (gcd [i]);
-            mpz_clear (m [i]);
-         }
-
-         cm_timer_stop (stat->timer [0]);
-         MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0,
-            MPI_TAG_DATA, MPI_COMM_WORLD);
-         free (m);
-         free (gcd);
          break;
       case MPI_TAG_FINISH:
          finish = true;
