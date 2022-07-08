@@ -1290,8 +1290,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          division up to B, assuming that what remains is prime, is B;
          we impose half of this number of bits as the minimal gain. */
 #else
-   unsigned long int B;
-      /* Computed below. */
+   const unsigned long int B = cm_mpi_compute_B ();
    const unsigned int delta = 2;
       /* Since in the parallel version we consider many potential curve
          orders at once and order them by gain, having a small value of
@@ -1321,16 +1320,6 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    int size, rank, job;
    MPI_Status status;
    double t_worker;
-#endif
-
-#ifdef WITH_MPI
-   /* With B = (size - 1) * 2^29, each worker handles a product of value
-      at most about exp (2^29), or 100MB. This used to be an upper bound,
-      to which a theoretical optimal value of O (L^3) would be preferred;
-      for larger numbers the bound tended to be reached, and using it all
-      the time simplifies the code. */
-   MPI_Comm_size (MPI_COMM_WORLD, &size);
-   B = ((unsigned long int) size - 1) << 29;
 #endif
 
    cm_stat_init (stat);
@@ -1379,6 +1368,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       mpz_primorial_ui (primorialB, B);
       cm_timer_stop (stat->timer [6]);
 #else
+      MPI_Comm_size (MPI_COMM_WORLD, &size);
       t = 0;
       cm_timer_start (stat->timer [6]);
       cm_mpi_submit_primorial (tmpdir);

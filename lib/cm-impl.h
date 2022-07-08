@@ -247,6 +247,7 @@ extern void cm_file_write_ecpp_cert_primo (FILE *f, mpz_t **c, int l);
 /* functions for MPI */
 extern void cm_mpi_queue_push (int rank);
 extern int cm_mpi_queue_pop (void);
+extern unsigned long int cm_mpi_compute_B (void);
 extern void cm_mpi_broadcast_N (mpz_srcptr N);
 extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
    mpz_t *qroot);

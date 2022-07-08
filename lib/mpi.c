@@ -40,6 +40,7 @@ typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
 static int *worker_queue, *worker_queue_local;
 static int worker_queue_size, worker_queue_local_size;
+static MPI_Comm *split_comm;
 
 static void mpi_send_mpz (mpz_srcptr z, const int rank);
 static void mpi_recv_mpz (mpz_ptr z, const int rank);
@@ -48,6 +49,10 @@ static void mpi_bcast_recv_mpz (mpz_ptr z);
 static void mpi_worker (void);
 static void mpi_server_init (const int size, bool debug);
 static void mpi_server_clear (const int size);
+
+static int mpi_compute_split_m (void);
+static MPI_Comm mpi_communicator_split (void);
+static void mpi_communicator_free (void);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -125,6 +130,102 @@ static void mpi_bcast_recv_mpz (mpz_ptr z)
    }
    z->_mp_size = size;
 }
+
+/*****************************************************************************/
+/*                                                                           */
+/* Helper functions for tree gcds.                                           */
+/*                                                                           */
+/*****************************************************************************/
+
+static int mpi_compute_split_m ()
+   /* Return the number m of communicators into which the world communicator
+      is split; this is used for batching numbers in the trial division
+      step. We would like to use about 8 communicators; since only
+      m * floor (w / m) with w = size - 1  workers will be used for the gcd
+      phase, it would also be nice if m divided w, but w + 1 is often a
+      power of 2. So for some values of w we choose different m. */
+{
+   int size, w;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   w = size - 1;
+
+   if (w < 8)
+      return w;
+   else if (w % 8 == 0 || (w - 1) % 8 == 0)
+      return 8;
+   else if (w % 9 == 0 || (w - 1) % 9 == 0)
+      return 9;
+   else if (w % 7 == 0 || (w - 1) % 7 == 0)
+      return 7;
+   else
+      return 8;
+}
+
+unsigned long int cm_mpi_compute_B ()
+{
+   int size, m;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   m = mpi_compute_split_m ();
+
+   return (1ul << 29) * ((size - 1) / m);
+}
+
+
+static MPI_Comm mpi_communicator_split ()
+   /* Split the world communicator into m parts, as determined by
+      mpi_compute_split_m, each of which contains (size - 1) / m
+      consecutive workers, and put them into a global variable.
+      Return the last communicator to which a process belongs;
+      this is interesting only for the workers. */
+{
+   int m, size, w, group_size, i;
+   MPI_Group world, group;
+   int ranges [2][3];
+   MPI_Comm res = MPI_COMM_NULL;
+
+   m = mpi_compute_split_m ();
+   split_comm = (MPI_Comm *) malloc (m * sizeof (MPI_Comm));
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   w = size - 1;
+   group_size = w / m;
+
+   MPI_Comm_group (MPI_COMM_WORLD, &world);
+   ranges [0][0] = 0;
+   ranges [0][1] = 0;
+   ranges [0][2] = 1;
+   ranges [1][2] = 1;
+   for (i = 0; i < m; i++) {
+      /* Put the processes 0 and i * group_size + 1, ..., (i+1) * group_size
+         into communicator [i]. */
+      ranges [1][0] = i * group_size + 1;
+      ranges [1][1] = (i+1) * group_size;
+      MPI_Group_range_incl (world, 2, ranges, &group);
+      MPI_Comm_create (MPI_COMM_WORLD, group, split_comm + i);
+      MPI_Group_free (&group);
+      if (split_comm [i] != MPI_COMM_NULL)
+         res = split_comm [i];
+   }
+
+   return res;
+}
+
+static void mpi_communicator_free (void)
+   /* Free the communicators created by mpi_communicator_split. */
+{
+   int m, i;
+
+   m = mpi_compute_split_m ();
+
+   for (i = 0; i < m; i++)
+      if (split_comm [i] != MPI_COMM_NULL)
+         MPI_Comm_free (split_comm + i);
+
+   free (split_comm);
+}
+
 
 /*****************************************************************************/
 /*                                                                           */
@@ -422,7 +523,8 @@ static void mpi_worker ()
    MPI_Status status;
    mpi_name_t name;
    int name_length;
-   int size, rank, job, flag;
+   int size, rank, tree_rank, job, flag;
+   MPI_Comm tree_comm;
    bool finish;
    cm_stat_t stat;
    int i;
@@ -467,9 +569,6 @@ static void mpi_worker ()
    int no_m;
    mpz_t *m, *gcd;
 
-   MPI_Comm_size (MPI_COMM_WORLD, &size);
-   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-
    mpz_init (N);
    mpz_init (prim);
    no_qstar = 0;
@@ -483,6 +582,15 @@ static void mpi_worker ()
    for (i = 0; i < 6; i++)
       mpz_init (cert2 [i]);
    mpz_init (p);
+
+   /* Split communicator. */
+   tree_comm = mpi_communicator_split ();
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+   if (tree_comm != MPI_COMM_NULL)
+      MPI_Comm_rank (tree_comm, &tree_rank);
+   else
+      tree_rank = -1;
 
    /* Gather data. */
    MPI_Get_processor_name (name, &name_length);
@@ -688,6 +796,9 @@ static void mpi_worker ()
       }
    }
 
+   /* Free split communicators. */
+   mpi_communicator_free ();
+
    mpz_clear (N);
    mpz_clear (prim);
    free (qstar);
@@ -736,13 +847,17 @@ int cm_mpi_queue_pop ()
 /*****************************************************************************/
 
 static void mpi_server_init (const int size, bool debug)
-   /* The server is started on rank 0, initialises the workers and returns.
+   /* The server is started on rank 0, initialises the workers and
+      communicators and returns.
       The sequential code of the application should then be run in rank 0
       and occasionally make use of the workers for parallel sections. */
 {
    mpi_name_t *worker_name;
    int name_length;
    int i;
+
+   /* Set up the split communicators. */
+   mpi_communicator_split ();
 
    /* Set up worker queue. */
    worker_queue_size = size - 1;
@@ -768,8 +883,10 @@ static void mpi_server_init (const int size, bool debug)
    free (worker_name);
 
    if (debug)
-      printf ("MPI with %i workers initialised, of which %i are local.\n",
-         worker_queue_size, worker_queue_local_size);
+      printf ("MPI with %i workers in %i groups initialised; "
+              "%i workers are local.\n",
+         worker_queue_size, mpi_compute_split_m (),
+         worker_queue_local_size);
 }
 
 /*****************************************************************************/
@@ -785,6 +902,8 @@ static void mpi_server_clear (const int size)
 
    free (worker_queue);
    free (worker_queue_local);
+
+   mpi_communicator_free ();
 }
 
 /*****************************************************************************/
