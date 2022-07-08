@@ -1383,7 +1383,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 
    cm_timer_continue (stat->timer [7]);
 
-   if (mpz_sizeinbase (N, 2) > 64) {
+   if ((getenv ("CM_ECPP_EARLYS2") == NULL) && (mpz_sizeinbase (N, 2) > 64)) {
       /* Precompute class numbers. */
       h = (unsigned int *) malloc ((Dmax / 2) * sizeof (unsigned int));
       if (h == NULL) {
@@ -1829,39 +1829,42 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
       }
       ecpp2(cert2, cert1, depth, filename2, modpoldir, verbose, debug, stat2);
 
-      if (print)
-         cm_file_write_ecpp_cert_pari(stdout, cert2, depth);
-
-      if (filename != NULL)
+      if (getenv("CM_ECPP_EARLYS2") == NULL)
       {
-         if (!cm_file_open_write(&f, filename))
-            exit(1);
-         cm_file_write_ecpp_cert_pari(f, cert2, depth);
-         cm_file_close(f);
-         if (!cm_file_open_write(&f, filenameprimo))
-            exit(1);
-         cm_file_write_ecpp_cert_primo(f, cert2, depth);
-         cm_file_close(f);
-      }
+         if (print)
+            cm_file_write_ecpp_cert_pari(stdout, cert2, depth);
 
-      if (verbose)
-      {
-         for (i = 0, t = 0.0; i <= 6; i++)
-            t += cm_timer_get(stat1->timer[i]);
-         for (i = 1; i <= 3; i++)
-            t += cm_timer_get(stat2->timer[i]);
-         printf("Total time for ECPP: %.0f (%.0f)\n", t,
-                cm_timer_wc_get(stat1->timer[7]) + cm_timer_wc_get(stat2->timer[0]));
-      }
+         if (filename != NULL)
+         {
+            if (!cm_file_open_write(&f, filename))
+               exit(1);
+            cm_file_write_ecpp_cert_pari(f, cert2, depth);
+            cm_file_close(f);
+            if (!cm_file_open_write(&f, filenameprimo))
+               exit(1);
+            cm_file_write_ecpp_cert_primo(f, cert2, depth);
+            cm_file_close(f);
+         }
 
-      if (check)
-      {
-         cm_timer_start(clock);
-         res = cm_pari_ecpp_check(cert2, depth);
-         cm_timer_stop(clock);
          if (verbose)
-            printf("Time for ECPP check (%s): %.0f\n",
-                   (res ? "true" : "false"), cm_timer_get(clock));
+         {
+            for (i = 0, t = 0.0; i <= 6; i++)
+               t += cm_timer_get(stat1->timer[i]);
+            for (i = 1; i <= 3; i++)
+               t += cm_timer_get(stat2->timer[i]);
+            printf("Total time for ECPP: %.0f (%.0f)\n", t,
+                   cm_timer_wc_get(stat1->timer[7]) + cm_timer_wc_get(stat2->timer[0]));
+         }
+
+         if (check)
+         {
+            cm_timer_start(clock);
+            res = cm_pari_ecpp_check(cert2, depth);
+            cm_timer_stop(clock);
+            if (verbose)
+               printf("Time for ECPP check (%s): %.0f\n",
+                      (res ? "true" : "false"), cm_timer_get(clock));
+         }
       }
    }
 
