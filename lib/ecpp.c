@@ -1417,6 +1417,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             mpz_set (c [*depth][0], N);
             cm_timer_start (clock);
             if (verbose) {
+               printf("Stage 1 %.2f%% done\n", 100.0 * (1 - pow((double)mpz_sizeinbase (N, 2) / L, 4)));
                printf ("Size [%4i]: %6li bits\n", *depth,
                      mpz_sizeinbase (N, 2));
                fflush (stdout);
