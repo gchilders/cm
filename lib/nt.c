@@ -22,6 +22,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #include "cm-impl.h"
+#include "gwnum/giants.h"
+#include "gwnum/gwnum.h"
+#include "gwnum/gwcommon.h"
+#include "gwnum/gwthread.h"
 
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 static int miller_rabin (mpz_srcptr n);
@@ -167,6 +171,82 @@ static int miller_rabin (mpz_srcptr n)
 
 /*****************************************************************************/
 
+static int miller_rabin_gwnum (mpz_srcptr a)
+   /* Return whether the odd positive integer n is a strong pseudoprime
+      to base 3 using gwnum. */
+	  
+{
+        char string[200000];
+        int i, j, k, LEN, r;
+        unsigned init_b[1] = {3}, fft_size = 0;
+        giant  n, gb;
+        gwnum wb, wc;
+        gwhandle *gwdata;
+
+        mpz_get_str( string, 10, a );
+        LEN = strlen ( string ); LEN = ( LEN >> 2 ) + 8;
+        n  = newgiant ( LEN );
+        gb = newgiant ( LEN );
+
+        ctog ( string, n );
+
+        gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
+        gwinit ( gwdata );
+        gwsetup_general_mod_giant ( gwdata, n );
+        wb = gwalloc ( gwdata );
+        wc = gwalloc ( gwdata );
+        gwerror_checking ( gwdata, 1 );
+
+        // Base 3 strong Fermat PRP test
+        r = mpz_scan1 ( a, 1 );
+        if ( r > 50 ) r = 50;
+
+        binarytogw ( gwdata, init_b, 1, wb );
+        j = mpz_sizeinbase ( a, 2 ) - 2;
+        k = j - 50;
+        for ( i =  j; i > k; i-- ) {
+                gwsquare2_carefully ( gwdata, wb, wb );
+                if ( mpz_tstbit ( a, i ) ) gwsmallmul ( gwdata, 3.0, wb );
+        }
+        for ( i = k; i > 50; i-- ) {
+                if ( mpz_tstbit ( a, i ) ) gwsquare2 ( gwdata, wb, wc, 0x0200 );
+                else gwsquare2 ( gwdata, wb, wc, 0 );
+                if ( gw_get_maxerr ( gwdata ) < 0.35 ) { gwswap ( wb, wc );
+                } else {
+                        // printf ( "*** Maximum error %lf excessive at iteration %d. Increasing FFT size.\n", gw_get_maxerr( gwdata ), i );
+                        gwtogiant( gwdata, wb, gb );
+                        gwdone ( gwdata );
+                        gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
+                        gwinit ( gwdata );
+                        gwset_larger_fftlen_count ( gwdata , ++fft_size );
+                        gwsetup_general_mod_giant ( gwdata, n );
+                        wb = gwalloc ( gwdata );
+                        wc = gwalloc ( gwdata );
+                        gwerror_checking ( gwdata, 1 );
+                        gianttogw ( gwdata, gb, wb );
+                        i++;
+                }
+        }
+        for ( i = 50; i >= r; i-- ) {
+                gwsquare2_carefully ( gwdata, wb, wb );
+                if ( mpz_tstbit ( a, i ) ) gwsmallmul ( gwdata, 3.0, wb );
+        }
+        gwtogiant ( gwdata, wb, gb );
+        modg ( n, gb );
+        if ( ( isone ( gb ) ) ) { gwdone ( gwdata ); return ( 1 ); }
+        for ( i = r; i > 0; i-- ) {
+                gwtogiant ( gwdata, wb, gb );
+                iaddg ( 1, gb );
+                modg ( n, gb );
+                if ( isZero ( gb ) ) { gwdone ( gwdata ); return ( 1 ); }
+                if ( i == 1 ) break;
+                gwsquare2_carefully ( gwdata, wb, wb );
+        }
+        gwdone ( gwdata ); return ( 0 );
+}
+
+/*****************************************************************************/
+
 int cm_nt_is_prime (mpz_srcptr n)
 
 {
@@ -176,7 +256,7 @@ int cm_nt_is_prime (mpz_srcptr n)
       and a random base for numbers with 900 digits is less than 10^(-109).
       We hope that this still holds for the fixed base 2. */
    if (mpz_sizeinbase (n, 2) >= 3000)
-      return miller_rabin (n);
+      return miller_rabin_gwnum (n);
    else
       return (mpz_probab_prime_p (n, 0) > 0);
 }

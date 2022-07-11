@@ -257,6 +257,7 @@ error
          AC_MSG_ERROR([PARI version >= 2.11.0 required])
          ])
 
+LIBS="$LIBS -lgwnum -lpthread -ldl -lstdc++"
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT
