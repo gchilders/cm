@@ -36,6 +36,7 @@ static void test_ecpp (mpz_srcptr n)
       false /* print */,
       true /* trust */,
       true /* check */,
+      0, /* phases */
       false /* verbose */,
       false /* debug */);
 

@@ -34,12 +34,13 @@ int main (int argc, char* argv [])
    if (rank == 0) {
       mpz_t n;
       bool print, verbose, debug, trust, check;
+      int phases;
       char *filename;
       mpz_init (n);
       evaluate_parameters_ecpp (argc, argv, n, &print, &filename,
-         &verbose, &debug, &trust, &check);
+         &verbose, &debug, &trust, &check, &phases);
       cm_ecpp (n, CM_MODPOLDIR, filename, getenv ("CM_ECPP_TMPDIR"),
-         print, trust, check, verbose, debug);
+         print, trust, check, phases, verbose, debug);
       mpz_clear (n);
    }
    cm_mpi_clear ();

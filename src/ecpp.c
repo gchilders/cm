@@ -27,15 +27,16 @@ int main (int argc, char* argv [])
 {
    mpz_t n;
    bool print, verbose, debug, trust, check;
+   int phases;
    char *filename;
 
    mpz_init (n);
    cm_pari_init ();
    evaluate_parameters_ecpp (argc, argv, n, &print, &filename, &verbose,
-      &debug, &trust, &check);
+      &debug, &trust, &check, &phases);
 
    cm_ecpp (n, CM_MODPOLDIR, filename, getenv ("CM_ECPP_TMPDIR"),
-      print, trust, check, verbose, debug);
+      print, trust, check, phases, verbose, debug);
 
    cm_pari_clear ();
    mpz_clear (n);

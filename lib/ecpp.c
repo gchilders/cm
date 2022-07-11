@@ -1711,7 +1711,8 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
 
 bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
    const char *filename, char* tmpdir,
-   bool print, bool trust, bool check, bool verbose, bool debug)
+   bool print, bool trust, bool check, int phases,
+   bool verbose, bool debug)
    /* Assuming that N is a (probable) prime, compute an ECPP certificate.
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
@@ -1724,6 +1725,10 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
       of the number under consideration (class numbers, primorials).
       If trust is set to true, then N is trusted to be a probable prime;
       otherwise a quick primality test is run.
+      The variable phases should be one of 0, 1 or 2. If set to 1, only
+      the first phase of ECPP is run. If set to 2, only the second phase
+      is run, on a potentially partial certificate from the first phase.
+      These make sense only if filename is given at the same time.
       print indicates whether the result is printed to stdout.
       check indicates whether the certificate should be checked.
       If yes, the return value of the function is the result of the check;

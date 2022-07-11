@@ -316,7 +316,8 @@ extern void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
 /* functions for ECPP */
 extern bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
    const char *filename, char* tmpdir,
-   bool print, bool trust, bool check, bool verbose, bool debug);
+   bool print, bool trust, bool check, int phases,
+   bool verbose, bool debug);
 
 /* functions for MPI */
 void cm_mpi_init (bool debug);

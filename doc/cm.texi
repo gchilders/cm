@@ -632,17 +632,26 @@ implements the asymptotically fast version fastECPP of
 Certificates are computed and printed in a format compatible with
 PARI/GP.
 
-@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, const char* @var{filename}, const char* @var{tmpdir}, bool @var{print}, bool @var{trust}, bool @var{check}, bool @var{verbose}, bool @var{debug})
+@deftypefun void cm_ecpp (mpz_t @var{N}, const char* @var{modpoldir}, const char* @var{filename}, const char* @var{tmpdir}, bool @var{print}, bool @var{trust}, bool @var{check}, int @var{phases}, bool @var{verbose}, bool @var{debug})
 Given a prime number @var{N}, the function computes an ECPP certificate
 and prints it to screen if @var{print} is set to @code{true}.
 If @var{filename} is different from @code{NULL}, the final ECPP
 certificate is output to the file in PARI/GP format, and to a file with
-additional suffix @code{.primo} in PRIMO format, and the stage 1 and
-stage 2 partial certificates are read from and written to temporary files
+additional suffix @code{.primo} in PRIMO format, and the phase 1 and
+phase 2 partial results are read from and written to temporary files
 with suffices @code{.cert1} and @code{.cert2}, respectively.
+The variable @var{phases} is usually set to 0; alternatively, it can be set
+to 1, in which case only the first, downrun phase of ECPP is executed;
+or it can be set to 2, in which case a (potentially partial) first phase
+result is read from a file and only the second, CM phase of ECPP is
+executed, resulting in a (potentially partial, not ending with a number
+below 2@sup{64}) certificate. Using values different from 0 makes sense
+only when @var{filename} is given at the same time.
 
 If @var{check} is set to @code{true}, then the certificate is checked;
 the outcome is printed if @var{verbose} is also set to @code{true}.
+Notice that partial certificates are invalid by definition, even if their
+content is so far correct.
 
 The directory @var{modpoldir}, usually @code{/usr/local/share/cm}, in which
 modular polynomials are stored, is required to be passed to
@@ -893,6 +902,20 @@ processes for the parallel version, in which data that is common over
 several invocations can be stored. The data is then computed on the first
 run and read from disk during subsequent runs. If the environment variable
 is not set, the data is recomputed every time.
+
+It is possible to run only the first, downrun phase or only the second,
+CM phase of ECPP using the command line options @code{-1} or @code{-2},
+respectively. Both require that a filename be given with the @code{-f}
+option. Running only the first phase makes it possible to allocate a
+different (usually larger) number of MPI processes to this phase.
+Running only the second phase is possible also when the first phase has
+been completed only partially, so that the first elliptic curves, which
+often take a very long time, can be obtained on fewer cores in parallel
+with the ongoing first phase. Notice that in this case a certificate is
+written, but that it is considered invalid in particular by the option
+@code{-c}. It can be completed by subsequent runs specifying @code{-1},
+@code{-2} or none of them.
+
 
 
 @node References

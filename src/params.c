@@ -34,6 +34,7 @@ static void print_f_options (void);
 static void print_g_options (void);
 static void print_c_options (void);
 static void print_t_options (void);
+static void print_phase_options (void);
 static void print_help (void);
 static void print_help_ecpp (void);
 static void print_libraries (void);
@@ -111,6 +112,17 @@ static void print_c_options (void)
 
 /*****************************************************************************/
 
+static void print_phase_options (void)
+{
+   printf ("-1 runs only the first phase (downrun) of ECPP.\n"
+           "-2 runs only the second phase (CM) of ECPP, constructing the "
+           "curves for a\n   potentially only partial certificate from "
+           "the first phase.\n"
+           "   These are mutually exclusive and require the option -f.\n");
+}
+
+/*****************************************************************************/
+
 static void print_help (void)
 {
    printf ("The following options are recognised: "
@@ -135,6 +147,7 @@ static void print_help_ecpp (void)
    print_g_options ();
    print_t_options ();
    print_c_options ();
+   print_phase_options ();
 }
 
 /*****************************************************************************/
@@ -250,7 +263,7 @@ void evaluate_parameters (int argc, char* argv [], int_cl_t *d,
 
 void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    bool *print, char **filename, bool *verbose, bool *debug,
-   bool *trust, bool *check)
+   bool *trust, bool *check, int *phases)
    /* Since ECPP requires different parameter types, the easiest solution
       appears to be a separate function, albeit with a lot of copy and
       paste. */
@@ -263,9 +276,10 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
    *debug = false;
    *check = false;
    *trust = false;
+   *phases = 0;
    *filename = NULL;
 
-   while ((opt = getopt (argc, argv, "hn:pf:gvtc")) != -1) {
+   while ((opt = getopt (argc, argv, "hn:pf:gvtc12")) != -1) {
       switch (opt) {
          case 'v':
             *verbose = true;
@@ -290,6 +304,22 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
             }
             else
                *filename = optarg;
+            break;
+         case '1':
+            if (*phases == 2) {
+               print_phase_options ();
+               exit (1);
+            }
+            else
+               *phases = 1;
+            break;
+         case '2':
+            if (*phases == 1) {
+               print_phase_options ();
+               exit (1);
+            }
+            else
+               *phases = 2;
             break;
          case 'n':
             if (!cm_pari_eval_int (n, optarg) || mpz_cmp_si (n, 0ul) <= 0) {
@@ -316,6 +346,15 @@ void evaluate_parameters_ecpp (int argc, char* argv [], mpz_ptr n,
             /* Should not occur. */
             exit (1);
       }
+   }
+   if (*phases != 0 && *filename == NULL) {
+      print_f_options ();
+      print_phase_options ();
+      exit (1);
+   }
+   if (!mpz_cmp_ui (n, 0)) {
+      print_n_options ();
+      exit (1);
    }
 
    if (*verbose)

@@ -16,6 +16,8 @@ Changes in version 0.4.1 ("Fitzebohnen"):
   - If the environment variable CM_ECPP_TMPDIR is set, files that do not
     change between different invocations of ecpp or ecpp-mpi are stored
     in and read back from that directory.
+  - New command line options make it possible to compute only the first
+    or only the second phase.
 
 Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for
