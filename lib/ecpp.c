@@ -66,7 +66,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    unsigned long int B, bool debug, cm_stat_t stat);
 static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
-   char *tmpdir, bool verbose, bool debug, cm_stat_ptr stat);
+   char *tmpdir, bool onlyread, bool verbose, bool debug, cm_stat_ptr stat);
 static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
    char *filename, const char* modpoldir, bool verbose,
    bool debug, cm_stat_ptr stat);
@@ -1265,7 +1265,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 /*****************************************************************************/
 
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
-   char* tmpdir, bool verbose, bool debug, cm_stat_ptr stat)
+   char* tmpdir, bool onlyread, bool verbose, bool debug, cm_stat_ptr stat)
    /* Compute the first step of the ECPP certificate; this is the downrun
       part with the parameters of the elliptic curves.
       The return value is a newly allocated array of depth entries, each
@@ -1277,6 +1277,8 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       The downrun stops as soon as the prime is less than 2^64.
       If filename is different from NULL, then the function tries to read
       a partial certificate from the file and continues writing to it.
+      If onlyread is true, then the function stops after reading from
+      the file and does not continue the downrun.
       The stat parameter makes it possible to pass timing information
       to the calling function. */
 
@@ -1337,130 +1339,133 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
       }
    else
       c = NULL;
-   if (*depth > 0)
-      mpz_set (N, c [*depth - 1][3]);
-   else
-      mpz_set (N, p);
 
-   cm_timer_continue (stat->timer [7]);
+   if (!onlyread) {
+      if (*depth > 0)
+         mpz_set (N, c [*depth - 1][3]);
+      else
+         mpz_set (N, p);
 
-   if (mpz_sizeinbase (N, 2) > 64) {
-      /* Precompute class numbers. */
-      h = (unsigned int *) malloc ((Dmax / 2) * sizeof (unsigned int));
-      if (h == NULL) {
-         printf ("***** Error: Not enough memory to allocate array h "
-            "in ecpp1.\n");
-         exit (1);
-      }
-      compute_h (h, Dmax, tmpdir, stat);
-      if (verbose) {
-         printf ("Time for class numbers up to Dmax=%"PRIucl
-               ": %.0f (%.0f)\n", Dmax,
-               cm_timer_get (stat->timer [5]),
-               cm_timer_wc_get (stat->timer [5]));
-         fflush (stdout);
-      }
+      cm_timer_continue (stat->timer [7]);
 
-      /* Precompute primorial for trial division. */
+      if (mpz_sizeinbase (N, 2) > 64) {
+         /* Precompute class numbers. */
+         h = (unsigned int *) malloc ((Dmax / 2) * sizeof (unsigned int));
+         if (h == NULL) {
+            printf ("***** Error: Not enough memory to allocate array h "
+                  "in ecpp1.\n");
+            exit (1);
+         }
+         compute_h (h, Dmax, tmpdir, stat);
+         if (verbose) {
+            printf ("Time for class numbers up to Dmax=%"PRIucl
+                  ": %.0f (%.0f)\n", Dmax,
+                  cm_timer_get (stat->timer [5]),
+                  cm_timer_wc_get (stat->timer [5]));
+            fflush (stdout);
+         }
+
+         /* Precompute primorial for trial division. */
 #ifndef WITH_MPI
-      mpz_init (primorialB);
-      cm_timer_start (stat->timer [6]);
-      mpz_primorial_ui (primorialB, B);
-      cm_timer_stop (stat->timer [6]);
+         mpz_init (primorialB);
+         cm_timer_start (stat->timer [6]);
+         mpz_primorial_ui (primorialB, B);
+         cm_timer_stop (stat->timer [6]);
 #else
-      MPI_Comm_size (MPI_COMM_WORLD, &size);
-      t = 0;
-      cm_timer_start (stat->timer [6]);
-      cm_mpi_submit_primorial (tmpdir);
-      for (i = 1; i < size; i++) {
-         MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
-               MPI_COMM_WORLD, &status);
-         rank = status.MPI_SOURCE;
-         cm_mpi_get_primorial (rank, &t_worker);
-         t += t_worker;
-      }
-      cm_timer_stop (stat->timer [6]);
-      stat->timer [6]->elapsed = t;
+         MPI_Comm_size (MPI_COMM_WORLD, &size);
+         t = 0;
+         cm_timer_start (stat->timer [6]);
+         cm_mpi_submit_primorial (tmpdir);
+         for (i = 1; i < size; i++) {
+            MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+                  MPI_COMM_WORLD, &status);
+            rank = status.MPI_SOURCE;
+            cm_mpi_get_primorial (rank, &t_worker);
+            t += t_worker;
+         }
+         cm_timer_stop (stat->timer [6]);
+         stat->timer [6]->elapsed = t;
 #endif
-      if (verbose) {
-         printf ("Time for primorial of B=%lu: %.0f (%.0f)\n", B,
-               cm_timer_get (stat->timer [6]), cm_timer_wc_get (stat->timer [6]));
-         printf ("hmaxprime: %"PRIucl"\n", hmaxprime);
-         fflush (stdout);
+         if (verbose) {
+            printf ("Time for primorial of B=%lu: %.0f (%.0f)\n", B,
+                  cm_timer_get (stat->timer [6]), cm_timer_wc_get (stat->timer [6]));
+            printf ("hmaxprime: %"PRIucl"\n", hmaxprime);
+            fflush (stdout);
+         }
+
+         t_old = 0;
+         while (mpz_sizeinbase (N, 2) > 64) {
+            c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
+            c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
+            for (i = 0; i < 4; i++)
+               mpz_init (c [*depth][i]);
+            mpz_set (c [*depth][0], N);
+            cm_timer_start (clock);
+            if (verbose) {
+               printf ("Size [%4i]: %6li bits\n", *depth,
+                     mpz_sizeinbase (N, 2));
+               fflush (stdout);
+            }
+            d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
+                  hmaxprime, h, delta,
+#ifndef WITH_MPI
+                  primorialB,
+#endif
+                  B, debug, stat);
+            cm_timer_stop (clock);
+            if (verbose) {
+               for (i = 0, t = 0.0; i < 5; i++)
+                  t += cm_timer_get (stat->timer [i]);
+               printf ("  Time for discriminant %11"PRIicl": %.0f (%.0f)\n",
+                     d, t - t_old, cm_timer_wc_get (clock));
+               t_old = t;
+               printf ("  largest prime of d: %"PRIucl"\n",
+                     cm_nt_largest_factor (-d));
+               printf ("  largest prime of h: %"PRIucl"\n",
+                     cm_nt_largest_factor (h [(-d) / 2 - 1]));
+               printf ("  discriminants:          %11.0f (%7.0f)\n",
+                     cm_timer_get (stat->timer [4]),
+                     cm_timer_wc_get (stat->timer [4]));
+               printf ("%13lu qroot:      %11.0f (%7.0f)\n", stat->counter [0],
+                     cm_timer_get (stat->timer [0]),
+                     cm_timer_wc_get (stat->timer [0]));
+               printf ("%13lu Cornacchia: %11.0f (%7.0f)\n", stat->counter [1],
+                     cm_timer_get (stat->timer [1]),
+                     cm_timer_wc_get (stat->timer [1]));
+               printf ("%13lu trial div:  %11.0f (%7.0f)\n", stat->counter [2],
+                     cm_timer_get (stat->timer [2]),
+                     cm_timer_wc_get (stat->timer [2]));
+               printf ("%13lu primality:  %11.0f (%7.0f)\n", stat->counter [3],
+                     cm_timer_get (stat->timer [3]),
+                     cm_timer_wc_get (stat->timer [3]));
+               fflush (stdout);
+            }
+            mpz_set_si (c [*depth][1], d);
+            if (filename != NULL) {
+               cm_timer_stop (stat->timer [7]);
+               cm_write_ecpp_cert1_line (f, c [*depth], stat);
+               cm_timer_continue (stat->timer [7]);
+            }
+            mpz_set (N, c [*depth][3]);
+            (*depth)++;
+         }
+         free (h);
+#ifndef WITH_MPI
+         mpz_clear (primorialB);
+#endif
       }
 
-      t_old = 0;
-      while (mpz_sizeinbase (N, 2) > 64) {
-         c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
-         c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
-         for (i = 0; i < 4; i++)
-            mpz_init (c [*depth][i]);
-         mpz_set (c [*depth][0], N);
-         cm_timer_start (clock);
-         if (verbose) {
-            printf ("Size [%4i]: %6li bits\n", *depth,
-                  mpz_sizeinbase (N, 2));
-            fflush (stdout);
-         }
-         d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
-               hmaxprime, h, delta,
-#ifndef WITH_MPI
-               primorialB,
-#endif
-               B, debug, stat);
-         cm_timer_stop (clock);
-         if (verbose) {
-            for (i = 0, t = 0.0; i < 5; i++)
-               t += cm_timer_get (stat->timer [i]);
-            printf ("  Time for discriminant %11"PRIicl": %.0f (%.0f)\n",
-                  d, t - t_old, cm_timer_wc_get (clock));
-            t_old = t;
-            printf ("  largest prime of d: %"PRIucl"\n",
-                  cm_nt_largest_factor (-d));
-            printf ("  largest prime of h: %"PRIucl"\n",
-                  cm_nt_largest_factor (h [(-d) / 2 - 1]));
-            printf ("  discriminants:          %11.0f (%7.0f)\n",
-                  cm_timer_get (stat->timer [4]),
-                  cm_timer_wc_get (stat->timer [4]));
-            printf ("%13lu qroot:      %11.0f (%7.0f)\n", stat->counter [0],
-                  cm_timer_get (stat->timer [0]),
-                  cm_timer_wc_get (stat->timer [0]));
-            printf ("%13lu Cornacchia: %11.0f (%7.0f)\n", stat->counter [1],
-                  cm_timer_get (stat->timer [1]),
-                  cm_timer_wc_get (stat->timer [1]));
-            printf ("%13lu trial div:  %11.0f (%7.0f)\n", stat->counter [2],
-                  cm_timer_get (stat->timer [2]),
-                  cm_timer_wc_get (stat->timer [2]));
-            printf ("%13lu primality:  %11.0f (%7.0f)\n", stat->counter [3],
-                  cm_timer_get (stat->timer [3]),
-                  cm_timer_wc_get (stat->timer [3]));
-            fflush (stdout);
-         }
-         mpz_set_si (c [*depth][1], d);
-         if (filename != NULL) {
-            cm_timer_stop (stat->timer [7]);
-            cm_write_ecpp_cert1_line (f, c [*depth], stat);
-            cm_timer_continue (stat->timer [7]);
-         }
-         mpz_set (N, c [*depth][3]);
-         (*depth)++;
+      cm_timer_stop (stat->timer [7]);
+      for (i = 0, t = 0.0; i < 7; i++)
+         t+= cm_timer_get (stat->timer [i]);
+      if (verbose) {
+         printf ("Time for first ECPP step, depth %i: %.0f (%.0f)\n",
+               *depth, t, cm_timer_wc_get (stat->timer [7]));
+         fflush (stdout);
       }
-      free (h);
-#ifndef WITH_MPI
-      mpz_clear (primorialB);
-#endif
    }
 
    mpz_clear (N);
-
-   cm_timer_stop (stat->timer [7]);
-   for (i = 0, t = 0.0; i < 7; i++)
-      t+= cm_timer_get (stat->timer [i]);
-   if (verbose) {
-      printf ("Time for first ECPP step, depth %i: %.0f (%.0f)\n",
-         *depth, t, cm_timer_wc_get (stat->timer [7]));
-      fflush (stdout);
-   }
 
    if (filename != NULL)
       cm_file_close (f);
@@ -1777,7 +1782,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
       filename1 = NULL;
       filename2 = NULL;
    }
-   cert1 = ecpp1 (&depth, N, filename1, tmpdir, verbose, debug, stat1);
+   cert1 = ecpp1 (&depth, N, filename1, tmpdir, phases == 2,
+                  verbose, debug, stat1);
 
    if (phases != 1) {
       cert2 = (mpz_t **) malloc (depth * sizeof (mpz_t *));
