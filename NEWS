@@ -18,6 +18,9 @@ Changes in version 0.4.1 ("Fitzebohnen"):
     in and read back from that directory.
   - New command line options make it possible to compute only the first
     or only the second phase.
+  - Phase 2 results are stored in any order as they come in, which
+    requires the file format to change. Checkpoint files ending in .cert2
+    from previous releases are not compatible.
 
 Changes in version 0.4 ("Fitzebohnen"):
   - increase minimal version number for mpfrcx to 0.6.3 and for

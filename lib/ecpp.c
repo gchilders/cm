@@ -1633,47 +1633,58 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
       function. */
 
 {
-   int read;
    int i;
    FILE *f;
 #ifdef WITH_MPI
    cm_stat_t stat_worker;
    MPI_Status status;
-   int sent, received, written, rank, job;
+   int read, next, received, rank, job;
 #endif
 
    cm_stat_init (stat);
 
-   if (filename != NULL)
-      if (cm_file_open_read_write (&f, filename))
-         read = cm_file_read_ecpp_cert2 (cert2, cert1 [0][0], f, debug,
+   if (filename != NULL) {
+      if (cm_file_open_read_write (&f, filename)) {
+#ifdef WITH_MPI
+         read =
+#endif
+         cm_file_read_ecpp_cert2 (cert2, cert1 [0][0], f, debug,
             stat);
+      }
       else {
          cm_file_open_write (&f, filename);
+#ifdef WITH_MPI
          read = 0;
+#endif
       }
+   }
+#ifdef WITH_MPI
    else
       read = 0;
+#endif
 
    cm_timer_continue (stat->timer [0]);
 #ifndef WITH_MPI
-   for (i = read; i < depth; i++) {
-      cm_ecpp_one_step2 (cert2 [i], cert1 [i], i, modpoldir,
-         verbose, debug, stat);
-      if (filename != NULL) {
-         cm_timer_stop (stat->timer [0]);
-         cm_write_ecpp_cert2_line (f, cert2 [i], stat);
-         cm_timer_continue (stat->timer [0]);
+   for (i = 0; i < depth; i++)
+      if (!mpz_cmp_ui (cert2 [i][0], 0)) {
+         cm_ecpp_one_step2 (cert2 [i], cert1 [i], i, modpoldir,
+               verbose, debug, stat);
+         if (filename != NULL) {
+            cm_timer_stop (stat->timer [0]);
+            cm_write_ecpp_cert2_line (f, cert2 [i], i, stat);
+            cm_timer_continue (stat->timer [0]);
+         }
       }
-   }
 #else
-   sent = read;
+   next = 0;
    received = read;
-   written = read;
    while (received < depth) {
-      if (sent < depth && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_ecpp_one_step2 (rank, sent, cert1 [sent], modpoldir);
-         sent++;
+      /* Compute next job to send, if any. */
+      while (next < depth && mpz_cmp_ui (cert2 [next][0], 0))
+         next++;
+      if (next < depth && (rank = cm_mpi_queue_pop ()) != -1) {
+         cm_mpi_submit_ecpp_one_step2 (rank, next, cert1 [next], modpoldir);
+         next++;
       }
       else {
          MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
@@ -1684,6 +1695,8 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
             stat->timer [i]->elapsed += stat_worker->timer [i]->elapsed;
          cm_mpi_queue_push (rank);
          received++;
+         if (filename != NULL)
+            cm_write_ecpp_cert2_line (f, cert2 [job], job, stat);
          if (debug) {
             printf ("Timings after job %3i: CM %7.0f, roots %10.0f, "
                "point %7.0f\n", job,
@@ -1691,14 +1704,6 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
                cm_timer_get (stat->timer [2]),
                cm_timer_get (stat->timer [3]));
             fflush (stdout);
-         }
-         if (filename != NULL) {
-            cm_timer_stop (stat->timer [0]);
-            while (written < depth && mpz_sgn (cert2 [written][0]) != 0) {
-               cm_write_ecpp_cert2_line (f, cert2 [written], stat);
-               written++;
-            }
-            cm_timer_continue (stat->timer [0]);
          }
       }
     }

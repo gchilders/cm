@@ -236,7 +236,8 @@ extern bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
 extern bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim,
    const int i);
 extern bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line, cm_stat_t stat);
-extern bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line, cm_stat_t stat);
+extern bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line, int no,
+   cm_stat_t stat);
 extern mpz_t** cm_file_read_ecpp_cert1 (int *depth, mpz_srcptr p,
    FILE *f, bool debug, cm_stat_t stat);
 extern int cm_file_read_ecpp_cert2 (mpz_t **c, mpz_srcptr p,
