@@ -35,6 +35,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_BROADCAST_N    10
 #define MPI_TAG_JOB_BROADCAST_SQRT 11
 #define MPI_TAG_JOB_CLEAR_N        12
+#define MPI_TAG_JOB_GCD            13
+#define MPI_TAG_JOB_GCD_REDUCE     14
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -168,7 +170,7 @@ unsigned long int cm_mpi_compute_B ()
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    m = mpi_compute_split_m ();
 
-   return (1ul << 29) * ((size - 1) / m);
+   return (1ul << 29) * (size - 1);
 }
 
 
@@ -532,6 +534,154 @@ void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_n, double *t)
 }
 
 /*****************************************************************************/
+
+void cm_mpi_get_single_gcd (mpz_ptr gcd, double *t)
+/* Get from all workers the results of gcd jobs */
+{
+   int size, rank, job;
+   MPI_Status status;
+   mpz_t *vec;
+   double t_local;
+   int i;
+   cm_stat_t stat;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+
+   *t = 0;
+
+   vec=(mpz_t*)malloc((size-1)*sizeof(mpz_t));
+   for(i=0;i<size-1;i++)mpz_init(vec[i]);
+   /* Different workers may compute gcds with different divisors of the
+      primorial; we need to multiply them all; using binary splitting. */
+   for (i = 1; i < size; i++) {
+      MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      rank = status.MPI_SOURCE;
+
+      mpi_recv_mpz (vec[i-1], rank, MPI_COMM_WORLD);
+
+      MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+      *t += t_local;
+   }
+
+   cm_timer_start (stat->timer [0]);
+   mpz_binary_prod(gcd,vec,size-1);
+   for(i=0;i<size-1;i++)mpz_clear(vec[i]);
+   free(vec);
+   cm_timer_stop (stat->timer [0]);
+   *t+=stat->timer [0]->elapsed;
+}
+
+/*****************************************************************************/
+
+void perfect_division(int n,int d,int rank,int* pos,int* len){
+/* we have n items, and we divide it perfectly into d groups to almost equal size
+ * here determine the rank's group first item and its length (size) */
+    int block=n/d;
+    int res=n%d;
+
+    if(rank<res){
+        *len=block+1;
+        *pos=(block+1)*rank;
+    }
+    else{
+        *len=block;
+        *pos=block*rank+res;
+    }
+}
+
+/*****************************************************************************/
+
+void cm_mpi_submit_prod(mpz_t prod){
+/* submit the product of the n values to all worker */
+   int size, rank;
+   int i;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+
+   for (rank = 1; rank < size; rank++) {
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_GCD, MPI_COMM_WORLD);
+   }
+   mpi_bcast_send_mpz(prod, MPI_COMM_WORLD);
+}
+
+/*****************************************************************************/
+
+void cm_mpi_submit_gcd(mpz_t g,mpz_t* v,int no_n){
+/* submit g=gcd(prod(n),primorial) to all workers, and also (part of) the n values */
+   int size, rank;
+   int i, j, fst, len;
+   MPI_Status status;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+
+   for (rank = 1; rank < size; rank++) {
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_GCD_REDUCE, MPI_COMM_WORLD);
+    }
+
+    MPI_Bcast (&no_n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    mpi_bcast_send_mpz(g, MPI_COMM_WORLD);
+    for (rank = 1; rank < size; rank++) {
+       perfect_division(no_n, size-1, rank-1, &fst, &len);
+
+       for(j=0;j<len;j++){
+           mpi_send_mpz(v[fst+j], rank, MPI_COMM_WORLD);
+       }
+    }
+}
+
+/*****************************************************************************/
+
+void cm_mpi_get_gcds(mpz_t *n,int no_n,double *t){
+/* after the work we have: gcd(n/c,primorial)=1, submit these reduced n'=n/c values */
+   int i, j;
+   int size, rank, job, fst, len;
+   double t_local;
+   MPI_Status status;
+   mpz_t tmp;
+   *t=0;
+
+   mpz_init(tmp);
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+
+   for (i = 1; i < size; i++) {
+      MPI_Recv (&job, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      rank = status.MPI_SOURCE;
+
+      perfect_division(no_n, size-1, rank-1, &fst, &len);
+
+      for(j=0;j<len;j++){
+          mpi_recv_mpz (tmp, rank, MPI_COMM_WORLD);
+          mpz_set(n[fst+j],tmp);
+      }
+
+      MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+      *t += t_local;
+   }
+   mpz_clear(tmp);
+}
+
+/*****************************************************************************/
+
+void cm_nt_mpz_gcds(mpz_t* n,int no_n,mpz_t g){
+/* we know that gcd(n,primorial) | g=gcd(prod(n),primorial), use the trivial algorithm
+ * to reduce it to n'=n/c, so that gcd(n',primorial)=1 */
+    int i;
+    mpz_t h;
+    mpz_init(h);
+
+    for(i=0;i<no_n;i++){
+        mpz_set(h,g);
+        while(true){
+            mpz_gcd(h, h, n[i]);
+            if(mpz_cmp_ui(h, 1)==0)  break;
+            mpz_divexact(n[i], n[i], h);
+        }
+    }
+
+    mpz_clear(h);
+}
+
+/*****************************************************************************/
 /*                                                                           */
 /* Worker implementation.                                                    */
 /*                                                                           */
@@ -589,6 +739,14 @@ static void mpi_worker ()
    /* Tree gcd. */
    int no_m;
    mpz_t *m, *gcd;
+
+   /* gcd. */
+   mpz_t mod;
+   
+   /* gcd reduce. */
+   int fst, length;
+   mpz_t g;
+   mpz_t *red;
 
    mpz_init (N);
    mpz_init (prim);
@@ -665,31 +823,14 @@ static void mpi_worker ()
          else
             tmpdir = 0;
 
-         /* The numbers to be trial divided are split into m batches,
-            each of which is handled by the workers behind one of the
-            split_comm. If split_size denotes the size of the communicator
-            exluding rank 0 (that is, split_size = floor ((size - 1) / m)),
-            then each worker inside chooses an interval of 2^29 and thus
-            handles a product of value about exp (2^29), or 100MB.
-            Currently this implies that the effective value of B is
-            split_size * 2^29 = floor ((size - 1) / m) * 2^29.
-            If size - 1 is not divisible by m, the last few workers
-            do not take part in the computation. */
-         if (tree_rank >= 1) {
-            if (tmpdir)
-               read = cm_file_read_primorial (tmpdir, prim, tree_rank - 1);
-            else
-               read = false;
-            if (!read)
-               cm_pari_prime_product (prim,
-                  ((unsigned long int) tree_rank - 1) << 29,
-                  ((unsigned long int) tree_rank)     << 29);
-            if (tmpdir && !read && rank == tree_rank)
-               /* Let only the workers in the first communicator write
-                  the primorial to disk. */
-               cm_file_write_primorial (tmpdir, prim, rank - 1);
-         }
-
+         if (tmpdir)
+            read = cm_file_read_primorial (tmpdir, prim, rank - 1);
+         else
+            read = false;
+         if (!read)
+            cm_prime_product_memoryefficient (prim, ((unsigned long int) rank - 1) << 29, ((unsigned long int) rank) << 29);
+         if (tmpdir && !read)
+            cm_file_write_primorial (tmpdir, prim, rank - 1);         
          if (len > 0)
             free (tmpdir);
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_PRIMORIAL,
@@ -819,6 +960,49 @@ static void mpi_worker ()
             free (gcd);
          }
          break;
+      case MPI_TAG_JOB_GCD:
+         cm_timer_start (stat->timer [0]);
+
+         mpz_init(mod);
+         mpi_bcast_recv_mpz (mod, MPI_COMM_WORLD);
+         mpz_gcd(mod,mod,prim);
+
+         MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_GCD, MPI_COMM_WORLD);
+         mpi_send_mpz(mod,0, MPI_COMM_WORLD);
+         mpz_clear(mod);
+
+         cm_timer_stop (stat->timer [0]);
+         MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
+         break;
+     case MPI_TAG_JOB_GCD_REDUCE:
+          cm_timer_start (stat->timer [0]);
+
+          MPI_Bcast (&no_m, 1, MPI_INT, 0, MPI_COMM_WORLD);
+          mpz_init(g);
+          mpi_bcast_recv_mpz(g, MPI_COMM_WORLD);
+
+          perfect_division(no_m,size-1,rank-1,&fst,&length);
+
+          if(length>0){
+             red=(mpz_t*)malloc(length*sizeof(mpz_t));
+             for(i=0;i<length;i++){
+                 mpz_init(red[i]);
+                 mpi_recv_mpz(red[i],0, MPI_COMM_WORLD);
+             }
+             cm_nt_mpz_gcds(red,length,g);
+          }
+
+          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_GCD_REDUCE, MPI_COMM_WORLD);
+          for(i=0;i<length;i++){
+              mpi_send_mpz(red[i],0, MPI_COMM_WORLD);
+              mpz_clear(red[i]);
+          }
+          if(length>0)free(red);
+          mpz_clear(g);
+
+          cm_timer_stop (stat->timer [0]);
+          MPI_Send (&(stat->timer [0]->elapsed), 1, MPI_DOUBLE, 0, MPI_TAG_DATA, MPI_COMM_WORLD);
+          break;
       case MPI_TAG_FINISH:
          finish = true;
          break;
