@@ -170,7 +170,7 @@ unsigned long int cm_mpi_compute_B ()
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    m = mpi_compute_split_m ();
 
-   return (1ul << 29) * (size - 1);
+   return (1ul << 26) * (size - 1);
 }
 
 
@@ -828,7 +828,7 @@ static void mpi_worker ()
          else
             read = false;
          if (!read)
-            cm_prime_product_memoryefficient (prim, ((unsigned long int) rank - 1) << 29, ((unsigned long int) rank) << 29);
+            cm_prime_product_memoryefficient (prim, ((unsigned long int) rank - 1) << 26, ((unsigned long int) rank) << 26);
          if (tmpdir && !read)
             cm_file_write_primorial (tmpdir, prim, rank - 1);         
          if (len > 0)
