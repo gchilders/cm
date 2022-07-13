@@ -464,24 +464,154 @@ void cm_pari_prime_product (mpz_ptr prim, unsigned long int a,
 
 bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d)
-   /* The function has the same interface as cm_nt_mpz_cornacchia. As PARI
-      uses a half gcd, it should be asymptotically faster. */
 {
-   pari_sp av;
-   GEN px, py;
-   long res;
+   /* Compute t such that 4*p = t^2-v^2*d for some v, where p is an odd
+      prime and d is an imaginary-quadratic discriminant such that d is a
+      square modulo p and |d|<4*p.
+      The return value indicates whether such a t exists; if not, the
+      value of t is not changed during the algorithm. If yes and v is not
+      NULL, it is changed.
+      If root is not NULL, it is assumed to contain a pre-computed
+      square root of d modulo p. */
 
+   pari_sp av;
+   GEN half, M, R;
+   mpz_t rootloc;
+   mpz_t r0, r1, ri, rim1, rip1;
+      /* remainders 0, 1, i, i-1 and i+1 of the Euclidian algorithm */
+   mpz_t tp, vp;
+      /* candidates t' and v' for t and v */
+   mpz_t l;
+      /* stop Euclidian algorithm with ri > l >= rip1 */
+   mpz_t Vi, Vip1, qi;
+      /* Bezout coefficients in front of r1 at steps i and i+1,
+         and quotient at step i */
+   mpz_t tmp;
+   bool ok;
+
+   mpz_init (rootloc);
+   mpz_init (r0);
+   mpz_init (r1);
+   mpz_init (rip1);
+   mpz_init (tp);
+   mpz_init (vp);
+   mpz_init (tmp);
+
+   /* Prepare a root of d modulo p. */
+   if (root != NULL)
+      mpz_set (rootloc, root);
+   else
+      cm_nt_mpz_tonelli_si (rootloc, d, p);
+
+   /* Prepare the halfgcd. */
+   if ((d - 1) % 8 == 0) {
+      /* Solve p = (t/2)^2 + y^2 * (-d). */
+      mpz_set (r0, p);
+      mpz_set (r1, rootloc);
+   }
+   else if (d % 4 == 0) {
+      /* Solve p = (t/2)^2 + y^2 * (-d/4); we need to divide root by 2. */
+      mpz_set (r0, p);
+      if (!mpz_divisible_2exp_p (rootloc, 1))
+         mpz_sub (rootloc, p, rootloc);
+      mpz_divexact_ui (r1, rootloc, 2);
+   }
+   else {
+      /* d = 5 mod 8, the complicated case */
+      mpz_init (l);
+      mpz_init (ri);
+      mpz_init (Vi);
+      mpz_init (Vip1);
+
+      mpz_mul_2exp (r0, p, 1);
+      /* Make root odd, then it is a root of d modulo 4*p. */
+      if (mpz_divisible_2exp_p (rootloc, 1))
+         mpz_sub (r1, p, rootloc);
+      else
+         mpz_set (r1, rootloc);
+      mpz_mul_2exp (l, p, 2);
+      mpz_sqrt (l, l);
+   }
+
+   /* Delegate the halfgcd to pari. */
    av = avma;
-   res = cornacchia2_sqrt (icl_get_Z (-d), mpz_get_Z (p), mpz_get_Z (root),
-      &px, &py);
-   if (res == 1) {
-      Z_get_mpz (t, px);
-      if (v != NULL)
-         Z_get_mpz (v, py);
+   half = ghalfgcd (mpz_get_Z (r0), mpz_get_Z (r1));
+   R = gel (half, 2);
+   Z_get_mpz (rip1, gel (R, 2));
+   if ((d - 5) % 8 == 0) {
+      Z_get_mpz (ri, gel (R, 1));
+      M = gel (half, 1);
+      Z_get_mpz (Vi, gcoeff (M, 1, 2));
+      Z_get_mpz (Vip1, gcoeff (M, 2, 2));
    }
    avma = av;
 
-   return (res == 1);
+   /* Determine the candidate for t. */
+   if ((d - 5) % 8 != 0)
+      mpz_mul_2exp (tp, rip1, 1);
+   else {
+      if (mpz_cmp (ri, l) > 0)
+         mpz_set (tp, rip1);
+      else {
+         /* Compute the previous remainder r_{i-1}. */
+         mpz_init (rim1);
+         mpz_init (qi);
+         mpz_tdiv_q (qi, Vip1, Vi);
+         mpz_abs (qi, qi);
+         mpz_mul (rim1, ri, qi);
+         mpz_add (rim1, rim1, rip1);
+
+         if (mpz_cmp (rim1, l) > 0)
+            mpz_set (tp, ri);
+         else
+            /* Now we have sqrt (4*p) > r_{i-1} > r_i > sqrt (2*p)
+               and r_{i+1} < sqrt (2*p), since by the properties of the
+               halfgcd r_{i+1} is the first remainder below this bound.
+               This implies
+               r_{i-2} = q_{i-1} * r_{i-1}    + r_i
+                       >     1   * sqrt (2*p) + sqrt (2*p)
+                       > sqrt (4*p),
+               so there is no need to go further up. */
+            mpz_set (tp, rim1);
+
+         mpz_clear (rim1);
+         mpz_clear (qi);
+      }
+
+      mpz_clear (l);
+      mpz_clear (ri);
+      mpz_clear (Vi);
+      mpz_clear (Vip1);
+   }
+
+   /* Check whether v exists. */
+   mpz_mul_2exp (vp, p, 2);
+   mpz_pow_ui (tmp, tp, 2);
+   mpz_sub (vp, vp, tmp);
+   if (!mpz_divisible_ui_p (vp, -d))
+      ok = false;
+   else {
+      mpz_divexact_ui (vp, vp, -d);
+      if (!mpz_perfect_square_p (vp))
+            ok = false;
+      else
+            ok = true;
+   }
+   if (ok) {
+      mpz_set (t, tp);
+      if (v != NULL)
+         mpz_root (v, vp, 2);
+   }
+
+   mpz_clear (rootloc);
+   mpz_clear (r0);
+   mpz_clear (r1);
+   mpz_clear (rip1);
+   mpz_clear (tp);
+   mpz_clear (vp);
+   mpz_clear (tmp);
+
+   return ok;
 }
 
 /*****************************************************************************/
