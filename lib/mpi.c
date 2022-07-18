@@ -139,26 +139,28 @@ static void mpi_bcast_recv_mpz (mpz_ptr z, MPI_Comm comm)
 static int mpi_compute_split_m ()
    /* Return the number m of communicators into which the world communicator
       is split; this is used for batching numbers in the trial division
-      step. We would like to use about 8 communicators; since only
+      step. We would like to use about 16 communicators; since only
       m * floor (w / m) with w = size - 1  workers will be used for the gcd
       phase, it would also be nice if m divided w, but w + 1 is often a
-      power of 2. So for some values of w we choose different m. */
+      power of 2. So w try to choose m close to 16 so that w is not much
+      above a multiple of m. */
 {
-   int size, w;
+   int size, w, i;
 
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    w = size - 1;
 
-   if (w < 8)
+   if (w < 16)
       return w;
-   else if (w % 8 == 0 || (w - 1) % 8 == 0)
-      return 8;
-   else if (w % 9 == 0 || (w - 1) % 9 == 0)
-      return 9;
-   else if (w % 7 == 0 || (w - 1) % 7 == 0)
-      return 7;
-   else
-      return 8;
+
+   for (i = 16; i <= 18; i++)
+      if (w % i == 0 || (w - 1) % i == 0 || (w - 2) % i == 0)
+         return i;
+   for (i = 15; i >= 14; i--)
+      if (w % i == 0 || (w - 1) % i == 0 || (w - 2) % i == 0)
+         return i;
+
+   return 16;
 }
 
 unsigned long int cm_mpi_compute_B ()
