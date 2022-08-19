@@ -274,30 +274,20 @@ bool cm_pari_eval_int (mpz_ptr n, char *e)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
-   bool verbose)
+void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p)
    /* Find a root of the polynomial f over the prime field of
       characteristic p, assuming that f splits completely, and return it
       in the variable of the same name. */
 {
    GEN fp, pp, rootp;
-   cm_timer_t clock;
 
    pari_sp av = avma;
-
-   cm_timer_start (clock);
-   if (verbose)
-      printf ("--- Root finding in degree %i\n", f->deg);
 
    pp = mpz_get_Z (p);
    fp = mpzx_get_FpX (f, p);
 
    rootp = FpX_oneroot_split (fp, pp);
    Z_get_mpz (root, rootp);
-
-   cm_timer_stop (clock);
-   if (verbose)
-      printf ("-- Time for root: %.1f\n", cm_timer_get (clock));
 
    avma = av;
 }
@@ -350,18 +340,15 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
    cm_timer_t clock;
 
    cm_timer_start (clock);
-   if (verbose)
-      printf ("-- Root finding in degree %i\n", f->deg);
 
    if (f->deg <= 3)
       /* PARI implements the formula for degree 2, and, since version 2.15,
          also for degree 3. We may as well let it handle the case
          of degree 1. */
-      cm_pari_oneroot (root, f, p, verbose);
+      cm_pari_oneroot (root, f, p);
    else {
       mpz_init (zeta);
       n = good_root_of_unity (zeta, p, f->deg);
-      printf ("n %i\n", n);
       /* Fix a target degree of the factor for early abort to avoid more
          gcds when the factor is "small enough". The average degree of
          the gcd is f->deg / n; we stop at about twice that, with a bound
@@ -424,8 +411,6 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
    }
 
    cm_timer_stop (clock);
-   if (verbose)
-      printf ("-- Time for root: %.1f\n", cm_timer_get (clock));
 }
 
 /*****************************************************************************/
@@ -436,6 +421,13 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
       of characteristic p, assuming that f splits completely. */
 {
    mpzx_t F;
+   cm_timer_t clock;
+
+   cm_timer_start (clock);
+   if (verbose && f->deg > 1) {
+      printf ("  Root finding in degree %i\n", f->deg);
+      fflush (stdout);
+   }
 
    mpzx_init (F, f->deg);
    mpzx_mod (F, f, p);
@@ -443,6 +435,12 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    mpzx_oneroot_split_mod_rec (root, F, p, verbose);
 
    mpzx_clear (F);
+
+   cm_timer_stop (clock);
+   if (verbose && f->deg > 1) {
+      printf ("  Time for root: %.1f\n", cm_timer_get (clock));
+      fflush (stdout);
+   }
 }
 
 /*****************************************************************************/

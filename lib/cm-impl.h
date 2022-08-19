@@ -114,8 +114,7 @@ extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
 /* functions depending on PARI */
 extern void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f,
    mpz_srcptr p, bool verbose);
-extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
-   bool verbose);
+extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p);
 extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
 extern int cm_pari_classgroup_2quotient (int_cl_t d, const int *p,
@@ -205,7 +204,8 @@ extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
 extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
    mpz_ptr y, cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool print, bool verbose, cm_stat_t stat);
+   const char* modpoldir, bool print, bool verbose, bool debug,
+   cm_stat_t stat);
 
 
 /* functions for ECPP */

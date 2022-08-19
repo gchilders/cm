@@ -1569,20 +1569,25 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
    cm_timer_continue (stat->timer [1]);
    ecpp_param_init (param, d);
 
+   if (verbose) {
+      printf ("Starting %4i (discriminant %11"PRIicl
+         ", invariant %c, parameters %13s)\n",
+         i, d, param->invariant, param->str);
+      fflush (stdout);
+   }
+
    /* Compute the class field tower. */
    cm_class_init (c, param, false);
    cm_class_compute (c, param, false, true, false);
    cm_timer_stop (stat->timer [1]);
 
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co,
-      modpoldir, false, false, stat);
+      modpoldir, false, verbose, debug, stat);
    cm_class_clear (c);
    cm_timer_stop (clock);
 
    if (verbose) {
-      printf ("Time for %4i (discriminant %11"PRIicl
-         ", invariant %c, parameters %13s): %6.0f\n",
-         i, d, param->invariant, param->str, cm_timer_get (clock));
+      printf ("Time for %4i: %6.0f\n", i, cm_timer_get (clock));
       if (debug) {
          printf ("  CM:    %5.0f\n", cm_timer_get (stat->timer [1]));
          printf ("  roots: %5.0f\n", cm_timer_get (stat->timer [2]));
