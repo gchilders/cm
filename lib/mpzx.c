@@ -78,6 +78,19 @@ void mpzx_clear (mpzx_ptr f)
 
 /*****************************************************************************/
 
+void mpzx_set_deg (mpzx_ptr f, int deg)
+   /* Modify the degree of f to deg; this destroys the content of f if
+      the old and the new degree are different. Otherwise the function
+      does nothing. */
+{
+   if (deg != f->deg) {
+      mpzx_clear (f);
+      mpzx_init (f, deg);
+   }
+}
+
+/*****************************************************************************/
+
 bool cm_mpfrx_get_mpzx (mpzx_ptr g, mpfrx_srcptr f)
    /* Try to round f to g; the return value reflects the success of the
       operation. It is assumed that g already has the same degree as f. */
