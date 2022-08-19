@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static GEN mpz_get_Z (mpz_srcptr z);
 static void Z_get_mpz (mpz_ptr z, GEN x);
 static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
+static void FpX_get_mpzx (mpzx_ptr f, GEN x);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -104,8 +105,8 @@ static int_cl_t Z_get_icl (GEN x)
 /*****************************************************************************/
 
 static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p)
-   /* Return a GEN of type t_POL over t_INT corresponding to the polynomial
-      f, reduced modulo p. */
+   /* Return a GEN of type t_POL over t_INT corresponding to the
+      polynomial f, reduced modulo p. */
 
 {
    int i;
@@ -131,6 +132,19 @@ static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p)
    return res;
 }
 
+/*****************************************************************************/
+
+static void FpX_get_mpzx (mpzx_ptr f, GEN x)
+   /* Return the lift of x from FpX to a polynomial over the integers
+      in f. */
+{
+   int deg, i;
+
+   deg = (signe (x) == 0 ? -1 : (int) poldegree (x, 0));
+   mpzx_set_deg (f, deg);
+   for (i = 0; i <= deg; i++)
+      Z_get_mpz (f->coeff [i], gel (x, i+2));
+}
 
 /*****************************************************************************/
 /*                                                                           */
