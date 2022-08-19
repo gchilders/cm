@@ -587,7 +587,7 @@ mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
    mpz_clear (root);
    cm_timer_stop (clock);
    if (verbose) {
-      printf ("  Time for j: %.1f\n", cm_timer_get (clock));
+      cm_file_printf ("  Time for j: %.1f\n", cm_timer_get (clock));
       fflush (stdout);
    }
 

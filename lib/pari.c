@@ -424,10 +424,8 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    cm_timer_t clock;
 
    cm_timer_start (clock);
-   if (verbose && f->deg > 1) {
-      printf ("  Root finding in degree %i\n", f->deg);
-      fflush (stdout);
-   }
+   if (verbose && f->deg > 1)
+      cm_file_printf ("  Root finding in degree %i\n", f->deg);
 
    mpzx_init (F, f->deg);
    mpzx_mod (F, f, p);
@@ -437,10 +435,8 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    mpzx_clear (F);
 
    cm_timer_stop (clock);
-   if (verbose && f->deg > 1) {
-      printf ("  Time for root: %.1f\n", cm_timer_get (clock));
-      fflush (stdout);
-   }
+   if (verbose && f->deg > 1)
+      cm_file_printf ("  Time for root: %.1f\n", cm_timer_get (clock));
 }
 
 /*****************************************************************************/

@@ -30,6 +30,32 @@ static bool read_stat (FILE *f, cm_stat_t stat);
 static void mpz_out_hex (FILE *f, mpz_t z);
 
 /*****************************************************************************/
+/*                                                                           */
+/* Printing data augmented with the MPI rank and wallclock time.             */
+/*                                                                           */
+/*****************************************************************************/
+
+void cm_file_printf (char *fmt, ...)
+{
+   va_list ap;
+
+#ifdef WITH_MPI
+   int rank;
+   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+#endif
+
+   va_start (ap, fmt);
+#ifndef WITH_MPI
+   vprintf (fmt, ap);
+#else
+   printf ("[%4i] (%li)  ", rank, time (NULL) - cm_mpi_zero);
+   vprintf (fmt, ap);
+#endif
+   va_end (ap);
+   fflush (stdout);
+}
+
+/*****************************************************************************/
 
 bool cm_file_open_write (FILE **f, const char *filename)
 {

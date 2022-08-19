@@ -45,6 +45,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_MIN(a,b) ((a) < (b) ? (a) : (b))
 #define CM_MAX(a,b) ((a) > (b) ? (a) : (b))
 
+extern time_t cm_mpi_zero;
+
 typedef struct {
    cm_modular_t m;
    int_cl_t d;
@@ -228,6 +230,7 @@ extern void cm_stat_init (cm_stat_t stat);
 
 
 /* functions operating on files */
+extern void cm_file_printf (char *fmt, ...);
 extern bool cm_file_open_read_write (FILE **f, const char *filename);
 extern bool cm_file_write_h (const char *tmpdir, const unsigned int *h,
    unsigned int n);
