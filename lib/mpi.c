@@ -37,6 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_CLEAR_N        12
 #define MPI_TAG_JOB_GCD            13
 #define MPI_TAG_JOB_GCD_REDUCE     14
+#define MPI_TAG_JOB_BROADCAST_INIT 15
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -165,6 +166,8 @@ static int mpi_compute_split_m ()
    return 16;
 }
 
+/*****************************************************************************/
+
 unsigned long int cm_mpi_compute_B ()
 {
    int size, m;
@@ -175,6 +178,7 @@ unsigned long int cm_mpi_compute_B ()
    return (1ul << 23) * (size - 1);
 }
 
+/*****************************************************************************/
 
 static MPI_Comm mpi_communicator_split ()
    /* Split the world communicator into m parts, as determined by
@@ -215,6 +219,8 @@ static MPI_Comm mpi_communicator_split ()
    return res;
 }
 
+/*****************************************************************************/
+
 static void mpi_communicator_free (void)
    /* Free the communicators created by mpi_communicator_split. */
 {
@@ -234,6 +240,24 @@ static void mpi_communicator_free (void)
 /*                                                                           */
 /* Submitting jobs and retrieving their results.                             */
 /*                                                                           */
+/*****************************************************************************/
+
+void cm_mpi_broadcast_init (bool verbose, bool debug)
+   /* Send common data to all workers. */
+{
+   int size, rank;
+   int v, d;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++)
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_INIT,
+         MPI_COMM_WORLD);
+   v = verbose;
+   d = debug;
+   MPI_Bcast (&v, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   MPI_Bcast (&d, 1, MPI_INT, 0, MPI_COMM_WORLD);
+}
+
 /*****************************************************************************/
 
 void cm_mpi_broadcast_N (mpz_srcptr N)
@@ -703,6 +727,8 @@ static void mpi_worker ()
    int i;
    
    /* Broadcast values. */
+   int b;
+   bool verbose = false, debug = false;
    mpz_t N;
    int no_qstar, no_qstar_old, no_qstar_new;
    long int *qstar;
@@ -790,6 +816,12 @@ static void mpi_worker ()
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       cm_stat_init (stat);
       switch (status.MPI_TAG) {
+      case MPI_TAG_JOB_BROADCAST_INIT:
+         MPI_Bcast (&b, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         verbose = b;
+         MPI_Bcast (&b, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         debug = b;
+         break;
       case MPI_TAG_JOB_BROADCAST_N:
          mpi_bcast_recv_mpz (N, MPI_COMM_WORLD);
          e = cm_nt_mpz_tonelli_generator (r, z, N);
@@ -867,7 +899,7 @@ static void mpi_worker ()
             MPI_COMM_WORLD, &status);
          modpoldir [len] = '\0';
 
-         cm_ecpp_one_step2 (cert2, cert1, job, modpoldir, true, false,
+         cm_ecpp_one_step2 (cert2, cert1, job, modpoldir, verbose, debug,
             stat);
          free (modpoldir);
 
