@@ -27,6 +27,12 @@ static GEN mpz_get_Z (mpz_srcptr z);
 static void Z_get_mpz (mpz_ptr z, GEN x);
 static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
 static void FpX_get_mpzx (mpzx_ptr f, GEN x);
+static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
+   mpzx_srcptr m, mpz_srcptr p);
+static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p);
+static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -144,6 +150,74 @@ static void FpX_get_mpzx (mpzx_ptr f, GEN x)
    mpzx_set_deg (f, deg);
    for (i = 0; i <= deg; i++)
       Z_get_mpz (f->coeff [i], gel (x, i+2));
+}
+
+/*****************************************************************************/
+/*                                                                           */
+/* Functions for mpzx modulo p relying on PARI.                              */
+/*                                                                           */
+/*****************************************************************************/
+
+static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
+   mpzx_srcptr m, mpz_srcptr p)
+   /* Compute g = f^e modulo m and p. */
+{
+   GEN fp, ep, mp, pp, gp;
+
+   pari_sp av = avma;
+
+   fp = mpzx_get_FpX (f, p);
+   ep = mpz_get_Z (e);
+   mp = mpzx_get_FpX (m, p);
+   pp = mpz_get_Z (p);
+
+   gp = FpXQ_pow (fp, ep, mp, pp);
+
+   FpX_get_mpzx (g, gp);
+
+   avma = av;
+}
+
+/*****************************************************************************/
+
+static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p)
+   /* Compute h = gcd (f, g) modulo p. */
+{
+   GEN fp, gp, pp, hp;
+
+   pari_sp av = avma;
+
+   fp = mpzx_get_FpX (f, p);
+   gp = mpzx_get_FpX (g, p);
+   pp = mpz_get_Z (p);
+
+   hp = FpX_gcd (fp, gp, pp);
+
+   FpX_get_mpzx (h, hp);
+
+   avma = av;
+}
+
+/*****************************************************************************/
+
+static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p)
+   /* Assuming that g divides f, compute the quotient in h. */
+{
+   GEN fp, gp, pp, hp;
+
+   pari_sp av = avma;
+
+   fp = mpzx_get_FpX (f, p);
+   gp = mpzx_get_FpX (g, p);
+   pp = mpz_get_Z (p);
+
+   hp = FpX_div (fp, gp, pp);
+
+   FpX_get_mpzx (h, hp);
+
+   avma = av;
 }
 
 /*****************************************************************************/
