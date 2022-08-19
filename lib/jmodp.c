@@ -190,12 +190,6 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
       mpz_clear (omega);
       mpzx_clear (classpol_p);
    }
-
-   if (verbose) {
-      printf ("Root: ");
-      mpz_out_str (stdout, 10, root);
-      printf ("\n");
-   }
 }
 
 /*****************************************************************************/
@@ -214,12 +208,6 @@ static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
       mpzxx_eval_mod_p (fp, t->W [i], t->d [i], root, p);
       mpzx_oneroot_split_mod (root, fp, p, verbose);
       mpzx_clear (fp);
-   }
-
-   if (verbose) {
-      printf ("Root: ");
-      mpz_out_str (stdout, 10, root);
-      printf ("\n");
    }
 }
 
@@ -246,12 +234,6 @@ static void get_quadratic_tower_root_mod_p (mpz_ptr root,
          omega, p);
       mpzx_oneroot_split_mod (root, fp, p, verbose);
       mpzx_clear (fp);
-   }
-
-   if (verbose) {
-      printf ("Root: ");
-      mpz_out_str (stdout, 10, root);
-      printf ("\n");
    }
 }
 
@@ -605,18 +587,8 @@ mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
    mpz_clear (root);
    cm_timer_stop (clock);
    if (verbose) {
-      int i;
-
-      printf ("%i candidate", *no);
-      if (*no > 1)
-         printf ("s");
-      printf (" for j:");
-      for (i = 0; i < *no; i++) {
-         printf ("\n ");
-         mpz_out_str (stdout, 10, j [i]);
-      }
-      printf ("\n");
-      printf ("--- Time for j: %.1f\n", cm_timer_get (clock));
+      printf ("  Time for j: %.1f\n", cm_timer_get (clock));
+      fflush (stdout);
    }
 
    return j;
