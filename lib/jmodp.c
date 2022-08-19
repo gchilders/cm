@@ -2,7 +2,7 @@
 
 jmodp.c - code for obtaining a j-invariant from a class polynomial
 
-Copyright (C) 2009, 2010, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -174,7 +174,7 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
    mpzx_t classpol_p;
 
    if (param->field == CM_FIELD_REAL)
-      cm_pari_oneroot (root, c->classpol, p, verbose);
+      mpzx_oneroot_split_mod (root, c->classpol, p, verbose);
    else {
       mpz_init (omega);
       cm_timer_start (clock);
@@ -185,7 +185,7 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
 
       mpzx_init (classpol_p, c->classpol->deg);
       quadraticx_mod_p (classpol_p, c->classpol, c->classpol_c, omega, p);
-      cm_pari_oneroot (root, classpol_p, p, verbose);
+      mpzx_oneroot_split_mod (root, classpol_p, p, verbose);
 
       mpz_clear (omega);
       mpzx_clear (classpol_p);
@@ -208,11 +208,11 @@ static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
    int i;
    mpzx_t fp;
 
-   cm_pari_oneroot (root, t->W [0][0], p, verbose);
+   mpzx_oneroot_split_mod (root, t->W [0][0], p, verbose);
    for (i = 1; i < t->levels; i++) {
       mpzx_init (fp, t->d [i]);
       mpzxx_eval_mod_p (fp, t->W [i], t->d [i], root, p);
-      cm_pari_oneroot (root, fp, p, verbose);
+      mpzx_oneroot_split_mod (root, fp, p, verbose);
       mpzx_clear (fp);
    }
 
@@ -238,13 +238,13 @@ static void get_quadratic_tower_root_mod_p (mpz_ptr root,
 
    mpzx_init (fp, t->d [0]);
    quadraticx_mod_p (fp, t->W [0][0], u->W [0][0], omega, p);
-   cm_pari_oneroot (root, fp, p, verbose);
+   mpzx_oneroot_split_mod (root, fp, p, verbose);
    mpzx_clear (fp);
    for (i = 1; i < t->levels; i++) {
       mpzx_init (fp, t->d [i]);
       quadraticxx_eval_mod_p (fp, t->W [i], u->W [i], t->d [i], root,
          omega, p);
-      cm_pari_oneroot (root, fp, p, verbose);
+      mpzx_oneroot_split_mod (root, fp, p, verbose);
       mpzx_clear (fp);
    }
 
