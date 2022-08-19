@@ -33,6 +33,9 @@ static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p);
 static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p);
+static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg);
+static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
+   mpz_srcptr p, bool verbose);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -271,17 +274,16 @@ bool cm_pari_eval_int (mpz_ptr n, char *e)
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p, bool verbose)
+void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
+   bool verbose)
    /* Find a root of the polynomial f over the prime field of
       characteristic p, assuming that f splits completely, and return it
       in the variable of the same name. */
-
 {
-   pari_sp av;
    GEN fp, pp, rootp;
    cm_timer_t clock;
 
-   av = avma;
+   pari_sp av = avma;
 
    cm_timer_start (clock);
    if (verbose)
@@ -299,6 +301,149 @@ void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p, bool verbose)
 
    avma = av;
    parivstack_reset();
+}
+
+/*****************************************************************************/
+
+static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
+   /* Compute in zeta a root of unity in F_p with p odd that is suitable
+      for finding a root of a totally split polynomial of degree deg > 1;
+      its order n is returned. A good choice seems to be n close to deg;
+      we decrement it until it divides p-1. */
+
+{
+   GEN pp, pm1, factn, e, base, zetap;
+   int n;
+
+   pari_sp av = avma;
+
+   pp = mpz_get_Z (p);
+   pm1 = subis (pp, 1ul);
+   for (n = deg; !dvdiu (pm1, n); n--);
+
+   factn = Z_factor (stoi (n));
+   e = diviuexact (pm1, n);
+   base = gen_1;
+   do {
+      base = addis (base, 1l);
+      zetap = Fp_pow (base, e, pp);
+   }
+   while (!equaliu (Fp_order (zetap, factn, pp), n));
+
+   Z_get_mpz (zeta, zetap);
+
+   avma = av;
+
+   return n;
+}
+
+/*****************************************************************************/
+
+static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
+   mpz_srcptr p, bool verbose)
+   /* Compute in root a root of the polynomial f over the prime field
+      of characteristic p, assuming that f splits completely and that
+      its coefficients are reduced modulo p. */
+{
+   int n, target, min, i;
+   mpz_t zeta, e, zeta_i;
+   mpzx_t factor, xplusa, pow, gcd;
+   cm_timer_t clock;
+
+   cm_timer_start (clock);
+   if (verbose)
+      printf ("-- Root finding in degree %i\n", f->deg);
+
+   if (f->deg <= 3)
+      /* PARI implements the formula for degree 2, and, since version 2.15,
+         also for degree 3. We may as well let it handle the case
+         of degree 1. */
+      cm_pari_oneroot (root, f, p, verbose);
+   else {
+      mpz_init (zeta);
+      n = good_root_of_unity (zeta, p, f->deg);
+      printf ("n %i\n", n);
+      /* Fix a target degree of the factor for early abort to avoid more
+         gcds when the factor is "small enough". The average degree of
+         the gcd is f->deg / n; we stop at about twice that, with a bound
+         guaranteed to be at most f->deg - 1 and at least 1 since
+         2 <= n <= f->deg. */
+      target = (2 * f->deg) / n - 1;
+      mpz_init (e);
+      mpz_sub_ui (e, p, 1);
+      mpz_divexact_ui (e, e, n);
+      mpzx_init (xplusa, 1);
+      mpz_set_ui (xplusa->coeff [1], 1);
+      mpz_set_ui (xplusa->coeff [0], 0);
+      mpzx_init (pow, f->deg - 1);
+      mpzx_init (gcd, -1);
+      mpz_init (zeta_i);
+      mpzx_init (factor, -1);
+      while (factor->deg == -1) {
+         mpz_add_ui (xplusa->coeff [0], xplusa->coeff [0], 1);
+         mpzx_pow_modmod (pow, xplusa, e, f, p);
+         mpz_set_ui (zeta_i, 1);
+         if (pow->deg >= 1)
+            for (i = 1;
+               i <= n && (factor->deg == -1 || factor->deg > target);
+               i++) {
+               mpz_mul (zeta_i, zeta_i, zeta);
+               mpz_mod (zeta_i, zeta_i, p); /* zeta^i */
+               /* Shift the power and compute the gcd with f. */
+               mpz_sub (pow->coeff [0], pow->coeff [0], zeta_i);
+               mpz_mod (pow->coeff [0], pow->coeff [0], p);
+               mpzx_gcd_mod (gcd, pow, f, p);
+               /* Shift the power back. */
+               mpz_add (pow->coeff [0], pow->coeff [0], zeta_i);
+               mpz_mod (pow->coeff [0], pow->coeff [0], p);
+               if (gcd->deg >= 1) {
+                  /* Consider the smaller one of gcd and f / gcd. Since gcd
+                     usually has a low degree, this optimisation is of
+                     interest only when f has low degree, so without much
+                     impact overall. */
+                  min = CM_MIN (gcd->deg, f->deg - gcd->deg);
+                  if (factor->deg == -1 || min < factor->deg) {
+                     if (min != gcd->deg)
+                        mpzx_divexact_mod (gcd, f, gcd, p);
+                     mpzx_clear (factor);
+                     factor [0] = gcd [0];
+                     mpzx_init (gcd, -1);
+                  }
+               }
+            }
+      }
+
+      /* Recurse with the found factor. */
+      mpzx_oneroot_split_mod_rec (root, factor, p, verbose);
+      mpz_clear (zeta);
+      mpz_clear (e);
+      mpzx_clear (xplusa);
+      mpzx_clear (pow);
+      mpzx_clear (gcd);
+      mpz_clear (zeta_i);
+      mpzx_clear (factor);
+   }
+
+   cm_timer_stop (clock);
+   if (verbose)
+      printf ("-- Time for root: %.1f\n", cm_timer_get (clock));
+}
+
+/*****************************************************************************/
+
+void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
+   bool verbose)
+   /* Compute in root a root of the monic polynomial f over the prime field
+      of characteristic p, assuming that f splits completely. */
+{
+   mpzx_t F;
+
+   mpzx_init (F, f->deg);
+   mpzx_mod (F, f, p);
+
+   mpzx_oneroot_split_mod_rec (root, F, p, verbose);
+
+   mpzx_clear (F);
 }
 
 /*****************************************************************************/
