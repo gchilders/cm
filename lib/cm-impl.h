@@ -128,6 +128,7 @@ extern int cm_pari_classgroup_2quotient (int_cl_t d, const int *p,
 extern void mpzx_init (mpzx_ptr f, int deg);
 extern void mpzx_clear (mpzx_ptr f);
 extern void mpzx_set_deg (mpzx_ptr f, int deg);
+extern void mpzx_mod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr p);
 extern bool cm_mpfrx_get_mpzx (mpzx_ptr g, mpfrx_srcptr f);
 extern bool cm_mpcx_get_quadraticx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
    int_cl_t d);

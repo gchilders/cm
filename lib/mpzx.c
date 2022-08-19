@@ -91,6 +91,18 @@ void mpzx_set_deg (mpzx_ptr f, int deg)
 
 /*****************************************************************************/
 
+void mpzx_mod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr p)
+   /* Compute g = f modulo p. */
+{
+   int i;
+
+   mpzx_set_deg (g, f->deg);
+   for (i = 0; i <= f->deg; i++)
+      mpz_mod (g->coeff [i], f->coeff [i], p);
+}
+
+/*****************************************************************************/
+
 bool cm_mpfrx_get_mpzx (mpzx_ptr g, mpfrx_srcptr f)
    /* Try to round f to g; the return value reflects the success of the
       operation. It is assumed that g already has the same degree as f. */
