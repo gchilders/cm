@@ -39,6 +39,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_GCD_REDUCE     14
 #define MPI_TAG_JOB_BROADCAST_INIT 15
 
+time_t cm_mpi_zero;
+
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
 static int *worker_queue, *worker_queue_local;
@@ -1163,6 +1165,7 @@ void cm_mpi_init (bool debug)
 {
    int size, rank;
 
+   time (&cm_mpi_zero);
    MPI_Init (NULL, NULL);
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);

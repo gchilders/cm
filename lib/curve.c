@@ -840,10 +840,8 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       printf ("y = "); mpz_out_str (stdout, 10, y); printf ("\n");
       fflush (stdout);
    }
-   if (verbose) {
-      printf ("  Time for curve: %.1f\n", cm_timer_get (clock));
-      fflush (stdout);
-   }
+   if (verbose)
+      cm_file_printf ("  Time for curve: %.1f\n", cm_timer_get (clock));
 
    for (i = 0; i < no_j; i++)
       mpz_clear (j [i]);
