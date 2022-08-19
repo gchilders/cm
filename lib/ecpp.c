@@ -1765,6 +1765,10 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
    double t;
    FILE *f;
 
+#ifdef WITH_MPI
+   cm_mpi_broadcast_init (verbose, debug);
+#endif
+
    if (!trust) {
       cm_timer_start (clock);
       if (!mpz_probab_prime_p (N, 1)) {
