@@ -754,7 +754,7 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
 
    if (stat != NULL)
       cm_timer_continue (stat->timer [2]);
-   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
+   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose, debug);
    if (stat != NULL)
       cm_timer_stop (stat->timer [2]);
 
