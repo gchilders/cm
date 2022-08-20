@@ -35,7 +35,7 @@ static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p);
 static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg);
 static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, bool verbose);
+   mpz_srcptr p, bool verbose, bool debug);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -330,7 +330,7 @@ static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
 /*****************************************************************************/
 
 static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, bool verbose)
+   mpz_srcptr p, bool verbose, bool debug)
    /* Compute in root a root of the polynomial f over the prime field
       of characteristic p, assuming that f splits completely and that
       its coefficients are reduced modulo p. */
@@ -338,7 +338,7 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
    int n, target, min, i;
    mpz_t zeta, e, zeta_i;
    mpzx_t factor, xplusa, pow, gcd;
-   cm_timer_t clock;
+   cm_timer_t clock, clock2;
 
    cm_timer_start (clock);
 
@@ -356,6 +356,8 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
          guaranteed to be at most f->deg - 1 and at least 1 since
          2 <= n <= f->deg. */
       target = (2 * f->deg) / n - 1;
+      if (debug)
+         cm_file_printf ("    n = %i, target = %i\n", n, target);
       mpz_init (e);
       mpz_sub_ui (e, p, 1);
       mpz_divexact_ui (e, e, n);
@@ -367,13 +369,19 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
       mpz_init (zeta_i);
       mpzx_init (factor, -1);
       while (factor->deg == -1) {
+         cm_timer_start (clock2);
          mpz_add_ui (xplusa->coeff [0], xplusa->coeff [0], 1);
          mpzx_pow_modmod (pow, xplusa, e, f, p);
+         cm_timer_stop (clock2);
+         if (debug)
+            cm_file_printf ("    Time for power: %.1lf\n",
+               cm_timer_get (clock2));
          mpz_set_ui (zeta_i, 1);
          if (pow->deg >= 1)
             for (i = 1;
                i <= n && (factor->deg == -1 || factor->deg > target);
                i++) {
+               cm_timer_start (clock2);
                mpz_mul (zeta_i, zeta_i, zeta);
                mpz_mod (zeta_i, zeta_i, p); /* zeta^i */
                /* Shift the power and compute the gcd with f. */
@@ -383,6 +391,10 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
                /* Shift the power back. */
                mpz_add (pow->coeff [0], pow->coeff [0], zeta_i);
                mpz_mod (pow->coeff [0], pow->coeff [0], p);
+               cm_timer_stop (clock2);
+               if (debug)
+                  cm_file_printf ("    Time for gcd, degree %i: %.1lf\n",
+                     gcd->deg, cm_timer_get (clock2));
                if (gcd->deg >= 1) {
                   /* Consider the smaller one of gcd and f / gcd. Since gcd
                      usually has a low degree, this optimisation is of
@@ -401,7 +413,7 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
       }
 
       /* Recurse with the found factor. */
-      mpzx_oneroot_split_mod_rec (root, factor, p, verbose);
+      mpzx_oneroot_split_mod_rec (root, factor, p, verbose, debug);
       mpz_clear (zeta);
       mpz_clear (e);
       mpzx_clear (xplusa);
@@ -417,7 +429,7 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
 /*****************************************************************************/
 
 void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
-   bool verbose)
+   bool verbose, bool debug)
    /* Compute in root a root of the monic polynomial f over the prime field
       of characteristic p, assuming that f splits completely. */
 {
@@ -431,7 +443,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    mpzx_init (F, f->deg);
    mpzx_mod (F, f, p);
 
-   mpzx_oneroot_split_mod_rec (root, F, p, verbose);
+   mpzx_oneroot_split_mod_rec (root, F, p, verbose, debug);
 
    mpzx_clear (F);
 

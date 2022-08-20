@@ -120,7 +120,7 @@ extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
 
 /* functions depending on PARI */
 extern void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, bool verbose);
+   mpz_srcptr p, bool verbose, bool debug);
 extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p);
 extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
@@ -205,7 +205,8 @@ extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
 extern bool cm_class_write (cm_class_srcptr c, cm_param_srcptr param);
 extern bool cm_class_read (cm_class_ptr c, cm_param_srcptr param);
 extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
-   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir, bool verbose);
+   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir,
+   bool verbose, bool debug);
 
 /* functions for computing parameters of a complex multiplication curve */
 extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
