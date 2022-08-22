@@ -4,7 +4,7 @@ mpzx.c - code for handling polynomials with mpz coefficients
 Unless stated otherwise, the functions and their prototypes are
 inspired by mpfrcx.
 
-Copyright (C) 2021 Andreas Enge
+Copyright (C) 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -86,6 +86,29 @@ void mpzx_set_deg (mpzx_ptr f, int deg)
    if (deg != f->deg) {
       mpzx_clear (f);
       mpzx_init (f, deg);
+   }
+}
+
+/*****************************************************************************/
+
+int mpzx_cmp (mpzx_srcptr f, mpzx_srcptr g)
+   /* Compare f and g. The return value is 0 when both are equal, -1 when
+      f is smaller than g and +1 when f is larger than g for some arbitrary
+      ordering. */
+{
+   int i, cmp;
+
+   if (f->deg < g->deg)
+      return -1;
+   else if (f->deg > g->deg)
+      return 1;
+   else /* the degrees are equal */ {
+      for (i = f->deg; i >= 0; i--) {
+         cmp = mpz_cmp (f->coeff [i], g->coeff [i]);
+         if (cmp != 0)
+            return cmp;
+      }
+      return 0;
    }
 }
 
