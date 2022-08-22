@@ -177,6 +177,8 @@ GNU MPC (@pxref{EnGaThZi20}, version @value{MINMPC} or higher),
 MPFRCX (@pxref{Enge21}, version @value{MINMPFRCX} or higher) and
 PARI/GP (@pxref{Pari}, version @value{MINPARI} or higher,
 compiled with GMP as the arithmetic kernel).
+Additionally, FLINT (@pxref{Flint}) can be used if it is available,
+but it is not mandatory.
 Compilation of CM needs a standards compliant C compiler (preferably
 GCC).
 
@@ -231,9 +233,11 @@ to be passed in the @samp{./configure} step above by adding parameters
 @samp{--with-mpc=<mpc_install_dir>},
 @item
 @samp{--with-mpfrcx=<mpfrcx_install_dir>}
-and
 @item
 @samp{--with-pari=<pari_install_dir>}.
+and
+@item
+@samp{--with-flint=<flint_install_dir>}.
 @end itemize
 
 If you wish to compile the parallel, MPI version @code{ecpp-mpi} of the
@@ -1026,6 +1030,14 @@ The PARI group.
 @code{PARI/GP}.
 Version 2.13.4, 2022,
 @url{https://pari.math.u-bordeaux.fr/}
+
+@item
+@anchor{Flint}
+[Flint]
+William Hart et al.
+@code{FLINT}.
+Version 2.9.0, 2022,
+@url{https://flintlib.org/}
 
 @item
 @anchor{Primo}
