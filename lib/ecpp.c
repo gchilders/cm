@@ -1569,9 +1569,16 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
    cm_timer_continue (stat->timer [1]);
    ecpp_param_init (param, d);
 
-   if (verbose)
-      cm_file_printf ("Starting %4i (discriminant %11"PRIicl
-         ", invariant %c, parameters %13s)\n",
+   if (debug) {
+      char *h = cm_pari_sprintf_hfactor (d);
+      cm_file_printf ("Starting %4i: discriminant %"PRIicl
+         ", invariant %c, parameters %s; h=%s\n",
+         i, d, param->invariant, param->str, h);
+      free (h);
+   }
+   else if (verbose)
+      cm_file_printf ("Starting %4i: discriminant %"PRIicl
+         ", invariant %c, parameters %s\n",
          i, d, param->invariant, param->str);
 
    /* Compute the class field tower. */
