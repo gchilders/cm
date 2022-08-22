@@ -163,22 +163,51 @@ static void FpX_get_mpzx (mpzx_ptr f, GEN x)
 
 static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
    mpzx_srcptr m, mpz_srcptr p)
-   /* Compute g = f^e modulo m and p. */
+   /* Compute g = f^e modulo m and p, assuming e >= 0. */
 {
-   GEN fp, ep, mp, pp, gp;
+#ifdef HAVE_FLINT
+   fmpz_t pp, ep;
+   fmpz_mod_ctx_t ctx;
+   fmpz_mod_poly_t fp, mp, gp;
+
+   fmpz_init (pp);
+   fmpz_set_mpz (pp, p);
+   fmpz_init (ep);
+   fmpz_mod_ctx_init (ctx, pp);
+   fmpz_mod_poly_init (fp, ctx);
+   fmpz_mod_poly_init (mp, ctx);
+   fmpz_mod_poly_init (gp, ctx);
+
+   fmpz_set_mpz (ep, e);
+   fmpz_mod_poly_set_mpzx (fp, f, ctx);
+   fmpz_mod_poly_set_mpzx (mp, m, ctx);
+
+   fmpz_mod_poly_powmod_fmpz_binexp (gp, fp, ep, mp, ctx);
+
+   mpzx_set_fmpz_mod_poly (g, gp, ctx);
+
+   fmpz_clear (pp);
+   fmpz_clear (ep);
+   fmpz_mod_poly_clear (fp, ctx);
+   fmpz_mod_poly_clear (mp, ctx);
+   fmpz_mod_poly_clear (gp, ctx);
+   fmpz_mod_ctx_clear (ctx);
+#else
+   GEN pp, ep, fp, mp, gp;
 
    pari_sp av = avma;
 
-   fp = mpzx_get_FpX (f, p);
-   ep = mpz_get_Z (e);
-   mp = mpzx_get_FpX (m, p);
    pp = mpz_get_Z (p);
+   ep = mpz_get_Z (e);
+   fp = mpzx_get_FpX (f, p);
+   mp = mpzx_get_FpX (m, p);
 
    gp = FpXQ_pow (fp, ep, mp, pp);
 
    FpX_get_mpzx (g, gp);
 
    avma = av;
+#endif
 }
 
 /*****************************************************************************/
@@ -187,19 +216,45 @@ static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p)
    /* Compute h = gcd (f, g) modulo p. */
 {
-   GEN fp, gp, pp, hp;
+#ifdef HAVE_FLINT
+   fmpz_t pp;
+   fmpz_mod_ctx_t ctx;
+   fmpz_mod_poly_t fp, gp, hp;
+
+   fmpz_init (pp);
+   fmpz_set_mpz (pp, p);
+   fmpz_mod_ctx_init (ctx, pp);
+   fmpz_mod_poly_init (fp, ctx);
+   fmpz_mod_poly_init (gp, ctx);
+   fmpz_mod_poly_init (hp, ctx);
+
+   fmpz_mod_poly_set_mpzx (fp, f, ctx);
+   fmpz_mod_poly_set_mpzx (gp, g, ctx);
+
+   fmpz_mod_poly_gcd (hp, fp, gp, ctx);
+
+   mpzx_set_fmpz_mod_poly (h, hp, ctx);
+
+   fmpz_clear (pp);
+   fmpz_mod_poly_clear (fp, ctx);
+   fmpz_mod_poly_clear (gp, ctx);
+   fmpz_mod_poly_clear (hp, ctx);
+   fmpz_mod_ctx_clear (ctx);
+#else
+   GEN pp, fp, gp, hp;
 
    pari_sp av = avma;
 
+   pp = mpz_get_Z (p);
    fp = mpzx_get_FpX (f, p);
    gp = mpzx_get_FpX (g, p);
-   pp = mpz_get_Z (p);
 
    hp = FpX_gcd (fp, gp, pp);
 
    FpX_get_mpzx (h, hp);
 
    avma = av;
+#endif
 }
 
 /*****************************************************************************/
