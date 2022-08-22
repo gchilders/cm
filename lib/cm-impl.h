@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef __CM_IMPL_H
 #define __CM_IMPL_H
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +36,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #endif
 #include <pari/pari.h>
 #include "cm.h"
+#ifdef HAVE_FLINT
+#include <flint/fmpz_mod_poly.h>
+#endif
 
 #define CM_CLASS_DATADIR "."
 #define CM_CLASS_TMPDIR "."
@@ -126,6 +130,14 @@ extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
 extern int cm_pari_classgroup_2quotient (int_cl_t d, const int *p,
    int_cl_t *ord, cm_form_t *gen);
+
+#ifdef HAVE_FLINT
+/* functions depending on FLINT */
+void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
+   const fmpz_mod_ctx_t ctx);
+void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
+   const fmpz_mod_ctx_t ctx);
+#endif
 
 /* functions for integral polynomials */
 extern void mpzx_init (mpzx_ptr f, int deg);
