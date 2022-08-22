@@ -25,6 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static GEN mpz_get_Z (mpz_srcptr z);
 static void Z_get_mpz (mpz_ptr z, GEN x);
+static GEN icl_get_Z (int_cl_t z);
+static int_cl_t Z_get_icl (GEN x);
 static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
 static void FpX_get_mpzx (mpzx_ptr f, GEN x);
 static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
@@ -280,7 +282,7 @@ static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
 
 /*****************************************************************************/
 /*                                                                           */
-/* Exported functions.                                                       */
+/* Various simple functions.                                                 */
 /*                                                                           */
 /*****************************************************************************/
 
@@ -322,6 +324,24 @@ bool cm_pari_eval_int (mpz_ptr n, char *e)
    return ok;
 }
 
+/*****************************************************************************/
+
+char* cm_pari_sprintf_hfactor (int_cl_t d)
+   /* Return a newly allocated string containing the factorisation of the
+      class number of d. */
+{
+   char *h, *res;
+   pari_sp av = avma;
+
+   default0 ("output", "0");
+   h = pari_sprintf ("%Ps", factorint (qfbclassno0 (icl_get_Z (d), 0), 0));
+   res = (char *) malloc ((strlen (h) + 1) * sizeof (char));
+   strcpy (res, h);
+
+   avma = av;
+
+   return res;
+}
 
 /*****************************************************************************/
 /*                                                                           */

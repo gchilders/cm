@@ -130,6 +130,7 @@ extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
 extern int cm_pari_classgroup_2quotient (int_cl_t d, const int *p,
    int_cl_t *ord, cm_form_t *gen);
+extern char* cm_pari_sprintf_hfactor (int_cl_t d);
 
 #ifdef HAVE_FLINT
 /* functions depending on FLINT */
