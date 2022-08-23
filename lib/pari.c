@@ -29,8 +29,8 @@ static GEN icl_get_Z (int_cl_t z);
 static int_cl_t Z_get_icl (GEN x);
 static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
 static void FpX_get_mpzx (mpzx_ptr f, GEN x);
-static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
-   mpzx_srcptr m, mpz_srcptr p);
+static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
 static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p);
 static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
@@ -163,10 +163,9 @@ static void FpX_get_mpzx (mpzx_ptr f, GEN x)
 /*                                                                           */
 /*****************************************************************************/
 
-static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
-   mpzx_srcptr m, mpz_srcptr p)
-   /* Compute g = f^e modulo m and p, assuming e >= 0 and f linear and
-      monic. */
+static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p)
+   /* Compute g = (X+a)^e modulo m and p. */
 {
 #ifdef HAVE_FLINT
    fmpz_t pp, ep, ap;
@@ -183,7 +182,7 @@ static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
    fmpz_mod_poly_init (minv, ctx);
 
    fmpz_set_mpz (ep, e);
-   fmpz_set_mpz (ap, f->coeff [0]);
+   fmpz_set_ui (ap, a);
    fmpz_mod_poly_set_mpzx (mp, m, ctx);
    fmpz_mod_poly_reverse (minv, mp, mp->length, ctx);
    fmpz_mod_poly_inv_series (minv, minv, mp->length, ctx);
@@ -201,12 +200,17 @@ static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
    fmpz_mod_ctx_clear (ctx);
 #else
    GEN pp, ep, fp, mp, gp;
+   mpzx_t f;
 
    pari_sp av = avma;
 
    pp = mpz_get_Z (p);
    ep = mpz_get_Z (e);
+   mpzx_init (f, 1);
+   mpz_set_ui (f->coeff [1], 1);
+   mpz_set_ui (f->coeff [0], a);
    fp = mpzx_get_FpX (f, p);
+   mpzx_clear (f);
    mp = mpzx_get_FpX (m, p);
 
    gp = FpXQ_pow (fp, ep, mp, pp);
@@ -415,8 +419,9 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
       its coefficients are reduced modulo p. */
 {
    int n, target, min, i;
+   unsigned int a;
    mpz_t zeta, e, zeta_i;
-   mpzx_t factor, xplusa, pow, gcd;
+   mpzx_t factor, pow, gcd;
    cm_timer_t clock, clock2;
 
    cm_timer_start (clock);
@@ -440,17 +445,15 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
       mpz_init (e);
       mpz_sub_ui (e, p, 1);
       mpz_divexact_ui (e, e, n);
-      mpzx_init (xplusa, 1);
-      mpz_set_ui (xplusa->coeff [1], 1);
-      mpz_set_ui (xplusa->coeff [0], 0);
+      a = 0;
       mpzx_init (pow, f->deg - 1);
       mpzx_init (gcd, -1);
       mpz_init (zeta_i);
       mpzx_init (factor, -1);
       while (factor->deg == -1) {
          cm_timer_start (clock2);
-         mpz_add_ui (xplusa->coeff [0], xplusa->coeff [0], 1);
-         mpzx_pow_modmod (pow, xplusa, e, f, p);
+         a++;
+         mpzx_xplusa_pow_modmod (pow, a, e, f, p);
          cm_timer_stop (clock2);
          if (debug)
             cm_file_printf ("    Time for power: %.1lf\n",
@@ -495,7 +498,6 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
       mpzx_oneroot_split_mod_rec (root, factor, p, verbose, debug);
       mpz_clear (zeta);
       mpz_clear (e);
-      mpzx_clear (xplusa);
       mpzx_clear (pow);
       mpzx_clear (gcd);
       mpz_clear (zeta_i);
