@@ -165,34 +165,39 @@ static void FpX_get_mpzx (mpzx_ptr f, GEN x)
 
 static void mpzx_pow_modmod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr e,
    mpzx_srcptr m, mpz_srcptr p)
-   /* Compute g = f^e modulo m and p, assuming e >= 0. */
+   /* Compute g = f^e modulo m and p, assuming e >= 0 and f linear and
+      monic. */
 {
 #ifdef HAVE_FLINT
-   fmpz_t pp, ep;
+   fmpz_t pp, ep, ap;
    fmpz_mod_ctx_t ctx;
-   fmpz_mod_poly_t fp, mp, gp;
+   fmpz_mod_poly_t mp, gp, minv;
 
    fmpz_init (pp);
    fmpz_set_mpz (pp, p);
+   fmpz_init (ap);
    fmpz_init (ep);
    fmpz_mod_ctx_init (ctx, pp);
-   fmpz_mod_poly_init (fp, ctx);
    fmpz_mod_poly_init (mp, ctx);
    fmpz_mod_poly_init (gp, ctx);
+   fmpz_mod_poly_init (minv, ctx);
 
    fmpz_set_mpz (ep, e);
-   fmpz_mod_poly_set_mpzx (fp, f, ctx);
+   fmpz_set_mpz (ap, f->coeff [0]);
    fmpz_mod_poly_set_mpzx (mp, m, ctx);
+   fmpz_mod_poly_reverse (minv, mp, mp->length, ctx);
+   fmpz_mod_poly_inv_series (minv, minv, mp->length, ctx);
 
-   fmpz_mod_poly_powmod_fmpz_binexp (gp, fp, ep, mp, ctx);
+   fmpz_mod_poly_powmod_linear_fmpz_preinv (gp, ap, ep, mp, minv, ctx);
 
    mpzx_set_fmpz_mod_poly (g, gp, ctx);
 
    fmpz_clear (pp);
    fmpz_clear (ep);
-   fmpz_mod_poly_clear (fp, ctx);
+   fmpz_clear (ap);
    fmpz_mod_poly_clear (mp, ctx);
    fmpz_mod_poly_clear (gp, ctx);
+   fmpz_mod_poly_clear (minv, ctx);
    fmpz_mod_ctx_clear (ctx);
 #else
    GEN pp, ep, fp, mp, gp;
