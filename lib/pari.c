@@ -36,8 +36,8 @@ static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
 static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p);
 static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg);
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, bool verbose, bool debug);
+static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
+   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -412,14 +412,17 @@ static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
 
 /*****************************************************************************/
 
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, bool verbose, bool debug)
+static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
+   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug)
    /* Compute in root a root of the polynomial f over the prime field
       of characteristic p, assuming that f splits completely and that
-      its coefficients are reduced modulo p. */
+      its coefficients are reduced modulo p.
+      a is passed to the function so that subsequent calls with factors
+      of the initial polynomial continue incrementing it instead of
+      starting from an initial value that has already been "used up"
+      for splitting. */
 {
    int n, target, min, i;
-   unsigned int a;
    mpz_t zeta, e, zeta_i;
    mpzx_t factor, pow, gcd;
    cm_timer_t clock, clock2;
@@ -445,15 +448,14 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
       mpz_init (e);
       mpz_sub_ui (e, p, 1);
       mpz_divexact_ui (e, e, n);
-      a = 0;
       mpzx_init (pow, f->deg - 1);
       mpzx_init (gcd, -1);
       mpz_init (zeta_i);
       mpzx_init (factor, -1);
       while (factor->deg == -1) {
          cm_timer_start (clock2);
-         a++;
-         mpzx_xplusa_pow_modmod (pow, a, e, f, p);
+         (*a)++;
+         mpzx_xplusa_pow_modmod (pow, *a, e, f, p);
          cm_timer_stop (clock2);
          if (debug)
             cm_file_printf ("    Time for power: %.1lf\n",
@@ -495,7 +497,7 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, mpzx_srcptr f,
       }
 
       /* Recurse with the found factor. */
-      mpzx_oneroot_split_mod_rec (root, factor, p, verbose, debug);
+      mpzx_oneroot_split_mod_rec (root, a, factor, p, verbose, debug);
       mpz_clear (zeta);
       mpz_clear (e);
       mpzx_clear (pow);
@@ -516,6 +518,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
 {
    mpzx_t F;
    cm_timer_t clock;
+   unsigned long int a = 0;
 
    cm_timer_start (clock);
    if (verbose && f->deg > 1)
@@ -524,7 +527,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    mpzx_init (F, f->deg);
    mpzx_mod (F, f, p);
 
-   mpzx_oneroot_split_mod_rec (root, F, p, verbose, debug);
+   mpzx_oneroot_split_mod_rec (root, &a, F, p, verbose, debug);
 
    mpzx_clear (F);
 
