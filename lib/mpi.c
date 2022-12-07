@@ -986,6 +986,10 @@ void cm_mpi_init (bool debug)
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
+   if (size == 1) {
+      printf ("***** Error: MPI version run with only one core.\n");
+      exit (1);
+   }
    if (rank == 0)
       mpi_server_init (size, debug);
    else
