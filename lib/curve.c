@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+void gw_powm ( mpz_ptr mr, mpz_ptr mb_inp, mpz_ptr me, mpz_srcptr mn );
 static bool elliptic_curve_dehomogenise (mpz_ptr x, mpz_ptr y,
    mpz_ptr z, mpz_srcptr p);
 static void elliptic_curve_double (mpz_ptr x, mpz_ptr y, mpz_ptr z,
@@ -739,7 +740,7 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       mpz_set_ui (twister, 1);
       do {
          mpz_add_ui (twister, twister, 1);
-         mpz_powm (tmp, twister, e, p);
+         gw_powm (tmp, twister, e, p);
       } while (mpz_jacobi (twister, p) != -1 || !mpz_cmp_ui (tmp, 1));
       no_twists = 6;
    }

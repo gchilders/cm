@@ -29,6 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 static int miller_rabin (mpz_srcptr n);
+static int miller_rabin_gwnum (mpz_srcptr n);
+void gw_powm ( mpz_ptr mr, mpz_ptr mb_inp, mpz_ptr me, mpz_srcptr mn );
 
 /*****************************************************************************/
 
@@ -245,6 +247,283 @@ static int miller_rabin_gwnum (mpz_srcptr a)
         gwdone ( gwdata ); return ( 0 );
 }
 
+#define GW_THRESHOLD 4096
+#define FFT_THRESHOLD 1024 // For initial fft size for large base.
+#define SAFE 1024 // Many careful loops for large base loop.
+#define STEP 256 // Iterations before check.
+#define LENGTH 1<<17 // Length of giant and string.
+#define m2w(mx,gx,wx,string) mpz_get_str(string,10,mx);ctog(string,gx);gianttogw(gwdata,gx,wx);
+#define m2g(mx,gx,string) mpz_get_str(string,10,mx);ctog(string,gx);
+#define w2m(wx,gx,mx) gwtogiant(gwdata,wx,gx);gtompz (gx,mx);
+
+/*****************************************************************************/
+
+void small_base_exp ( mpz_ptr mr, double db, mpz_ptr me, mpz_srcptr mn )
+{
+    int fft_size = 1;
+    int length = LENGTH;
+    int j;
+    char string [length];
+    gwnum wr, wc;
+    gwhandle *gwdata;
+    giant gr, gn;
+    gr  = newgiant ( length );
+    gn  = newgiant ( length );
+    m2g ( mn, gn, string );
+    gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
+    gwinit ( gwdata );
+    gwset_maxmulbyconst ( gwdata, (long) db );
+    gwset_larger_fftlen_count ( gwdata, fft_size );
+    gwsetup_general_mod_giant ( gwdata, gn );
+    gwsetmulbyconst ( gwdata, (long) db );
+    wr = gwalloc ( gwdata );
+    wc = gwalloc ( gwdata );
+    gwerror_checking ( gwdata, 1 );
+    mpz_set_ui ( mr, (unsigned) db );
+    m2w ( mr, gr, wr, string );
+    for ( int i = mpz_sizeinbase ( me, 2 ) - 2; i >= 0; )
+    {
+        gwcopy ( gwdata, wr, wc );
+        for ( j = 1; j <= STEP && i >= 0; j++, i-- )
+        {
+            if ( mpz_tstbit ( me, i ) )
+            {
+                gwsquare2 ( gwdata, wr, wr, 0x0200 );
+            }
+            else
+            {
+                gwsquare2 ( gwdata, wr, wr, 0x0000 );
+            }
+        }
+        if ( gw_get_maxerr ( gwdata ) > 0.35 )
+        {
+            printf ( "*** (sm) Excessive round off error %lf. Increasing FFT size at bit %d.\n", gw_get_maxerr( gwdata ), i );
+            gwtogiant ( gwdata, wc, gr );
+            gwfreeall ( gwdata );
+            gwinit ( gwdata );
+            gwset_maxmulbyconst ( gwdata, (long) db );
+            gwset_larger_fftlen_count ( gwdata, ++fft_size );
+            gwsetup_general_mod_giant ( gwdata, gn );
+            gwsetmulbyconst ( gwdata, (long) db );
+            wr = gwalloc ( gwdata );
+            wc = gwalloc ( gwdata );
+            gwerror_checking ( gwdata, 1 );
+            gianttogw ( gwdata, gr, wr );
+            i += j;
+        }
+    }  
+    w2m ( wr, gr, mr );
+   // printf("db%f<==sm\n",db);
+    gwdone ( gwdata );
+}
+
+/*****************************************************************************/
+
+void medium_base_exp ( mpz_ptr mr, double db, mpz_ptr me, mpz_srcptr mn )
+{
+    int fft_size = 1;
+    int length = LENGTH;
+    int j;
+    char string [length];
+    gwnum wr, wc;
+    gwhandle *gwdata;
+    giant gr, gn;
+    gr  = newgiant ( length );
+    gn  = newgiant ( length );
+    m2g ( mn, gn, string );
+    gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
+    gwinit ( gwdata );
+    gwset_larger_fftlen_count ( gwdata, fft_size );
+    gwsetup_general_mod_giant ( gwdata, gn );
+    wr = gwalloc ( gwdata );
+    wc = gwalloc ( gwdata );
+    gwerror_checking ( gwdata, 1 );
+    mpz_set_ui ( mr, (unsigned) db );
+    m2w ( mr, gr, wr, string );
+    for ( int i = mpz_sizeinbase ( me, 2 ) - 2 ; i >= 0; )
+    {
+        gwcopy ( gwdata, wr, wc );
+        for ( j = 1; j <= STEP && i >= 0; j++, i-- )
+        {
+            gwsquare2 ( gwdata, wr, wr, 0x0000 );
+            if ( mpz_tstbit ( me, i ) )
+            {
+                gwsmallmul ( gwdata, db, wr );
+            }
+        }
+        if ( gw_get_maxerr ( gwdata ) > 0.35 )
+        {
+            printf ( "*** (md) Excessive round off error %lf. Increasing FFT size at bit %d.\n", gw_get_maxerr( gwdata ), i );
+            gwtogiant ( gwdata, wc, gr );
+            gwfreeall ( gwdata );
+            gwinit ( gwdata );
+            gwset_larger_fftlen_count ( gwdata, ++fft_size );
+            gwsetup_general_mod_giant ( gwdata, gn );
+            wr = gwalloc ( gwdata );
+            wc = gwalloc ( gwdata );
+            gwerror_checking ( gwdata, 1 );
+            gianttogw ( gwdata, gr, wr );
+            i += j;
+        }
+    }
+    w2m ( wr, gr, mr );
+  //  printf("db%f<==md\n",db);
+    gwdone ( gwdata );
+}
+
+/*****************************************************************************/
+
+void large_base_exp ( mpz_ptr mr, mpz_ptr mb, mpz_ptr me, mpz_srcptr mn )
+{
+    int fft_size = 1;
+    int length = LENGTH;
+    int j = mpz_sizeinbase ( me, 2 ) - 2;
+    int k = j - SAFE;
+    char string [length];
+    giant gr, gb, gn;
+    gr = newgiant ( length );
+    gb = newgiant ( length );
+    gn = newgiant ( length );
+    gwnum wr, wb, wc;
+    gwhandle *gwdata;
+    m2g ( mn, gn, string );
+    gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
+    gwinit ( gwdata );
+    gwset_larger_fftlen_count ( gwdata, fft_size );
+    gwsetup_general_mod_giant ( gwdata, gn );
+    wr = gwalloc ( gwdata );
+    wb = gwalloc ( gwdata );
+    wc = gwalloc ( gwdata );
+    gwerror_checking ( gwdata, 1 );
+    m2w ( mb, gb, wb, string );
+    gwcopy ( gwdata, wb, wr );
+    for ( int i = j; i > k; i-- )
+    {
+        gwmul3_carefully ( gwdata, wr, wr, wr, 0x0000 );
+        if ( mpz_tstbit ( me, i ) )
+        {
+            gwmul_carefully ( gwdata, wb, wr );
+        }
+    }
+    for ( int i = k ; i > SAFE; )
+    {
+        gwcopy ( gwdata, wr, wc );
+        for ( j = 1; j <= STEP && i > SAFE; j++, i-- )
+        {
+            gwsquare2 ( gwdata, wr, wr, 0x0000 );
+            if ( mpz_tstbit ( me, i ) )
+            {
+                gwmul3 ( gwdata, wb, wr, wr, 0x0000 );
+            }
+        }
+        if ( gw_get_maxerr ( gwdata ) > 0.35 )
+        {
+            printf ( "*** (lg) Excessive round off error %lf. Increasing FFT size at bit %d.\n", gw_get_maxerr( gwdata ), i );
+            gwtogiant ( gwdata, wc, gr );
+            gwfreeall ( gwdata );
+            gwinit ( gwdata );
+            gwset_larger_fftlen_count ( gwdata, ++fft_size );
+            gwsetup_general_mod_giant ( gwdata, gn );
+            wr = gwalloc ( gwdata );
+            wb = gwalloc ( gwdata );
+            wc = gwalloc ( gwdata );
+            gwerror_checking ( gwdata, 1 );
+            gianttogw ( gwdata, gb, wb );
+            gianttogw ( gwdata, gr, wr );
+            i += j;
+        }
+    }
+    for ( int i = SAFE; i >= 0; i-- )
+    {
+        gwmul3_carefully ( gwdata, wr, wr, wr, 0x0000 );
+        if ( mpz_tstbit ( me, i ) )
+        {
+            gwmul_carefully ( gwdata, wb, wr );
+        }
+    }
+  //  mpz_out_str ( NULL, 10, mb );printf("mb<==lg\n");
+
+    w2m ( wr, gr, mr );
+    gwdone ( gwdata );
+}
+
+/*****************************************************************************/
+
+int gw_prp ( mpz_t mn )
+{ // base 3 euler
+    if ( mpz_sizeinbase ( mn, 2 ) < GW_THRESHOLD )
+    {
+        return ( mpz_probab_prime_p ( mn, 0) > 0 );
+    }
+    int res = 0;
+    mpz_t mr;
+    mpz_t me;
+    mpz_init ( mr );
+    mpz_init ( me );
+    mpz_sub_ui ( me, mn, 1 );
+    mpz_tdiv_q_2exp ( me, me, 1 );
+    small_base_exp ( mr, 3.0, me, mn );
+    if ( mpz_cmp_ui ( mr, 1 ) == 0 )
+    {
+        res = 1;
+    }
+    else
+    {
+        mpz_add_ui ( mr, mr, 1 );
+        mpz_mod (mr, mr, mn );
+        if ( mpz_cmp_ui ( mr, 0 ) == 0 )
+        {
+            res = 1;
+        }
+    }
+    mpz_clear( mr );
+    mpz_clear( me );
+    return ( res );
+}
+
+/*****************************************************************************/
+
+void gw_powm ( mpz_ptr mr, mpz_ptr mb_inp, mpz_ptr me, mpz_srcptr mn )
+{    
+    if ( mpz_sizeinbase ( me, 2 ) < GW_THRESHOLD )
+    {
+        mpz_powm ( mr, mb_inp, me, mn );
+        return;
+    }
+    int base_sign = mpz_sgn ( mb_inp );
+    int base_size = mpz_sizeinbase ( mb_inp, 2 );
+    double db;
+    mpz_t mb;
+    mpz_init_set ( mb, mb_inp );
+    if ( base_sign == -1 )
+    {
+        mpz_neg ( mb, mb );
+    }
+    if ( base_size < 26 )
+    {
+        db = (double) mpz_get_ui ( mb );
+        if ( base_size < 9 )
+        {
+            small_base_exp ( mr, db, me, mn );
+        }
+        else
+        {
+
+            medium_base_exp ( mr, db, me, mn );
+        }
+    }
+    else
+    {
+        large_base_exp ( mr, mb, me, mn );
+    }
+    if ( base_sign == -1 && mpz_odd_p ( me ) )
+    {
+        mpz_neg ( mr, mr );
+        mpz_mod ( mr, mr, mn );
+    }
+    mpz_clear ( mb );
+}
+
 /*****************************************************************************/
 
 int cm_nt_is_prime (mpz_srcptr n)
@@ -394,7 +673,7 @@ unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
       mpz_tdiv_q_2exp (q, p, e);
       for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
          mpz_add_ui (z, z, 1ul));
-      mpz_powm (z, z, q, p);
+      gw_powm (z, z, q, p);
    }
 
    return e;
@@ -426,7 +705,7 @@ void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
    if (e == 1) /* p=3 (mod 4) */ {
       mpz_add_ui (tmp, p, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 2ul);
-      mpz_powm (x, a_local, tmp, p);
+      gw_powm (x, a_local, tmp, p);
    }
    else {
       /* initialisation */
@@ -434,7 +713,7 @@ void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
       r = e;
       mpz_sub_ui (tmp, q, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 1ul);
-      mpz_powm (x, a_local, tmp, p);
+      gw_powm (x, a_local, tmp, p);
       mpz_powm_ui (b, x, 2ul, p);
       mpz_mul (b, b, a_local);
       mpz_mod (b, b, p);
