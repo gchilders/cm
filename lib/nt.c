@@ -247,13 +247,11 @@ static int miller_rabin_gwnum (mpz_srcptr a)
         gwdone ( gwdata ); return ( 0 );
 }
 
-#define GW_THRESHOLD 4096
-#define FFT_THRESHOLD 1024 // For initial fft size for large base.
+#define GW_THRESHOLD 3000
 #define SAFE 1024 // Many careful loops for large base loop.
 #define STEP 256 // Iterations before check.
-#define LENGTH 1<<17 // Length of giant and string.
+#define LENGTH 200000 // Length of string.
 #define m2w(mx,gx,wx,string) mpz_get_str(string,10,mx);ctog(string,gx);gianttogw(gwdata,gx,wx);
-#define m2g(mx,gx,string) mpz_get_str(string,10,mx);ctog(string,gx);
 #define w2m(wx,gx,mx) gwtogiant(gwdata,wx,gx);gtompz (gx,mx);
 
 /*****************************************************************************/
@@ -261,15 +259,17 @@ static int miller_rabin_gwnum (mpz_srcptr a)
 void small_base_exp ( mpz_ptr mr, double db, mpz_ptr me, mpz_srcptr mn )
 {
     int fft_size = 1;
-    int length = LENGTH;
+    int g_length;
     int j;
-    char string [length];
+    char string [LENGTH];
     gwnum wr, wc;
     gwhandle *gwdata;
     giant gr, gn;
-    gr  = newgiant ( length );
-    gn  = newgiant ( length );
-    m2g ( mn, gn, string );
+    mpz_get_str ( string, 10, mn );
+    g_length = ( strlen ( string ) >> 2 ) + 8;
+    gr  = newgiant ( g_length );
+    gn  = newgiant ( g_length );
+    ctog( string, gn );
     gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
     gwinit ( gwdata );
     gwset_maxmulbyconst ( gwdata, (long) db );
@@ -322,15 +322,17 @@ void small_base_exp ( mpz_ptr mr, double db, mpz_ptr me, mpz_srcptr mn )
 void medium_base_exp ( mpz_ptr mr, double db, mpz_ptr me, mpz_srcptr mn )
 {
     int fft_size = 1;
-    int length = LENGTH;
+    int g_length;
     int j;
-    char string [length];
+    char string [LENGTH];
     gwnum wr, wc;
     gwhandle *gwdata;
     giant gr, gn;
-    gr  = newgiant ( length );
-    gn  = newgiant ( length );
-    m2g ( mn, gn, string );
+    mpz_get_str ( string, 10, mn );
+    g_length = ( strlen ( string ) >> 2 ) + 8;
+    gr  = newgiant ( g_length );
+    gn  = newgiant ( g_length );
+    ctog( string, gn );
     gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
     gwinit ( gwdata );
     gwset_larger_fftlen_count ( gwdata, fft_size );
@@ -376,17 +378,19 @@ void medium_base_exp ( mpz_ptr mr, double db, mpz_ptr me, mpz_srcptr mn )
 void large_base_exp ( mpz_ptr mr, mpz_ptr mb, mpz_ptr me, mpz_srcptr mn )
 {
     int fft_size = 1;
-    int length = LENGTH;
+    int g_length;
     int j = mpz_sizeinbase ( me, 2 ) - 2;
     int k = j - SAFE;
-    char string [length];
+    char string [LENGTH];
     giant gr, gb, gn;
-    gr = newgiant ( length );
-    gb = newgiant ( length );
-    gn = newgiant ( length );
+    mpz_get_str ( string, 10, mn );
+    g_length = ( strlen ( string ) >> 2 ) + 8;
+    gr  = newgiant ( g_length );
+    gb  = newgiant ( g_length );
+    gn  = newgiant ( g_length );
+    ctog( string, gn );
     gwnum wr, wb, wc;
     gwhandle *gwdata;
-    m2g ( mn, gn, string );
     gwdata = (gwhandle*) malloc ( sizeof ( gwhandle ) );
     gwinit ( gwdata );
     gwset_larger_fftlen_count ( gwdata, fft_size );
@@ -449,7 +453,7 @@ void large_base_exp ( mpz_ptr mr, mpz_ptr mb, mpz_ptr me, mpz_srcptr mn )
 
 /*****************************************************************************/
 
-int gw_prp ( mpz_t mn )
+int gw_prp ( mpz_srcptr mn )
 { // base 3 euler
     if ( mpz_sizeinbase ( mn, 2 ) < GW_THRESHOLD )
     {
