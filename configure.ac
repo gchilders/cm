@@ -68,6 +68,13 @@ AC_ARG_WITH([pari],
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib -Wl,-rpath -Wl,$withval/lib"
             ])
+AC_ARG_WITH([flint],
+            [AS_HELP_STRING([--with-flint=DIR],
+                           [FLINT install directory])],
+            [
+            CPPFLAGS="$CPPFLAGS -I$withval/include"
+            LDFLAGS="$LDFLAGS -L$withval/lib -Wl,-rpath -Wl,$withval/lib"
+            ])
 AC_ARG_ENABLE([valgrind-tests],
              [AS_HELP_STRING([--enable-valgrind-tests],
                              [run checks through valgrind (default = no)])],
@@ -257,6 +264,24 @@ error
          AC_MSG_ERROR([PARI version >= 2.11.0 required])
          ])
 
+# Flint
+AC_MSG_CHECKING(for FLINT)
+OLDLIBS="$LIBS"
+LIBS="-lflint $LIBS"
+AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM(
+                [[#include "flint/flint.h"
+                  #include "flint/fmpz.h"]],
+                [[fmpz_t n; fmpz_init_set_ui (n, 1); fmpz_clear (n);]]
+        )],
+        [
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([HAVE_FLINT],[1],[Define to 1 if FLINT is present.])
+        ],
+        [
+        AC_MSG_RESULT(no)
+        LIBS="$OLDLIBS"
+        ])
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT

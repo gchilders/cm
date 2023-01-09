@@ -1587,27 +1587,30 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
    cm_timer_continue (stat->timer [1]);
    ecpp_param_init (param, d);
 
+   if (debug) {
+      char *h = cm_pari_sprintf_hfactor (d);
+      cm_file_printf ("Starting %4i: discriminant %"PRIicl
+         ", invariant %c, parameters %s; h=%s\n",
+         i, d, param->invariant, param->str, h);
+      free (h);
+   }
+   else if (verbose)
+      cm_file_printf ("Starting %4i: discriminant %"PRIicl
+         ", invariant %c, parameters %s\n",
+         i, d, param->invariant, param->str);
+
    /* Compute the class field tower. */
    cm_class_init (c, param, false);
    cm_class_compute (c, param, false, true, false);
    cm_timer_stop (stat->timer [1]);
 
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co,
-      modpoldir, false, false, stat);
+      modpoldir, false, verbose, debug, stat);
    cm_class_clear (c);
    cm_timer_stop (clock);
 
-   if (verbose) {
-      printf ("Time for %4i (discriminant %11"PRIicl
-         ", invariant %c, parameters %13s): %6.0f\n",
-         i, d, param->invariant, param->str, cm_timer_get (clock));
-      if (debug) {
-         printf ("  CM:    %5.0f\n", cm_timer_get (stat->timer [1]));
-         printf ("  roots: %5.0f\n", cm_timer_get (stat->timer [2]));
-         printf ("  point: %5.0f\n", cm_timer_get (stat->timer [3]));
-      }
-      fflush (stdout);
-   }
+   if (verbose)
+      cm_file_printf ("Time for %4i: %6.0f\n", i, cm_timer_get (clock));
 
    mpz_set (cert2 [0], p);
    mpz_set (cert2 [1], t);
@@ -1683,7 +1686,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
 
    cm_timer_continue (stat->timer [0]);
 #ifndef WITH_MPI
-   for (i = 0; i < depth; i++)
+   for (i = 0; i < depth; i++) {
       if (!mpz_cmp_ui (cert2 [i][0], 0)) {
          cm_ecpp_one_step2 (cert2 [i], cert1 [i], i, modpoldir,
                verbose, debug, stat);
@@ -1693,6 +1696,13 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
             cm_timer_continue (stat->timer [0]);
          }
       }
+      if (debug)
+         cm_file_printf ("Timings after job %3i: CM %7.0f, roots %10.0f, "
+            "point %7.0f\n", i,
+            cm_timer_get (stat->timer [1]),
+            cm_timer_get (stat->timer [2]),
+            cm_timer_get (stat->timer [3]));
+   }
 #else
    next = 0;
    received = read;
@@ -1715,14 +1725,12 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
          received++;
          if (filename != NULL)
             cm_write_ecpp_cert2_line (f, cert2 [job], job, stat);
-         if (debug) {
-            printf ("Timings after job %3i: CM %7.0f, roots %10.0f, "
+         if (debug)
+            cm_file_printf ("Timings after job %3i: CM %7.0f, roots %10.0f, "
                "point %7.0f\n", job,
                cm_timer_get (stat->timer [1]),
                cm_timer_get (stat->timer [2]),
                cm_timer_get (stat->timer [3]));
-            fflush (stdout);
-         }
       }
     }
 #endif
@@ -1777,6 +1785,10 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
    cm_stat_t stat1, stat2;
    double t;
    FILE *f;
+
+#ifdef WITH_MPI
+   cm_mpi_broadcast_init (verbose, debug);
+#endif
 
    if (!trust) {
       cm_timer_start (clock);

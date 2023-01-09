@@ -2,7 +2,7 @@
 
 curve.c - code for computing cm curves
 
-Copyright (C) 2009, 2010, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -692,7 +692,8 @@ void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l, mpz_ptr c,
 void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool print, bool verbose, cm_stat_t stat)
+   const char* modpoldir, bool print, bool verbose, bool debug,
+   cm_stat_t stat)
    /* Given CM parameters param, a class polynomial or class field tower
       stored in c, and curve cardinality parameters p (>=5, the cardinality
       of the prime field), a prime order l and a cofactor co, return curve
@@ -753,7 +754,7 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
 
    if (stat != NULL)
       cm_timer_continue (stat->timer [2]);
-   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose);
+   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose, debug);
    if (stat != NULL)
       cm_timer_stop (stat->timer [2]);
 
@@ -829,7 +830,7 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    }
 
    cm_timer_stop (clock);
-   if (print || verbose) {
+   if (print) {
       printf ("p = "); mpz_out_str (stdout, 10, p); printf ("\n");
       printf ("n = "); mpz_out_str (stdout, 10, co);
       printf (" * "); mpz_out_str (stdout, 10, l); printf ("\n");
@@ -837,11 +838,10 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
       printf ("b = "); mpz_out_str (stdout, 10, b); printf ("\n");
       printf ("x = "); mpz_out_str (stdout, 10, x); printf ("\n");
       printf ("y = "); mpz_out_str (stdout, 10, y); printf ("\n");
+      fflush (stdout);
    }
-   if (verbose) {
-      printf ("j = "); mpz_out_str (stdout, 10, j [i-1]); printf ("\n");
-      printf ("--- Time for curve: %.1f\n", cm_timer_get (clock));
-   }
+   if (verbose)
+      cm_file_printf ("  Time for curve: %.1f\n", cm_timer_get (clock));
 
    for (i = 0; i < no_j; i++)
       mpz_clear (j [i]);
@@ -867,7 +867,7 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    const char* modpoldir, bool print, bool verbose)
 {
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co, modpoldir,
-      print, verbose, NULL);
+      print, verbose, false, NULL);
 }
 
 /*****************************************************************************/
