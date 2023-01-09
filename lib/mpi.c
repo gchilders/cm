@@ -85,16 +85,16 @@ static void mpi_recv_mpz (mpz_ptr z, const int rank, const MPI_Comm comm)
 {
    int size;
 
-   MPI_Recv (&size, 1, MPI_INT, rank, MPI_TAG_DATA, comm, NULL);
+   MPI_Recv (&size, 1, MPI_INT, rank, MPI_TAG_DATA, comm, MPI_STATUS_IGNORE);
    if (size > 0) {
       _mpz_realloc (z, size);
       MPI_Recv (z->_mp_d,  size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         comm, NULL);
+         comm, MPI_STATUS_IGNORE);
    }
    else if (size < 0) {
       _mpz_realloc (z, -size);
       MPI_Recv (z->_mp_d, -size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         comm, NULL);
+         comm, MPI_STATUS_IGNORE);
    }
    z->_mp_size = size;
 }
@@ -332,7 +332,7 @@ void cm_mpi_get_primorial (int rank, double *t)
    /* Get timing information of a primorial job from worker rank and return
       it in t. */
 {
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -353,7 +353,7 @@ void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t)
       Timing information from the worker is returned in t. */
 {
    mpi_recv_mpz (root, rank, MPI_COMM_WORLD);
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -386,7 +386,7 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
       mpi_recv_mpz (cert2 [i], rank, MPI_COMM_WORLD);
    for (i = 1; i <= 3 ; i++)
    MPI_Recv (&(stat->timer [i]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -415,16 +415,16 @@ mpz_t* cm_mpi_get_curve_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_t *res;
    int i;
 
-   MPI_Recv (no_card, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (no_card, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
    *card_d = (int_cl_t *) malloc (*no_card * sizeof (int_cl_t));
    res = (mpz_t *) malloc (*no_card * sizeof (mpz_t));
    MPI_Recv (*card_d, *no_card, MPI_LONG, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
    for (i = 0; i < *no_card; i++) {
       mpz_init (res [i]);
       mpi_recv_mpz (res [i], rank, MPI_COMM_WORLD);
    }
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
    return res;
 }
@@ -447,8 +447,8 @@ bool cm_mpi_get_is_prime (int rank, double *t)
 {
    int res;
 
-   MPI_Recv (&res, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (&res, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
    return ((bool) res);
 }
@@ -479,8 +479,8 @@ void cm_mpi_get_h_chunk (unsigned int *h, int rank, double *t)
    MPI_Probe (rank, MPI_TAG_DATA, MPI_COMM_WORLD, &status);
    MPI_Get_count (&status, MPI_UNSIGNED, &no);
    MPI_Recv (h, no, MPI_UNSIGNED, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
-      NULL);
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+      MPI_STATUS_IGNORE);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -552,7 +552,7 @@ void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_n, double *t)
             mpi_recv_mpz (tmp, rank, comm);
             mpz_mul (gcd [offset + k], gcd [offset + k], tmp);
          }
-         MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, comm, NULL);
+         MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, comm, MPI_STATUS_IGNORE);
          *t += t_local;
       }
    }
@@ -774,10 +774,10 @@ static void mpi_worker ()
       case MPI_TAG_JOB_CARD:
          cm_timer_start (stat->timer [0]);
          MPI_Recv (&no_d, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            NULL);
+            MPI_STATUS_IGNORE);
          d = (int_cl_t *) malloc (no_d * sizeof (int_cl_t));
          MPI_Recv (d, no_d, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            NULL);
+            MPI_STATUS_IGNORE);
 
          card = cm_ecpp_compute_cardinalities (&no_card, &card_d, d, no_d,
             N, qstar, no_qstar, qroot);
