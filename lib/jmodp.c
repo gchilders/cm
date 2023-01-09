@@ -2,7 +2,7 @@
 
 jmodp.c - code for obtaining a j-invariant from a class polynomial
 
-Copyright (C) 2009, 2010, 2021 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
 
 This file is part of CM.
 
@@ -35,12 +35,12 @@ static void quadraticx_eval_mod_p (mpz_ptr val, mpzx_srcptr g,
 static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
    int deg, mpz_srcptr y, mpz_srcptr omega, mpz_srcptr p);
 static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
-   mpz_ptr root, mpz_srcptr p, bool verbose);
+   mpz_ptr root, mpz_srcptr p, bool verbose, bool debug);
 static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
-   mpz_srcptr p, bool verbose);
+   mpz_srcptr p, bool verbose, bool debug);
 static void get_quadratic_tower_root_mod_p (mpz_ptr root,
    mpzx_tower_srcptr t, mpzx_tower_srcptr u, mpz_srcptr omega,
-   mpz_srcptr p, bool verbose);
+   mpz_srcptr p, bool verbose, bool debug);
 static mpz_t* get_j_mod_p_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_srcptr root, mpz_srcptr p);
 static mpz_t* simpleeta_cm_get_j_mod_p (cm_param_srcptr param,
@@ -165,7 +165,7 @@ static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
 /*****************************************************************************/
 
 static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
-   mpz_ptr root, mpz_srcptr p, bool verbose)
+   mpz_ptr root, mpz_srcptr p, bool verbose, bool debug)
    /* Return a root of the minimal polynomial modulo P in root. */
 
 {
@@ -174,7 +174,7 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
    mpzx_t classpol_p;
 
    if (param->field == CM_FIELD_REAL)
-      cm_pari_oneroot (root, c->classpol, p, verbose);
+      mpzx_oneroot_split_mod (root, c->classpol, p, verbose, debug);
    else {
       mpz_init (omega);
       cm_timer_start (clock);
@@ -185,41 +185,29 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
 
       mpzx_init (classpol_p, c->classpol->deg);
       quadraticx_mod_p (classpol_p, c->classpol, c->classpol_c, omega, p);
-      cm_pari_oneroot (root, classpol_p, p, verbose);
+      mpzx_oneroot_split_mod (root, classpol_p, p, verbose, debug);
 
       mpz_clear (omega);
       mpzx_clear (classpol_p);
-   }
-
-   if (verbose) {
-      printf ("Root: ");
-      mpz_out_str (stdout, 10, root);
-      printf ("\n");
    }
 }
 
 /*****************************************************************************/
 
 static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
-   mpz_srcptr p, bool verbose)
+   mpz_srcptr p, bool verbose, bool debug)
    /* Let t be a class field tower in which p splits totally. Return a root
       mod p of the class polynomial behind the tower. */
 {
    int i;
    mpzx_t fp;
 
-   cm_pari_oneroot (root, t->W [0][0], p, verbose);
+   mpzx_oneroot_split_mod (root, t->W [0][0], p, verbose, debug);
    for (i = 1; i < t->levels; i++) {
       mpzx_init (fp, t->d [i]);
       mpzxx_eval_mod_p (fp, t->W [i], t->d [i], root, p);
-      cm_pari_oneroot (root, fp, p, verbose);
+      mpzx_oneroot_split_mod (root, fp, p, verbose, debug);
       mpzx_clear (fp);
-   }
-
-   if (verbose) {
-      printf ("Root: ");
-      mpz_out_str (stdout, 10, root);
-      printf ("\n");
    }
 }
 
@@ -227,7 +215,7 @@ static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
 
 static void get_quadratic_tower_root_mod_p (mpz_ptr root,
    mpzx_tower_srcptr t, mpzx_tower_srcptr u, mpz_srcptr omega, mpz_srcptr p,
-   bool verbose)
+   bool verbose, bool debug)
    /* Assume that t+omega*u is a class field tower defined over the
       imaginary-quadratic field defined by omega in which p splits
       completely. Return a root modulo p of the class polynomial behind
@@ -238,20 +226,14 @@ static void get_quadratic_tower_root_mod_p (mpz_ptr root,
 
    mpzx_init (fp, t->d [0]);
    quadraticx_mod_p (fp, t->W [0][0], u->W [0][0], omega, p);
-   cm_pari_oneroot (root, fp, p, verbose);
+   mpzx_oneroot_split_mod (root, fp, p, verbose, debug);
    mpzx_clear (fp);
    for (i = 1; i < t->levels; i++) {
       mpzx_init (fp, t->d [i]);
       quadraticxx_eval_mod_p (fp, t->W [i], u->W [i], t->d [i], root,
          omega, p);
-      cm_pari_oneroot (root, fp, p, verbose);
+      mpzx_oneroot_split_mod (root, fp, p, verbose, debug);
       mpzx_clear (fp);
-   }
-
-   if (verbose) {
-      printf ("Root: ");
-      mpz_out_str (stdout, 10, root);
-      printf ("\n");
    }
 }
 
@@ -432,7 +414,8 @@ static mpz_t* simpleeta_cm_get_j_mod_p (cm_param_srcptr param,
 /*****************************************************************************/
 
 mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
-   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir, bool verbose)
+   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir,
+   bool verbose, bool debug)
    /* Assuming that c contains a class polynomial or a tower for param,
       allocate and return a list of potential j values modulo p.
       The number of allocated values is returned in no. */
@@ -445,16 +428,16 @@ mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
    cm_timer_start (clock);
    mpz_init (root);
    if (!c->computed_tower)
-      get_root_mod_p (param, c, root, p, verbose);
+      get_root_mod_p (param, c, root, p, verbose, debug);
    else {
       if (param->field == CM_FIELD_REAL)
-         get_tower_root_mod_p (root, c->tower, p, verbose);
+         get_tower_root_mod_p (root, c->tower, p, verbose, debug);
       else {
          mpz_t omega;
          mpz_init (omega);
          quadratic_basis (omega, c->dfund, p);
          get_quadratic_tower_root_mod_p (root, c->tower, c->tower_c,
-            omega, p, verbose);
+            omega, p, verbose, debug);
          mpz_clear (omega);
       }
    }
@@ -605,18 +588,8 @@ mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
    mpz_clear (root);
    cm_timer_stop (clock);
    if (verbose) {
-      int i;
-
-      printf ("%i candidate", *no);
-      if (*no > 1)
-         printf ("s");
-      printf (" for j:");
-      for (i = 0; i < *no; i++) {
-         printf ("\n ");
-         mpz_out_str (stdout, 10, j [i]);
-      }
-      printf ("\n");
-      printf ("--- Time for j: %.1f\n", cm_timer_get (clock));
+      cm_file_printf ("  Time for j: %.1f\n", cm_timer_get (clock));
+      fflush (stdout);
    }
 
    return j;

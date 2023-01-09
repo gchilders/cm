@@ -35,6 +35,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MPI_TAG_JOB_BROADCAST_N    10
 #define MPI_TAG_JOB_BROADCAST_SQRT 11
 #define MPI_TAG_JOB_CLEAR_N        12
+#define MPI_TAG_JOB_BROADCAST_INIT 13
+
+time_t cm_mpi_zero;
 
 typedef char mpi_name_t [MPI_MAX_PROCESSOR_NAME];
 
@@ -82,16 +85,16 @@ static void mpi_recv_mpz (mpz_ptr z, const int rank, const MPI_Comm comm)
 {
    int size;
 
-   MPI_Recv (&size, 1, MPI_INT, rank, MPI_TAG_DATA, comm, NULL);
+   MPI_Recv (&size, 1, MPI_INT, rank, MPI_TAG_DATA, comm, MPI_STATUS_IGNORE);
    if (size > 0) {
       _mpz_realloc (z, size);
       MPI_Recv (z->_mp_d,  size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         comm, NULL);
+         comm, MPI_STATUS_IGNORE);
    }
    else if (size < 0) {
       _mpz_realloc (z, -size);
       MPI_Recv (z->_mp_d, -size, MPI_UNSIGNED_LONG, rank, MPI_TAG_DATA,
-         comm, NULL);
+         comm, MPI_STATUS_IGNORE);
    }
    z->_mp_size = size;
 }
@@ -163,6 +166,8 @@ static int mpi_compute_split_m ()
    return 16;
 }
 
+/*****************************************************************************/
+
 unsigned long int cm_mpi_compute_B ()
 {
    int size, m;
@@ -173,6 +178,7 @@ unsigned long int cm_mpi_compute_B ()
    return (1ul << 29) * ((size - 1) / m);
 }
 
+/*****************************************************************************/
 
 static MPI_Comm mpi_communicator_split ()
    /* Split the world communicator into m parts, as determined by
@@ -213,6 +219,8 @@ static MPI_Comm mpi_communicator_split ()
    return res;
 }
 
+/*****************************************************************************/
+
 static void mpi_communicator_free (void)
    /* Free the communicators created by mpi_communicator_split. */
 {
@@ -232,6 +240,24 @@ static void mpi_communicator_free (void)
 /*                                                                           */
 /* Submitting jobs and retrieving their results.                             */
 /*                                                                           */
+/*****************************************************************************/
+
+void cm_mpi_broadcast_init (bool verbose, bool debug)
+   /* Send common data to all workers. */
+{
+   int size, rank;
+   int v, d;
+
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   for (rank = 1; rank < size; rank++)
+      MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_INIT,
+         MPI_COMM_WORLD);
+   v = verbose;
+   d = debug;
+   MPI_Bcast (&v, 1, MPI_INT, 0, MPI_COMM_WORLD);
+   MPI_Bcast (&d, 1, MPI_INT, 0, MPI_COMM_WORLD);
+}
+
 /*****************************************************************************/
 
 void cm_mpi_broadcast_N (mpz_srcptr N)
@@ -306,7 +332,7 @@ void cm_mpi_get_primorial (int rank, double *t)
    /* Get timing information of a primorial job from worker rank and return
       it in t. */
 {
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -327,7 +353,7 @@ void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t)
       Timing information from the worker is returned in t. */
 {
    mpi_recv_mpz (root, rank, MPI_COMM_WORLD);
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -360,7 +386,7 @@ void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank, cm_stat_ptr stat)
       mpi_recv_mpz (cert2 [i], rank, MPI_COMM_WORLD);
    for (i = 1; i <= 3 ; i++)
    MPI_Recv (&(stat->timer [i]->elapsed), 1, MPI_DOUBLE, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -389,16 +415,16 @@ mpz_t* cm_mpi_get_curve_cardinalities (int *no_card, int_cl_t **card_d,
    mpz_t *res;
    int i;
 
-   MPI_Recv (no_card, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (no_card, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
    *card_d = (int_cl_t *) malloc (*no_card * sizeof (int_cl_t));
    res = (mpz_t *) malloc (*no_card * sizeof (mpz_t));
    MPI_Recv (*card_d, *no_card, MPI_LONG, rank, MPI_TAG_DATA,
-      MPI_COMM_WORLD, NULL);
+      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
    for (i = 0; i < *no_card; i++) {
       mpz_init (res [i]);
       mpi_recv_mpz (res [i], rank, MPI_COMM_WORLD);
    }
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
    return res;
 }
@@ -421,8 +447,8 @@ bool cm_mpi_get_is_prime (int rank, double *t)
 {
    int res;
 
-   MPI_Recv (&res, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+   MPI_Recv (&res, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
    return ((bool) res);
 }
@@ -453,8 +479,8 @@ void cm_mpi_get_h_chunk (unsigned int *h, int rank, double *t)
    MPI_Probe (rank, MPI_TAG_DATA, MPI_COMM_WORLD, &status);
    MPI_Get_count (&status, MPI_UNSIGNED, &no);
    MPI_Recv (h, no, MPI_UNSIGNED, rank, MPI_TAG_DATA, MPI_COMM_WORLD,
-      NULL);
-   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, NULL);
+      MPI_STATUS_IGNORE);
+   MPI_Recv (t, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 /*****************************************************************************/
@@ -526,7 +552,7 @@ void cm_mpi_get_tree_gcd (mpz_t *gcd, int no_n, double *t)
             mpi_recv_mpz (tmp, rank, comm);
             mpz_mul (gcd [offset + k], gcd [offset + k], tmp);
          }
-         MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, comm, NULL);
+         MPI_Recv (&t_local, 1, MPI_DOUBLE, rank, MPI_TAG_DATA, comm, MPI_STATUS_IGNORE);
          *t += t_local;
       }
    }
@@ -553,6 +579,8 @@ static void mpi_worker ()
    int i;
    
    /* Broadcast values. */
+   int b;
+   bool verbose = false, debug = false;
    mpz_t N;
    int no_qstar, no_qstar_old, no_qstar_new;
    long int *qstar;
@@ -632,6 +660,12 @@ static void mpi_worker ()
       MPI_Recv (&job, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       cm_stat_init (stat);
       switch (status.MPI_TAG) {
+      case MPI_TAG_JOB_BROADCAST_INIT:
+         MPI_Bcast (&b, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         verbose = b;
+         MPI_Bcast (&b, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         debug = b;
+         break;
       case MPI_TAG_JOB_BROADCAST_N:
          mpi_bcast_recv_mpz (N, MPI_COMM_WORLD);
          e = cm_nt_mpz_tonelli_generator (r, z, N);
@@ -726,7 +760,7 @@ static void mpi_worker ()
             MPI_COMM_WORLD, &status);
          modpoldir [len] = '\0';
 
-         cm_ecpp_one_step2 (cert2, cert1, job, modpoldir, true, false,
+         cm_ecpp_one_step2 (cert2, cert1, job, modpoldir, verbose, debug,
             stat);
          free (modpoldir);
 
@@ -740,10 +774,10 @@ static void mpi_worker ()
       case MPI_TAG_JOB_CARD:
          cm_timer_start (stat->timer [0]);
          MPI_Recv (&no_d, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            NULL);
+            MPI_STATUS_IGNORE);
          d = (int_cl_t *) malloc (no_d * sizeof (int_cl_t));
          MPI_Recv (d, no_d, MPI_LONG, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
-            NULL);
+            MPI_STATUS_IGNORE);
 
          card = cm_ecpp_compute_cardinalities (&no_card, &card_d, d, no_d,
             N, qstar, no_qstar, qroot);
@@ -947,10 +981,15 @@ void cm_mpi_init (bool debug)
 {
    int size, rank;
 
+   time (&cm_mpi_zero);
    MPI_Init (NULL, NULL);
    MPI_Comm_size (MPI_COMM_WORLD, &size);
    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
+   if (size == 1) {
+      printf ("***** Error: MPI version run with only one core.\n");
+      exit (1);
+   }
    if (rank == 0)
       mpi_server_init (size, debug);
    else
