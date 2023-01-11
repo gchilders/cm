@@ -430,7 +430,7 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
 
    cm_timer_start (clock);
 
-   if (f->deg <= 3)
+   if (f->deg <= 2) /* Pari 2.15 doesn't seem to work on A64FX */
       /* PARI implements the formula for degree 2, and, since version 2.15,
          also for degree 3. We may as well let it handle the case
          of degree 1. */
