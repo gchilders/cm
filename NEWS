@@ -21,6 +21,10 @@ Changes in version 0.4.1 ("Fitzebohnen"):
   - Phase 2 results are stored in any order as they come in, which
     requires the file format to change. Checkpoint files ending in .cert2
     from previous releases are not compatible.
+  - Add an optional dependency on FLINT to speed up root finding in the
+    second ECPP phase.
+  - Decrease the trial division bound in ecpp-mpi, instead also distribute
+    the numbers to be trial divided.
   - Backport an improvement to the half gcd from pari git, which
     considerably speeds up the Cornacchia steps.
 
