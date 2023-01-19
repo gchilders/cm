@@ -21,20 +21,22 @@ Changes in version 0.4.1 ("Fitzebohnen"):
   - Phase 2 results are stored in any order as they come in, which
     requires the file format to change. Checkpoint files ending in .cert2
     from previous releases are not compatible.
+  - Backport an improvement to the half gcd from pari git, which
+    considerably speeds up the Cornacchia steps.
 
-Changes in version 0.4 ("Fitzebohnen"):
+Changes in version 0.4 ("Fitzebohnen"), released in May 2022:
   - increase minimal version number for mpfrcx to 0.6.3 and for
     pari to 2.11.
   - add decomposition of the class field into a tower of prime degree
     extensions
   - add a fastECPP implementation, including a version for MPI
 
-Changes in version 0.3.1 ("Wurstebrei"):
+Changes in version 0.3.1 ("Wurstebrei"), released in September 2020:
   - increase minimal version number for mpfrcx to 0.5 and for pari to 2.9.
   - many internal rewrites
   - bug fixes
 
-Changes in version 0.3 ("Wurstebrei"):
+Changes in version 0.3 ("Wurstebrei"), released in March 2016:
   - Features
     - use the baby-step giant-step algorithm of Enge-Hart-Johansson 2018 to
       compute the eta series
@@ -44,14 +46,14 @@ Changes in version 0.3 ("Wurstebrei"):
   - Miscellanea
     - switch to GPL3+ license
 
-Changes in version 0.2.1 ("Blindhühnchen"):
+Changes in version 0.2.1 ("Blindhühnchen"), released in March 2015:
   - Features
     - enable precision beyond 300000 bits
   - Dependencies
     - increase minimal version number for mpfr to 3.0.0, for mpc to 1.0.0
       and for pari to 2.7.0
 
-Changes in version 0.2 ("Blindhühnchen"):
+Changes in version 0.2 ("Blindhühnchen"), released in February 2012:
   - Features
     - new class invariants: multiple eta quotients with '-imultieta'
     - double eta quotients with both primes >100
@@ -65,5 +67,5 @@ Changes in version 0.2 ("Blindhühnchen"):
   - Dependencies
     - factorisation of class polynomials is done by pari instead of ntl
      
-Version 0.1 ("Apfelkraut"):
+Version 0.1 ("Apfelkraut"), released in November 2009:
   - initial release
