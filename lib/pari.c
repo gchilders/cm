@@ -3,7 +3,7 @@
 pari.c - functions using pari; for factoring polynomials and for computing
 generators of class groups
 
-Copyright (C) 2010, 2015, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2010, 2015, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
