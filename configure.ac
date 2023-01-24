@@ -1,7 +1,7 @@
 /*
 configure.ac
 
-Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -276,12 +276,31 @@ AC_LINK_IFELSE(
         )],
         [
         AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_FLINT],[1],[Define to 1 if FLINT is present.])
+        AC_MSG_CHECKING(for recent FLINT)
+        AC_COMPILE_IFELSE(
+            [AC_LANG_SOURCE(
+                [[
+#include "flint/flint.h"
+#if __FLINT_RELEASE < 20700
+# error "Minimal FLINT version is 2.7.0"
+error
+#endif
+                ]])],
+            [
+            AC_MSG_RESULT(yes)
+            AC_DEFINE([HAVE_FLINT],[1],[Define to 1 if FLINT is present.])
+            ],
+            [
+                AC_MSG_RESULT([no, only FLINT version >= 2.7.0 works with CM])
+                LIBS="$OLDLIBS"
+            ])
+
         ],
         [
         AC_MSG_RESULT(no)
         LIBS="$OLDLIBS"
         ])
+
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT
