@@ -793,6 +793,36 @@ void cm_pari_prime_product (mpz_ptr prim, unsigned long int a,
 int lgcdii(ulong* d, ulong* d1, ulong* u, ulong* u1, ulong* v, ulong* v1, ulong vmax);
 
 static GEN
+my_ZM2_mul(GEN A, GEN B)
+{
+  const long t = 13+2;
+  GEN A11=gcoeff(A,1,1),A12=gcoeff(A,1,2), B11=gcoeff(B,1,1),B12=gcoeff(B,1,2);
+  GEN A21=gcoeff(A,2,1),A22=gcoeff(A,2,2), B21=gcoeff(B,2,1),B22=gcoeff(B,2,2);
+  if (lgefint(A11) < t || lgefint(B11) < t || lgefint(A22) < t || lgefint(B22) < t
+   || lgefint(A12) < t || lgefint(B12) < t || lgefint(A21) < t || lgefint(B21) < t)
+  {
+    GEN a = mulii(A11, B11), b = mulii(A12, B21);
+    GEN c = mulii(A11, B12), d = mulii(A12, B22);
+    GEN e = mulii(A21, B11), f = mulii(A22, B21);
+    GEN g = mulii(A21, B12), h = mulii(A22, B22);
+    retmkmat2(mkcol2(addii(a,b), addii(e,f)), mkcol2(addii(c,d), addii(g,h)));
+  } else
+  {
+    GEN M1 = mulii(addii(A11,A22), addii(B11,B22));
+    GEN M2 = mulii(addii(A21,A22), B11);
+    GEN M3 = mulii(A11, subii(B12,B22));
+    GEN M4 = mulii(A22, subii(B21,B11));
+    GEN M5 = mulii(addii(A11,A12), B22);
+    GEN M6 = mulii(subii(A21,A11), addii(B11,B12));
+    GEN M7 = mulii(subii(A12,A22), addii(B21,B22));
+    GEN T1 = addii(M1,M4), T2 = subii(M7,M5);
+    GEN T3 = subii(M1,M2), T4 = addii(M3,M6);
+    retmkmat2(mkcol2(addii(T1,T2), addii(M2,M4)),
+              mkcol2(addii(M3,M5), addii(T3,T4)));
+  }
+}
+
+static GEN
 matid2(void)
 {
     retmkmat2(mkcol2(gen_1,gen_0),
@@ -1072,7 +1102,7 @@ HGCD_split(GEN a, GEN b)
   tp = magic_threshold(c0);
   S = FIXUP1(HGCD(c0,d0), c, d, k, tp, &cp, &dp);
   if (!(expi(cp)>=m+1 && m+1 > expi(dp))) pari_err_BUG("halfgcd");
-  T = FIXUP0(ZM2_mul(mulq(R, q), S), &cp, &dp, m);
+  T = FIXUP0(my_ZM2_mul(mulq(R, q), S), &cp, &dp, m);
   return gerepilecopy(av, mkvec3(T, cp, dp));
 }
 
