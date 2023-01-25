@@ -2,7 +2,7 @@
 
 ecpp.c - code for computing ECPP certificates
 
-Copyright (C) 2021, 2022 Andreas Enge
+Copyright (C) 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -1255,7 +1255,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
 
    if (debug) {
       printf ("    size gain: %lu bits\n",
-         mpz_sizeinbase (n, 2) - mpz_sizeinbase (l, 2));
+         (unsigned long int) (mpz_sizeinbase (n, 2) - mpz_sizeinbase (l, 2)));
       fflush (stdout);
    }
 
@@ -1402,8 +1402,8 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             mpz_set (c [*depth][0], N);
             cm_timer_start (clock);
             if (verbose) {
-               printf ("Size [%4i]: %6li bits\n", *depth,
-                     mpz_sizeinbase (N, 2));
+               printf ("Size [%4i]: %6lu bits\n", *depth,
+                     (unsigned long int) mpz_sizeinbase (N, 2));
                fflush (stdout);
             }
             d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
