@@ -22,7 +22,7 @@ ecpp_mpi_LDADD = $(top_builddir)/lib/libcm_mpi.la
 
 ecpp_mpi_SOURCES = params.h params.c ecpp-mpi.c
 
-ecpp_mpi_CFLAGS = $(AM_CFLAGS) $(MPI_CFLAGS) -DWITH-MPI
+ecpp_mpi_CFLAGS = $(AM_CFLAGS) $(MPI_CFLAGS) -D WITH_MPI
 
 ecpp_mpi_LDFLAGS = $(MPI_CLDFLAGS)
 endif
