@@ -1,4 +1,4 @@
-Changes in version 0.4.1 ("Fitzebohnen"):
+Changes in version 0.4.1 ("Fitzebohnen"), released in January 2023:
   - By choosing ECPP parameters differently, difficult prime numbers should
     be handled more gracefully. At least a reported difficult step now works
     reasonably fast. On the downside, certificates become a bit longer (by
