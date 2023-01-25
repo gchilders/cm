@@ -75,21 +75,10 @@ AC_ARG_WITH([flint],
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib -Wl,-rpath -Wl,$withval/lib"
             ])
-AC_ARG_ENABLE([valgrind-tests],
-             [AS_HELP_STRING([--enable-valgrind-tests],
-                             [run checks through valgrind (default = no)])],
-             [case $enableval in
-                 yes) gl_VALGRIND_TESTS ;;
-                 no)  ;;
-                 *)   AC_MSG_ERROR([Bad value for --enable-valgrind-tests: Use yes or no]) ;;
-              esac
-             ]
-             )
 AC_ARG_ENABLE([mpi],
    [AS_HELP_STRING([--enable-mpi],[use mpi to compile a parallel version [default=no]])],
    ,
    [enable_mpi=no])
-
 
 # Checks for programs.
 AC_PROG_CC
@@ -101,6 +90,10 @@ AS_IF([test x"$enable_mpi" = xyes],
    [LX_FIND_MPI
     AS_IF([test x"$have_C_mpi" != xyes],
        [AC_MSG_ERROR(MPI not usable)])])
+
+# Check for valgrind if --enable-valgrind-tests is used.
+gl_VALGRIND_TESTS_DEFAULT_NO
+gl_VALGRIND_TESTS
 
 # Set up LibTool
 LT_INIT
