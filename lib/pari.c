@@ -498,6 +498,7 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
 
       /* Recurse with the found factor. */
       mpzx_oneroot_split_mod_rec (root, a, factor, p, verbose, debug);
+
       mpz_clear (zeta);
       mpz_clear (e);
       mpzx_clear (pow);
@@ -530,6 +531,10 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    mpzx_oneroot_split_mod_rec (root, &a, F, p, verbose, debug);
 
    mpzx_clear (F);
+#ifdef HAVE_FLINT
+      /* Clear FLINT cache. */
+      flint_cleanup ();
+#endif
 
    cm_timer_stop (clock);
    if (verbose && f->deg > 1)
