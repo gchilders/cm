@@ -92,6 +92,18 @@ void mpzx_set_deg (mpzx_ptr f, int deg)
 
 /*****************************************************************************/
 
+void mpzx_set (mpzx_ptr f, mpzx_srcptr g)
+   /* Set f to g. */
+{
+   int i;
+
+   mpzx_set_deg (f, g->deg);
+   for (i = 0; i <= g->deg; i++)
+      mpz_set (f->coeff [i], g->coeff [i]);
+}
+
+/*****************************************************************************/
+
 int mpzx_cmp (mpzx_srcptr f, mpzx_srcptr g)
    /* Compare f and g. The return value is 0 when both are equal, -1 when
       f is smaller than g and +1 when f is larger than g for some arbitrary

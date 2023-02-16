@@ -140,6 +140,7 @@ void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
 extern void mpzx_init (mpzx_ptr f, int deg);
 extern void mpzx_clear (mpzx_ptr f);
 extern void mpzx_set_deg (mpzx_ptr f, int deg);
+extern void mpzx_set (mpzx_ptr f, mpzx_srcptr g);
 extern int mpzx_cmp (mpzx_srcptr f, mpzx_srcptr g);
 extern void mpzx_mod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr p);
 extern bool cm_mpfrx_get_mpzx (mpzx_ptr g, mpfrx_srcptr f);
