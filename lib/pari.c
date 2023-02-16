@@ -36,8 +36,8 @@ static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
 static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p);
 static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg);
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
-   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug);
+static void mpzx_onefactor_split_mod (mpzx_ptr factor,
+   mpzx_srcptr f, mpz_srcptr p, bool debug);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -412,28 +412,34 @@ static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
 
 /*****************************************************************************/
 
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
-   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug)
-   /* Compute in root a root of the polynomial f over the prime field
-      of characteristic p, assuming that f splits completely and that
-      its coefficients are reduced modulo p.
-      a is passed to the function so that subsequent calls with factors
-      of the initial polynomial continue incrementing it instead of
-      starting from an initial value that has already been "used up"
-      for splitting. */
+static void mpzx_onefactor_split_mod (mpzx_ptr factor,
+   mpzx_srcptr f, mpz_srcptr p, bool debug)
+   /* Compute in factor a non-trivial monic factor of the monic polynomial f
+      over the prime field of characteristic p, assuming that f splits
+      completely and that its coefficients are reduced modulo p. */
 {
    int n, target, min, i;
-   mpz_t zeta, e, zeta_i;
-   mpzx_t factor, pow, gcd;
+   unsigned long int a;
+   mpz_t root, zeta, e, zeta_i;
+   mpzx_t fact, pow, gcd;
    cm_timer_t clock, clock2;
 
    cm_timer_start (clock);
 
-   if (f->deg <= 3)
+   if (f->deg <= 3) {
       /* PARI implements the formula for degree 2, and, since version 2.15,
          also for degree 3. We may as well let it handle the case
          of degree 1. */
+      mpz_init (root);
       cm_pari_oneroot (root, f, p);
+      /* Create a factor of degree 1, which is somewhat artificial. */
+      mpzx_set_deg (factor, 1);
+      mpz_set_ui (factor->coeff [1], 1);
+      if (mpz_cmp_ui (root, 0) == 0)
+         mpz_set_ui (factor->coeff [0], 0);
+      else
+         mpz_sub (factor->coeff [0], p, root);
+   }
    else {
       mpz_init (zeta);
       n = good_root_of_unity (zeta, p, f->deg);
@@ -451,11 +457,13 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
       mpzx_init (pow, f->deg - 1);
       mpzx_init (gcd, -1);
       mpz_init (zeta_i);
-      mpzx_init (factor, -1);
-      while (factor->deg == -1) {
+      mpzx_init (fact, -1);
+      /* Set a to a "random", but deterministic value. */
+      a = (unsigned long int) mpzx_hash (f);
+      while (fact->deg == -1) {
          cm_timer_start (clock2);
-         (*a)++;
-         mpzx_xplusa_pow_modmod (pow, *a, e, f, p);
+         a++;
+         mpzx_xplusa_pow_modmod (pow, a, e, f, p);
          cm_timer_stop (clock2);
          if (debug)
             cm_file_printf ("    Time for power: %.1lf\n",
@@ -463,7 +471,7 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
          mpz_set_ui (zeta_i, 1);
          if (pow->deg >= 1)
             for (i = 1;
-               i <= n && (factor->deg == -1 || factor->deg > target);
+               i <= n && (fact->deg == -1 || fact->deg > target);
                i++) {
                cm_timer_start (clock2);
                mpz_mul (zeta_i, zeta_i, zeta);
@@ -485,26 +493,25 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
                      interest only when f has low degree, so without much
                      impact overall. */
                   min = CM_MIN (gcd->deg, f->deg - gcd->deg);
-                  if (factor->deg == -1 || min < factor->deg) {
+                  if (fact->deg == -1 || min < fact->deg) {
                      if (min != gcd->deg)
                         mpzx_divexact_mod (gcd, f, gcd, p);
-                     mpzx_clear (factor);
-                     factor [0] = gcd [0];
+                     mpzx_clear (fact);
+                     fact [0] = gcd [0];
                      mpzx_init (gcd, -1);
                   }
                }
             }
       }
 
-      /* Recurse with the found factor. */
-      mpzx_oneroot_split_mod_rec (root, a, factor, p, verbose, debug);
+      mpzx_set (factor, fact);
 
       mpz_clear (zeta);
       mpz_clear (e);
       mpzx_clear (pow);
       mpzx_clear (gcd);
       mpz_clear (zeta_i);
-      mpzx_clear (factor);
+      mpzx_clear (fact);
    }
 
    cm_timer_stop (clock);
@@ -514,12 +521,13 @@ static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
 
 void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    bool verbose, bool debug)
-   /* Compute in root a root of the monic polynomial f over the prime field
+   /* Compute in root a root of the polynomial f over the prime field
       of characteristic p, assuming that f splits completely. */
 {
    mpzx_t F;
+   mpz_t inv;
+   int i;
    cm_timer_t clock;
-   unsigned long int a = 0;
 
    cm_timer_start (clock);
    if (verbose && f->deg > 1)
@@ -527,8 +535,23 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
 
    mpzx_init (F, f->deg);
    mpzx_mod (F, f, p);
+   /* If necessary, make F monic. */
+   if (mpz_cmp_ui (F->coeff [F->deg], 1) != 0) {
+      mpz_init (inv);
+      mpz_invert (inv, F->coeff [F->deg], p);
+      for (i = 0; i < F->deg; i++)
+         mpz_mul (F->coeff [i], F->coeff [i], inv);
+      mpz_set_ui (F->coeff [F->deg], 1);
+      mpzx_mod (F, F, p);
+   }
 
-   mpzx_oneroot_split_mod_rec (root, &a, F, p, verbose, debug);
+   while (F->deg != 1)
+      mpzx_onefactor_split_mod (F, F, p, debug);
+
+   if (mpz_cmp_ui (F->coeff [0], 0) == 0)
+      mpz_set_ui (root, 0);
+   else
+      mpz_sub (root, p, F->coeff [0]);
 
    mpzx_clear (F);
 #ifdef HAVE_FLINT
