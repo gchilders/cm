@@ -2,7 +2,7 @@
 
 cm-impl.h - header file for internal use of the cm library
 
-Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
+#include <stdint.h>
 #ifdef WITH_MPI
 #include <unistd.h> /* for usleep */
 #include <mpi.h>
@@ -148,6 +149,7 @@ extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);
 extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 extern void mpzxx_print_pari (FILE* file, mpzx_srcptr g, mpzx_srcptr h,
    char *x);
+extern uint64_t mpzx_hash (mpzx_srcptr f);
 
 /* functions for number field towers */
 extern void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d);

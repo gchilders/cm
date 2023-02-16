@@ -4,7 +4,7 @@ mpzx.c - code for handling polynomials with mpz coefficients
 Unless stated otherwise, the functions and their prototypes are
 inspired by mpfrcx.
 
-Copyright (C) 2021, 2022 Andreas Enge
+Copyright (C) 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 static void quadratic_basis (ctype omega, int_cl_t d);
 static bool mpcx_get_mpzxx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
    ctype omega);
+static uint64_t mpz_hash (mpz_srcptr z);
 
 /*****************************************************************************/
 
@@ -435,3 +436,49 @@ void mpzxx_tower_print_pari (FILE* file, mpzx_tower_srcptr g,
 
 /*****************************************************************************/
 /*****************************************************************************/
+
+static uint64_t mpz_hash (mpz_srcptr z)
+   /* Returns a hash value for z, without special thought to potential
+      collisions. */
+{
+   int len;
+   mp_limb_t h;
+   int i;
+
+   len = (z->_mp_size >= 0 ? z->_mp_size : -z->_mp_size);
+   h = (mp_limb_t) z->_mp_size;
+   for (i = 0; i < len; i++)
+      h ^= z->_mp_d [i];
+
+   return (uint64_t) h;
+}
+
+/*****************************************************************************/
+
+uint64_t mpzx_hash (mpzx_srcptr f)
+   /* Returns a hash value for z, without special thought to potential
+      collisions. */
+{
+   uint64_t h, h0;
+   unsigned int deg, shift, i;
+
+   h = (uint64_t) f->deg;
+   if (f->deg >= 0) {
+      deg = (unsigned int) f->deg;
+      for (i = 0; i <= deg; i++) {
+         h0 = mpz_hash (f->coeff [i]);
+         /* Circular shift by the position to break symmetries, so that
+            at least polynomials such as X^2+X-1 and X^2-X+1 do not get
+            the same hash value. */
+         shift = i % 64;
+         if (shift != 0)
+            h0 = (h0 << shift) | (h0 >> (64 - shift));
+         h ^= h0;
+      }
+   }
+
+   return h;
+}
+
+/*****************************************************************************/
+
