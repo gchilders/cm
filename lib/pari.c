@@ -459,7 +459,7 @@ static void mpzx_onefactor_split_mod (mpzx_ptr factor,
       mpz_init (zeta_i);
       mpzx_init (fact, -1);
       /* Set a to a "random", but deterministic value. */
-      a = (unsigned long int) mpzx_hash (f);
+      a = (unsigned long int) mpzx_mod_hash (f, p);
       while (fact->deg == -1) {
          cm_timer_start (clock2);
          a++;

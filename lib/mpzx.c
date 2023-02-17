@@ -31,6 +31,7 @@ static void quadratic_basis (ctype omega, int_cl_t d);
 static bool mpcx_get_mpzxx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
    ctype omega);
 static uint64_t mpz_hash (mpz_srcptr z);
+static uint64_t mpzx_hash (mpzx_srcptr f);
 
 /*****************************************************************************/
 
@@ -450,7 +451,7 @@ void mpzxx_tower_print_pari (FILE* file, mpzx_tower_srcptr g,
 /*****************************************************************************/
 
 static uint64_t mpz_hash (mpz_srcptr z)
-   /* Returns a hash value for z, without special thought to potential
+   /* Return a hash value for z, without special thought to potential
       collisions. */
 {
    int len;
@@ -467,8 +468,8 @@ static uint64_t mpz_hash (mpz_srcptr z)
 
 /*****************************************************************************/
 
-uint64_t mpzx_hash (mpzx_srcptr f)
-   /* Returns a hash value for z, without special thought to potential
+static uint64_t mpzx_hash (mpzx_srcptr f)
+   /* Return a hash value for f, without special thought to potential
       collisions. */
 {
    uint64_t h, h0;
@@ -490,6 +491,15 @@ uint64_t mpzx_hash (mpzx_srcptr f)
    }
 
    return h;
+}
+
+/*****************************************************************************/
+
+uint64_t mpzx_mod_hash (mpzx_srcptr f, mpz_srcptr p)
+   /* Returns a hash value for f modulo p, without special thought to
+      potential collisions. */
+{
+   return mpzx_hash (f) ^ mpz_hash (p);
 }
 
 /*****************************************************************************/

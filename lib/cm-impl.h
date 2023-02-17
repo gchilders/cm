@@ -150,7 +150,7 @@ extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);
 extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 extern void mpzxx_print_pari (FILE* file, mpzx_srcptr g, mpzx_srcptr h,
    char *x);
-extern uint64_t mpzx_hash (mpzx_srcptr f);
+extern uint64_t mpzx_mod_hash (mpzx_srcptr f, mpz_srcptr p);
 
 /* functions for number field towers */
 extern void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d);
