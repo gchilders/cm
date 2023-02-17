@@ -524,7 +524,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    /* Compute in root a root of the polynomial f over the prime field
       of characteristic p, assuming that f splits completely. */
 {
-   mpzx_t F;
+   mpzx_t F, factor;
    mpz_t inv;
    int i;
    cm_timer_t clock;
@@ -534,6 +534,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
       cm_file_printf ("  Root finding in degree %i\n", f->deg);
 
    mpzx_init (F, f->deg);
+   mpzx_init (factor, -1);
    mpzx_mod (F, f, p);
    /* If necessary, make F monic. */
    if (mpz_cmp_ui (F->coeff [F->deg], 1) != 0) {
@@ -545,8 +546,12 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
       mpzx_mod (F, F, p);
    }
 
-   while (F->deg != 1)
-      mpzx_onefactor_split_mod (F, F, p, debug);
+   while (F->deg != 1) {
+      mpzx_onefactor_split_mod (factor, F, p, debug);
+      /* Write the factor to a checkpointing file. */
+      cm_file_write_factor ("/tmp", factor, F, p);
+      mpzx_set (F, factor);
+   }
 
    if (mpz_cmp_ui (F->coeff [0], 0) == 0)
       mpz_set_ui (root, 0);
@@ -554,6 +559,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
       mpz_sub (root, p, F->coeff [0]);
 
    mpzx_clear (F);
+   mpzx_clear (factor);
 #ifdef HAVE_FLINT
       /* Clear FLINT cache. */
       flint_cleanup ();

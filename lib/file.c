@@ -2,7 +2,7 @@
 
 file.c - code for handling (gzipped) files
 
-Copyright (C) 2009, 2012, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2012, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -397,6 +397,44 @@ bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim, const int i)
    if (res) {
       res = (mpz_inp_raw (prim, f) > 0);
       fclose (f);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_write_factor (const char *tmpdir, mpzx_srcptr factor,
+   mpzx_srcptr F, mpz_srcptr p)
+   /* With factor being a monic factor of the monic polynomial F modulo p,
+      write both to a file in tmpdir the name of which is derived from the
+      hash of f and p. */
+
+{
+   char *filename;
+   uint64_t hash;
+   FILE *f;
+   unsigned int len;
+   bool res;
+
+   len = strlen (tmpdir) + 29;
+   filename = (char *) malloc (len * sizeof (char));
+   hash = mpzx_mod_hash (F, p);
+   snprintf (filename, len, "%s/factor_%016"PRIx64".dat", tmpdir, hash);
+
+   f = fopen (filename, "w");
+   res = (f != NULL);
+
+   if (res) {
+      res &= (mpz_out_str (f, 10, p) != 0);
+      res &= (fprintf (f, "\n") != 0);
+      res &= (mpzx_out_str (f, 10, F) != 0);
+      res &= (fprintf (f, "\n") != 0);
+      res &= (mpzx_out_str (f, 10, factor) != 0);
+      res &= (fprintf (f, "\n") != 0);
+      res &= (fclose (f) == 0);
    }
 
    free (filename);
