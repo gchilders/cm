@@ -524,7 +524,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    /* Compute in root a root of the polynomial f over the prime field
       of characteristic p, assuming that f splits completely. */
 {
-   mpzx_t F, factor;
+   mpzx_t F, factor, factorloc;
    mpz_t inv;
    int i;
    cm_timer_t clock;
@@ -547,9 +547,22 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    }
 
    while (F->deg != 1) {
+      /* Try to read a factor of F from a checkpointing file. */
+      mpzx_init (factorloc, -1);
+      if (cm_file_read_factor ("/tmp", factorloc, F, p)) {
+         mpzx_set (F, factorloc);
+         if (debug)
+            printf ("    Read factor of degree %i\n", F->deg);
+      }
+      mpzx_clear (factorloc);
+
+      /* Find a smaller factor. */
       mpzx_onefactor_split_mod (factor, F, p, debug);
+
       /* Write the factor to a checkpointing file. */
       cm_file_write_factor ("/tmp", factor, F, p);
+
+      /* Replace F by the factor. */
       mpzx_set (F, factor);
    }
 
