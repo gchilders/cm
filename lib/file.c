@@ -444,6 +444,58 @@ bool cm_file_write_factor (const char *tmpdir, mpzx_srcptr factor,
 
 /*****************************************************************************/
 
+bool cm_file_read_factor (const char *tmpdir, mpzx_ptr factor,
+   mpzx_srcptr F, mpz_srcptr p)
+   /* If a corresponding file can be opened, try to read a factor of the
+      monic polynomial F modulo p and return it in factor, or leave factor
+      unchanged. The return value reflects the success of the operation. */
+{
+   char *filename;
+   uint64_t hash;
+   FILE *f;
+   unsigned int len;
+   bool res;
+   mpz_t ploc;
+   mpzx_t Floc;
+
+   len = strlen (tmpdir) + 29;
+   filename = (char *) malloc (len * sizeof (char));
+   hash = mpzx_mod_hash (F, p);
+   snprintf (filename, len, "%s/factor_%016"PRIx64".dat", tmpdir, hash);
+
+   f = fopen (filename, "r");
+   res = (f != NULL);
+
+   if (res) {
+      /* Read p and F and check whether they are the same; otherwise
+         there has been a hash collision. */
+      mpz_init (ploc);
+      mpzx_init (Floc, -1);
+      res &= (mpz_inp_str (ploc, f, 10) != 0);
+      res &= mpzx_inp_str (Floc, f, 10);
+      if (mpz_cmp (p, ploc) != 0 || mpzx_cmp (F, Floc) != 0) {
+         printf ("***** Warning: Hash collision in reading a factor\n");
+         printf ("p ");
+         mpz_out_str (stdout, 10, ploc);
+         printf ("\nF ");
+         mpzx_out_str (stdout, 10, Floc);
+         printf ("\n");
+         res = false;
+      }
+      else
+         res &= mpzx_inp_str (Floc, f, 10);
+      res &= (fclose (f) == 0);
+      if (res)
+         mpzx_set (factor, Floc);
+      mpz_clear (ploc);
+      mpzx_clear (Floc);
+   }
+
+   return res;
+}
+
+/*****************************************************************************/
+
 static bool write_stat (FILE *f, cm_stat_t stat)
    /* Write the content of stat to the file f. */
 {
