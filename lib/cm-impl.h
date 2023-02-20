@@ -147,6 +147,7 @@ extern bool cm_mpfrx_get_mpzx (mpzx_ptr g, mpfrx_srcptr f);
 extern bool cm_mpcx_get_quadraticx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
    int_cl_t d);
 extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);
+extern bool mpzx_inp_str (mpzx_ptr f, FILE* stream, int base);
 extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 extern void mpzxx_print_pari (FILE* file, mpzx_srcptr g, mpzx_srcptr h,
    char *x);

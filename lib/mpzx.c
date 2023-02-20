@@ -224,6 +224,30 @@ size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f)
 
 /*****************************************************************************/
 
+bool mpzx_inp_str (mpzx_ptr f, FILE *stream, int base)
+{
+   int res;
+   int deg, i;
+   char c;
+
+   if (stream == NULL)
+      stream = stdin;
+
+   res = (fscanf (stream, " (%d", &deg) != 0);
+   mpzx_set_deg (f, deg);
+   if (deg == -1)
+      res &= (fscanf (stream, " %i)", &i) != 0 && i == 0);
+   else {
+      for (i = deg; i >= 0; i--)
+         res &= (mpz_inp_str (f->coeff [i], stream, base) != 0);
+      res &= (fscanf (stream, " %c", &c) != 0 && c == ')');
+   }
+
+   return res;
+}
+
+/*****************************************************************************/
+
 void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *var)
    /* Print the polynomial f in a format understood by PARI.
       var contains the variable name; if it is NULL, the function
