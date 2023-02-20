@@ -120,7 +120,7 @@ extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
 
 /* functions depending on PARI */
 extern void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, bool verbose, bool debug);
+   mpz_srcptr p, const char *tmpdir, bool verbose, bool debug);
 extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p);
 extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
@@ -218,15 +218,15 @@ extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
 extern bool cm_class_write (cm_class_srcptr c, cm_param_srcptr param);
 extern bool cm_class_read (cm_class_ptr c, cm_param_srcptr param);
 extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
-   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir,
-   bool verbose, bool debug);
+   cm_class_srcptr c, mpz_srcptr p, const char *modpoldir,
+   const char *tmpdir, bool verbose, bool debug);
 
 /* functions for computing parameters of a complex multiplication curve */
 extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
    mpz_ptr y, cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool print, bool verbose, bool debug,
-   cm_stat_t stat);
+   const char *modpoldir, const char *tmpdir,
+   bool print, bool verbose, bool debug, cm_stat_t stat);
 
 
 /* functions for ECPP */
@@ -240,7 +240,8 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
    int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
-   const char* modpoldir, bool verbose, bool debug, cm_stat_t stat);
+   const char* modpoldir,
+   const char *tmpdir, bool verbose, bool debug, cm_stat_t stat);
 extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 
 
@@ -287,7 +288,7 @@ extern void cm_mpi_get_primorial (int rank, double *t);
 extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
 extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t);
 extern void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
-   const char* modpoldir);
+   const char *modpoldir, const char *tmpdir);
 extern void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank,
    cm_stat_ptr stat);
 extern void cm_mpi_submit_curve_cardinalities (int rank, int job,

@@ -2,7 +2,7 @@
 
 curve.c - code for computing cm curves
 
-Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -692,7 +692,8 @@ void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l, mpz_ptr c,
 void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool print, bool verbose, bool debug,
+   const char *modpoldir, const char *tmpdir,
+   bool print, bool verbose, bool debug,
    cm_stat_t stat)
    /* Given CM parameters param, a class polynomial or class field tower
       stored in c, and curve cardinality parameters p (>=5, the cardinality
@@ -754,7 +755,8 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
 
    if (stat != NULL)
       cm_timer_continue (stat->timer [2]);
-   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose, debug);
+   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir,
+      tmpdir, verbose, debug);
    if (stat != NULL)
       cm_timer_stop (stat->timer [2]);
 
@@ -867,7 +869,7 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    const char* modpoldir, bool print, bool verbose)
 {
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co, modpoldir,
-      print, verbose, false, NULL);
+      NULL, print, verbose, false, NULL);
 }
 
 /*****************************************************************************/
