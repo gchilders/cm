@@ -293,9 +293,9 @@ bool cm_file_write_h (const char *tmpdir, const unsigned int *h, unsigned int n)
    unsigned long int no;
    bool res;
 
-   len = strlen (tmpdir) + 7;
+   len = strlen (tmpdir) + 10;
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/h.dat", tmpdir);
+   snprintf (filename, len, "%s/cm_h.dat", tmpdir);
 
    f = fopen (filename, "w");
    res = (f != NULL);
@@ -325,9 +325,9 @@ bool cm_file_read_h (const char *tmpdir, unsigned int *h, unsigned int n)
    unsigned long int no;
    bool res;
 
-   len = strlen (tmpdir) + 7;
+   len = strlen (tmpdir) + 10;
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/h.dat", tmpdir);
+   snprintf (filename, len, "%s/cm_h.dat", tmpdir);
 
    f = fopen (filename, "r");
    res = (f != NULL);
@@ -356,10 +356,10 @@ bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
    unsigned int len;
    bool res;
 
-   len = strlen (tmpdir) + 30;
+   len = strlen (tmpdir) + 33;
       /* enough for a 64-bit number i with 20 digits */
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+   snprintf (filename, len, "%s/cm_prim_%04i.dat", tmpdir, i);
 
    f = fopen (filename, "w");
    res = (f != NULL);
@@ -386,10 +386,10 @@ bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim, const int i)
    unsigned int len;
    bool res;
 
-   len = strlen (tmpdir) + 30;
+   len = strlen (tmpdir) + 33;
       /* enough for a 64-bit number i with 20 digits */
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+   snprintf (filename, len, "%s/cm_prim_%04i.dat", tmpdir, i);
 
    f = fopen (filename, "r");
    res = (f != NULL);
@@ -419,10 +419,10 @@ bool cm_file_write_factor (const char *tmpdir, mpzx_srcptr factor,
    unsigned int len;
    bool res;
 
-   len = strlen (tmpdir) + 29;
+   len = strlen (tmpdir) + 32;
    filename = (char *) malloc (len * sizeof (char));
    hash = mpzx_mod_hash (F, p);
-   snprintf (filename, len, "%s/factor_%016"PRIx64".dat", tmpdir, hash);
+   snprintf (filename, len, "%s/cm_factor_%016"PRIx64".dat", tmpdir, hash);
 
    f = fopen (filename, "w");
    res = (f != NULL);
@@ -458,10 +458,10 @@ bool cm_file_read_factor (const char *tmpdir, mpzx_ptr factor,
    mpz_t ploc;
    mpzx_t Floc;
 
-   len = strlen (tmpdir) + 29;
+   len = strlen (tmpdir) + 32;
    filename = (char *) malloc (len * sizeof (char));
    hash = mpzx_mod_hash (F, p);
-   snprintf (filename, len, "%s/factor_%016"PRIx64".dat", tmpdir, hash);
+   snprintf (filename, len, "%s/cm_factor_%016"PRIx64".dat", tmpdir, hash);
 
    f = fopen (filename, "r");
    res = (f != NULL);
