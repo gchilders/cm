@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define CM_VERSION_MAJOR      0
 #define CM_VERSION_MINOR      4
 #define CM_VERSION_PATCHLEVEL 2
-#define CM_VERSION_STRING     "0.4.2dev"
+#define CM_VERSION_STRING     "0.4.2"
 
 #define CM_MODPOL_J           'j'
 #define CM_MODPOL_DOUBLEETA   'd'

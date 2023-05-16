@@ -1,4 +1,4 @@
-Changes in version x.y.z:
+Changes in version 0.4.2 ("Fitzebohnen"), released in May 2023:
   - If the environment variable CM_ECPP_TMPDIR is set, write checkpoint
     files during the second phase of ECPP while factoring class
     polynomials. This makes it possible to interrupt and restart the
