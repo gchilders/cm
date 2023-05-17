@@ -31,6 +31,7 @@ static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
 static void FpX_get_mpzx (mpzx_ptr f, GEN x);
 static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
    mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
+static void mpzx_monic_mod (mpzx_ptr f, mpz_srcptr p);
 static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p);
 static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
@@ -223,9 +224,28 @@ static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
 
 /*****************************************************************************/
 
+static void mpzx_monic_mod (mpzx_ptr f, mpz_srcptr p)
+   /* Divide f in place by its dominant coefficient. */
+{
+   mpz_t inv;
+   int i;
+
+   if (mpz_cmp_ui (f->coeff [f->deg], 1) != 0) {
+      mpz_init (inv);
+      mpz_invert (inv, f->coeff [f->deg], p);
+      for (i = 0; i < f->deg; i++)
+         mpz_mul (f->coeff [i], f->coeff [i], inv);
+      mpz_set_ui (f->coeff [f->deg], 1);
+      mpzx_mod (f, f, p);
+      mpz_clear (inv);
+   }
+}
+
+/*****************************************************************************/
+
 static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
    mpz_srcptr p)
-   /* Compute h = gcd (f, g) modulo p. */
+   /* Compute h = gcd (f, g) modulo p and choose h monic. */
 {
 #ifdef HAVE_FLINT
    fmpz_t pp;
@@ -266,6 +286,8 @@ static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
 
    avma = av;
 #endif
+
+   mpzx_monic_mod (h, p);
 }
 
 /*****************************************************************************/
@@ -525,8 +547,6 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
       of characteristic p, assuming that f splits completely. */
 {
    mpzx_t F, factor;
-   mpz_t inv;
-   int i;
    cm_timer_t clock;
 
    cm_timer_start (clock);
@@ -536,15 +556,7 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
    mpzx_init (F, f->deg);
    mpzx_init (factor, -1);
    mpzx_mod (F, f, p);
-   /* If necessary, make F monic. */
-   if (mpz_cmp_ui (F->coeff [F->deg], 1) != 0) {
-      mpz_init (inv);
-      mpz_invert (inv, F->coeff [F->deg], p);
-      for (i = 0; i < F->deg; i++)
-         mpz_mul (F->coeff [i], F->coeff [i], inv);
-      mpz_set_ui (F->coeff [F->deg], 1);
-      mpzx_mod (F, F, p);
-   }
+   mpzx_monic_mod (F, p);
 
    while (F->deg != 1) {
       /* Try to read a factor of F from a checkpointing file. */
