@@ -23,6 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 const char *cm_get_version (void) {
-  return "0.4.2";
+  return "0.4.3dev";
 }
 
