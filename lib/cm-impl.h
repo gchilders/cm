@@ -129,6 +129,10 @@ extern char* cm_pari_sprintf_hfactor (int_cl_t d);
 
 #ifdef HAVE_FLINT
 /* functions depending on FLINT */
+#ifdef HAVE_FLINT3
+extern void cm_flint_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e,
+   mpz_srcptr p);
+#endif
 extern void cm_flint_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
    mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
 extern void cm_flint_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,

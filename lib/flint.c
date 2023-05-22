@@ -115,6 +115,39 @@ void cm_flint_print_library ()
 
 /*****************************************************************************/
 /*                                                                           */
+/* Functions for mpz modulo p relying on FLINT.                              */
+/*                                                                           */
+/*****************************************************************************/
+
+#ifdef HAVE_FLINT3
+void cm_flint_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e, mpz_srcptr p)
+{
+   fmpz_t zp, ap, ep, pp;
+   fmpz_mod_ctx_t ctx;
+
+   fmpz_init (pp);
+   fmpz_set_mpz (pp, p);
+   fmpz_init (ap);
+   fmpz_set_mpz (ap, a);
+   fmpz_init (ep);
+   fmpz_set_mpz (ep, e);
+   fmpz_mod_ctx_init (ctx, pp);
+   fmpz_init (zp);
+
+   fmpz_mod_pow_fmpz (zp, ap, ep, ctx);
+
+   fmpz_get_mpz (z, zp);
+
+   fmpz_clear (pp);
+   fmpz_clear (ap);
+   fmpz_clear (ep);
+   fmpz_mod_ctx_clear (ctx);
+   fmpz_clear (zp);
+}
+#endif
+
+/*****************************************************************************/
+/*                                                                           */
 /* Functions for mpzx modulo p relying on FLINT.                             */
 /*                                                                           */
 /*****************************************************************************/

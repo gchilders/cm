@@ -2,7 +2,7 @@
 
 nt.c - number theoretic helper functions
 
-Copyright (C) 2009, 2010, 2015, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "cm-impl.h"
 
+static void cm_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e, mpz_srcptr p);
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 static int miller_rabin (mpz_srcptr n);
 static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
@@ -125,6 +126,17 @@ int cm_nt_kronecker (int_cl_t a, int_cl_t b)
       return 0;
    else
       return k;
+}
+
+/*****************************************************************************/
+
+static void cm_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e, mpz_srcptr p)
+{
+#ifdef HAVE_FLINT3
+   cm_flint_mpz_powm (z, a, e, p);
+#else
+   mpz_powm (z, a, e, p);
+#endif
 }
 
 /*****************************************************************************/
@@ -316,7 +328,7 @@ unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
       mpz_tdiv_q_2exp (q, p, e);
       for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
          mpz_add_ui (z, z, 1ul));
-      mpz_powm (z, z, q, p);
+      cm_mpz_powm (z, z, q, p);
    }
 
    return e;
@@ -348,7 +360,7 @@ static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
    if (e == 1) /* p=3 (mod 4) */ {
       mpz_add_ui (tmp, p, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 2ul);
-      mpz_powm (x, a_local, tmp, p);
+      cm_mpz_powm (x, a_local, tmp, p);
    }
    else {
       /* initialisation */
@@ -356,7 +368,7 @@ static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
       r = e;
       mpz_sub_ui (tmp, q, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 1ul);
-      mpz_powm (x, a_local, tmp, p);
+      cm_mpz_powm (x, a_local, tmp, p);
       mpz_powm_ui (b, x, 2ul, p);
       mpz_mul (b, b, a_local);
       mpz_mod (b, b, p);
