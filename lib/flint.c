@@ -34,11 +34,18 @@ void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
    const fmpz_mod_ctx_t ctx)
 {
    int deg, i;
+   fmpz_t tmp;
+
+   fmpz_init (tmp);
 
    deg = fmpz_mod_poly_degree (ff, ctx);
    mpzx_set_deg (f, deg);
-   for (i = 0; i <= deg; i++)
-      fmpz_mod_poly_get_coeff_mpz (f->coeff [i], ff, i, ctx);
+   for (i = 0; i <= deg; i++) {
+      fmpz_mod_poly_get_coeff_fmpz (tmp, ff, i, ctx);
+      fmpz_get_mpz (f->coeff [i], tmp);
+   }
+
+   fmpz_clear (tmp);
 }
 
 /*****************************************************************************/
@@ -47,11 +54,18 @@ void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
    const fmpz_mod_ctx_t ctx)
 {
    int deg, i;
+   fmpz_t tmp;
+
+   fmpz_init (tmp);
 
    deg = f->deg;
    fmpz_mod_poly_realloc (ff, deg + 1, ctx);
-   for (i = 0; i <= deg; i++)
-      fmpz_mod_poly_set_coeff_mpz (ff, i, f->coeff [i], ctx);
+   for (i = 0; i <= deg; i++) {
+      fmpz_set_mpz (tmp, f->coeff [i]);
+      fmpz_mod_poly_set_coeff_fmpz (ff, i, tmp, ctx);
+   }
+
+   fmpz_clear (tmp);
 }
 
 /*****************************************************************************/

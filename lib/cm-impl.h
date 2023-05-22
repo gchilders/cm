@@ -38,6 +38,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <pari/pari.h>
 #include "cm.h"
 #ifdef HAVE_FLINT
+/* Work around what looks like bug in flint-3, see
+   https://github.com/flintlib/flint2/issues/1390
+   https://github.com/flintlib/flint2/issues/1391
+   None of the undefined constants are used in CM, so it does not matter
+   that they end up as FLINT specific values. */
+#undef ulong
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_URL
+#undef PACKAGE_VERSION
+#include <flint/fmpz.h>
+#include <flint/fmpz_mod.h>
 #include <flint/fmpz_mod_poly.h>
 #endif
 
