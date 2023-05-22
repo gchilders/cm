@@ -91,9 +91,6 @@ extern void cm_nt_factor (uint_cl_t d, uint_cl_t *factors,
 extern uint_cl_t cm_nt_largest_factor (uint_cl_t n);
 extern unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
    mpz_srcptr p);
-extern void cm_nt_mpz_tonelli_with_generator (mpz_ptr root,
-   mpz_srcptr a, mpz_srcptr p, unsigned int e, mpz_srcptr q,
-   mpz_srcptr z);
 extern void cm_nt_mpz_tonelli_si_with_generator (mpz_ptr root,
    const long int a, mpz_srcptr p, unsigned int e, mpz_srcptr q,
    mpz_srcptr z);

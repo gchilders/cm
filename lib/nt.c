@@ -25,6 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 static int miller_rabin (mpz_srcptr n);
+static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
+   mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
 
 /*****************************************************************************/
 
@@ -322,7 +324,7 @@ unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
+static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
    mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z)
    /* Compute a square root of a modulo p by the Tonelli-Shanks algorithm,
       see Cohen93, Algorithm 1.5. */
