@@ -2,7 +2,7 @@
 
 params.c - command line parameter evaluation
 
-Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -154,7 +154,6 @@ static void print_help_ecpp (void)
 
 static void print_libraries (void)
 {
-   GEN v;
    printf ("CM: include %s, lib %s\n", CM_VERSION_STRING, cm_get_version ());
    printf ("GMP: include %d.%d.%d, lib %s\n",
          __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR, __GNU_MP_VERSION_PATCHLEVEL,
@@ -166,13 +165,9 @@ static void print_libraries (void)
          mpc_get_version ());
    printf ("MPFRCX: include %s, lib %s\n", MPFRCX_VERSION_STRING,
          mpfrcx_get_version ());
-   v = pari_version ();
-   printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
-         PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
-         PARI_VERSION_CODE & 255ul,
-         itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
+   cm_pari_print_library ();
 #ifdef HAVE_FLINT
-   printf ("FLINT: include %s, lib %s\n", FLINT_VERSION, flint_version);
+   cm_flint_print_library ();
 #endif
    fflush (stdout);
 }

@@ -35,25 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <unistd.h> /* for usleep */
 #include <mpi.h>
 #endif
-#include <pari/pari.h>
 #include "cm.h"
-#ifdef HAVE_FLINT
-/* Work around what looks like bug in flint-3, see
-   https://github.com/flintlib/flint2/issues/1390
-   https://github.com/flintlib/flint2/issues/1391
-   None of the undefined constants are used in CM, so it does not matter
-   that they end up as FLINT specific values. */
-#undef ulong
-#undef PACKAGE_BUGREPORT
-#undef PACKAGE_NAME
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-#undef PACKAGE_URL
-#undef PACKAGE_VERSION
-#include <flint/fmpz.h>
-#include <flint/fmpz_mod.h>
-#include <flint/fmpz_mod_poly.h>
-#endif
 
 #define CM_CLASS_DATADIR "."
 #define CM_CLASS_TMPDIR "."
@@ -150,10 +132,6 @@ extern char* cm_pari_sprintf_hfactor (int_cl_t d);
 
 #ifdef HAVE_FLINT
 /* functions depending on FLINT */
-void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
-   const fmpz_mod_ctx_t ctx);
-void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
-   const fmpz_mod_ctx_t ctx);
 extern void cm_flint_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
    mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
 extern void cm_flint_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,

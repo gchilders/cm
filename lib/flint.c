@@ -20,9 +20,28 @@ You should have received a copy of the GNU General Public License along
 with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
+
 #include "cm-impl.h"
 
 #ifdef HAVE_FLINT
+/* Work around what looks like a bug in flint-3, see
+   https://github.com/flintlib/flint2/issues/1390
+   None of the undefined constants are used in CM, so it does not matter
+   that they end up as FLINT specific values. */
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_URL
+#undef PACKAGE_VERSION
+#include <flint/fmpz.h>
+#include <flint/fmpz_mod.h>
+#include <flint/fmpz_mod_poly.h>
+
+static void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
+   const fmpz_mod_ctx_t ctx);
+static void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
+   const fmpz_mod_ctx_t ctx);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -30,7 +49,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 /*                                                                           */
 /*****************************************************************************/
 
-void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
+static void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
    const fmpz_mod_ctx_t ctx)
 {
    int deg, i;
@@ -50,7 +69,7 @@ void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
 
 /*****************************************************************************/
 
-void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
+static void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
    const fmpz_mod_ctx_t ctx)
 {
    int deg, i;
@@ -66,6 +85,32 @@ void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
    }
 
    fmpz_clear (tmp);
+}
+
+/*****************************************************************************/
+/*                                                                           */
+/* Various simple functions.                                                 */
+/*                                                                           */
+/*****************************************************************************/
+
+void cm_flint_init ()
+{
+}
+
+/*****************************************************************************/
+
+void cm_flint_clear ()
+
+{
+   /* Clear FLINT cache. */
+   flint_cleanup ();
+}
+
+/*****************************************************************************/
+
+void cm_flint_print_library ()
+{
+   printf ("FLINT: include %s, lib %s\n", FLINT_VERSION, flint_version);
 }
 
 /*****************************************************************************/

@@ -21,6 +21,7 @@ You should have received a copy of the GNU General Public License along
 with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
+#include <pari/pari.h>
 #include "cm-impl.h"
 
 static GEN mpz_get_Z (mpz_srcptr z);
@@ -159,6 +160,9 @@ void cm_pari_init ()
    pari_init_opts (1ul<<23, 0, INIT_JMPm | INIT_DFTm);
       /* Do not capture SIGSEGV. */
    paristack_setsize (1ul<<23, 1ul<<31);
+#ifdef HAVE_FLINT
+   cm_flint_init ();
+#endif
 }
 
 /*****************************************************************************/
@@ -168,9 +172,26 @@ void cm_pari_clear ()
 {
    pari_close ();
 #ifdef HAVE_FLINT
-      /* Clear FLINT cache. */
-      flint_cleanup ();
+   cm_flint_clear ();
 #endif
+}
+
+/*****************************************************************************/
+
+void cm_pari_print_library ()
+{
+   pari_sp av;
+   GEN v;
+
+   av = avma;
+
+   v = pari_version ();
+   printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
+         PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
+         PARI_VERSION_CODE & 255ul,
+         itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
+
+   avma = av;
 }
 
 /*****************************************************************************/

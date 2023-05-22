@@ -291,9 +291,17 @@ extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    int maxdeg, int subfield, bool verbose);
 
 /* functions depending on PARI */
+extern void cm_pari_print_library (void);
 extern void cm_pari_init (void);
 extern void cm_pari_clear (void);
 extern bool cm_pari_eval_int (mpz_ptr n, char *e);
+
+/* functions depending on FLINT */
+#ifdef HAVE_FLINT
+extern void cm_flint_print_library (void);
+extern void cm_flint_init (void);
+extern void cm_flint_clear (void);
+#endif
 
 /* functions for class polynomials */
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,
