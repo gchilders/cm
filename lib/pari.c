@@ -167,6 +167,10 @@ void cm_pari_clear ()
 
 {
    pari_close ();
+#ifdef HAVE_FLINT
+      /* Clear FLINT cache. */
+      flint_cleanup ();
+#endif
 }
 
 /*****************************************************************************/

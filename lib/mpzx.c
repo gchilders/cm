@@ -739,10 +739,6 @@ void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
 
    mpzx_clear (F);
    mpzx_clear (factor);
-#ifdef HAVE_FLINT
-      /* Clear FLINT cache. */
-      flint_cleanup ();
-#endif
 
    cm_timer_stop (clock);
    if (verbose && f->deg > 1)
