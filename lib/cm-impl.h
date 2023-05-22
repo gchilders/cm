@@ -119,8 +119,14 @@ extern void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1);
 extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
 
 /* functions depending on PARI */
-extern void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, const char *tmpdir, bool verbose, bool debug);
+extern int cm_pari_good_root_of_unity (mpz_ptr zeta, mpz_srcptr p,
+   const int deg);
+extern void cm_pari_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
+extern void cm_pari_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p);
+extern void cm_pari_mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f,
+   mpzx_srcptr g, mpz_srcptr p);
 extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p);
 extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
@@ -134,6 +140,10 @@ void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
    const fmpz_mod_ctx_t ctx);
 void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
    const fmpz_mod_ctx_t ctx);
+extern void cm_flint_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
+extern void cm_flint_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p);
 #endif
 
 /* functions for integral polynomials */
@@ -152,6 +162,8 @@ extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 extern void mpzxx_print_pari (FILE* file, mpzx_srcptr g, mpzx_srcptr h,
    char *x);
 extern uint64_t mpzx_mod_hash (mpzx_srcptr f, mpz_srcptr p);
+extern void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f,
+   mpz_srcptr p, const char *tmpdir, bool verbose, bool debug);
 
 /* functions for number field towers */
 extern void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d);
