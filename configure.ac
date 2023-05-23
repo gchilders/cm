@@ -282,6 +282,23 @@ error
             [
             AC_MSG_RESULT(yes)
             AC_DEFINE([HAVE_FLINT],[1],[Define to 1 if FLINT is present.])
+            AC_MSG_CHECKING(for FLINT 3 or higher)
+            AC_COMPILE_IFELSE(
+                [AC_LANG_SOURCE(
+                    [[
+#include "flint/flint.h"
+#if __FLINT_RELEASE < 30000
+# error "FLINT version is less than 3.0.0"
+error
+#endif
+                    ]])],
+                [
+                AC_MSG_RESULT(yes)
+                AC_DEFINE([HAVE_FLINT3],[1],[Define to 1 if FLINT 3 or later is present.])
+                ],
+                [
+                AC_MSG_RESULT(no)
+                ])
             ],
             [
                 AC_MSG_RESULT([no, only FLINT version >= 2.7.0 works with CM])
