@@ -41,7 +41,7 @@ static double expected_no_curves (long int *qstar, int no_qstar_old,
    uint_cl_t hmaxprime, unsigned int *h);
 static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #ifndef WITH_MPI
-   mpz_srcptr p,
+   mpz_srcptr p, unsigned int e, mpz_srcptr r, mpz_srcptr z,
 #endif
    cm_stat_t stat);
 static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
@@ -598,16 +598,16 @@ static double expected_no_curves (long int *qstar, int no_qstar_old,
 
 static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #ifndef WITH_MPI
-   mpz_srcptr p,
+   mpz_srcptr p, unsigned int e, mpz_srcptr r, mpz_srcptr z,
 #endif
    cm_stat_t stat)
    /* Compute in qroot the square roots of the no_qstar elements of qstar
       (assumed to be squares) modulo p. qroot needs to be initialised to
-      the correct size, and its entries need to be initialised as well. */
+      the correct size, and its entries need to be initialised as well.
+      e, r and z are the return value and the values q and z computed by
+      cm_nt_tonelli_generator. */
 {
 #ifndef WITH_MPI
-   unsigned int e;
-   mpz_t r, z;
    int i;
 #else
    MPI_Status status;
@@ -617,14 +617,9 @@ static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 
 #ifndef WITH_MPI
    cm_timer_continue (stat->timer [0]);
-   mpz_init (r);
-   mpz_init (z);
-   e = cm_nt_mpz_tonelli_generator (r, z, p);
    for (i = 0; i < no_qstar; i++)
       cm_nt_mpz_tonelli_si_with_generator (qroot [i], qstar [i],
          p, e, r, z);
-   mpz_clear (r);
-   mpz_clear (z);
    cm_timer_stop (stat->timer [0]);
 #else
    sent = 0;
@@ -1052,6 +1047,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    double exp_prime, min_prime;
    int round, i;
    cm_timer_t timer;
+   unsigned int e;
+   mpz_t r, z;
 #ifdef WITH_MPI
    MPI_Status status;
    int size, rank, job;
@@ -1069,9 +1066,20 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    qstar = (long int *) malloc (0);
    root = (mpz_t *) malloc (0);
 
+   mpz_init (r);
+   mpz_init (z);
+   cm_timer_start (timer);
+   e = cm_nt_mpz_tonelli_generator (r, z, N);
+   cm_timer_stop (timer);
+   if (debug) {
+      printf ("    Tonelli generator:   (%4.0f)\n",
+         cm_timer_wc_get (timer));
+      fflush (stdout);
+   }
+
 #ifdef WITH_MPI
    MPI_Comm_size (MPI_COMM_WORLD, &size);
-   cm_mpi_broadcast_N (N);
+   cm_mpi_broadcast_N (N, e, r, z);
    no_qstar_delta = size - 1;
 #else
    no_qstar_delta = 1;
@@ -1125,7 +1133,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       compute_qroot (root + no_qstar_old, qstar + no_qstar_old,
          no_qstar_new,
 #ifndef WITH_MPI
-         N,
+         N, e, r, z,
 #endif
          stat);
 #ifdef WITH_MPI
@@ -1252,6 +1260,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       mpz_clear (root [i]);
    free (root);
    free (qstar);
+   mpz_clear (r);
+   mpz_clear (z);
 
    if (debug) {
       printf ("    size gain: %lu bits\n",

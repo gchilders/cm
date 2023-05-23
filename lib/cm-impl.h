@@ -280,7 +280,8 @@ extern void cm_mpi_queue_push (int rank);
 extern int cm_mpi_queue_pop (void);
 extern unsigned long int cm_mpi_compute_B (void);
 extern void cm_mpi_broadcast_init (bool verbose, bool debug);
-extern void cm_mpi_broadcast_N (mpz_srcptr N);
+extern void cm_mpi_broadcast_N (mpz_srcptr N, unsigned int e,
+   mpz_srcptr r, mpz_srcptr z);
 extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
    mpz_t *qroot);
 extern void cm_mpi_clear_N (void);

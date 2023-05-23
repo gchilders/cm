@@ -260,7 +260,8 @@ void cm_mpi_broadcast_init (bool verbose, bool debug)
 
 /*****************************************************************************/
 
-void cm_mpi_broadcast_N (mpz_srcptr N)
+void cm_mpi_broadcast_N (mpz_srcptr N, unsigned int e,
+   mpz_srcptr r, mpz_srcptr z)
    /* Send data depending on N to all workers. */
 {
    int size, rank;
@@ -270,6 +271,11 @@ void cm_mpi_broadcast_N (mpz_srcptr N)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_N,
          MPI_COMM_WORLD);
    mpi_bcast_send_mpz (N, MPI_COMM_WORLD);
+   MPI_Bcast (&e, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+   if (e > 1) {
+      mpi_bcast_send_mpz (r, MPI_COMM_WORLD);
+      mpi_bcast_send_mpz (z, MPI_COMM_WORLD);
+   }
 }
 
 /*****************************************************************************/
@@ -672,7 +678,11 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_BROADCAST_N:
          mpi_bcast_recv_mpz (N, MPI_COMM_WORLD);
-         e = cm_nt_mpz_tonelli_generator (r, z, N);
+         MPI_Bcast (&e, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+         if (e > 1) {
+            mpi_bcast_recv_mpz (r, MPI_COMM_WORLD);
+            mpi_bcast_recv_mpz (z, MPI_COMM_WORLD);
+         }
          break;
       case MPI_TAG_JOB_BROADCAST_SQRT:
          MPI_Bcast (&no_qstar_new, 1, MPI_INT, 0, MPI_COMM_WORLD);
