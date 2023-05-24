@@ -159,7 +159,7 @@ static int miller_rabin (mpz_srcptr n)
    mpz_tdiv_q_2exp (e, nm1, d);
 
    mpz_set_ui (b, 2);
-   mpz_powm (b, b, e, n);
+   cm_mpz_powm (b, b, e, n);
    if (!mpz_cmp_ui (b, 1) || !mpz_cmp (b, nm1))
       res = 1;
    else {
