@@ -24,7 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 static void cm_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e, mpz_srcptr p);
+#ifndef HAVE_FLINT3
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
+#endif
 static int miller_rabin (mpz_srcptr n);
 static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
    mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
@@ -455,6 +457,7 @@ void cm_nt_mpz_tonelli_si (mpz_ptr root, const long int a, mpz_srcptr p)
 
 /*****************************************************************************/
 
+#ifndef HAVE_FLINT3
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
    /* This is the workhorse behind the cm_nt_mpz_tree_gcd function; it
       assumes that the total size of the no_m entries of m is less than
@@ -513,6 +516,7 @@ static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
    free (tree);
    free (width);
 }
+#endif
 
 /*****************************************************************************/
 
@@ -538,7 +542,11 @@ void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
               && size_m + mpz_sizeinbase (m [offset + no_batch], 2)
                  < size_n / 2;
            size_m += mpz_sizeinbase (m [offset + no_batch], 2), no_batch++);
+#ifdef HAVE_FLINT3
+      cm_flint_tree_gcd (gcd + offset, n, m + offset, no_batch);
+#else
       tree_gcd (gcd + offset, n, m + offset, no_batch);
+#endif
    }
 }
 
