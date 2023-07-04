@@ -1309,12 +1309,16 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          more and more qstar, which becomes increasingly difficult. */
 #endif
    const uint_cl_t Dmax =
-      1ul << CM_MAX (20, (((unsigned long int) ceil (log2 (L*L))) - 2));
-      /* We need a value that is a multiple of 4. To limit the number of
-         possible values, we choose a power of 2 above the previously
-         implemented L^2/4; the minimum of 2^20 leads to a negligible
-         running time for the class numbers even on a single core. For a
-         hypothetical number of 100000 digits, the value would be 2^35. */
+      1ul << CM_MIN (35, CM_MAX (20,
+                            ((unsigned long int) ceil (log2 (L*L)) - 1)));
+      /* We need a value that is a multiple of 4 and thus choose a power
+         of 2. The minimum of 2^20 leads to a negligible running time for
+         the class numbers even on a single core.
+         The value should grow like L^2.
+         Using L^2/4 led to a failure for a difficult number of 7028 digits,
+         L^2/2 let it pass with the discriminant -541*626887.
+         We use 2^35 as a maximum value, kicking in at about 79000 digits,
+         which leads to a class number file of 64 GB size. */
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
    mpz_t** c;
