@@ -1247,12 +1247,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          the class numbers have become quite high, and that the expected
          number of curve cardinalities per discriminant quite low; so we
          should lower our expectations. */
-      if (min_prime == 3.0)
+      if (min_prime > 1.0)
          min_prime = 1.0;
-      else if (min_prime == 1.0)
-         min_prime = 0.5;
-      else
-         min_prime = 0.25;
    }
 
 #ifdef WITH_MPI
