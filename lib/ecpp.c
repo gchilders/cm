@@ -56,10 +56,10 @@ static void trial_div (mpz_t *l, mpz_t *n, int no_n,
    cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
-   const unsigned int delta, bool debug, cm_stat_t stat);
+   const int delta, bool debug, cm_stat_t stat);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
-   const unsigned int delta,
+   const int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
 #endif
@@ -878,7 +878,7 @@ static int card_cmp (const void* c1, const void* c2)
 
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
-   const unsigned int delta, bool debug, cm_stat_t stat)
+   const int delta, bool debug, cm_stat_t stat)
    /* For the no_card discriminants in d, card is supposed to contain
       corresponding curve cardinalities and l_list their non-smooth parts.
       The function tests whether one of them is suitable to perform one
@@ -886,8 +886,10 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
       found, the corresponding discriminant from d is returned, and n
       becomes the cardinality of the elliptic curve and l its largest prime
       factor; otherwise 0 is returned and n and l are unchanged.
-      delta >= 1 is the minimum number of bits to be gained in this
-      step. */
+      delta is the minimum number of bits to be gained in this step;
+      it can be negative, in which case increasing the number of bits (by
+      at most 1 due to Hasse's bound) is allowed; this could theoretically
+      prevent being stuck. */
 
 {
    int_cl_t res;
@@ -1017,7 +1019,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
-   const unsigned int delta,
+   const int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
 #endif
@@ -1026,7 +1028,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
       Dmax, hmaxprime and h are passed through to compute_discriminants.
-      delta >= 1 is passed through as the minimum number of bits to be
+      delta is passed through as the minimum number of bits to be
       gained in this step.
       primorialB is passed through to trial division.
       The smoothness bound B is needed to compute the success probability
@@ -1303,7 +1305,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          we impose half of this number of bits as the minimal gain. */
 #else
    const unsigned long int B = cm_mpi_compute_B ();
-   const unsigned int delta = 2;
+   const int delta = -1;
       /* Since in the parallel version we consider many potential curve
          orders at once and order them by gain, having a small value of
          delta does not make much difference most of the time. For "bad
