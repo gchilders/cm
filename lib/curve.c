@@ -474,11 +474,9 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
       The point is not really random, since successive X-coordinates from
       1 on are tested. */
 {
-   mpz_t  tmp;
    long unsigned int P_x_long = 0;
    bool P_infty = true;
 
-   mpz_init (tmp);
    while (P_infty) {
       P_x_long++;
       /* P_y = P_x^3 + a P_x + b */
@@ -487,7 +485,7 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
       mpz_add_ui (P_y, P_y, P_x_long * P_x_long * P_x_long);
       mpz_mod (P_y, P_y, p);
       /* try to compute the square root of P_y */
-      if (mpz_jacobi (P_y, p) != -1) {
+      if (mpz_jacobi (P_y, p) == 1) {
          mpz_set_ui (P_x, P_x_long);
          cm_nt_mpz_tonelli (P_y, P_y, p);
          /* get rid of the cofactor */
@@ -495,7 +493,6 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
          elliptic_curve_multiply (P_x, P_y, &P_infty, cofactor, a, p);
       }
    }
-   mpz_clear (tmp);
 }
 
 /*****************************************************************************/
