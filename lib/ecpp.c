@@ -31,14 +31,14 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h);
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h);
 static int disc_cmp (const void* d1, const void* d2);
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h);
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h);
 static double expected_no_curves (long int *qstar, int no_qstar_old,
    int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, unsigned int *h);
+   uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h);
 static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #ifndef WITH_MPI
    mpz_srcptr p, unsigned int e, mpz_srcptr r, mpz_srcptr z,
@@ -58,7 +58,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
    const int delta, bool debug, cm_stat_t stat);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h,
    const int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
@@ -413,13 +413,13 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h)
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h)
    /* Given an array of no_qstar_old + no_qstar_new "signed primes" qstar
       (ordered by increasing absolute value), return an array of negative
-      fundamental discriminants with factors from the list and of absolute
-      value bounded above by Dmax, and return their number in no_d.
-      Moreover, each discriminant must contain at least one prime larger
-      from the last no_qstar_new ones.
+      fundamental discriminants with factors from the list, of absolute
+      value bounded above by Dmax and with class number bounded above by
+      hmax, and return their number in no_d. Moreover, each discriminant
+      must contain at least one prime larger from the last no_qstar_new ones.
       If it is different from 0, then hmaxprime furthermore is an upper
       bound on the largest prime factor of the class number. Specifying it
       will result in the class numbers being factored, which takes
@@ -472,7 +472,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
       qnew = qstar [no_qstar_old + i];
       for (j = 0; j < no_part [i]; j++) {
          D = qnew * d_part [i][j][0];
-         if (D % 16 != 0) {
+         if (D % 16 != 0 && h [(-D) / 2 - 1] <= hmax) {
             Dno = 1 + d_part [i][j][1];
             if (Dno <= max_factors) {
                hprime = (hmaxprime > 0 ?
@@ -534,7 +534,7 @@ static int disc_cmp (const void* d1, const void* d2)
 
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h)
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). But instead of an unsorted
       double array, it returns a simple array of discriminants sorted
@@ -545,7 +545,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int i;
 
    dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar_new,
-      max_factors, Dmax, hmaxprime, h);
+      max_factors, Dmax, hmax, hmaxprime, h);
    if (*no_d > 0)
       qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
 
@@ -563,7 +563,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 
 static double expected_no_curves (long int *qstar, int no_qstar_old,
    int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, unsigned int *h)
+   uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). It returns the expected
       number of curve cardinalities obtained from the list of discriminants
@@ -577,7 +577,7 @@ static double expected_no_curves (long int *qstar, int no_qstar_old,
    int i;
 
    dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar_new,
-      max_factors, Dmax, hmaxprime, h);
+      max_factors, Dmax, hmax, hmaxprime, h);
 
    exp_card = 0;
    for (i = 0; i < no_d; i++) {
@@ -1018,7 +1018,7 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 /*****************************************************************************/
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h,
    const int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
@@ -1027,7 +1027,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
-      Dmax, hmaxprime and h are passed through to compute_discriminants.
+      Dmax, hmax, hmaxprime and h are passed through to compute_discriminants.
       delta is passed through as the minimum number of bits to be
       gained in this step.
       primorialB is passed through to trial division.
@@ -1109,7 +1109,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             no_qstar_delta);
          exp_prime += prob_prime *
             expected_no_curves (qstar, no_qstar - no_qstar_delta,
-               no_qstar_delta, max_factors, Dmax, hmaxprime, h);
+               no_qstar_delta, max_factors, Dmax, hmax, hmaxprime, h);
          if (debug)
             printf ("        no_qstar: %i, exp_prime: %.1f\n",
                no_qstar, exp_prime);
@@ -1119,7 +1119,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          new primes. */
       no_qstar_new = no_qstar - no_qstar_old;
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
-         no_qstar_new, max_factors, Dmax, hmaxprime, h);
+         no_qstar_new, max_factors, Dmax, hmax, hmaxprime, h);
       cm_timer_stop (stat->timer [4]);
       if (debug) {
          printf ("    no_d: %i\n", no_d);
@@ -1319,6 +1319,9 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          L^2/2 let it pass with the discriminant -541*626887.
          We use 2^35 as a maximum value, kicking in at about 79000 digits,
          which leads to a class number file of 64 GB size. */
+   const uint_cl_t hmax = 100000;
+      /* some arbitrary upper bound for a class polynomial we are able
+         to compute in reasonable time */
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
    mpz_t** c;
@@ -1419,7 +1422,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
                fflush (stdout);
             }
             d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
-                  hmaxprime, h, delta,
+                  hmax, hmaxprime, h, delta,
 #ifndef WITH_MPI
                   primorialB,
 #endif
@@ -1433,6 +1436,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
                t_old = t;
                printf ("  largest prime of d: %"PRIucl"\n",
                      cm_nt_largest_factor (-d));
+               printf ("  h: %u\n", h [(-d) / 2 - 1]);
                printf ("  largest prime of h: %"PRIucl"\n",
                      cm_nt_largest_factor (h [(-d) / 2 - 1]));
                printf ("  discriminants:          %11.0f (%7.0f)\n",
