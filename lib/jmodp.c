@@ -2,7 +2,7 @@
 
 jmodp.c - code for obtaining a j-invariant from a class polynomial
 
-Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -35,12 +35,13 @@ static void quadraticx_eval_mod_p (mpz_ptr val, mpzx_srcptr g,
 static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
    int deg, mpz_srcptr y, mpz_srcptr omega, mpz_srcptr p);
 static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
-   mpz_ptr root, mpz_srcptr p, bool verbose, bool debug);
+   mpz_ptr root, mpz_srcptr p,
+   const char *tmpdir, bool verbose, bool debug);
 static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
-   mpz_srcptr p, bool verbose, bool debug);
+   mpz_srcptr p, const char *tmpdir, bool verbose, bool debug);
 static void get_quadratic_tower_root_mod_p (mpz_ptr root,
    mpzx_tower_srcptr t, mpzx_tower_srcptr u, mpz_srcptr omega,
-   mpz_srcptr p, bool verbose, bool debug);
+   mpz_srcptr p, const char *tmpdir, bool verbose, bool debug);
 static mpz_t* get_j_mod_p_from_modular (int *no, const char* modpoldir,
    char type, int level, mpz_srcptr root, mpz_srcptr p);
 static mpz_t* simpleeta_cm_get_j_mod_p (cm_param_srcptr param,
@@ -165,7 +166,7 @@ static void quadraticxx_eval_mod_p (mpzx_ptr val, mpzx_t *g, mpzx_t *h,
 /*****************************************************************************/
 
 static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
-   mpz_ptr root, mpz_srcptr p, bool verbose, bool debug)
+   mpz_ptr root, mpz_srcptr p, const char *tmpdir, bool verbose, bool debug)
    /* Return a root of the minimal polynomial modulo P in root. */
 
 {
@@ -174,7 +175,7 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
    mpzx_t classpol_p;
 
    if (param->field == CM_FIELD_REAL)
-      mpzx_oneroot_split_mod (root, c->classpol, p, verbose, debug);
+      mpzx_oneroot_split_mod (root, c->classpol, p, tmpdir, verbose, debug);
    else {
       mpz_init (omega);
       cm_timer_start (clock);
@@ -185,7 +186,7 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
 
       mpzx_init (classpol_p, c->classpol->deg);
       quadraticx_mod_p (classpol_p, c->classpol, c->classpol_c, omega, p);
-      mpzx_oneroot_split_mod (root, classpol_p, p, verbose, debug);
+      mpzx_oneroot_split_mod (root, classpol_p, p, tmpdir, verbose, debug);
 
       mpz_clear (omega);
       mpzx_clear (classpol_p);
@@ -195,18 +196,18 @@ static void get_root_mod_p (cm_param_srcptr param, cm_class_srcptr c,
 /*****************************************************************************/
 
 static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
-   mpz_srcptr p, bool verbose, bool debug)
+   mpz_srcptr p, const char *tmpdir, bool verbose, bool debug)
    /* Let t be a class field tower in which p splits totally. Return a root
       mod p of the class polynomial behind the tower. */
 {
    int i;
    mpzx_t fp;
 
-   mpzx_oneroot_split_mod (root, t->W [0][0], p, verbose, debug);
+   mpzx_oneroot_split_mod (root, t->W [0][0], p, tmpdir, verbose, debug);
    for (i = 1; i < t->levels; i++) {
       mpzx_init (fp, t->d [i]);
       mpzxx_eval_mod_p (fp, t->W [i], t->d [i], root, p);
-      mpzx_oneroot_split_mod (root, fp, p, verbose, debug);
+      mpzx_oneroot_split_mod (root, fp, p, tmpdir, verbose, debug);
       mpzx_clear (fp);
    }
 }
@@ -215,7 +216,7 @@ static void get_tower_root_mod_p (mpz_ptr root, mpzx_tower_srcptr t,
 
 static void get_quadratic_tower_root_mod_p (mpz_ptr root,
    mpzx_tower_srcptr t, mpzx_tower_srcptr u, mpz_srcptr omega, mpz_srcptr p,
-   bool verbose, bool debug)
+   const char *tmpdir, bool verbose, bool debug)
    /* Assume that t+omega*u is a class field tower defined over the
       imaginary-quadratic field defined by omega in which p splits
       completely. Return a root modulo p of the class polynomial behind
@@ -226,13 +227,13 @@ static void get_quadratic_tower_root_mod_p (mpz_ptr root,
 
    mpzx_init (fp, t->d [0]);
    quadraticx_mod_p (fp, t->W [0][0], u->W [0][0], omega, p);
-   mpzx_oneroot_split_mod (root, fp, p, verbose, debug);
+   mpzx_oneroot_split_mod (root, fp, p, tmpdir, verbose, debug);
    mpzx_clear (fp);
    for (i = 1; i < t->levels; i++) {
       mpzx_init (fp, t->d [i]);
       quadraticxx_eval_mod_p (fp, t->W [i], u->W [i], t->d [i], root,
          omega, p);
-      mpzx_oneroot_split_mod (root, fp, p, verbose, debug);
+      mpzx_oneroot_split_mod (root, fp, p, tmpdir, verbose, debug);
       mpzx_clear (fp);
    }
 }
@@ -414,8 +415,8 @@ static mpz_t* simpleeta_cm_get_j_mod_p (cm_param_srcptr param,
 /*****************************************************************************/
 
 mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
-   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir,
-   bool verbose, bool debug)
+   cm_class_srcptr c, mpz_srcptr p, const char *modpoldir,
+   const char *tmpdir, bool verbose, bool debug)
    /* Assuming that c contains a class polynomial or a tower for param,
       allocate and return a list of potential j values modulo p.
       The number of allocated values is returned in no. */
@@ -428,16 +429,16 @@ mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
    cm_timer_start (clock);
    mpz_init (root);
    if (!c->computed_tower)
-      get_root_mod_p (param, c, root, p, verbose, debug);
+      get_root_mod_p (param, c, root, p, tmpdir, verbose, debug);
    else {
       if (param->field == CM_FIELD_REAL)
-         get_tower_root_mod_p (root, c->tower, p, verbose, debug);
+         get_tower_root_mod_p (root, c->tower, p, tmpdir, verbose, debug);
       else {
          mpz_t omega;
          mpz_init (omega);
          quadratic_basis (omega, c->dfund, p);
          get_quadratic_tower_root_mod_p (root, c->tower, c->tower_c,
-            omega, p, verbose, debug);
+            omega, p, tmpdir, verbose, debug);
          mpz_clear (omega);
       }
    }

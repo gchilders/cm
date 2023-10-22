@@ -2,7 +2,7 @@
 
 cm-impl.h - header file for internal use of the cm library
 
-Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -30,15 +30,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
+#include <stdint.h>
+#include <stdarg.h>
 #ifdef WITH_MPI
 #include <unistd.h> /* for usleep */
 #include <mpi.h>
 #endif
-#include <pari/pari.h>
 #include "cm.h"
-#ifdef HAVE_FLINT
-#include <flint/fmpz_mod_poly.h>
-#endif
 
 #define CM_CLASS_DATADIR "."
 #define CM_CLASS_TMPDIR "."
@@ -94,9 +92,6 @@ extern void cm_nt_factor (uint_cl_t d, uint_cl_t *factors,
 extern uint_cl_t cm_nt_largest_factor (uint_cl_t n);
 extern unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
    mpz_srcptr p);
-extern void cm_nt_mpz_tonelli_with_generator (mpz_ptr root,
-   mpz_srcptr a, mpz_srcptr p, unsigned int e, mpz_srcptr q,
-   mpz_srcptr z);
 extern void cm_nt_mpz_tonelli_si_with_generator (mpz_ptr root,
    const long int a, mpz_srcptr p, unsigned int e, mpz_srcptr q,
    mpz_srcptr z);
@@ -118,8 +113,14 @@ extern void cm_qdev_eval_fr (ftype rop, cm_qdev_t f, ftype q1);
 extern void cm_modular_eta_series_fr (cm_modular_t m, ftype rop, ftype q_24);
 
 /* functions depending on PARI */
-extern void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f,
-   mpz_srcptr p, bool verbose, bool debug);
+extern int cm_pari_good_root_of_unity (mpz_ptr zeta, mpz_srcptr p,
+   const int deg);
+extern void cm_pari_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
+extern void cm_pari_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p);
+extern void cm_pari_mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f,
+   mpzx_srcptr g, mpz_srcptr p);
 extern void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p);
 extern mpz_t* cm_pari_find_roots (int *no, mpzx_srcptr f, mpz_srcptr p);
 extern int cm_pari_classgroup (int_cl_t d, int_cl_t *ord, cm_form_t *gen);
@@ -129,25 +130,36 @@ extern char* cm_pari_sprintf_hfactor (int_cl_t d);
 
 #ifdef HAVE_FLINT
 /* functions depending on FLINT */
-void mpzx_set_fmpz_mod_poly (mpzx_ptr f, fmpz_mod_poly_t ff,
-   const fmpz_mod_ctx_t ctx);
-void fmpz_mod_poly_set_mpzx (fmpz_mod_poly_t ff, mpzx_srcptr f,
-   const fmpz_mod_ctx_t ctx);
+#ifdef HAVE_FLINT3
+extern void cm_flint_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e,
+   mpz_srcptr p);
+extern void cm_flint_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m,
+   int no_m);
+#endif
+extern void cm_flint_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
+extern void cm_flint_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p);
 #endif
 
 /* functions for integral polynomials */
 extern void mpzx_init (mpzx_ptr f, int deg);
 extern void mpzx_clear (mpzx_ptr f);
 extern void mpzx_set_deg (mpzx_ptr f, int deg);
+extern void mpzx_set (mpzx_ptr f, mpzx_srcptr g);
 extern int mpzx_cmp (mpzx_srcptr f, mpzx_srcptr g);
 extern void mpzx_mod (mpzx_ptr g, mpzx_srcptr f, mpz_srcptr p);
 extern bool cm_mpfrx_get_mpzx (mpzx_ptr g, mpfrx_srcptr f);
 extern bool cm_mpcx_get_quadraticx (mpzx_ptr g, mpzx_ptr h, mpcx_srcptr f,
    int_cl_t d);
 extern size_t mpzx_out_str (FILE* stream, int base, mpzx_srcptr f);
+extern bool mpzx_inp_str (mpzx_ptr f, FILE* stream, int base);
 extern void mpzx_print_pari (FILE* file, mpzx_srcptr f, char *x);
 extern void mpzxx_print_pari (FILE* file, mpzx_srcptr g, mpzx_srcptr h,
    char *x);
+extern uint64_t mpzx_mod_hash (mpzx_srcptr f, mpz_srcptr p);
+extern void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f,
+   mpz_srcptr p, const char *tmpdir, bool verbose, bool debug);
 
 /* functions for number field towers */
 extern void mpzx_tower_init (mpzx_tower_ptr twr, int levels, int *d);
@@ -214,15 +226,15 @@ extern void cm_modclass_atkinhecke_level_eval_quad (cm_modclass_t mc, ctype rop,
 extern bool cm_class_write (cm_class_srcptr c, cm_param_srcptr param);
 extern bool cm_class_read (cm_class_ptr c, cm_param_srcptr param);
 extern mpz_t* cm_class_get_j_mod_p (int *no, cm_param_srcptr param,
-   cm_class_srcptr c, mpz_srcptr p, const char* modpoldir,
-   bool verbose, bool debug);
+   cm_class_srcptr c, mpz_srcptr p, const char *modpoldir,
+   const char *tmpdir, bool verbose, bool debug);
 
 /* functions for computing parameters of a complex multiplication curve */
 extern void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x,
    mpz_ptr y, cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool print, bool verbose, bool debug,
-   cm_stat_t stat);
+   const char *modpoldir, const char *tmpdir,
+   bool print, bool verbose, bool debug, cm_stat_t stat);
 
 
 /* functions for ECPP */
@@ -236,7 +248,8 @@ extern mpz_t* cm_ecpp_compute_cardinalities (int *no_card,
    int_cl_t **card_d, int_cl_t *d, int no_d, mpz_srcptr N,
    long int *qstar, int no_qstar, mpz_t *qroot);
 extern void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
-   const char* modpoldir, bool verbose, bool debug, cm_stat_t stat);
+   const char* modpoldir,
+   const char *tmpdir, bool verbose, bool debug, cm_stat_t stat);
 extern bool cm_pari_ecpp_check (mpz_t **cert, int depth);
 
 
@@ -255,6 +268,10 @@ extern bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
    const int i);
 extern bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim,
    const int i);
+extern bool cm_file_write_factor (const char *tmpdir, mpzx_srcptr factor,
+   mpzx_srcptr F, mpz_srcptr p);
+extern bool cm_file_read_factor (const char *tmpdir, mpzx_ptr factor,
+   mpzx_srcptr F, mpz_srcptr p);
 extern bool cm_write_ecpp_cert1_line (FILE *f, mpz_t *line, cm_stat_t stat);
 extern bool cm_write_ecpp_cert2_line (FILE *f, mpz_t *line, int no,
    cm_stat_t stat);
@@ -270,7 +287,8 @@ extern void cm_mpi_queue_push (int rank);
 extern int cm_mpi_queue_pop (void);
 extern unsigned long int cm_mpi_compute_B (void);
 extern void cm_mpi_broadcast_init (bool verbose, bool debug);
-extern void cm_mpi_broadcast_N (mpz_srcptr N);
+extern void cm_mpi_broadcast_N (mpz_srcptr N, unsigned int e,
+   mpz_srcptr r, mpz_srcptr z);
 extern void cm_mpi_broadcast_sqrt (int no_qstar, long int *qstar,
    mpz_t *qroot);
 extern void cm_mpi_clear_N (void);
@@ -279,7 +297,7 @@ extern void cm_mpi_get_primorial (int rank, double *t);
 extern void cm_mpi_submit_tonelli (int rank, int job, const long int a);
 extern void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t);
 extern void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
-   const char* modpoldir);
+   const char *modpoldir, const char *tmpdir);
 extern void cm_mpi_get_ecpp_one_step2 (mpz_t *cert2, int rank,
    cm_stat_ptr stat);
 extern void cm_mpi_submit_curve_cardinalities (int rank, int job,

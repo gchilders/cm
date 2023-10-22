@@ -2,7 +2,7 @@
 
 file.c - code for handling (gzipped) files
 
-Copyright (C) 2009, 2012, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2012, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -293,9 +293,9 @@ bool cm_file_write_h (const char *tmpdir, const unsigned int *h, unsigned int n)
    unsigned long int no;
    bool res;
 
-   len = strlen (tmpdir) + 7;
+   len = strlen (tmpdir) + 10;
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/h.dat", tmpdir);
+   snprintf (filename, len, "%s/cm_h.dat", tmpdir);
 
    f = fopen (filename, "w");
    res = (f != NULL);
@@ -325,9 +325,9 @@ bool cm_file_read_h (const char *tmpdir, unsigned int *h, unsigned int n)
    unsigned long int no;
    bool res;
 
-   len = strlen (tmpdir) + 7;
+   len = strlen (tmpdir) + 10;
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/h.dat", tmpdir);
+   snprintf (filename, len, "%s/cm_h.dat", tmpdir);
 
    f = fopen (filename, "r");
    res = (f != NULL);
@@ -356,10 +356,10 @@ bool cm_file_write_primorial (const char *tmpdir, mpz_srcptr prim,
    unsigned int len;
    bool res;
 
-   len = strlen (tmpdir) + 30;
+   len = strlen (tmpdir) + 33;
       /* enough for a 64-bit number i with 20 digits */
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+   snprintf (filename, len, "%s/cm_prim_%04i.dat", tmpdir, i);
 
    f = fopen (filename, "w");
    res = (f != NULL);
@@ -386,10 +386,10 @@ bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim, const int i)
    unsigned int len;
    bool res;
 
-   len = strlen (tmpdir) + 30;
+   len = strlen (tmpdir) + 33;
       /* enough for a 64-bit number i with 20 digits */
    filename = (char *) malloc (len * sizeof (char));
-   snprintf (filename, len, "%s/prim_%04i.dat", tmpdir, i);
+   snprintf (filename, len, "%s/cm_prim_%04i.dat", tmpdir, i);
 
    f = fopen (filename, "r");
    res = (f != NULL);
@@ -400,6 +400,96 @@ bool cm_file_read_primorial (const char *tmpdir, mpz_ptr prim, const int i)
    }
 
    free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_write_factor (const char *tmpdir, mpzx_srcptr factor,
+   mpzx_srcptr F, mpz_srcptr p)
+   /* With factor being a monic factor of the monic polynomial F modulo p,
+      write both to a file in tmpdir the name of which is derived from the
+      hash of f and p. */
+
+{
+   char *filename;
+   uint64_t hash;
+   FILE *f;
+   unsigned int len;
+   bool res;
+
+   len = strlen (tmpdir) + 32;
+   filename = (char *) malloc (len * sizeof (char));
+   hash = mpzx_mod_hash (F, p);
+   snprintf (filename, len, "%s/cm_factor_%016"PRIx64".dat", tmpdir, hash);
+
+   f = fopen (filename, "w");
+   res = (f != NULL);
+
+   if (res) {
+      res &= (mpz_out_str (f, 10, p) != 0);
+      res &= (fprintf (f, "\n") != 0);
+      res &= (mpzx_out_str (f, 10, F) != 0);
+      res &= (fprintf (f, "\n") != 0);
+      res &= (mpzx_out_str (f, 10, factor) != 0);
+      res &= (fprintf (f, "\n") != 0);
+      res &= (fclose (f) == 0);
+   }
+
+   free (filename);
+
+   return res;
+}
+
+/*****************************************************************************/
+
+bool cm_file_read_factor (const char *tmpdir, mpzx_ptr factor,
+   mpzx_srcptr F, mpz_srcptr p)
+   /* If a corresponding file can be opened, try to read a factor of the
+      monic polynomial F modulo p and return it in factor, or leave factor
+      unchanged. The return value reflects the success of the operation. */
+{
+   char *filename;
+   uint64_t hash;
+   FILE *f;
+   unsigned int len;
+   bool res;
+   mpz_t ploc;
+   mpzx_t Floc;
+
+   len = strlen (tmpdir) + 32;
+   filename = (char *) malloc (len * sizeof (char));
+   hash = mpzx_mod_hash (F, p);
+   snprintf (filename, len, "%s/cm_factor_%016"PRIx64".dat", tmpdir, hash);
+
+   f = fopen (filename, "r");
+   res = (f != NULL);
+
+   if (res) {
+      /* Read p and F and check whether they are the same; otherwise
+         there has been a hash collision. */
+      mpz_init (ploc);
+      mpzx_init (Floc, -1);
+      res &= (mpz_inp_str (ploc, f, 10) != 0);
+      res &= mpzx_inp_str (Floc, f, 10);
+      if (mpz_cmp (p, ploc) != 0 || mpzx_cmp (F, Floc) != 0) {
+         printf ("***** Warning: Hash collision in reading a factor\n");
+         printf ("p ");
+         mpz_out_str (stdout, 10, ploc);
+         printf ("\nF ");
+         mpzx_out_str (stdout, 10, Floc);
+         printf ("\n");
+         res = false;
+      }
+      else
+         res &= mpzx_inp_str (Floc, f, 10);
+      res &= (fclose (f) == 0);
+      if (res)
+         mpzx_set (factor, Floc);
+      mpz_clear (ploc);
+      mpzx_clear (Floc);
+   }
 
    return res;
 }

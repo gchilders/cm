@@ -1,7 +1,7 @@
 /*
 configure.ac
 
-Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 AC_PREREQ([2.69])
-AC_INIT([cm],[0.4.1dev],[andreas.enge@inria.fr])
+AC_INIT([cm],[0.4.3dev],[andreas.enge@inria.fr])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([lib/cm.h])
 AC_CONFIG_HEADERS([config.h])
@@ -75,21 +75,10 @@ AC_ARG_WITH([flint],
             CPPFLAGS="$CPPFLAGS -I$withval/include"
             LDFLAGS="$LDFLAGS -L$withval/lib -Wl,-rpath -Wl,$withval/lib"
             ])
-AC_ARG_ENABLE([valgrind-tests],
-             [AS_HELP_STRING([--enable-valgrind-tests],
-                             [run checks through valgrind (default = no)])],
-             [case $enableval in
-                 yes) gl_VALGRIND_TESTS ;;
-                 no)  ;;
-                 *)   AC_MSG_ERROR([Bad value for --enable-valgrind-tests: Use yes or no]) ;;
-              esac
-             ]
-             )
 AC_ARG_ENABLE([mpi],
    [AS_HELP_STRING([--enable-mpi],[use mpi to compile a parallel version [default=no]])],
    ,
    [enable_mpi=no])
-
 
 # Checks for programs.
 AC_PROG_CC
@@ -101,6 +90,10 @@ AS_IF([test x"$enable_mpi" = xyes],
    [LX_FIND_MPI
     AS_IF([test x"$have_C_mpi" != xyes],
        [AC_MSG_ERROR(MPI not usable)])])
+
+# Check for valgrind if --enable-valgrind-tests is used.
+gl_VALGRIND_TESTS_DEFAULT_NO
+gl_VALGRIND_TESTS
 
 # Set up LibTool
 LT_INIT
@@ -276,12 +269,48 @@ AC_LINK_IFELSE(
         )],
         [
         AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_FLINT],[1],[Define to 1 if FLINT is present.])
+        AC_MSG_CHECKING(for recent FLINT)
+        AC_COMPILE_IFELSE(
+            [AC_LANG_SOURCE(
+                [[
+#include "flint/flint.h"
+#if __FLINT_RELEASE < 20700
+# error "Minimal FLINT version is 2.7.0"
+error
+#endif
+                ]])],
+            [
+            AC_MSG_RESULT(yes)
+            AC_DEFINE([HAVE_FLINT],[1],[Define to 1 if FLINT is present.])
+            AC_MSG_CHECKING(for FLINT 3 or higher)
+            AC_COMPILE_IFELSE(
+                [AC_LANG_SOURCE(
+                    [[
+#include "flint/flint.h"
+#if __FLINT_RELEASE < 30000
+# error "FLINT version is less than 3.0.0"
+error
+#endif
+                    ]])],
+                [
+                AC_MSG_RESULT(yes)
+                AC_DEFINE([HAVE_FLINT3],[1],[Define to 1 if FLINT 3 or later is present.])
+                ],
+                [
+                AC_MSG_RESULT(no)
+                ])
+            ],
+            [
+                AC_MSG_RESULT([no, only FLINT version >= 2.7.0 works with CM])
+                LIBS="$OLDLIBS"
+            ])
+
         ],
         [
         AC_MSG_RESULT(no)
         LIBS="$OLDLIBS"
         ])
+
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile data/Makefile data/af/Makefile data/df/Makefile data/mf/Makefile src/Makefile tests/Makefile])
 AC_OUTPUT

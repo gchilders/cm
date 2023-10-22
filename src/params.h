@@ -2,7 +2,7 @@
 
 params.h - header file for params.c
 
-Copyright (C) 2009, 2010, 2015, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef __PARAMS_H
 #define __PARAMS_H
 
-#include <pari/pari.h>
 #include <string.h>
 #include <getopt.h>
 #include "cm-impl.h"

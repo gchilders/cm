@@ -3,7 +3,7 @@
 pari.c - functions using pari; for factoring polynomials and for computing
 generators of class groups
 
-Copyright (C) 2010, 2015, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2010, 2015, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -21,6 +21,7 @@ You should have received a copy of the GNU General Public License along
 with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
+#include <pari/pari.h>
 #include "cm-impl.h"
 
 static GEN mpz_get_Z (mpz_srcptr z);
@@ -29,15 +30,6 @@ static GEN icl_get_Z (int_cl_t z);
 static int_cl_t Z_get_icl (GEN x);
 static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
 static void FpX_get_mpzx (mpzx_ptr f, GEN x);
-static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
-   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
-static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p);
-static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p);
-static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg);
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
-   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -159,138 +151,6 @@ static void FpX_get_mpzx (mpzx_ptr f, GEN x)
 
 /*****************************************************************************/
 /*                                                                           */
-/* Functions for mpzx modulo p relying on PARI.                              */
-/*                                                                           */
-/*****************************************************************************/
-
-static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
-   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p)
-   /* Compute g = (X+a)^e modulo m and p. */
-{
-#ifdef HAVE_FLINT
-   fmpz_t pp, ep, ap;
-   fmpz_mod_ctx_t ctx;
-   fmpz_mod_poly_t mp, gp, minv;
-
-   fmpz_init (pp);
-   fmpz_set_mpz (pp, p);
-   fmpz_init (ap);
-   fmpz_init (ep);
-   fmpz_mod_ctx_init (ctx, pp);
-   fmpz_mod_poly_init (mp, ctx);
-   fmpz_mod_poly_init (gp, ctx);
-   fmpz_mod_poly_init (minv, ctx);
-
-   fmpz_set_mpz (ep, e);
-   fmpz_set_ui (ap, a);
-   fmpz_mod_poly_set_mpzx (mp, m, ctx);
-   fmpz_mod_poly_reverse (minv, mp, mp->length, ctx);
-   fmpz_mod_poly_inv_series (minv, minv, mp->length, ctx);
-
-   fmpz_mod_poly_powmod_linear_fmpz_preinv (gp, ap, ep, mp, minv, ctx);
-
-   mpzx_set_fmpz_mod_poly (g, gp, ctx);
-
-   fmpz_clear (pp);
-   fmpz_clear (ep);
-   fmpz_clear (ap);
-   fmpz_mod_poly_clear (mp, ctx);
-   fmpz_mod_poly_clear (gp, ctx);
-   fmpz_mod_poly_clear (minv, ctx);
-   fmpz_mod_ctx_clear (ctx);
-#else
-   GEN pp, ep, fp, mp, gp;
-   mpzx_t f;
-
-   pari_sp av = avma;
-
-   pp = mpz_get_Z (p);
-   ep = mpz_get_Z (e);
-   mpzx_init (f, 1);
-   mpz_set_ui (f->coeff [1], 1);
-   mpz_set_ui (f->coeff [0], a);
-   fp = mpzx_get_FpX (f, p);
-   mpzx_clear (f);
-   mp = mpzx_get_FpX (m, p);
-
-   gp = FpXQ_pow (fp, ep, mp, pp);
-
-   FpX_get_mpzx (g, gp);
-
-   avma = av;
-#endif
-}
-
-/*****************************************************************************/
-
-static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p)
-   /* Compute h = gcd (f, g) modulo p. */
-{
-#ifdef HAVE_FLINT
-   fmpz_t pp;
-   fmpz_mod_ctx_t ctx;
-   fmpz_mod_poly_t fp, gp, hp;
-
-   fmpz_init (pp);
-   fmpz_set_mpz (pp, p);
-   fmpz_mod_ctx_init (ctx, pp);
-   fmpz_mod_poly_init (fp, ctx);
-   fmpz_mod_poly_init (gp, ctx);
-   fmpz_mod_poly_init (hp, ctx);
-
-   fmpz_mod_poly_set_mpzx (fp, f, ctx);
-   fmpz_mod_poly_set_mpzx (gp, g, ctx);
-
-   fmpz_mod_poly_gcd (hp, fp, gp, ctx);
-
-   mpzx_set_fmpz_mod_poly (h, hp, ctx);
-
-   fmpz_clear (pp);
-   fmpz_mod_poly_clear (fp, ctx);
-   fmpz_mod_poly_clear (gp, ctx);
-   fmpz_mod_poly_clear (hp, ctx);
-   fmpz_mod_ctx_clear (ctx);
-#else
-   GEN pp, fp, gp, hp;
-
-   pari_sp av = avma;
-
-   pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f, p);
-   gp = mpzx_get_FpX (g, p);
-
-   hp = FpX_gcd (fp, gp, pp);
-
-   FpX_get_mpzx (h, hp);
-
-   avma = av;
-#endif
-}
-
-/*****************************************************************************/
-
-static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p)
-   /* Assuming that g divides f, compute the quotient in h. */
-{
-   GEN fp, gp, pp, hp;
-
-   pari_sp av = avma;
-
-   fp = mpzx_get_FpX (f, p);
-   gp = mpzx_get_FpX (g, p);
-   pp = mpz_get_Z (p);
-
-   hp = FpX_div (fp, gp, pp);
-
-   FpX_get_mpzx (h, hp);
-
-   avma = av;
-}
-
-/*****************************************************************************/
-/*                                                                           */
 /* Various simple functions.                                                 */
 /*                                                                           */
 /*****************************************************************************/
@@ -300,6 +160,9 @@ void cm_pari_init ()
    pari_init_opts (1ul<<23, 0, INIT_JMPm | INIT_DFTm);
       /* Do not capture SIGSEGV. */
    paristack_setsize (1ul<<23, 1ul<<31);
+#ifdef HAVE_FLINT
+   cm_flint_init ();
+#endif
 }
 
 /*****************************************************************************/
@@ -308,6 +171,27 @@ void cm_pari_clear ()
 
 {
    pari_close ();
+#ifdef HAVE_FLINT
+   cm_flint_clear ();
+#endif
+}
+
+/*****************************************************************************/
+
+void cm_pari_print_library ()
+{
+   pari_sp av;
+   GEN v;
+
+   av = avma;
+
+   v = pari_version ();
+   printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
+         PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
+         PARI_VERSION_CODE & 255ul,
+         itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
+
+   avma = av;
 }
 
 /*****************************************************************************/
@@ -354,31 +238,11 @@ char* cm_pari_sprintf_hfactor (int_cl_t d)
 
 /*****************************************************************************/
 /*                                                                           */
-/* Functions for finding roots of polynomials.                               */
+/* Functions for mpzx modulo p relying on PARI.                              */
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p)
-   /* Find a root of the polynomial f over the prime field of
-      characteristic p, assuming that f splits completely, and return it
-      in the variable of the same name. */
-{
-   GEN fp, pp, rootp;
-
-   pari_sp av = avma;
-
-   pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f, p);
-
-   rootp = FpX_oneroot_split (fp, pp);
-   Z_get_mpz (root, rootp);
-
-   avma = av;
-}
-
-/*****************************************************************************/
-
-static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
+int cm_pari_good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
    /* Compute in zeta a root of unity in F_p with p odd that is suitable
       for finding a root of a totally split polynomial of degree deg > 1;
       its order n is returned. A good choice seems to be n close to deg;
@@ -412,128 +276,96 @@ static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
 
 /*****************************************************************************/
 
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
-   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug)
-   /* Compute in root a root of the polynomial f over the prime field
-      of characteristic p, assuming that f splits completely and that
-      its coefficients are reduced modulo p.
-      a is passed to the function so that subsequent calls with factors
-      of the initial polynomial continue incrementing it instead of
-      starting from an initial value that has already been "used up"
-      for splitting. */
+void cm_pari_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p)
+   /* Compute g = (X+a)^e modulo m and p. */
 {
-   int n, target, min, i;
-   mpz_t zeta, e, zeta_i;
-   mpzx_t factor, pow, gcd;
-   cm_timer_t clock, clock2;
+   GEN pp, ep, fp, mp, gp;
+   mpzx_t f;
 
-   cm_timer_start (clock);
+   pari_sp av = avma;
 
-   if (f->deg <= 3)
-      /* PARI implements the formula for degree 2, and, since version 2.15,
-         also for degree 3. We may as well let it handle the case
-         of degree 1. */
-      cm_pari_oneroot (root, f, p);
-   else {
-      mpz_init (zeta);
-      n = good_root_of_unity (zeta, p, f->deg);
-      /* Fix a target degree of the factor for early abort to avoid more
-         gcds when the factor is "small enough". The average degree of
-         the gcd is f->deg / n; we stop at about twice that, with a bound
-         guaranteed to be at most f->deg - 1 and at least 1 since
-         2 <= n <= f->deg. */
-      target = (2 * f->deg) / n - 1;
-      if (debug)
-         cm_file_printf ("    n = %i, target = %i\n", n, target);
-      mpz_init (e);
-      mpz_sub_ui (e, p, 1);
-      mpz_divexact_ui (e, e, n);
-      mpzx_init (pow, f->deg - 1);
-      mpzx_init (gcd, -1);
-      mpz_init (zeta_i);
-      mpzx_init (factor, -1);
-      while (factor->deg == -1) {
-         cm_timer_start (clock2);
-         (*a)++;
-         mpzx_xplusa_pow_modmod (pow, *a, e, f, p);
-         cm_timer_stop (clock2);
-         if (debug)
-            cm_file_printf ("    Time for power: %.1lf\n",
-               cm_timer_get (clock2));
-         mpz_set_ui (zeta_i, 1);
-         if (pow->deg >= 1)
-            for (i = 1;
-               i <= n && (factor->deg == -1 || factor->deg > target);
-               i++) {
-               cm_timer_start (clock2);
-               mpz_mul (zeta_i, zeta_i, zeta);
-               mpz_mod (zeta_i, zeta_i, p); /* zeta^i */
-               /* Shift the power and compute the gcd with f. */
-               mpz_sub (pow->coeff [0], pow->coeff [0], zeta_i);
-               mpz_mod (pow->coeff [0], pow->coeff [0], p);
-               mpzx_gcd_mod (gcd, pow, f, p);
-               /* Shift the power back. */
-               mpz_add (pow->coeff [0], pow->coeff [0], zeta_i);
-               mpz_mod (pow->coeff [0], pow->coeff [0], p);
-               cm_timer_stop (clock2);
-               if (debug)
-                  cm_file_printf ("    Time for gcd, degree %i: %.1lf\n",
-                     gcd->deg, cm_timer_get (clock2));
-               if (gcd->deg >= 1) {
-                  /* Consider the smaller one of gcd and f / gcd. Since gcd
-                     usually has a low degree, this optimisation is of
-                     interest only when f has low degree, so without much
-                     impact overall. */
-                  min = CM_MIN (gcd->deg, f->deg - gcd->deg);
-                  if (factor->deg == -1 || min < factor->deg) {
-                     if (min != gcd->deg)
-                        mpzx_divexact_mod (gcd, f, gcd, p);
-                     mpzx_clear (factor);
-                     factor [0] = gcd [0];
-                     mpzx_init (gcd, -1);
-                  }
-               }
-            }
-      }
+   pp = mpz_get_Z (p);
+   ep = mpz_get_Z (e);
+   mpzx_init (f, 1);
+   mpz_set_ui (f->coeff [1], 1);
+   mpz_set_ui (f->coeff [0], a);
+   fp = mpzx_get_FpX (f, p);
+   mpzx_clear (f);
+   mp = mpzx_get_FpX (m, p);
 
-      /* Recurse with the found factor. */
-      mpzx_oneroot_split_mod_rec (root, a, factor, p, verbose, debug);
-      mpz_clear (zeta);
-      mpz_clear (e);
-      mpzx_clear (pow);
-      mpzx_clear (gcd);
-      mpz_clear (zeta_i);
-      mpzx_clear (factor);
-   }
+   gp = FpXQ_pow (fp, ep, mp, pp);
 
-   cm_timer_stop (clock);
+   FpX_get_mpzx (g, gp);
+
+   avma = av;
 }
 
 /*****************************************************************************/
 
-void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
-   bool verbose, bool debug)
-   /* Compute in root a root of the monic polynomial f over the prime field
-      of characteristic p, assuming that f splits completely. */
+void cm_pari_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p)
+   /* Compute h = gcd (f, g) modulo p without imposing a normalisation of the
+      leading coefficient of h. */
 {
-   mpzx_t F;
-   cm_timer_t clock;
-   unsigned long int a = 0;
+   GEN pp, fp, gp, hp;
 
-   cm_timer_start (clock);
-   if (verbose && f->deg > 1)
-      cm_file_printf ("  Root finding in degree %i\n", f->deg);
+   pari_sp av = avma;
 
-   mpzx_init (F, f->deg);
-   mpzx_mod (F, f, p);
+   pp = mpz_get_Z (p);
+   fp = mpzx_get_FpX (f, p);
+   gp = mpzx_get_FpX (g, p);
 
-   mpzx_oneroot_split_mod_rec (root, &a, F, p, verbose, debug);
+   hp = FpX_gcd (fp, gp, pp);
 
-   mpzx_clear (F);
+   FpX_get_mpzx (h, hp);
 
-   cm_timer_stop (clock);
-   if (verbose && f->deg > 1)
-      cm_file_printf ("  Time for root: %.1f\n", cm_timer_get (clock));
+   avma = av;
+}
+
+/*****************************************************************************/
+
+void cm_pari_mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p)
+   /* Assuming that g divides f, compute the quotient in h. */
+{
+   GEN fp, gp, pp, hp;
+
+   pari_sp av = avma;
+
+   fp = mpzx_get_FpX (f, p);
+   gp = mpzx_get_FpX (g, p);
+   pp = mpz_get_Z (p);
+
+   hp = FpX_div (fp, gp, pp);
+
+   FpX_get_mpzx (h, hp);
+
+   avma = av;
+}
+
+/*****************************************************************************/
+/*                                                                           */
+/* Functions for finding roots of polynomials.                               */
+/*                                                                           */
+/*****************************************************************************/
+
+void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p)
+   /* Find a root of the polynomial f over the prime field of
+      characteristic p, assuming that f splits completely, and return it
+      in the variable of the same name. */
+{
+   GEN fp, pp, rootp;
+
+   pari_sp av = avma;
+
+   pp = mpz_get_Z (p);
+   fp = mpzx_get_FpX (f, p);
+
+   rootp = FpX_oneroot_split (fp, pp);
+   Z_get_mpz (root, rootp);
+
+   avma = av;
 }
 
 /*****************************************************************************/
@@ -786,6 +618,379 @@ void cm_pari_prime_product (mpz_ptr prim, unsigned long int a,
 
 /*****************************************************************************/
 
+/* Backport of faster halfgcd from PARI 2.16,
+   commit d0c3f12ffd5cbb8ae8ab0a79fbe797af455446cf */
+#if PARI_VERSION_CODE < PARI_VERSION (2, 16, 0)
+#define swap(x,y)  {GEN  _z=x; x=y; y=_z;}
+int lgcdii(ulong* d, ulong* d1, ulong* u, ulong* u1, ulong* v, ulong* v1, ulong vmax);
+
+static GEN
+my_ZM2_mul(GEN A, GEN B)
+{
+  const long t = 13+2;
+  GEN A11=gcoeff(A,1,1),A12=gcoeff(A,1,2), B11=gcoeff(B,1,1),B12=gcoeff(B,1,2);
+  GEN A21=gcoeff(A,2,1),A22=gcoeff(A,2,2), B21=gcoeff(B,2,1),B22=gcoeff(B,2,2);
+  if (lgefint(A11) < t || lgefint(B11) < t || lgefint(A22) < t || lgefint(B22) < t
+   || lgefint(A12) < t || lgefint(B12) < t || lgefint(A21) < t || lgefint(B21) < t)
+  {
+    GEN a = mulii(A11, B11), b = mulii(A12, B21);
+    GEN c = mulii(A11, B12), d = mulii(A12, B22);
+    GEN e = mulii(A21, B11), f = mulii(A22, B21);
+    GEN g = mulii(A21, B12), h = mulii(A22, B22);
+    retmkmat2(mkcol2(addii(a,b), addii(e,f)), mkcol2(addii(c,d), addii(g,h)));
+  } else
+  {
+    GEN M1 = mulii(addii(A11,A22), addii(B11,B22));
+    GEN M2 = mulii(addii(A21,A22), B11);
+    GEN M3 = mulii(A11, subii(B12,B22));
+    GEN M4 = mulii(A22, subii(B21,B11));
+    GEN M5 = mulii(addii(A11,A12), B22);
+    GEN M6 = mulii(subii(A21,A11), addii(B11,B12));
+    GEN M7 = mulii(subii(A12,A22), addii(B21,B22));
+    GEN T1 = addii(M1,M4), T2 = subii(M7,M5);
+    GEN T3 = subii(M1,M2), T4 = addii(M3,M6);
+    retmkmat2(mkcol2(addii(T1,T2), addii(M2,M4)),
+              mkcol2(addii(M3,M5), addii(T3,T4)));
+  }
+}
+
+static GEN
+matid2(void)
+{
+    retmkmat2(mkcol2(gen_1,gen_0),
+              mkcol2(gen_0,gen_1));
+}
+
+/* Return M*[q,1;1,0] */
+static GEN
+mulq(GEN M, GEN q)
+{
+  GEN u, v, res = cgetg(3, t_MAT);
+  u = addii(mulii(gcoeff(M,1,1), q), gcoeff(M,1,2));
+  v = addii(mulii(gcoeff(M,2,1), q), gcoeff(M,2,2));
+  gel(res,1) = mkcol2(u, v);
+  gel(res,2) = gel(M,1);
+  return res;
+}
+
+static GEN
+mulqab(GEN M, GEN q, GEN *ap, GEN *bp)
+{
+  GEN b = subii(*ap, mulii(*bp, q));
+  *ap = *bp; *bp = b;
+  return mulq(M,q);
+}
+
+/* Return M*[q,1;1,0]^-1 */
+static GEN
+mulqi(GEN M, GEN q, GEN *ap, GEN *bp)
+{
+  GEN u, v, res, a;
+  a = addii(mulii(*ap, q), *bp);
+  *bp = *ap; *ap = a;
+  res = cgetg(3, t_MAT);
+  u = subii(gcoeff(M,1,1),mulii(gcoeff(M,1,2), q));
+  v = subii(gcoeff(M,2,1),mulii(gcoeff(M,2,2), q));
+  gel(res,1) = gel(M,2);
+  gel(res,2) = mkcol2(u,v);
+  return res;
+}
+
+/* test whether n is a power of 2 */
+static long
+isint2n(GEN n)
+{
+  GEN x;
+  long lx = lgefint(n), i;
+  if (lx == 2) return 0;
+  x = int_MSW(n);
+  if (*(ulong*)x != 1UL<<expu(*(ulong*)x) ) return 0;
+  for (i = 3; i < lx; i++)
+  {
+    x = int_precW(x); if (*x) return 0;
+  }
+  return 1;
+}
+
+static long
+uexpi(GEN a)
+{ return expi(a)+!isint2n(a); }
+
+static GEN
+FIXUP0(GEN M, GEN *a, GEN *b, long m)
+{
+  long cnt=0;
+  while (expi(*b) >= m)
+  {
+    GEN r, q = dvmdii(*a, *b, &r);
+    *a = *b; *b = r;
+    M = mulq(M, q);
+    cnt++;
+  };
+  if (cnt>6) pari_err_BUG("FIXUP0");
+  return M;
+}
+
+static long
+signdet(GEN Q)
+{
+  long a = Mod4(gcoeff(Q,1,1)), b = Mod4(gcoeff(Q,1,2));
+  long c = Mod4(gcoeff(Q,2,1)), d = Mod4(gcoeff(Q,2,2));
+  return ((a*d-b*c)&3)==1 ? 1 : -1;
+}
+
+static GEN
+ZM_inv2(GEN M)
+{
+  long e = signdet(M);
+  if (e==1) return mkmat22(gcoeff(M,2,2),negi(gcoeff(M,1,2)),
+                          negi(gcoeff(M,2,1)),gcoeff(M,1,1));
+  else      return mkmat22(negi(gcoeff(M,2,2)),gcoeff(M,1,2),
+                           gcoeff(M,2,1),negi(gcoeff(M,1,1)));
+}
+
+static GEN
+lastq(GEN Q)
+{
+  GEN p = gcoeff(Q,1,1), q = gcoeff(Q,1,2), s = gcoeff(Q,2,2);
+  if (signe(q)==0) pari_err_BUG("halfgcd");
+  if (signe(s)==0) return p;
+  if (equali1(q))  return subiu(p,1);
+  return divii(p, q);
+}
+
+static GEN
+mulT(GEN Q, GEN *ap, GEN *bp)
+{
+  *ap = addii(*ap, *bp);
+  *bp = negi(*bp);
+  return mkmat2(gel(Q,1),
+           mkcol2(subii(gcoeff(Q,1,1), gcoeff(Q,1,2))
+                , subii(gcoeff(Q,2,1), gcoeff(Q,2,2))));
+}
+
+static GEN
+FIXUP1(GEN M, GEN a, GEN b, long m, long t, GEN *ap, GEN *bp)
+{
+  GEN Q = gel(M,1), a0 = gel(M,2), b0 = gel(M,3);
+  GEN q, am = remi2n(a, m), bm = remi2n(b, m);
+  if (signdet(Q)==-1)
+  {
+    *ap = subii(mulii(bm, gcoeff(Q,1,2)),mulii(am, gcoeff(Q,2,2)));
+    *bp = subii(mulii(am, gcoeff(Q,2,1)),mulii(bm, gcoeff(Q,1,1)));
+    *ap = addii(*ap, shifti(addii(a0, gcoeff(Q,2,2)), m));
+    *bp = addii(*bp, shifti(subii(b0, gcoeff(Q,2,1)), m));
+    if (signe(*bp) >= 0)
+      return Q;
+    if (expi(addii(*ap,*bp)) >= m+t)
+      return mulT(Q, ap ,bp);
+    q = lastq(Q);
+    Q = mulqi(Q, q, ap, bp);
+    if (cmpiu(q, 2)>=0)
+      return mulqab(Q, subiu(q,1), ap, bp);
+    else
+      return mulqi(Q, lastq(Q), ap, bp);
+  }
+  else
+  {
+    *ap = subii(mulii(am, gcoeff(Q,2,2)),mulii(bm, gcoeff(Q,1,2)));
+    *bp = subii(mulii(bm, gcoeff(Q,1,1)),mulii(am, gcoeff(Q,2,1)));
+    *ap = addii(*ap, shifti(subii(a0, gcoeff(Q,2,2)), m));
+    *bp = addii(*bp, shifti(addii(b0, gcoeff(Q,2,1)), m));
+    if (expi(*ap) >= m+t)
+      return FIXUP0(Q, ap, bp, m+t);
+    else
+      return signe(gcoeff(Q,1,2))==0? Q: mulqi(Q, lastq(Q), ap, bp);
+  }
+}
+
+static long
+magic_threshold(GEN a)
+{ return (3+uexpi(a))>>1; }
+
+static GEN
+HGCD_basecase(GEN y, GEN x)
+{
+  pari_sp av = avma;
+  GEN d, d1, q, r;
+  GEN u, u1, v, v1;
+  ulong xu, xu1, xv, xv1; /* Lehmer stage recurrence matrix */
+  int lhmres;             /* Lehmer stage return value */
+
+  long m = magic_threshold(y);
+
+  /* There is no special case for single-word numbers since this is
+   * mainly meant to be used with large moduli. */
+  if (cmpii(y,x) <= 0)
+  {
+    d = x; d1 = y;
+    u = gen_1; u1 = gen_0;
+    v = gen_0; v1 = gen_1;
+  } else
+  {
+    d = y; d1 = x;
+    u = gen_0; u1 = gen_1;
+    v = gen_1; v1 = gen_0;
+  }
+  while (lgefint(d) > 3 &&  expi(d1) >= m + BITS_IN_LONG + 1)
+  {
+    /* do a Lehmer-Jebelean round */
+    lhmres = lgcdii((ulong *)d, (ulong *)d1, &xu, &xu1, &xv, &xv1, 0);
+
+    if (lhmres)
+    {
+      if (lhmres == 1 || lhmres == -1)
+      {
+        if (xv1 == 1)
+        {
+          r = subii(d,d1); d = d1; d1 = r;
+          r = addii(u,u1); u = u1; u1 = r;
+          r = addii(v,v1); v = v1; v1 = r;
+        }
+        else
+        {
+          r = subii(d, mului(xv1,d1)); d = d1; d1 = r;
+          r = addii(u, mului(xv1,u1)); u = u1; u1 = r;
+          r = addii(v, mului(xv1,v1)); v = v1; v1 = r;
+        }
+      }
+      else
+      {
+        r  = subii(muliu(d,xu),  muliu(d1,xv));
+        d1 = subii(muliu(d,xu1), muliu(d1,xv1)); d = r;
+        r  = addii(muliu(u,xu),  muliu(u1,xv));
+        u1 = addii(muliu(u,xu1), muliu(u1,xv1)); u = r;
+        r  = addii(muliu(v,xu),  muliu(v1,xv));
+        v1 = addii(muliu(v,xu1), muliu(v1,xv1)); v = r;
+        if (lhmres&1) togglesign(d); else togglesign(d1);
+      }
+    } /* lhmres != 0 */
+    if (expi(d1) < m) break;
+
+    if (lhmres <= 0 && signe(d1))
+    {
+      q = dvmdii(d,d1,&r);
+      d = d1; d1 = r;
+      r = addii(u, mulii(q,u1)); u = u1; u1 = r;
+      r = addii(v, mulii(q,v1)); v = v1; v1 = r;
+    }
+    if (gc_needed(av,1))
+    {
+      if(DEBUGMEM>1) pari_warn(warnmem,"ratlift");
+      gerepileall(av, 6, &d, &d1, &u, &u1, &v, &v1);
+    }
+  }
+  while (expi(d1) >= m)
+  {
+    q = dvmdii(d,d1, &r);
+    d = d1; d1 = r; swap(u,u1); swap(v,v1);
+    u1 = addii(mulii(u, q), u1);
+    v1 = addii(mulii(v, q), v1);
+  }
+  return gerepilecopy(av, mkvec3(mkmat22(u1,u,v1,v), d, d1));
+}
+
+static GEN HGCD(GEN x, GEN y);
+
+/*
+Based on
+Klaus Thull and Chee K. Yap,
+A unified approach to HGCD algorithms for polynomials andintegers,
+1990, Manuscript.
+URL: http://cs.nyu.edu/cs/faculty/yap/papers.
+*/
+
+static GEN
+HGCD_split(GEN a, GEN b)
+{
+  pari_sp av = avma;
+  long m = magic_threshold(a), t, l, k, tp;
+  GEN a0, b0, ap, bp, c, d, c0, d0, cp, dp, R, S, T, q, r;
+  if (signe(b) < 0  || cmpii(a,b)<0) pari_err_BUG("HGCD_split");
+  if (expi(b) < m)
+    return gerepilecopy(av, mkvec3(matid2(), a, b));
+  a0 = addiu(shifti(a, -m), 1);
+  if (cmpiu(a0,7) <= 0)
+  {
+    R = FIXUP0(matid2(), &a, &b, m);
+    return gerepilecopy(av, mkvec3(R, a, b));
+  }
+  b0 = shifti(b,-m);
+  t = magic_threshold(a0);
+  R = FIXUP1(HGCD(a0,b0),a, b, m, t, &ap, &bp);
+  if (expi(bp) < m)
+    return gerepilecopy(av, mkvec3(R, ap, bp));
+  q = dvmdii(ap, bp, &r);
+  c = bp; d = r;
+  if (cmpiu(shifti(c,-m),6) <= 0)
+  {
+    R = FIXUP0(mulq(R, q), &c, &d, m);
+    return gerepilecopy(av, mkvec3(R, c, d));
+  }
+  l = uexpi(c);
+  k = 2*m-l-1; if (k<0) pari_err_BUG("halfgcd");
+  c0 = addiu(shifti(c, -k), 1); if (cmpiu(c0,8)<0) pari_err_BUG("halfgcd");
+  d0 = shifti(d, -k);
+  tp = magic_threshold(c0);
+  S = FIXUP1(HGCD(c0,d0), c, d, k, tp, &cp, &dp);
+  if (!(expi(cp)>=m+1 && m+1 > expi(dp))) pari_err_BUG("halfgcd");
+  T = FIXUP0(my_ZM2_mul(mulq(R, q), S), &cp, &dp, m);
+  return gerepilecopy(av, mkvec3(T, cp, dp));
+}
+
+static GEN
+HGCD(GEN x, GEN y)
+{
+  if (lgefint(y) < 100)
+    return HGCD_basecase(x, y);
+  else
+    return HGCD_split(x, y);
+}
+
+static GEN
+HGCD0(GEN x, GEN y)
+{
+  if (signe(y) >= 0 && cmpii(x, y) >= 0)
+    return HGCD(x, y);
+  if (cmpii(x, y) < 0)
+  {
+    GEN M = HGCD0(y, x), Q = gel(M,1);
+    return mkvec3(mkmat22(gcoeff(Q,2,1),gcoeff(Q,2,2),gcoeff(Q,1,1),gcoeff(Q,1,2)),
+        gel(M,2),gel(M,3));
+  } /* Now y <= x*/
+  if (signe(x) <= 0)
+  { /* y <= x <=0 */
+    GEN M = HGCD(negi(y), negi(x)), Q = gel(M,1);
+    return mkvec3(mkmat22(negi(gcoeff(Q,2,1)),negi(gcoeff(Q,2,2)),
+                          negi(gcoeff(Q,1,1)),negi(gcoeff(Q,1,2))),
+        gel(M,2),gel(M,3));
+  }
+  else /* y <= 0 <=x */
+  {
+    GEN M = HGCD0(x, negi(y)), Q = gel(M,1);
+    return mkvec3(mkmat22(gcoeff(Q,1,1),gcoeff(Q,1,2),negi(gcoeff(Q,2,1)),negi(gcoeff(Q,2,2))),
+        gel(M,2),gel(M,3));
+  }
+}
+
+static GEN
+my_halfgcdii(GEN A, GEN B)
+{
+  pari_sp av = avma;
+  GEN M, Q, a, b, m = abscmpii(A, B)>0 ? A: B;
+  M = HGCD0(A,B); Q = gel(M,1); a = gel(M,2); b = gel(M,3);
+  while (signe(b) && abscmpii(sqri(b), m) >= 0)
+  {
+    GEN r, q = dvmdii(a, b, &r);
+    a = b; b = r;
+    Q = mulq(Q, q);
+  }
+  return gerepilecopy(av, mkvec2(ZM_inv2(Q),mkcol2(a,b)));
+}
+#endif
+
+/*****************************************************************************/
+
 bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_srcptr root, const int_cl_t d)
 {
@@ -859,7 +1064,11 @@ bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
 
    /* Delegate the halfgcd to pari. */
    av = avma;
-   half = ghalfgcd (mpz_get_Z (r0), mpz_get_Z (r1));
+#if PARI_VERSION_CODE < PARI_VERSION (2, 16, 0)
+   half = my_halfgcdii (mpz_get_Z (r0), mpz_get_Z (r1));
+#else
+   half = halfgcdii (mpz_get_Z (r0), mpz_get_Z (r1));
+#endif
    R = gel (half, 2);
    Z_get_mpz (rip1, gel (R, 2));
    if ((d - 5) % 8 == 0) {
