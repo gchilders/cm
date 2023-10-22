@@ -3,7 +3,7 @@
 pari.c - functions using pari; for factoring polynomials and for computing
 generators of class groups
 
-Copyright (C) 2010, 2015, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2010, 2015, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -21,6 +21,7 @@ You should have received a copy of the GNU General Public License along
 with CM; see the file COPYING. If not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
+#include <pari/pari.h>
 #include "cm-impl.h"
 #include "gmp-impl.h"
 
@@ -30,15 +31,6 @@ static GEN icl_get_Z (int_cl_t z);
 static int_cl_t Z_get_icl (GEN x);
 static GEN mpzx_get_FpX (mpzx_srcptr f, mpz_srcptr p);
 static void FpX_get_mpzx (mpzx_ptr f, GEN x);
-static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
-   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p);
-static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p);
-static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p);
-static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg);
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
-   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug);
 
 /*****************************************************************************/
 /*                                                                           */
@@ -160,138 +152,6 @@ static void FpX_get_mpzx (mpzx_ptr f, GEN x)
 
 /*****************************************************************************/
 /*                                                                           */
-/* Functions for mpzx modulo p relying on PARI.                              */
-/*                                                                           */
-/*****************************************************************************/
-
-static void mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
-   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p)
-   /* Compute g = (X+a)^e modulo m and p. */
-{
-#ifdef HAVE_FLINT
-   fmpz_t pp, ep, ap;
-   fmpz_mod_ctx_t ctx;
-   fmpz_mod_poly_t mp, gp, minv;
-
-   fmpz_init (pp);
-   fmpz_set_mpz (pp, p);
-   fmpz_init (ap);
-   fmpz_init (ep);
-   fmpz_mod_ctx_init (ctx, pp);
-   fmpz_mod_poly_init (mp, ctx);
-   fmpz_mod_poly_init (gp, ctx);
-   fmpz_mod_poly_init (minv, ctx);
-
-   fmpz_set_mpz (ep, e);
-   fmpz_set_ui (ap, a);
-   fmpz_mod_poly_set_mpzx (mp, m, ctx);
-   fmpz_mod_poly_reverse (minv, mp, mp->length, ctx);
-   fmpz_mod_poly_inv_series (minv, minv, mp->length, ctx);
-
-   fmpz_mod_poly_powmod_linear_fmpz_preinv (gp, ap, ep, mp, minv, ctx);
-
-   mpzx_set_fmpz_mod_poly (g, gp, ctx);
-
-   fmpz_clear (pp);
-   fmpz_clear (ep);
-   fmpz_clear (ap);
-   fmpz_mod_poly_clear (mp, ctx);
-   fmpz_mod_poly_clear (gp, ctx);
-   fmpz_mod_poly_clear (minv, ctx);
-   fmpz_mod_ctx_clear (ctx);
-#else
-   GEN pp, ep, fp, mp, gp;
-   mpzx_t f;
-
-   pari_sp av = avma;
-
-   pp = mpz_get_Z (p);
-   ep = mpz_get_Z (e);
-   mpzx_init (f, 1);
-   mpz_set_ui (f->coeff [1], 1);
-   mpz_set_ui (f->coeff [0], a);
-   fp = mpzx_get_FpX (f, p);
-   mpzx_clear (f);
-   mp = mpzx_get_FpX (m, p);
-
-   gp = FpXQ_pow (fp, ep, mp, pp);
-
-   FpX_get_mpzx (g, gp);
-
-   avma = av;
-#endif
-}
-
-/*****************************************************************************/
-
-static void mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p)
-   /* Compute h = gcd (f, g) modulo p. */
-{
-#ifdef HAVE_FLINT
-   fmpz_t pp;
-   fmpz_mod_ctx_t ctx;
-   fmpz_mod_poly_t fp, gp, hp;
-
-   fmpz_init (pp);
-   fmpz_set_mpz (pp, p);
-   fmpz_mod_ctx_init (ctx, pp);
-   fmpz_mod_poly_init (fp, ctx);
-   fmpz_mod_poly_init (gp, ctx);
-   fmpz_mod_poly_init (hp, ctx);
-
-   fmpz_mod_poly_set_mpzx (fp, f, ctx);
-   fmpz_mod_poly_set_mpzx (gp, g, ctx);
-
-   fmpz_mod_poly_gcd (hp, fp, gp, ctx);
-
-   mpzx_set_fmpz_mod_poly (h, hp, ctx);
-
-   fmpz_clear (pp);
-   fmpz_mod_poly_clear (fp, ctx);
-   fmpz_mod_poly_clear (gp, ctx);
-   fmpz_mod_poly_clear (hp, ctx);
-   fmpz_mod_ctx_clear (ctx);
-#else
-   GEN pp, fp, gp, hp;
-
-   pari_sp av = avma;
-
-   pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f, p);
-   gp = mpzx_get_FpX (g, p);
-
-   hp = FpX_gcd (fp, gp, pp);
-
-   FpX_get_mpzx (h, hp);
-
-   avma = av;
-#endif
-}
-
-/*****************************************************************************/
-
-static void mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
-   mpz_srcptr p)
-   /* Assuming that g divides f, compute the quotient in h. */
-{
-   GEN fp, gp, pp, hp;
-
-   pari_sp av = avma;
-
-   fp = mpzx_get_FpX (f, p);
-   gp = mpzx_get_FpX (g, p);
-   pp = mpz_get_Z (p);
-
-   hp = FpX_div (fp, gp, pp);
-
-   FpX_get_mpzx (h, hp);
-
-   avma = av;
-}
-
-/*****************************************************************************/
-/*                                                                           */
 /* Various simple functions.                                                 */
 /*                                                                           */
 /*****************************************************************************/
@@ -301,6 +161,9 @@ void cm_pari_init ()
    pari_init_opts (1ul<<23, 0, INIT_JMPm | INIT_DFTm);
       /* Do not capture SIGSEGV. */
    paristack_setsize (1ul<<23, 1ul<<31);
+#ifdef HAVE_FLINT
+   cm_flint_init ();
+#endif
 }
 
 /*****************************************************************************/
@@ -309,6 +172,27 @@ void cm_pari_clear ()
 
 {
    pari_close ();
+#ifdef HAVE_FLINT
+   cm_flint_clear ();
+#endif
+}
+
+/*****************************************************************************/
+
+void cm_pari_print_library ()
+{
+   pari_sp av;
+   GEN v;
+
+   av = avma;
+
+   v = pari_version ();
+   printf ("PARI: include %i.%li.%li, lib %li.%li.%li\n",
+         PARI_VERSION_CODE >> 16, (PARI_VERSION_CODE >> 8) & 255ul,
+         PARI_VERSION_CODE & 255ul,
+         itos (gel (v, 1)), itos (gel (v, 2)), itos (gel (v, 3)));
+
+   avma = av;
 }
 
 /*****************************************************************************/
@@ -355,31 +239,11 @@ char* cm_pari_sprintf_hfactor (int_cl_t d)
 
 /*****************************************************************************/
 /*                                                                           */
-/* Functions for finding roots of polynomials.                               */
+/* Functions for mpzx modulo p relying on PARI.                              */
 /*                                                                           */
 /*****************************************************************************/
 
-void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p)
-   /* Find a root of the polynomial f over the prime field of
-      characteristic p, assuming that f splits completely, and return it
-      in the variable of the same name. */
-{
-   GEN fp, pp, rootp;
-
-   pari_sp av = avma;
-
-   pp = mpz_get_Z (p);
-   fp = mpzx_get_FpX (f, p);
-
-   rootp = FpX_oneroot_split (fp, pp);
-   Z_get_mpz (root, rootp);
-
-   avma = av;
-}
-
-/*****************************************************************************/
-
-static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
+int cm_pari_good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
    /* Compute in zeta a root of unity in F_p with p odd that is suitable
       for finding a root of a totally split polynomial of degree deg > 1;
       its order n is returned. A good choice seems to be n close to deg;
@@ -413,128 +277,96 @@ static int good_root_of_unity (mpz_ptr zeta, mpz_srcptr p, const int deg)
 
 /*****************************************************************************/
 
-static void mpzx_oneroot_split_mod_rec (mpz_ptr root, unsigned long int *a,
-   mpzx_srcptr f, mpz_srcptr p, bool verbose, bool debug)
-   /* Compute in root a root of the polynomial f over the prime field
-      of characteristic p, assuming that f splits completely and that
-      its coefficients are reduced modulo p.
-      a is passed to the function so that subsequent calls with factors
-      of the initial polynomial continue incrementing it instead of
-      starting from an initial value that has already been "used up"
-      for splitting. */
+void cm_pari_mpzx_xplusa_pow_modmod (mpzx_ptr g, unsigned long int a,
+   mpz_srcptr e, mpzx_srcptr m, mpz_srcptr p)
+   /* Compute g = (X+a)^e modulo m and p. */
 {
-   int n, target, min, i;
-   mpz_t zeta, e, zeta_i;
-   mpzx_t factor, pow, gcd;
-   cm_timer_t clock, clock2;
+   GEN pp, ep, fp, mp, gp;
+   mpzx_t f;
 
-   cm_timer_start (clock);
+   pari_sp av = avma;
 
-   if (f->deg <= 3)
-      /* PARI implements the formula for degree 2, and, since version 2.15,
-         also for degree 3. We may as well let it handle the case
-         of degree 1. */
-      cm_pari_oneroot (root, f, p);
-   else {
-      mpz_init (zeta);
-      n = good_root_of_unity (zeta, p, f->deg);
-      /* Fix a target degree of the factor for early abort to avoid more
-         gcds when the factor is "small enough". The average degree of
-         the gcd is f->deg / n; we stop at about twice that, with a bound
-         guaranteed to be at most f->deg - 1 and at least 1 since
-         2 <= n <= f->deg. */
-      target = (2 * f->deg) / n - 1;
-      if (debug)
-         cm_file_printf ("    n = %i, target = %i\n", n, target);
-      mpz_init (e);
-      mpz_sub_ui (e, p, 1);
-      mpz_divexact_ui (e, e, n);
-      mpzx_init (pow, f->deg - 1);
-      mpzx_init (gcd, -1);
-      mpz_init (zeta_i);
-      mpzx_init (factor, -1);
-      while (factor->deg == -1) {
-         cm_timer_start (clock2);
-         (*a)++;
-         mpzx_xplusa_pow_modmod (pow, *a, e, f, p);
-         cm_timer_stop (clock2);
-         if (debug)
-            cm_file_printf ("    Time for power: %.1lf\n",
-               cm_timer_get (clock2));
-         mpz_set_ui (zeta_i, 1);
-         if (pow->deg >= 1)
-            for (i = 1;
-               i <= n && (factor->deg == -1 || factor->deg > target);
-               i++) {
-               cm_timer_start (clock2);
-               mpz_mul (zeta_i, zeta_i, zeta);
-               mpz_mod (zeta_i, zeta_i, p); /* zeta^i */
-               /* Shift the power and compute the gcd with f. */
-               mpz_sub (pow->coeff [0], pow->coeff [0], zeta_i);
-               mpz_mod (pow->coeff [0], pow->coeff [0], p);
-               mpzx_gcd_mod (gcd, pow, f, p);
-               /* Shift the power back. */
-               mpz_add (pow->coeff [0], pow->coeff [0], zeta_i);
-               mpz_mod (pow->coeff [0], pow->coeff [0], p);
-               cm_timer_stop (clock2);
-               if (debug)
-                  cm_file_printf ("    Time for gcd, degree %i: %.1lf\n",
-                     gcd->deg, cm_timer_get (clock2));
-               if (gcd->deg >= 1) {
-                  /* Consider the smaller one of gcd and f / gcd. Since gcd
-                     usually has a low degree, this optimisation is of
-                     interest only when f has low degree, so without much
-                     impact overall. */
-                  min = CM_MIN (gcd->deg, f->deg - gcd->deg);
-                  if (factor->deg == -1 || min < factor->deg) {
-                     if (min != gcd->deg)
-                        mpzx_divexact_mod (gcd, f, gcd, p);
-                     mpzx_clear (factor);
-                     factor [0] = gcd [0];
-                     mpzx_init (gcd, -1);
-                  }
-               }
-            }
-      }
+   pp = mpz_get_Z (p);
+   ep = mpz_get_Z (e);
+   mpzx_init (f, 1);
+   mpz_set_ui (f->coeff [1], 1);
+   mpz_set_ui (f->coeff [0], a);
+   fp = mpzx_get_FpX (f, p);
+   mpzx_clear (f);
+   mp = mpzx_get_FpX (m, p);
 
-      /* Recurse with the found factor. */
-      mpzx_oneroot_split_mod_rec (root, a, factor, p, verbose, debug);
-      mpz_clear (zeta);
-      mpz_clear (e);
-      mpzx_clear (pow);
-      mpzx_clear (gcd);
-      mpz_clear (zeta_i);
-      mpzx_clear (factor);
-   }
+   gp = FpXQ_pow (fp, ep, mp, pp);
 
-   cm_timer_stop (clock);
+   FpX_get_mpzx (g, gp);
+
+   avma = av;
 }
 
 /*****************************************************************************/
 
-void mpzx_oneroot_split_mod (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p,
-   bool verbose, bool debug)
-   /* Compute in root a root of the monic polynomial f over the prime field
-      of characteristic p, assuming that f splits completely. */
+void cm_pari_mpzx_gcd_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p)
+   /* Compute h = gcd (f, g) modulo p without imposing a normalisation of the
+      leading coefficient of h. */
 {
-   mpzx_t F;
-   cm_timer_t clock;
-   unsigned long int a = 0;
+   GEN pp, fp, gp, hp;
 
-   cm_timer_start (clock);
-   if (verbose && f->deg > 1)
-      cm_file_printf ("  Root finding in degree %i\n", f->deg);
+   pari_sp av = avma;
 
-   mpzx_init (F, f->deg);
-   mpzx_mod (F, f, p);
+   pp = mpz_get_Z (p);
+   fp = mpzx_get_FpX (f, p);
+   gp = mpzx_get_FpX (g, p);
 
-   mpzx_oneroot_split_mod_rec (root, &a, F, p, verbose, debug);
+   hp = FpX_gcd (fp, gp, pp);
 
-   mpzx_clear (F);
+   FpX_get_mpzx (h, hp);
 
-   cm_timer_stop (clock);
-   if (verbose && f->deg > 1)
-      cm_file_printf ("  Time for root: %.1f\n", cm_timer_get (clock));
+   avma = av;
+}
+
+/*****************************************************************************/
+
+void cm_pari_mpzx_divexact_mod (mpzx_ptr h, mpzx_srcptr f, mpzx_srcptr g,
+   mpz_srcptr p)
+   /* Assuming that g divides f, compute the quotient in h. */
+{
+   GEN fp, gp, pp, hp;
+
+   pari_sp av = avma;
+
+   fp = mpzx_get_FpX (f, p);
+   gp = mpzx_get_FpX (g, p);
+   pp = mpz_get_Z (p);
+
+   hp = FpX_div (fp, gp, pp);
+
+   FpX_get_mpzx (h, hp);
+
+   avma = av;
+}
+
+/*****************************************************************************/
+/*                                                                           */
+/* Functions for finding roots of polynomials.                               */
+/*                                                                           */
+/*****************************************************************************/
+
+void cm_pari_oneroot (mpz_ptr root, mpzx_srcptr f, mpz_srcptr p)
+   /* Find a root of the polynomial f over the prime field of
+      characteristic p, assuming that f splits completely, and return it
+      in the variable of the same name. */
+{
+   GEN fp, pp, rootp;
+
+   pari_sp av = avma;
+
+   pp = mpz_get_Z (p);
+   fp = mpzx_get_FpX (f, p);
+
+   rootp = FpX_oneroot_split (fp, pp);
+   Z_get_mpz (root, rootp);
+
+   avma = av;
 }
 
 /*****************************************************************************/
@@ -1167,158 +999,6 @@ bool cm_pari_cornacchia (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
    mpz_clear(root2);
 
    return ans;
-}
-
-bool cm_pari_cornacchia_old (mpz_ptr t, mpz_ptr v, mpz_srcptr p,
-   mpz_srcptr root, const int_cl_t d)
-{
-   /* Compute t such that 4*p = t^2-v^2*d for some v, where p is an odd
-      prime and d is an imaginary-quadratic discriminant such that d is a
-      square modulo p and |d|<4*p.
-      The return value indicates whether such a t exists; if not, the
-      value of t is not changed during the algorithm. If yes and v is not
-      NULL, it is changed.
-      If root is not NULL, it is assumed to contain a pre-computed
-      square root of d modulo p. */
-
-   pari_sp av;
-   GEN half, M, R;
-   mpz_t rootloc;
-   mpz_t r0, r1, ri, rim1, rip1;
-      /* remainders 0, 1, i, i-1 and i+1 of the Euclidian algorithm */
-   mpz_t tp, vp;
-      /* candidates t' and v' for t and v */
-   mpz_t l;
-      /* stop Euclidian algorithm with ri > l >= rip1 */
-   mpz_t Vi, Vip1, qi;
-      /* Bezout coefficients in front of r1 at steps i and i+1,
-         and quotient at step i */
-   mpz_t tmp;
-   bool ok;
-
-   mpz_init (rootloc);
-   mpz_init (r0);
-   mpz_init (r1);
-   mpz_init (rip1);
-   mpz_init (tp);
-   mpz_init (vp);
-   mpz_init (tmp);
-
-   /* Prepare a root of d modulo p. */
-   if (root != NULL)
-      mpz_set (rootloc, root);
-   else
-      cm_nt_mpz_tonelli_si (rootloc, d, p);
-
-   /* Prepare the halfgcd. */
-   if ((d - 1) % 8 == 0) {
-      /* Solve p = (t/2)^2 + y^2 * (-d). */
-      mpz_set (r0, p);
-      mpz_set (r1, rootloc);
-   }
-   else if (d % 4 == 0) {
-      /* Solve p = (t/2)^2 + y^2 * (-d/4); we need to divide root by 2. */
-      mpz_set (r0, p);
-      if (!mpz_divisible_2exp_p (rootloc, 1))
-         mpz_sub (rootloc, p, rootloc);
-      mpz_divexact_ui (r1, rootloc, 2);
-   }
-   else {
-      /* d = 5 mod 8, the complicated case */
-      mpz_init (l);
-      mpz_init (ri);
-      mpz_init (Vi);
-      mpz_init (Vip1);
-
-      mpz_mul_2exp (r0, p, 1);
-      /* Make root odd, then it is a root of d modulo 4*p. */
-      if (mpz_divisible_2exp_p (rootloc, 1))
-         mpz_sub (r1, p, rootloc);
-      else
-         mpz_set (r1, rootloc);
-      mpz_mul_2exp (l, p, 2);
-      mpz_sqrt (l, l);
-   }
-
-   /* Delegate the halfgcd to pari. */
-   av = avma;
-   half = ghalfgcd (mpz_get_Z (r0), mpz_get_Z (r1));
-   R = gel (half, 2);
-   Z_get_mpz (rip1, gel (R, 2));
-   if ((d - 5) % 8 == 0) {
-      Z_get_mpz (ri, gel (R, 1));
-      M = gel (half, 1);
-      Z_get_mpz (Vi, gcoeff (M, 1, 2));
-      Z_get_mpz (Vip1, gcoeff (M, 2, 2));
-   }
-   avma = av;
-
-   /* Determine the candidate for t. */
-   if ((d - 5) % 8 != 0)
-      mpz_mul_2exp (tp, rip1, 1);
-   else {
-      if (mpz_cmp (ri, l) > 0)
-         mpz_set (tp, rip1);
-      else {
-         /* Compute the previous remainder r_{i-1}. */
-         mpz_init (rim1);
-         mpz_init (qi);
-         mpz_tdiv_q (qi, Vip1, Vi);
-         mpz_abs (qi, qi);
-         mpz_mul (rim1, ri, qi);
-         mpz_add (rim1, rim1, rip1);
-
-         if (mpz_cmp (rim1, l) > 0)
-            mpz_set (tp, ri);
-         else
-            /* Now we have sqrt (4*p) > r_{i-1} > r_i > sqrt (2*p)
-               and r_{i+1} < sqrt (2*p), since by the properties of the
-               halfgcd r_{i+1} is the first remainder below this bound.
-               This implies
-               r_{i-2} = q_{i-1} * r_{i-1}    + r_i
-                       >     1   * sqrt (2*p) + sqrt (2*p)
-                       > sqrt (4*p),
-               so there is no need to go further up. */
-            mpz_set (tp, rim1);
-
-         mpz_clear (rim1);
-         mpz_clear (qi);
-      }
-
-      mpz_clear (l);
-      mpz_clear (ri);
-      mpz_clear (Vi);
-      mpz_clear (Vip1);
-   }
-
-   /* Check whether v exists. */
-   mpz_mul_2exp (vp, p, 2);
-   mpz_pow_ui (tmp, tp, 2);
-   mpz_sub (vp, vp, tmp);
-   if (!mpz_divisible_ui_p (vp, -d))
-      ok = false;
-   else {
-      mpz_divexact_ui (vp, vp, -d);
-      if (!mpz_perfect_square_p (vp))
-            ok = false;
-      else
-            ok = true;
-   }
-   if (ok) {
-      mpz_set (t, tp);
-      if (v != NULL)
-         mpz_root (v, vp, 2);
-   }
-
-   mpz_clear (rootloc);
-   mpz_clear (r0);
-   mpz_clear (r1);
-   mpz_clear (rip1);
-   mpz_clear (tp);
-   mpz_clear (vp);
-   mpz_clear (tmp);
-
-   return ok;
 }
 
 /*****************************************************************************/

@@ -217,10 +217,10 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
          fdiv_ui (tmp, Pi24, mc.form [i].a);
          fsin_cos (q24 [i]->im, q24 [i]->re, tmp);
       }
-   }
-   if (verbose && i % 200 == 0) {
-      printf (".");
-      fflush (stdout);
+      if (verbose && i % 200 == 0) {
+         printf (".");
+         fflush (stdout);
+      }
    }
    cm_timer_stop (clock3);
    if (verbose) {
@@ -232,7 +232,7 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
 
    /* Raise the roots of unity in q24 to the powers -b. */
    cm_timer_start (clock3);
-   for (i = 0; i < mc.h12; i++)
+   for (i = 0; i < mc.h12; i++) {
       if (mc.form [i].b == 0)
          cset_ui_ui (q24 [i], 1ul, 0ul);
       else if (mc.form [i].b == 1)
@@ -241,9 +241,14 @@ static void compute_q24 (cm_modclass_t mc, ctype *q24, bool verbose)
          cpow_ui (q24 [i], q24 [i], (unsigned long int) mc.form [i].b);
          cconj (q24 [i], q24 [i]);
       }
+      if (verbose && i % 200 == 0) {
+         printf (".");
+         fflush (stdout);
+      }
+   }
    cm_timer_stop (clock3);
    if (verbose)
-      printf ("- Time for B powers:     %.1f\n", cm_timer_get (clock3));
+      printf ("\n- Time for B powers:     %.1f\n", cm_timer_get (clock3));
 
    /* Compute the q^(1/24) in q24 */
    for (i = 0; i < mc.h12; i++)

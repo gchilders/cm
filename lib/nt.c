@@ -2,7 +2,7 @@
 
 nt.c - number theoretic helper functions
 
-Copyright (C) 2009, 2010, 2015, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2015, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -27,10 +27,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "gwnum/gwcommon.h"
 #include "gwnum/gwthread.h"
 
+static void cm_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e, mpz_srcptr p);
+#ifndef HAVE_FLINT3
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
+#endif
 static int miller_rabin (mpz_srcptr n);
 static int miller_rabin_gwnum (mpz_srcptr n);
 void gw_powm ( mpz_ptr mr, mpz_ptr mb_inp, mpz_ptr me, mpz_srcptr mn );
+static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
+   mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
 
 /*****************************************************************************/
 
@@ -133,6 +138,17 @@ int cm_nt_kronecker (int_cl_t a, int_cl_t b)
 
 /*****************************************************************************/
 
+static void cm_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e, mpz_srcptr p)
+{
+#ifdef HAVE_FLINT3
+   cm_flint_mpz_powm (z, a, e, p);
+#else
+   mpz_powm (z, a, e, p);
+#endif
+}
+
+/*****************************************************************************/
+
 static int miller_rabin (mpz_srcptr n)
    /* Return whether the odd positive integer n is a strong pseudoprime
       to base 2. */
@@ -151,7 +167,7 @@ static int miller_rabin (mpz_srcptr n)
    mpz_tdiv_q_2exp (e, nm1, d);
 
    mpz_set_ui (b, 2);
-   mpz_powm (b, b, e, n);
+   cm_mpz_powm (b, b, e, n);
    if (!mpz_cmp_ui (b, 1) || !mpz_cmp (b, nm1))
       res = 1;
    else {
@@ -678,6 +694,7 @@ unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
       for (mpz_set_ui (z, 2ul); mpz_legendre (z, p) != -1;
          mpz_add_ui (z, z, 1ul));
       gw_powm (z, z, q, p);
+      // cm_mpz_powm (z, z, q, p);
    }
 
    return e;
@@ -685,7 +702,7 @@ unsigned int cm_nt_mpz_tonelli_generator (mpz_ptr q, mpz_ptr z,
 
 /*****************************************************************************/
 
-void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
+static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
    mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z)
    /* Compute a square root of a modulo p by the Tonelli-Shanks algorithm,
       see Cohen93, Algorithm 1.5. */
@@ -710,6 +727,7 @@ void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
       mpz_add_ui (tmp, p, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 2ul);
       gw_powm (x, a_local, tmp, p);
+      // cm_mpz_powm (x, a_local, tmp, p);
    }
    else {
       /* initialisation */
@@ -718,6 +736,7 @@ void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
       mpz_sub_ui (tmp, q, 1ul);
       mpz_tdiv_q_2exp (tmp, tmp, 1ul);
       gw_powm (x, a_local, tmp, p);
+      // cm_mpz_powm (x, a_local, tmp, p);
       mpz_powm_ui (b, x, 2ul, p);
       mpz_mul (b, b, a_local);
       mpz_mod (b, b, p);
@@ -804,6 +823,7 @@ void cm_nt_mpz_tonelli_si (mpz_ptr root, const long int a, mpz_srcptr p)
 
 /*****************************************************************************/
 
+#ifndef HAVE_FLINT3
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
    /* This is the workhorse behind the cm_nt_mpz_tree_gcd function; it
       assumes that the total size of the no_m entries of m is less than
@@ -862,6 +882,7 @@ static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
    free (tree);
    free (width);
 }
+#endif
 
 /*****************************************************************************/
 
@@ -887,7 +908,11 @@ void cm_nt_mpz_tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m)
               && size_m + mpz_sizeinbase (m [offset + no_batch], 2)
                  < size_n / 2;
            size_m += mpz_sizeinbase (m [offset + no_batch], 2), no_batch++);
+#ifdef HAVE_FLINT3
+      cm_flint_tree_gcd (gcd + offset, n, m + offset, no_batch);
+#else
       tree_gcd (gcd + offset, n, m + offset, no_batch);
+#endif
    }
 }
 

@@ -1,7 +1,7 @@
 /*
 cm.h - header file for the cm library
 
-Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2012, 2015, 2016, 2018, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -33,8 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #define CM_VERSION_MAJOR      0
 #define CM_VERSION_MINOR      4
-#define CM_VERSION_PATCHLEVEL 1
-#define CM_VERSION_STRING     "0.4.1dev"
+#define CM_VERSION_PATCHLEVEL 3
+#define CM_VERSION_STRING     "0.4.3dev"
 
 #define CM_MODPOL_J           'j'
 #define CM_MODPOL_DOUBLEETA   'd'
@@ -291,9 +291,17 @@ extern bool cm_param_init (cm_param_ptr param, int_cl_t d, char invariant,
    int maxdeg, int subfield, bool verbose);
 
 /* functions depending on PARI */
+extern void cm_pari_print_library (void);
 extern void cm_pari_init (void);
 extern void cm_pari_clear (void);
 extern bool cm_pari_eval_int (mpz_ptr n, char *e);
+
+/* functions depending on FLINT */
+#ifdef HAVE_FLINT
+extern void cm_flint_print_library (void);
+extern void cm_flint_init (void);
+extern void cm_flint_clear (void);
+#endif
 
 /* functions for class polynomials */
 extern void cm_class_init (cm_class_ptr c, cm_param_srcptr param,

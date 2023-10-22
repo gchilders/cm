@@ -906,6 +906,15 @@ processes for the parallel version, in which data that is common over
 several invocations can be stored. The data is then computed on the first
 run and read from disk during subsequent runs. If the environment variable
 is not set, the data is recomputed every time.
+This concerns files named @code{cm_h.dat} for class numbers and
+@code{cm_prim_xxxx.dat} for primorials.
+
+Setting this variable also causes checkpoint files named
+@code{cm_factor_xxxxxxxxxxxxxxxx.dat} to be written to this directory;
+they are useful when certifying very large numbers, for which the
+program execution may be interrupted during the second ECPP phase.
+They depend on the number to be certified and can be deleted after
+the certificate creation.
 
 It is possible to run only the first, downrun phase or only the second,
 CM phase of ECPP using the command line options @code{-1} or @code{-2},

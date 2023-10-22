@@ -2,7 +2,7 @@
 
 curve.c - code for computing cm curves
 
-Copyright (C) 2009, 2010, 2021, 2022 Andreas Enge
+Copyright (C) 2009, 2010, 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -475,11 +475,9 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
       The point is not really random, since successive X-coordinates from
       1 on are tested. */
 {
-   mpz_t  tmp;
    long unsigned int P_x_long = 0;
    bool P_infty = true;
 
-   mpz_init (tmp);
    while (P_infty) {
       P_x_long++;
       /* P_y = P_x^3 + a P_x + b */
@@ -488,7 +486,7 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
       mpz_add_ui (P_y, P_y, P_x_long * P_x_long * P_x_long);
       mpz_mod (P_y, P_y, p);
       /* try to compute the square root of P_y */
-      if (mpz_jacobi (P_y, p) != -1) {
+      if (mpz_jacobi (P_y, p) == 1) {
          mpz_set_ui (P_x, P_x_long);
          cm_nt_mpz_tonelli (P_y, P_y, p);
          /* get rid of the cofactor */
@@ -496,7 +494,6 @@ static void elliptic_curve_random (mpz_ptr P_x, mpz_ptr P_y,
          elliptic_curve_multiply (P_x, P_y, &P_infty, cofactor, a, p);
       }
    }
-   mpz_clear (tmp);
 }
 
 /*****************************************************************************/
@@ -693,7 +690,8 @@ void cm_curve_crypto_param (mpz_ptr p, mpz_ptr n, mpz_ptr l, mpz_ptr c,
 void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    cm_param_srcptr param, cm_class_srcptr c,
    mpz_srcptr p, mpz_srcptr l, mpz_srcptr co,
-   const char* modpoldir, bool print, bool verbose, bool debug,
+   const char *modpoldir, const char *tmpdir,
+   bool print, bool verbose, bool debug,
    cm_stat_t stat)
    /* Given CM parameters param, a class polynomial or class field tower
       stored in c, and curve cardinality parameters p (>=5, the cardinality
@@ -755,7 +753,8 @@ void cm_curve_and_point_stat (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
 
    if (stat != NULL)
       cm_timer_continue (stat->timer [2]);
-   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir, verbose, debug);
+   j = cm_class_get_j_mod_p (&no_j, param, c, p, modpoldir,
+      tmpdir, verbose, debug);
    if (stat != NULL)
       cm_timer_stop (stat->timer [2]);
 
@@ -868,7 +867,7 @@ void cm_curve_and_point (mpz_ptr a, mpz_ptr b, mpz_ptr x, mpz_ptr y,
    const char* modpoldir, bool print, bool verbose)
 {
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co, modpoldir,
-      print, verbose, false, NULL);
+      NULL, print, verbose, false, NULL);
 }
 
 /*****************************************************************************/

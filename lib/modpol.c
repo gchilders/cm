@@ -2,7 +2,7 @@
 
 modpol.c - code for handling modular polynomials
 
-Copyright (C) 2009, 2012, 2021 Andreas Enge
+Copyright (C) 2009, 2012, 2021, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -32,7 +32,7 @@ static unsigned long int read_gz_ui (gzFile f)
    /* reads and returns an unsigned long integer in base 10 from the gzipped */
    /* file f                                                                 */
 {
-   char c;
+   int c;
    unsigned long int res = 0ul;
 
    do {
@@ -59,7 +59,7 @@ static unsigned long int read_gz_ui (gzFile f)
 static void read_gz_mpz (mpz_t rop, gzFile f)
    /* reads a coefficient of type mpz in base 10 from the gzipped file f     */
 {
-   char c;
+   int c;
    int sign = 1;
 
    mpz_set_ui (rop, 0);
@@ -105,7 +105,7 @@ void cm_modpol_read_specialised_mod (mpzx_ptr pol, int level, char type,
    char filename [255];
    gzFile f;
    int lev, N, n, i, k;
-   char c;
+   int c;
    mpz_t* xpow;
    mpz_t tmp;
 
