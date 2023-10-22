@@ -2,7 +2,7 @@
 
 mpicm.c - functions enabling MPI for CM
 
-Copyright (C) 2021, 2022 Andreas Enge
+Copyright (C) 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -260,7 +260,8 @@ void cm_mpi_broadcast_init (bool verbose, bool debug)
 
 /*****************************************************************************/
 
-void cm_mpi_broadcast_N (mpz_srcptr N)
+void cm_mpi_broadcast_N (mpz_srcptr N, unsigned int e,
+   mpz_srcptr r, mpz_srcptr z)
    /* Send data depending on N to all workers. */
 {
    int size, rank;
@@ -270,6 +271,11 @@ void cm_mpi_broadcast_N (mpz_srcptr N)
       MPI_Send (&rank, 1, MPI_INT, rank, MPI_TAG_JOB_BROADCAST_N,
          MPI_COMM_WORLD);
    mpi_bcast_send_mpz (N, MPI_COMM_WORLD);
+   MPI_Bcast (&e, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+   if (e > 1) {
+      mpi_bcast_send_mpz (r, MPI_COMM_WORLD);
+      mpi_bcast_send_mpz (z, MPI_COMM_WORLD);
+   }
 }
 
 /*****************************************************************************/
@@ -359,18 +365,22 @@ void cm_mpi_get_tonelli (mpz_ptr root, int rank, double *t)
 /*****************************************************************************/
 
 void cm_mpi_submit_ecpp_one_step2 (int rank, int job, mpz_t *cert1,
-   const char* modpoldir)
+   const char *modpoldir, const char *tmpdir)
    /* Submit the ECPP curve creation job of the given number to the worker
       of the given rank; the other parameters are as the input in
       cm_ecpp_one_step2 in ecpp.c */
 {
-   int i;
+   int len, i;
 
    MPI_Send (&job, 1, MPI_INT, rank, MPI_TAG_JOB_ECPP2, MPI_COMM_WORLD);
    for (i = 0; i < 4; i++)
       mpi_send_mpz (cert1 [i], rank, MPI_COMM_WORLD);
    MPI_Send (modpoldir, strlen (modpoldir), MPI_CHAR, rank, MPI_TAG_DATA,
       MPI_COMM_WORLD);
+   len = (tmpdir ? strlen (tmpdir) + 1 : 0); /* +1 for trailing \0 */
+   MPI_Send (&len, 1, MPI_INT, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
+   if (tmpdir)
+      MPI_Send (tmpdir, len, MPI_CHAR, rank, MPI_TAG_DATA, MPI_COMM_WORLD);
 }
 
 /*****************************************************************************/
@@ -668,7 +678,11 @@ static void mpi_worker ()
          break;
       case MPI_TAG_JOB_BROADCAST_N:
          mpi_bcast_recv_mpz (N, MPI_COMM_WORLD);
-         e = cm_nt_mpz_tonelli_generator (r, z, N);
+         MPI_Bcast (&e, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+         if (e > 1) {
+            mpi_bcast_recv_mpz (r, MPI_COMM_WORLD);
+            mpi_bcast_recv_mpz (z, MPI_COMM_WORLD);
+         }
          break;
       case MPI_TAG_JOB_BROADCAST_SQRT:
          MPI_Bcast (&no_qstar_new, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -759,10 +773,21 @@ static void mpi_worker ()
          MPI_Recv (modpoldir, len, MPI_CHAR, 0, MPI_TAG_DATA,
             MPI_COMM_WORLD, &status);
          modpoldir [len] = '\0';
+         MPI_Recv (&len, 1, MPI_INT, 0, MPI_TAG_DATA, MPI_COMM_WORLD,
+            &status);
+         if (len > 0) {
+            tmpdir = (char *) malloc (len * sizeof (char));
+            MPI_Recv (tmpdir, len, MPI_CHAR, 0, MPI_TAG_DATA,
+               MPI_COMM_WORLD, &status);
+         }
+         else
+            tmpdir = 0;
 
-         cm_ecpp_one_step2 (cert2, cert1, job, modpoldir, verbose, debug,
-            stat);
+         cm_ecpp_one_step2 (cert2, cert1, job, modpoldir,
+            tmpdir, verbose, debug, stat);
          free (modpoldir);
+         if (len > 0)
+            free (tmpdir);
 
          MPI_Send (&job, 1, MPI_INT, 0, MPI_TAG_JOB_ECPP2, MPI_COMM_WORLD);
          for (i = 0; i < 6; i++)

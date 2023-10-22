@@ -2,7 +2,7 @@
 
 ecpp.c - code for computing ECPP certificates
 
-Copyright (C) 2021, 2022 Andreas Enge
+Copyright (C) 2021, 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -31,17 +31,17 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
    int no_qstar, uint_cl_t Dmax, int sign);
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h);
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h);
 static int disc_cmp (const void* d1, const void* d2);
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h);
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h);
 static double expected_no_curves (long int *qstar, int no_qstar_old,
    int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, unsigned int *h);
+   uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h);
 static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #ifndef WITH_MPI
-   mpz_srcptr p,
+   mpz_srcptr p, unsigned int e, mpz_srcptr r, mpz_srcptr z,
 #endif
    cm_stat_t stat);
 static void sqrt_d (mpz_ptr Droot, int_cl_t d, mpz_srcptr N,
@@ -56,10 +56,10 @@ static void trial_div (mpz_t *l, mpz_t *n, int no_n,
    cm_stat_t stat);
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
-   const unsigned int delta, bool debug, cm_stat_t stat);
+   const int delta, bool debug, cm_stat_t stat);
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
-   const unsigned int delta,
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h,
+   const int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
 #endif
@@ -68,7 +68,7 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d);
 static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
    char *tmpdir, bool onlyread, bool verbose, bool debug, cm_stat_ptr stat);
 static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth,
-   char *filename, const char* modpoldir, bool verbose,
+   char *filename, const char* modpoldir, const char *tmpdir, bool verbose,
    bool debug, cm_stat_ptr stat);
 
 /*****************************************************************************/
@@ -413,13 +413,13 @@ static int_cl_t** compute_signed_discriminants (int *no_d, long int *qstar,
 
 static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h)
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h)
    /* Given an array of no_qstar_old + no_qstar_new "signed primes" qstar
       (ordered by increasing absolute value), return an array of negative
-      fundamental discriminants with factors from the list and of absolute
-      value bounded above by Dmax, and return their number in no_d.
-      Moreover, each discriminant must contain at least one prime larger
-      from the last no_qstar_new ones.
+      fundamental discriminants with factors from the list, of absolute
+      value bounded above by Dmax and with class number bounded above by
+      hmax, and return their number in no_d. Moreover, each discriminant
+      must contain at least one prime larger from the last no_qstar_new ones.
       If it is different from 0, then hmaxprime furthermore is an upper
       bound on the largest prime factor of the class number. Specifying it
       will result in the class numbers being factored, which takes
@@ -486,7 +486,7 @@ static int_cl_t** compute_discriminants (int *no_d, long int *qstar,
          D = qnew * d_part [i][j][0];
          for (k = 0; k < no_exclude; k++)
             if (D == (int_cl_t)exclude[k]) D = 16; 
-         if (D % 16 != 0) {
+         if (D % 16 != 0 && h [(-D) / 2 - 1] <= hmax) {
             Dno = 1 + d_part [i][j][1];
             if (Dno <= max_factors) {
                hprime = (hmaxprime > 0 ?
@@ -548,7 +548,7 @@ static int disc_cmp (const void* d1, const void* d2)
 
 static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int no_qstar_old, int no_qstar_new, unsigned int max_factors,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h)
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). But instead of an unsorted
       double array, it returns a simple array of discriminants sorted
@@ -559,7 +559,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
    int i;
 
    dlist = compute_discriminants (no_d, qstar, no_qstar_old, no_qstar_new,
-      max_factors, Dmax, hmaxprime, h);
+      max_factors, Dmax, hmax, hmaxprime, h);
    if (*no_d > 0)
       qsort (dlist, *no_d, sizeof (int_cl_t *), disc_cmp);
 
@@ -577,7 +577,7 @@ static int_cl_t* compute_sorted_discriminants (int *no_d, long int *qstar,
 
 static double expected_no_curves (long int *qstar, int no_qstar_old,
    int no_qstar_new, unsigned int max_factors, uint_cl_t Dmax,
-   uint_cl_t hmaxprime, unsigned int *h)
+   uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h)
    /* The function takes the same parameters as compute_discriminants (and
       most of them are just passed through). It returns the expected
       number of curve cardinalities obtained from the list of discriminants
@@ -591,7 +591,7 @@ static double expected_no_curves (long int *qstar, int no_qstar_old,
    int i;
 
    dlist = compute_discriminants (&no_d, qstar, no_qstar_old, no_qstar_new,
-      max_factors, Dmax, hmaxprime, h);
+      max_factors, Dmax, hmax, hmaxprime, h);
 
    exp_card = 0;
    for (i = 0; i < no_d; i++) {
@@ -612,16 +612,16 @@ static double expected_no_curves (long int *qstar, int no_qstar_old,
 
 static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 #ifndef WITH_MPI
-   mpz_srcptr p,
+   mpz_srcptr p, unsigned int e, mpz_srcptr r, mpz_srcptr z,
 #endif
    cm_stat_t stat)
    /* Compute in qroot the square roots of the no_qstar elements of qstar
       (assumed to be squares) modulo p. qroot needs to be initialised to
-      the correct size, and its entries need to be initialised as well. */
+      the correct size, and its entries need to be initialised as well.
+      e, r and z are the return value and the values q and z computed by
+      cm_nt_tonelli_generator. */
 {
 #ifndef WITH_MPI
-   unsigned int e;
-   mpz_t r, z;
    int i;
 #else
    MPI_Status status;
@@ -631,14 +631,9 @@ static void compute_qroot (mpz_t *qroot, long int *qstar, int no_qstar,
 
 #ifndef WITH_MPI
    cm_timer_continue (stat->timer [0]);
-   mpz_init (r);
-   mpz_init (z);
-   e = cm_nt_mpz_tonelli_generator (r, z, p);
    for (i = 0; i < no_qstar; i++)
       cm_nt_mpz_tonelli_si_with_generator (qroot [i], qstar [i],
          p, e, r, z);
-   mpz_clear (r);
-   mpz_clear (z);
    cm_timer_stop (stat->timer [0]);
 #else
    sent = 0;
@@ -897,7 +892,7 @@ static int card_cmp (const void* c1, const void* c2)
 
 static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
    mpz_srcptr N, mpz_t *card, mpz_t *l_list, int_cl_t *d, int no_card,
-   const unsigned int delta, bool debug, cm_stat_t stat)
+   const int delta, bool debug, cm_stat_t stat)
    /* For the no_card discriminants in d, card is supposed to contain
       corresponding curve cardinalities and l_list their non-smooth parts.
       The function tests whether one of them is suitable to perform one
@@ -905,8 +900,10 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
       found, the corresponding discriminant from d is returned, and n
       becomes the cardinality of the elliptic curve and l its largest prime
       factor; otherwise 0 is returned and n and l are unchanged.
-      delta >= 1 is the minimum number of bits to be gained in this
-      step. */
+      delta is the minimum number of bits to be gained in this step;
+      it can be negative, in which case increasing the number of bits (by
+      at most 1 due to Hasse's bound) is allowed; this could theoretically
+      prevent being stuck. */
 
 {
    int_cl_t res;
@@ -1035,8 +1032,8 @@ static int_cl_t contains_ecpp_discriminant (mpz_ptr n, mpz_ptr l,
 /*****************************************************************************/
 
 static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
-   uint_cl_t Dmax, uint_cl_t hmaxprime, unsigned int *h,
-   const unsigned int delta,
+   uint_cl_t Dmax, uint_cl_t hmax, uint_cl_t hmaxprime, unsigned int *h,
+   const int delta,
 #ifndef WITH_MPI
    mpz_srcptr primorialB,
 #endif
@@ -1044,8 +1041,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    /* Given a (probable) prime N>=787, return a suitable CM discriminant
       and return the cardinality of an associated elliptic curve in n and
       its largest prime factor in l.
-      Dmax, hmaxprime and h are passed through to compute_discriminants.
-      delta >= 1 is passed through as the minimum number of bits to be
+      Dmax, hmax, hmaxprime and h are passed through to compute_discriminants.
+      delta is passed through as the minimum number of bits to be
       gained in this step.
       primorialB is passed through to trial division.
       The smoothness bound B is needed to compute the success probability
@@ -1066,6 +1063,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    double exp_prime, min_prime;
    int round, i;
    cm_timer_t timer;
+   unsigned int e;
+   mpz_t r, z;
 #ifdef WITH_MPI
    MPI_Status status;
    int size, rank, job;
@@ -1083,9 +1082,20 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
    qstar = (long int *) malloc (0);
    root = (mpz_t *) malloc (0);
 
+   mpz_init (r);
+   mpz_init (z);
+   cm_timer_start (timer);
+   e = cm_nt_mpz_tonelli_generator (r, z, N);
+   cm_timer_stop (timer);
+   if (debug) {
+      printf ("    Tonelli generator:   (%4.0f)\n",
+         cm_timer_wc_get (timer));
+      fflush (stdout);
+   }
+
 #ifdef WITH_MPI
    MPI_Comm_size (MPI_COMM_WORLD, &size);
-   cm_mpi_broadcast_N (N);
+   cm_mpi_broadcast_N (N, e, r, z);
    no_qstar_delta = size - 1;
 #else
    no_qstar_delta = 1;
@@ -1113,7 +1123,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
             no_qstar_delta);
          exp_prime += prob_prime *
             expected_no_curves (qstar, no_qstar - no_qstar_delta,
-               no_qstar_delta, max_factors, Dmax, hmaxprime, h);
+               no_qstar_delta, max_factors, Dmax, hmax, hmaxprime, h);
          if (debug)
             printf ("        no_qstar: %i, exp_prime: %.1f\n",
                no_qstar, exp_prime);
@@ -1123,7 +1133,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          new primes. */
       no_qstar_new = no_qstar - no_qstar_old;
       dlist = compute_sorted_discriminants (&no_d, qstar, no_qstar_old,
-         no_qstar_new, max_factors, Dmax, hmaxprime, h);
+         no_qstar_new, max_factors, Dmax, hmax, hmaxprime, h);
       cm_timer_stop (stat->timer [4]);
       if (debug) {
          printf ("    no_d: %i\n", no_d);
@@ -1139,7 +1149,7 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       compute_qroot (root + no_qstar_old, qstar + no_qstar_old,
          no_qstar_new,
 #ifndef WITH_MPI
-         N,
+         N, e, r, z,
 #endif
          stat);
 #ifdef WITH_MPI
@@ -1251,12 +1261,8 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
          the class numbers have become quite high, and that the expected
          number of curve cardinalities per discriminant quite low; so we
          should lower our expectations. */
-      if (min_prime == 3.0)
+      if (min_prime > 1.0)
          min_prime = 1.0;
-      else if (min_prime == 1.0)
-         min_prime = 0.5;
-      else
-         min_prime = 0.25;
    }
 
 #ifdef WITH_MPI
@@ -1266,10 +1272,12 @@ static int_cl_t find_ecpp_discriminant (mpz_ptr n, mpz_ptr l, mpz_srcptr N,
       mpz_clear (root [i]);
    free (root);
    free (qstar);
+   mpz_clear (r);
+   mpz_clear (z);
 
    if (debug) {
       printf ("    size gain: %lu bits\n",
-         mpz_sizeinbase (n, 2) - mpz_sizeinbase (l, 2));
+         (unsigned long int) (mpz_sizeinbase (n, 2) - mpz_sizeinbase (l, 2)));
       fflush (stdout);
    }
 
@@ -1307,7 +1315,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          we impose half of this number of bits as the minimal gain. */
 #else
    const unsigned long int B = cm_mpi_compute_B ();
-   const unsigned int delta = 2;
+   const int delta = -1;
       /* Since in the parallel version we consider many potential curve
          orders at once and order them by gain, having a small value of
          delta does not make much difference most of the time. For "bad
@@ -1315,12 +1323,19 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
          more and more qstar, which becomes increasingly difficult. */
 #endif
    const uint_cl_t Dmax =
-      1ul << CM_MAX (20, (((unsigned long int) ceil (log2 (L*L))) - 2));
-      /* We need a value that is a multiple of 4. To limit the number of
-         possible values, we choose a power of 2 above the previously
-         implemented L^2/4; the minimum of 2^20 leads to a negligible
-         running time for the class numbers even on a single core. For a
-         hypothetical number of 100000 digits, the value would be 2^35. */
+      1ul << CM_MIN (35, CM_MAX (20,
+                            ((unsigned long int) ceil (log2 (L*L)) - 1)));
+      /* We need a value that is a multiple of 4 and thus choose a power
+         of 2. The minimum of 2^20 leads to a negligible running time for
+         the class numbers even on a single core.
+         The value should grow like L^2.
+         Using L^2/4 led to a failure for a difficult number of 7028 digits,
+         L^2/2 let it pass with the discriminant -541*626887.
+         We use 2^35 as a maximum value, kicking in at about 79000 digits,
+         which leads to a class number file of 64 GB size. */
+   const uint_cl_t hmax = 100000;
+      /* some arbitrary upper bound for a class polynomial we are able
+         to compute in reasonable time */
    const uint_cl_t hmaxprime = CM_MAX (29, L>>10);
    mpz_t N;
    mpz_t** c;
@@ -1409,7 +1424,6 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
 
          t_old = 0;
          while (mpz_sizeinbase (N, 2) > 64) {
-			uint_cl_t Dcurrmax;
             c = (mpz_t**) realloc (c, (*depth + 1) * sizeof (mpz_t *));
             c [*depth] = (mpz_t *) malloc (4 * sizeof (mpz_t));
             for (i = 0; i < 4; i++)
@@ -1418,14 +1432,12 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
             cm_timer_start (clock);
             if (verbose) {
                printf("Stage 1 %.2f%% done\n", 100.0 * (1 - pow((double)mpz_sizeinbase (N, 2) / L, 4)));
-               printf ("Size [%4i]: %6li bits\n", *depth,
-                     mpz_sizeinbase (N, 2));
+               printf ("Size [%4i]: %6lu bits\n", *depth,
+                     (unsigned long int) mpz_sizeinbase (N, 2));
                fflush (stdout);
             }
-            Dcurrmax = mpz_sizeinbase (N, 2);
-            Dcurrmax = CM_MAX (1ul << 20, ((Dcurrmax * Dcurrmax) >> 4) << 2); 
-            d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dcurrmax,
-                  hmaxprime, h, delta,
+            d = find_ecpp_discriminant (c [*depth][2], c [*depth][3], N, Dmax,
+                  hmax, hmaxprime, h, delta,
 #ifndef WITH_MPI
                   primorialB,
 #endif
@@ -1439,6 +1451,7 @@ static mpz_t** ecpp1 (int *depth, mpz_srcptr p, char *filename,
                t_old = t;
                printf ("  largest prime of d: %"PRIucl"\n",
                      cm_nt_largest_factor (-d));
+               printf ("  h: %u\n", h [(-d) / 2 - 1]);
                printf ("  largest prime of h: %"PRIucl"\n",
                      cm_nt_largest_factor (h [(-d) / 2 - 1]));
                printf ("  discriminants:          %11.0f (%7.0f)\n",
@@ -1551,7 +1564,8 @@ static void ecpp_param_init (cm_param_ptr param, uint_cl_t d)
 /*****************************************************************************/
 
 void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
-   const char* modpoldir, bool verbose, bool debug, cm_stat_t stat)
+   const char *modpoldir,
+   const char *tmpdir, bool verbose, bool debug, cm_stat_t stat)
    /* The function takes the same parameters as ecpp2, except that cert1
       contains only one entry of the first ECPP step, and that only one
       step of the certificate is output in cert2, which needs be to a
@@ -1605,7 +1619,7 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
    cm_timer_stop (stat->timer [1]);
 
    cm_curve_and_point_stat (a, b, x, y, param, c, p, l, co,
-      modpoldir, false, verbose, debug, stat);
+      modpoldir, tmpdir, false, verbose, debug, stat);
    cm_class_clear (c);
    cm_timer_stop (clock);
 
@@ -1630,7 +1644,8 @@ void cm_ecpp_one_step2 (mpz_t *cert2, mpz_t *cert1, int i,
 /*****************************************************************************/
 
 static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
-   const char* modpoldir, bool verbose, bool debug, cm_stat_ptr stat)
+   const char* modpoldir, const char *tmpdir, bool verbose, bool debug,
+   cm_stat_ptr stat)
    /* Given the result of the ECPP down-run in cert1, an array of
       length depth as computed by ecpp1, execute the second step of
       the ECPP algorithm and compute the certificate proper in cert2,
@@ -1645,6 +1660,8 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
       modpoldir gives the directory where modular polynomials are stored;
       it is passed through to the function computing a curve from a root
       of the class polynomial.
+      If different from NULL, tmpdir indicates a directory in which files
+      with factors of polynomials can be stored for checkpointing.
       verbose indicates whether intermediate computations output progress
       information.
       debug indicates whether additional developer information (mainly
@@ -1689,7 +1706,7 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
    for (i = 0; i < depth; i++) {
       if (!mpz_cmp_ui (cert2 [i][0], 0)) {
          cm_ecpp_one_step2 (cert2 [i], cert1 [i], i, modpoldir,
-               verbose, debug, stat);
+            tmpdir, verbose, debug, stat);
          if (filename != NULL) {
             cm_timer_stop (stat->timer [0]);
             cm_write_ecpp_cert2_line (f, cert2 [i], i, stat);
@@ -1711,7 +1728,8 @@ static void ecpp2 (mpz_t **cert2, mpz_t **cert1, int depth, char *filename,
       while (next < depth && mpz_cmp_ui (cert2 [next][0], 0))
          next++;
       if (next < depth && (rank = cm_mpi_queue_pop ()) != -1) {
-         cm_mpi_submit_ecpp_one_step2 (rank, next, cert1 [next], modpoldir);
+         cm_mpi_submit_ecpp_one_step2 (rank, next, cert1 [next], modpoldir,
+            tmpdir);
          next++;
       }
       else {
@@ -1758,7 +1776,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
       read from (partially) and written to temporary files.
       If tmpdir is different from NULL, it refers to a directory where
       files can be stored representing precomputations that are independent
-      of the number under consideration (class numbers, primorials).
+      of the number under consideration (class numbers, primorials),
+      or checkpoints (factors of polynomial).
       If trust is set to true, then N is trusted to be a probable prime;
       otherwise a quick primality test is run.
       The variable phases should be one of 0, 1 or 2. If set to 1, only
@@ -1827,7 +1846,8 @@ bool cm_ecpp (mpz_srcptr N, const char* modpoldir,
          for (j = 0; j < 6; j++)
             mpz_init (cert2 [i][j]);
       }
-      ecpp2 (cert2, cert1, depth, filename2, modpoldir, verbose, debug, stat2);
+      ecpp2 (cert2, cert1, depth, filename2, modpoldir,
+         tmpdir, verbose, debug, stat2);
 
       if (print)
          cm_file_write_ecpp_cert_pari (stdout, cert2, depth);

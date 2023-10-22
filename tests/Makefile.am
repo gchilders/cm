@@ -1,3 +1,5 @@
+LOG_COMPILER = $(LOG_VALGRIND)
+
 AM_CFLAGS=-std=c99 -D CM_MODPOLDIR=\"${top_srcdir}/data\" -I$(top_srcdir)/lib
 
 AM_LDFLAGS = -no-install

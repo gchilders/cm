@@ -1,7 +1,7 @@
 /*
 get_version.c - print the CM version
 
-Copyright (C) 2022 Andreas Enge
+Copyright (C) 2022, 2023 Andreas Enge
 
 This file is part of CM.
 
@@ -23,6 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cm-impl.h"
 
 const char *cm_get_version (void) {
-  return "0.4.1dev";
+  return "0.4.3dev";
 }
 
