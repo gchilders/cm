@@ -31,7 +31,7 @@ static void cm_mpz_powm (mpz_ptr z, mpz_srcptr a, mpz_srcptr e, mpz_srcptr p);
 #ifndef HAVE_FLINT3
 static void tree_gcd (mpz_t *gcd, mpz_srcptr n, mpz_t *m, int no_m);
 #endif
-void gw_powm ( mpz_ptr mr, mpz_ptr mb_inp, mpz_ptr me, mpz_srcptr mn );
+void gw_powm ( mpz_ptr mr, mpz_srcptr mb_inp, mpz_srcptr me, mpz_srcptr mn );
 static void cm_nt_mpz_tonelli_with_generator (mpz_ptr root, mpz_srcptr a,
    mpz_srcptr p, unsigned int e, mpz_srcptr q, mpz_srcptr z);
 
